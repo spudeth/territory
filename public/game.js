@@ -1,5 +1,8 @@
 // ---------- State (filled in by the server) ----------
-let SIZE = 32, me = null, owners = null, players = {}, hits = {};
+// cells: "x,y" -> owner id, or null when empty. A block that isn't in cells doesn't exist; maps grow into any shape.
+let me = null, myName = '', myColor = '#888', cells = null, players = {}, hits = new Map(), squares = 0;
+let bounds = { x0: 0, y0: 0, x1: 1, y1: 1 };   // smallest box around every block; x1 and y1 are exclusive
+const key = (x, y) => x + ',' + y;
 
 const canvas = document.getElementById('map');
 const ctx = canvas.getContext('2d');
@@ -8,8 +11,8 @@ const $ = id => document.getElementById(id);
 // Kenney "Tiny Town" grass tiles (16x16). Most blocks use plain grass, some get a variant.
 const tiles = [0, 1, 2].map(n => Object.assign(new Image(), { src: `tiles/tile_000${n}.png`, onload: draw }));
 const VARIANTS = [0, 0, 0, 0, 0, 1, 1, 2];
-function variant(i) {
-  let h = Math.imul(i ^ 0x9e3779b9, 0x85ebca6b);   // integer hash, so the variants look random
+function variant(x, y) {
+  let h = Math.imul(x ^ 0x9e3779b9, 0x85ebca6b) ^ Math.imul(y ^ 0x7f4a7c15, 0xc2b2ae35);   // integer hash, so the variants look random
   h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
   return VARIANTS[((h ^ (h >>> 16)) >>> 0) % VARIANTS.length];
 }
@@ -34,16 +37,21 @@ const CRACK = [
   '................',
 ];
 
+function addCell(x, y, owner) {
+  cells.set(key(x, y), owner);
+  bounds = { x0: Math.min(bounds.x0, x), y0: Math.min(bounds.y0, y), x1: Math.max(bounds.x1, x + 1), y1: Math.max(bounds.y1, y + 1) };
+}
+
 // ---------- Camera ----------
-let scale = 20, ox = 0, oy = 0;   // scale = CSS pixels per block, (ox, oy) = screen position of the map's top-left
-const minScale = () => Math.min(innerWidth, innerHeight) / SIZE * 0.5;
+let scale = 20, ox = 0, oy = 0;   // scale = CSS pixels per block, (ox, oy) = screen position of block (0, 0)
+const mapSpan = () => Math.max(bounds.x1 - bounds.x0, bounds.y1 - bounds.y0);
+const minScale = () => Math.min(innerWidth, innerHeight) / mapSpan() * 0.5;
 const MAX_SCALE = 160;
 
 function clampView() {
   scale = Math.min(MAX_SCALE, Math.max(minScale(), scale));
-  const map = SIZE * scale;
-  ox = Math.min(innerWidth / 2, Math.max(innerWidth / 2 - map, ox));
-  oy = Math.min(innerHeight / 2, Math.max(innerHeight / 2 - map, oy));
+  ox = Math.min(innerWidth / 2 - bounds.x0 * scale, Math.max(innerWidth / 2 - bounds.x1 * scale, ox));
+  oy = Math.min(innerHeight / 2 - bounds.y0 * scale, Math.max(innerHeight / 2 - bounds.y1 * scale, oy));
   draw();
 }
 
@@ -57,12 +65,12 @@ function zoomAt(x, y, factor) {
 
 // Show the whole map, or zoom in on our territory if we have one.
 function initialView() {
-  const mine = owners.map((o, i) => o === me ? i : -1).filter(i => i >= 0);
-  let cx = SIZE / 2, cy = SIZE / 2;
-  scale = Math.min(innerWidth, innerHeight) * 0.92 / SIZE;
+  const mine = [...cells].filter(([, o]) => me && o === me).map(([k]) => k.split(',').map(Number));
+  let cx = (bounds.x0 + bounds.x1) / 2, cy = (bounds.y0 + bounds.y1) / 2;
+  scale = Math.min(innerWidth, innerHeight) * 0.92 / mapSpan();
   if (mine.length) {
-    cx = mine.reduce((s, i) => s + i % SIZE, 0) / mine.length + 0.5;
-    cy = mine.reduce((s, i) => s + Math.floor(i / SIZE), 0) / mine.length + 0.5;
+    cx = mine.reduce((s, [x]) => s + x, 0) / mine.length + 0.5;
+    cy = mine.reduce((s, [, y]) => s + y, 0) / mine.length + 0.5;
     scale = Math.max(scale, 40);
   }
   ox = innerWidth / 2 - cx * scale;
@@ -71,7 +79,7 @@ function initialView() {
 }
 
 // ---------- Rendering ----------
-let queued = false, hover = -1;
+let queued = false, hover = null;
 function draw() {
   if (!queued) { queued = true; requestAnimationFrame(render); }
 }
@@ -84,23 +92,24 @@ function render() {
   ctx.imageSmoothingEnabled = false;   // keep pixel art crisp
   ctx.fillStyle = '#14181f';
   ctx.fillRect(0, 0, w, h);
-  if (!owners) return;
+  if (!cells) return;
 
   // Block edges in device pixels, rounded so neighbouring blocks never leave gaps.
   const X = c => Math.round((ox + c * scale) * dpr);
   const Y = r => Math.round((oy + r * scale) * dpr);
-  const ownerAt = (x, y) => (x < 0 || y < 0 || x >= SIZE || y >= SIZE) ? undefined : owners[y * SIZE + x];
-  const iOwnSome = owners.includes(me);
+  const ownerAt = (x, y) => cells.get(key(x, y));   // undefined where there is no block
+  const iOwnSome = !!me && [...cells.values()].includes(me);
   const border = Math.max(2, Math.round(scale * dpr / 16));   // one texel thick
 
-  const c0 = Math.max(0, Math.floor(-ox / scale)), c1 = Math.min(SIZE, Math.ceil((innerWidth - ox) / scale));
-  const r0 = Math.max(0, Math.floor(-oy / scale)), r1 = Math.min(SIZE, Math.ceil((innerHeight - oy) / scale));
+  const c0 = Math.max(bounds.x0, Math.floor(-ox / scale)), c1 = Math.min(bounds.x1, Math.ceil((innerWidth - ox) / scale));
+  const r0 = Math.max(bounds.y0, Math.floor(-oy / scale)), r1 = Math.min(bounds.y1, Math.ceil((innerHeight - oy) / scale));
 
   for (let y = r0; y < r1; y++) {
     for (let x = c0; x < c1; x++) {
-      const i = y * SIZE + x, o = owners[i];
+      const o = ownerAt(x, y);
+      if (o === undefined) continue;
       const x0 = X(x), y0 = Y(y), bw = X(x + 1) - x0, bh = Y(y + 1) - y0;
-      ctx.drawImage(tiles[variant(i)], x0, y0, bw, bh);
+      ctx.drawImage(tiles[variant(x, y)], x0, y0, bw, bh);
 
       if (o) {
         // Recolor the grass to the owner's hue (keeping its shading); solid border marks the territory edge.
@@ -122,7 +131,7 @@ function render() {
         ctx.fillRect(x0, y0, bw, bh);
       }
 
-      const n = hits[i]?.n;
+      const n = hits.get(key(x, y));
       if (n) {
         ctx.fillStyle = `rgba(0,0,0,${0.1 * n})`;
         ctx.fillRect(x0, y0, bw, bh);
@@ -138,16 +147,25 @@ function render() {
     }
   }
 
-  // Faint grid so individual blocks are readable on seamless grass.
+  // Faint grid so individual blocks are readable on seamless grass: each block's top and left edge,
+  // plus its right and bottom edge where the map ends.
   if (scale > 8) {
     ctx.fillStyle = 'rgba(0,0,0,0.12)';
-    for (let x = c0; x <= c1; x++) ctx.fillRect(X(x), Y(r0), 1, Y(r1) - Y(r0));
-    for (let y = r0; y <= r1; y++) ctx.fillRect(X(c0), Y(y), X(c1) - X(c0), 1);
+    for (let y = r0; y < r1; y++) {
+      for (let x = c0; x < c1; x++) {
+        if (ownerAt(x, y) === undefined) continue;
+        const x0 = X(x), y0 = Y(y), x1 = X(x + 1), y1 = Y(y + 1);
+        ctx.fillRect(x0, y0, x1 - x0, 1);
+        ctx.fillRect(x0, y0, 1, y1 - y0);
+        if (ownerAt(x + 1, y) === undefined) ctx.fillRect(x1, y0, 1, y1 - y0);
+        if (ownerAt(x, y + 1) === undefined) ctx.fillRect(x0, y1, x1 - x0 + 1, 1);
+      }
+    }
   }
 
   // Mouse hover outline (desktop only).
-  if (hover >= 0) {
-    const x = hover % SIZE, y = Math.floor(hover / SIZE);
+  if (hover) {
+    const { x, y } = hover;
     ctx.strokeStyle = 'rgba(255,255,255,0.9)';
     ctx.lineWidth = 2 * dpr;
     ctx.strokeRect(X(x) + dpr, Y(y) + dpr, X(x + 1) - X(x) - 2 * dpr, Y(y + 1) - Y(y) - 2 * dpr);
@@ -159,9 +177,10 @@ const TAP_SLOP = 10;              // px a finger may wiggle and still count as a
 const pointers = new Map();       // pointerId -> last position
 let tap = null;                   // start position of a possible tap, null once it became a drag/pinch
 
-function cellAt(x, y) {
-  const cx = Math.floor((x - ox) / scale), cy = Math.floor((y - oy) / scale);
-  return cx >= 0 && cy >= 0 && cx < SIZE && cy < SIZE ? cy * SIZE + cx : -1;
+// The block under a screen position, or null if there is none.
+function cellAt(sx, sy) {
+  const x = Math.floor((sx - ox) / scale), y = Math.floor((sy - oy) / scale);
+  return cells?.has(key(x, y)) ? { x, y } : null;
 }
 
 canvas.addEventListener('pointerdown', e => {
@@ -173,8 +192,8 @@ canvas.addEventListener('pointerdown', e => {
 
 canvas.addEventListener('pointermove', e => {
   if (e.pointerType === 'mouse') {
-    const c = pointers.size ? -1 : cellAt(e.clientX, e.clientY);
-    if (c !== hover) { hover = c; draw(); }
+    const c = pointers.size ? null : cellAt(e.clientX, e.clientY);
+    if (c?.x !== hover?.x || c?.y !== hover?.y) { hover = c; draw(); }
   }
   const p = pointers.get(e.pointerId);
   if (!p) return;
@@ -200,14 +219,14 @@ canvas.addEventListener('pointermove', e => {
 function pointerEnd(e) {
   if (!pointers.delete(e.pointerId)) return;
   if (e.type === 'pointerup' && tap && pointers.size === 0) {
-    const i = cellAt(e.clientX, e.clientY);
-    if (i >= 0 && owners && owners[i] !== me) socket.emit('hit', i);
+    const c = cellAt(e.clientX, e.clientY);
+    if (c && !(me && cells.get(key(c.x, c.y)) === me)) socket.emit('hit', c);
   }
   tap = null;
 }
 canvas.addEventListener('pointerup', pointerEnd);
 canvas.addEventListener('pointercancel', pointerEnd);
-canvas.addEventListener('pointerleave', () => { if (hover >= 0) { hover = -1; draw(); } });
+canvas.addEventListener('pointerleave', () => { if (hover) { hover = null; draw(); } });
 
 canvas.addEventListener('wheel', e => {
   e.preventDefault();
@@ -226,22 +245,23 @@ function toast(msg) {
   toastTimer = setTimeout(() => $('toast').classList.remove('show'), 1800);
 }
 
+// The leaderboard covers this map only, ranked by blocks owned.
 function updateUI() {
   const counts = {};
-  for (const o of owners) if (o) counts[o] = (counts[o] || 0) + 1;
+  for (const o of cells.values()) if (o) counts[o] = (counts[o] || 0) + 1;
 
-  $('me-name').textContent = players[me].name;
-  $('me-color').style.background = players[me].color;
-  $('me-count').textContent = counts[me] || 0;
-  $('hint').hidden = !!counts[me];
+  $('me-name').textContent = myName;
+  $('me-color').style.background = myColor;
+  $('me-count').textContent = (me && counts[me]) || 0;
+  $('hint').hidden = !!(me && counts[me]);
 
   const top = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5);
   $('board-list').replaceChildren(...top.map(([pid, n]) => {
     const li = document.createElement('li');
     li.className = pid === me ? 'mine' : '';
     li.innerHTML = '<span class="swatch"></span><span class="name"></span><span class="n"></span>';
-    li.children[0].style.background = players[pid].color;
-    li.children[1].textContent = players[pid].name;
+    li.children[0].style.background = players[pid]?.color || '#888';
+    li.children[1].textContent = players[pid]?.name || '…';
     li.children[2].textContent = n;
     return li;
   }));
@@ -250,24 +270,52 @@ function updateUI() {
 
 // ---------- Networking ----------
 // The auth callback runs on every (re)connect, so a reconnect reuses the saved account.
+// Visitors have no token until their first claim.
 const socket = io({ auth: cb => cb({ token: localStorage.getItem('territory-token') }) });
 
 socket.on('welcome', data => {
-  localStorage.setItem('territory-token', data.token);
-  const first = !owners;
-  ({ size: SIZE, pid: me, players, owners, hits } = data);
-  if (first) initialView();
+  const first = !cells;
+  ({ pid: me, name: myName, color: myColor } = data.me);
+  players = data.players;
+  cells = new Map();
+  bounds = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
+  for (const [x, y, owner] of data.cells) addCell(x, y, owner);
+  hits = new Map(data.hits.map(([x, y, n]) => [key(x, y), n]));
+  if (first) initialView(); else clampView();
   updateUI();
-  draw();
 });
 
-socket.on('player', ({ pid, name, color }) => { players[pid] = { name, color }; });
-socket.on('hit', ({ i, n }) => { hits[i] = { n }; draw(); });
-socket.on('claim', ({ i, pid }) => {
-  owners[i] = pid;
-  delete hits[i];
+// After a visitor's first claim the server creates their player and hands over the secret token.
+socket.on('you', ({ token, pid, name }) => {
+  localStorage.setItem('territory-token', token);
+  me = pid;
+  myName = name;
+  updateUI();
+});
+
+socket.on('player', ({ pid, name, color }) => {
+  players[pid] = { name, color };
+  if (pid === me) myColor = color;
+});
+socket.on('hit', ({ x, y, n }) => {
+  if (n) hits.set(key(x, y), n); else hits.delete(key(x, y));
+  draw();
+});
+socket.on('claim', ({ x, y, pid }) => {
+  cells.set(key(x, y), pid);
+  hits.delete(key(x, y));
   updateUI();
   draw();
 });
+socket.on('grow', ({ x, y }) => {
+  addCell(x, y, null);
+  draw();
+});
+socket.on('wipe', ({ cells: wiped }) => {
+  for (const [x, y] of wiped) cells.set(key(x, y), null);
+  updateUI();
+  draw();
+});
+socket.on('squares', n => { squares = n; });   // not shown yet
 socket.on('denied', toast);
 socket.on('disconnect', () => toast('Connection lost, reconnecting…'));

@@ -4,11 +4,22 @@
   "private": true,
   "description": "A tiny multiplayer block-claiming game",
   "main": "server.js",
+  "engines": {
+    "node": "24.x"
+  },
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "build": "node --check server.js",
+    "test": "node --test --test-concurrency=1 \"test/*.test.js\"",
+    "backup": "node scripts/backup.js"
   },
   "dependencies": {
     "express": "^4.21.2",
+    "pg": "^8.23.1",
     "socket.io": "^4.8.1"
+  },
+  "devDependencies": {
+    "@neon/config": "^1.9.5",
+    "socket.io-client": "^4.8.1"
   }
 }
