@@ -22,7 +22,7 @@ after(async () => {
 let nextIp = 1;
 function player({ token, ip = `10.0.0.${nextIp++}` } = {}) {
   const s = connect(url, { auth: { token }, transports: ['websocket'], forceNew: true, reconnection: false,
-    extraHeaders: { 'x-forwarded-for': `203.0.113.9, ${ip}` } });
+    extraHeaders: { 'cf-connecting-ip': ip, 'x-forwarded-for': '203.0.113.9' } });
   sockets.push(s);
   const events = [];
   s.onAny((name, data) => events.push([name, data]));

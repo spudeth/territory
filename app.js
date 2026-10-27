@@ -12,10 +12,12 @@ const GUEST_WINDOW_MS = 60 * 60 * 1000;   // …per hour
 const key = (x, y) => x + ',' + y;
 const NEIGHBORS = [[-1, 0], [1, 0], [0, -1], [0, 1]];
 
-// Behind Render's proxy the socket address is the proxy's, so use the last address it added to X-Forwarded-For.
+// Behind Render the socket address is a proxy's. Cloudflare (in front of every public Render service) sets
+// CF-Connecting-IP and overwrites any value the visitor sends, so prefer it. X-Forwarded-For is only a fallback:
+// Render appends to it without clearing it, so its first entry can be forged.
 function clientIp(socket) {
-  const xff = socket.handshake.headers['x-forwarded-for'];
-  return xff ? xff.split(',').pop().trim() : socket.handshake.address;
+  const h = socket.handshake.headers;
+  return h['cf-connecting-ip'] || h['x-forwarded-for']?.split(',')[0].trim() || socket.handshake.address;
 }
 
 // Counts recent guest creations per IP address, in memory.
