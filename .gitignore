@@ -1,2 +1,7 @@
 node_modules/
 state.json
+.neon
+.env.local
+.env
+backups/
+.claude/settings.local.json
