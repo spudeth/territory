@@ -180,20 +180,30 @@ function render() {
     }
   }
 
-  // Owners' names on territories covering at least a quarter of the screen (labels.js), in the design's
-  // style: Press Start 2P in white with a hard dark shadow, at the middle of their visible blocks.
+  // Who's who (labels.js): a name tag on every territory in view, on its deepest visible block. A dark tag with
+  // the owner's color, white text (yours in gold). Yours goes first, then the biggest; a tag that would overlap
+  // one already placed waits until you zoom in.
   const shown = { x: -ox / scale, y: -oy / scale, width: innerWidth / scale, height: innerHeight / scale };
-  ctx.font = `${14 * dpr}px 'Press Start 2P', monospace`;
-  ctx.textAlign = 'center';
+  const fontPx = 10 * dpr, pad = 5 * dpr, dot = 8 * dpr;
+  ctx.font = `${fontPx}px 'Press Start 2P', monospace`;
+  ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
-  for (const l of labels.namesToShow(cells, shown, gameSettings.nameLabelShare)) {
+  const tags = [];
+  for (const l of labels.nameSpots(cells, shown)) {
     const name = players[l.owner]?.name;
     if (!name) continue;
-    const sx = (ox + l.cx * scale) * dpr, sy = (oy + l.cy * scale) * dpr;
-    ctx.fillStyle = '#0a0d12';
-    ctx.fillText(name, sx + 3 * dpr, sy + 3 * dpr);
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText(name, sx, sy);
+    const w = dot + pad + ctx.measureText(name).width + pad * 2, h = fontPx + pad * 2;
+    const cx = (ox + l.cx * scale) * dpr, cy = (oy + l.cy * scale) * dpr;
+    const tag = { owner: l.owner, name, box: { x: Math.round(cx - w / 2), y: Math.round(cy - h / 2), w: Math.round(w), h: Math.round(h) } };
+    if (String(l.owner) === String(me)) tags.unshift(tag); else tags.push(tag);
+  }
+  for (const { owner, name, box } of labels.withoutOverlaps(tags, 4 * dpr)) {
+    ctx.fillStyle = 'rgba(10,13,18,0.82)';
+    ctx.fillRect(box.x, box.y, box.w, box.h);
+    ctx.fillStyle = players[owner]?.color || '#888';
+    ctx.fillRect(box.x + pad, Math.round(box.y + (box.h - dot) / 2), dot, dot);
+    ctx.fillStyle = String(owner) === String(me) ? '#f7c948' : '#ffffff';
+    ctx.fillText(name, box.x + pad * 2 + dot, box.y + box.h / 2 + dpr);
   }
 
   // Blocks the tutorial points at (coach.js): a thick yellow outline with a dark edge.

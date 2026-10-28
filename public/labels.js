@@ -1,35 +1,63 @@
-// When to show an owner's name on their territory: when it covers at least a share of the view (the sheet's
-// nameLabelShare; the server sends it to the browser).
-// Works in the browser (as a plain script) and on the server (require), so both agree.
+// Where owners' names go on the map, so you can see who's who: every territory on screen gets one name tag,
+// on its own blocks, at the block deepest inside the part you can see (never on grass or someone else's land).
+// Works in the browser (as a plain script) and on the server (require), so tests can check it.
 (function (exports) {
-  // Owners whose blocks cover at least `share` of the view, biggest first.
+  const N4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+
+  // One spot per owner with blocks in view, biggest territory first.
   //   cells: Map "x,y" -> owner id or null (blocks that exist; anything else is empty)
   //   view:  the visible area in block units { x, y, width, height }; it may cut blocks in half
-  // Returns [{ owner, share, cx, cy }]: the share of the view they cover (0-1), and the centre of their
-  // visible blocks, a natural place for the label.
-  function namesToShow(cells, view, share) {
-    const area = view.width * view.height;
-    if (!(area > 0)) return [];
-    const totals = new Map();
-    const x1 = view.x + view.width, y1 = view.y + view.height;
-    for (let by = Math.floor(view.y); by < y1; by++) {
-      const h = Math.min(by + 1, y1) - Math.max(by, view.y);
-      for (let bx = Math.floor(view.x); bx < x1; bx++) {
-        const owner = cells.get(bx + ',' + by);
-        if (owner == null) continue;
-        const w = Math.min(bx + 1, x1) - Math.max(bx, view.x), a = w * h;
-        const t = totals.get(owner) ?? totals.set(owner, { a: 0, sx: 0, sy: 0 }).get(owner);
-        t.a += a;
-        t.sx += a * (Math.max(bx, view.x) + w / 2);
-        t.sy += a * (Math.max(by, view.y) + h / 2);
+  // Returns [{ owner, blocks, depth, cx, cy }]: blocks = how many of theirs are in view; (cx, cy) = the centre of
+  // their deepest visible block; depth = how many blocks it is from the edge of their land (1 = on the edge).
+  function nameSpots(cells, view) {
+    const x0 = Math.floor(view.x), y0 = Math.floor(view.y);
+    const x1 = Math.ceil(view.x + view.width), y1 = Math.ceil(view.y + view.height);
+    if (!(x1 > x0 && y1 > y0)) return [];
+    // Depth of every visible owned block: 1 next to another owner, empty land or the edge of the view, and
+    // one more for each block further in (a breadth-first search from the edges).
+    const depth = new Map(), owners = new Map(), queue = [];
+    const ownerAt = (x, y) => (x < x0 || x >= x1 || y < y0 || y >= y1) ? undefined : cells.get(x + ',' + y);
+    for (let y = y0; y < y1; y++) {
+      for (let x = x0; x < x1; x++) {
+        const o = cells.get(x + ',' + y);
+        if (o == null) continue;
+        const k = x + ',' + y;
+        const t = owners.get(o) ?? owners.set(o, { blocks: 0, sx: 0, sy: 0 }).get(o);
+        t.blocks++; t.sx += x; t.sy += y;
+        if (N4.some(([dx, dy]) => ownerAt(x + dx, y + dy) !== o)) { depth.set(k, 1); queue.push([x, y, o]); }
       }
     }
-    const out = [];
-    for (const [owner, t] of totals) {
-      if (t.a / area >= share - 1e-9) out.push({ owner, share: t.a / area, cx: t.sx / t.a, cy: t.sy / t.a });
+    for (let i = 0; i < queue.length; i++) {
+      const [x, y, o] = queue[i], d = depth.get(x + ',' + y);
+      for (const [dx, dy] of N4) {
+        const k = (x + dx) + ',' + (y + dy);
+        if (ownerAt(x + dx, y + dy) === o && !depth.has(k)) { depth.set(k, d + 1); queue.push([x + dx, y + dy, o]); }
+      }
     }
-    return out.sort((p, q) => q.share - p.share);
+    // Each owner's deepest block; between equals, the one nearest the middle of their visible land.
+    const best = new Map();
+    for (const [k, d] of depth) {
+      const [x, y] = k.split(',').map(Number), o = cells.get(k), t = owners.get(o);
+      const off = (x - t.sx / t.blocks) ** 2 + (y - t.sy / t.blocks) ** 2;
+      const b = best.get(o);
+      if (!b || d > b.depth || (d === b.depth && off < b.off)) best.set(o, { depth: d, off, x, y });
+    }
+    return [...best].map(([owner, b]) => ({ owner, blocks: owners.get(owner).blocks, depth: b.depth, cx: b.x + 0.5, cy: b.y + 0.5 }))
+      .sort((p, q) => q.blocks - p.blocks || q.depth - p.depth);
   }
 
-  exports.namesToShow = namesToShow;
+  // Which tags fit: placed in order (put your own first), each skipped if it would overlap one already placed.
+  // tags: [{ ..., box: { x, y, w, h } }] in screen pixels. Returns the ones to draw.
+  function withoutOverlaps(tags, gap = 4) {
+    const placed = [];
+    for (const t of tags) {
+      const b = t.box;
+      if (placed.some(({ box: p }) => b.x < p.x + p.w + gap && p.x < b.x + b.w + gap && b.y < p.y + p.h + gap && p.y < b.y + b.h + gap)) continue;
+      placed.push(t);
+    }
+    return placed;
+  }
+
+  exports.nameSpots = nameSpots;
+  exports.withoutOverlaps = withoutOverlaps;
 })(typeof module === 'object' ? module.exports : (window.labels = {}));
