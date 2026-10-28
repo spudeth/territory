@@ -37,19 +37,25 @@ Logins use Neon's managed Better Auth, enabled on both branches. The browser cal
 
 ## Game settings
 
-`rules.js` holds the numbers that are easy to change: taps to take a block, crack fade time (60 seconds per level), squares per first claim, the guest limit and the rename wait. Click power, defense and earnings upgrades will later change `hitsToTake` and `squaresForFirstClaim` there, which already receive the players involved.
+`rules.js` holds every game number (hits, crack fade, squares, guest limit, rename wait, upgrade tables, name-label share) and the core rules as pure functions with no database or sockets: who may hit a block, hits needed with upgrades, squares earned, crack fading and the wipe rule. Upgrade levels (Click Power, Defense, Earnings) are stored per player; their tables default to no effect and nothing buys them yet.
+
+- `stats.js`: per-player, per-map stats (most blocks owned, first claims, retakes, blocks lost, largest square, longest line), updated on each claim, saved in `player_map_stats`, and announced as `stat` events.
+- `achievements.js`: achievements as data (id, name, stat, threshold), checked on each stat event, saved in `player_achievements` and announced as `achievement` events. The list is placeholders.
+- `public/labels.js`: decides which territories cover 25% of the view and should show their owner's name (not drawn yet).
+- Maps: players can list (`maps`) and switch (`switchMap`) maps; the last map is remembered. Growth picks from `map_edges`, the empty spots touching the map.
 
 Controls: tap or click to hit a block, drag to pan, pinch or mouse wheel to zoom.
 
 ## Scripts
 
 - `npm test` runs the tests against the database in `.env.local`, each test file in its own throwaway schema. It refuses to run against `production`. The account tests use the dev branch's real Neon Auth with `@example.com` users, which they delete afterwards. Neon limits login requests per address, so those tests sometimes pause to wait it out.
+- `npm run create-map -- --name Snowfield --style white --width 32 --height 32` makes a new map (admin only; refuses the production branch without `--production`).
 - `npm run backup` saves every table to `backups/<branch>-<time>.json`. `npm run backup -- --branch production` backs up another Neon branch through the signed-in Neon CLI.
 
 ## How the code is organized
 
 - `server.js` starts everything: loads env, connects, migrates, sets up accounts, listens.
-- `auth.js` connects the site to Neon Auth (see Accounts). `rules.js` holds the game settings.
+- `auth.js` connects the site to Neon Auth (see Accounts). `rules.js` holds the game settings and rules; `stats.js` and `achievements.js` hold stats and achievements.
 - `names.js` and `profanity.js` make guest and NewUser names and check names players type.
 - `public/account.js` is the menu: log in, sign up, verify, reset password, settings, log out. `public/privacy.html` and `public/terms.html` are placeholder legal pages, served at `/privacy` and `/terms`.
 - `/api/ip` shows the IP address the server sees for you, to check the guest limit behind the domain.
