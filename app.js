@@ -1,9 +1,11 @@
 const express = require('express');
 const http = require('http');
 const crypto = require('crypto');
+const { EventEmitter } = require('events');
 const { Server } = require('socket.io');
 const store = require('./store');
 const rules = require('./rules');
+const stats = require('./stats');
 const { guestName, guestNames, checkName, randomColor } = require('./names');
 
 const { key } = rules;
@@ -67,6 +69,14 @@ function createGame(pool, { guestsPerIp = rules.GUESTS_PER_IP, crackDecayMs = ru
           map.cells.set(key(c.x, c.y), c.owner_id);
           if (c.owner_id) map.counts.set(c.owner_id, (map.counts.get(c.owner_id) || 0) + 1);
         }
+        // Stats as saved, with squares and lines recomputed from the map in case they are behind.
+        map.stats = new Map(m.stats.map(r => [r.player_id, { ownedMax: r.owned_max, firstClaims: r.first_claims,
+          retakes: r.retakes, blocksLost: r.blocks_lost, bestSquare: r.best_square, bestLine: r.best_line }]));
+        for (const [pid, best] of stats.bestOnMap(map.cells)) {
+          const st = statsOf(map, pid);
+          st.bestSquare = Math.max(st.bestSquare, best.bestSquare);
+          st.bestLine = Math.max(st.bestLine, best.bestLine);
+        }
         loaded.add(map);
         return map;
       }).catch(err => { maps.delete(id); throw err; }));
@@ -75,6 +85,16 @@ function createGame(pool, { guestsPerIp = rules.GUESTS_PER_IP, crackDecayMs = ru
   }
   let defaultMap;
   const getDefaultMapId = () => (defaultMap ??= store.defaultMapId(pool).catch(err => { defaultMap = null; throw err; }));
+
+  // Stats (stats.js) per player per map, in memory, saved with each claim. Every change is announced as a
+  // 'stat' event: on `events` for the server (achievements), and to the player's own browsers.
+  // 'owned' (blocks owned now) is announced too, though it is counted from the map rather than stored.
+  const events = new EventEmitter();
+  const statsOf = (map, pid) => map.stats.get(pid) ?? map.stats.set(pid, stats.empty()).get(pid);
+  function statChanged(map, pid, name, value) {
+    events.emit('stat', { mapId: map.id, pid, name, value });
+    io.to('player:' + pid).emit('stat', { map: map.id, name, value });
+  }
 
   // Runs claims and wipes on one map in arrival order, so each sees the result of the one before.
   function serial(map, fn) {
@@ -190,8 +210,12 @@ function createGame(pool, { guestsPerIp = rules.GUESTS_PER_IP, crackDecayMs = ru
       }
 
       const joining = !map.players.has(me.pid);
+      const owns = (a, b) => (a === x && b === y) || (me.pid !== null && map.cells.get(key(a, b)) === me.pid);
+      const st = stats.afterClaim(me.pid ? statsOf(map, me.pid) : stats.empty(),
+        { owns, x, y, owned: (map.counts.get(me.pid) || 0) + 1, from });
       const r = await store.claimBlock(pool, { mapId: map.id, x, y, from, playerId: me.pid, newGuest,
-        color: joining ? color : null, coverage, earn: rules.squaresForFirstClaim(upgrades) });
+        color: joining ? color : null, coverage, earn: rules.squaresForFirstClaim(upgrades),
+        stats: st.stats });
       if (r.conflict) {
         // Another server got there first (e.g. during a deploy). Resync this block for everyone.
         setOwner(map, k, await store.cellOwner(pool, map.id, x, y));
@@ -213,6 +237,13 @@ function createGame(pool, { guestsPerIp = rules.GUESTS_PER_IP, crackDecayMs = ru
       }
       setOwner(map, k, me.pid);
       io.to(map.room).emit('claim', { x, y, pid: me.pid });
+      map.stats.set(me.pid, st.stats);
+      statChanged(map, me.pid, 'owned', map.counts.get(me.pid));
+      for (const name of st.changed) statChanged(map, me.pid, name, st.stats[name]);
+      if (from) {
+        statChanged(map, from, 'owned', map.counts.get(from));
+        statChanged(map, from, 'blocksLost', ++statsOf(map, from).blocksLost);
+      }
       if (r.grown) {
         map.cells.set(key(r.grown.x, r.grown.y), null);
         io.to(map.room).emit('grow', r.grown);
@@ -252,6 +283,7 @@ function createGame(pool, { guestsPerIp = rules.GUESTS_PER_IP, crackDecayMs = ru
         if (!r) return socket.emit('denied', 'You have no blocks to wipe');
         for (const [x, y] of r.cells) setOwner(map, key(x, y), null);
         io.to(map.room).emit('wipe', { pid: me.pid, cells: r.cells });
+        statChanged(map, me.pid, 'owned', 0);
       }).catch(err => {
         console.error(`WIPE FAILED (map ${map.id}, player ${me.pid}): ${err.message}`);
         socket.emit('denied', 'Could not wipe your territory. Try again.');
@@ -287,7 +319,7 @@ function createGame(pool, { guestsPerIp = rules.GUESTS_PER_IP, crackDecayMs = ru
     });
   });
 
-  return { server, io };
+  return { server, io, events };
 }
 
 module.exports = { createGame };

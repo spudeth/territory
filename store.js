@@ -86,11 +86,12 @@ async function defaultMapId(pool) {
 async function loadMap(pool, mapId) {
   const { rows: [map] } = await pool.query('SELECT id, name, style FROM maps WHERE id = $1', [mapId]);
   if (!map) return null;
-  const [cells, players] = await Promise.all([
+  const [cells, players, stats] = await Promise.all([
     pool.query('SELECT x, y, owner_id FROM map_cells WHERE map_id = $1', [mapId]),
     pool.query('SELECT s.player_id, p.name, s.color, s.coverage, p.click_power, p.defense, p.earnings FROM player_map_settings s JOIN players p ON p.id = s.player_id WHERE s.map_id = $1', [mapId]),
+    pool.query('SELECT * FROM player_map_stats WHERE map_id = $1', [mapId]),
   ]);
-  return { ...map, cells: cells.rows, players: players.rows };
+  return { ...map, cells: cells.rows, players: players.rows, stats: stats.rows };
 }
 
 async function cellOwner(pool, mapId, x, y) {
@@ -141,9 +142,11 @@ class Conflict extends Error {}
 //   color:    stored if this is the player's first claim on this map; null if they have already joined it
 //   earn:     squares for a first claim (rules.squaresForFirstClaim with the player's upgrades)
 //   coverage: stored with the color ('tile' or 'stretch'); like color and skin it can never change afterwards
+//   stats:    the claimer's stats after this claim (stats.afterClaim); `from` loses a block
 // Returns { conflict: true } if the block changed hands first, otherwise
 //   { playerId, name, joinedMap, grown: {x, y} | null, squares: new balance | null }.
-async function claimBlock(pool, { mapId, x, y, from, playerId, newGuest, color, coverage = 'tile', earn = rules.squaresForFirstClaim() }) {
+async function claimBlock(pool, { mapId, x, y, from, playerId, newGuest, color, coverage = 'tile', earn = rules.squaresForFirstClaim(),
+  stats = null }) {
   try {
     return await tx(pool, async c => {
       // First claims on a map take turns, so two of them can never pick the same growth spot.
@@ -173,6 +176,12 @@ async function claimBlock(pool, { mapId, x, y, from, playerId, newGuest, color, 
         joinedMap = r.rowCount === 1;
       }
 
+      if (stats) await saveStats(c, mapId, playerId, stats);
+      if (from !== null) {
+        await c.query(`INSERT INTO player_map_stats (map_id, player_id, blocks_lost) VALUES ($1, $2, 1)
+          ON CONFLICT (map_id, player_id) DO UPDATE SET blocks_lost = player_map_stats.blocks_lost + 1`, [mapId, from]);
+      }
+
       let grown = null, squares = null;
       if (from === null) {
         grown = await growMap(c, mapId);
@@ -184,6 +193,18 @@ async function claimBlock(pool, { mapId, x, y, from, playerId, newGuest, color, 
     if (err instanceof Conflict) return { conflict: true };
     throw err;
   }
+}
+
+// Stores a player's stats on a map. Records only ever go up, so a stale write can't lower them.
+function saveStats(c, mapId, playerId, s) {
+  return c.query(
+    `INSERT INTO player_map_stats AS t (map_id, player_id, owned_max, first_claims, retakes, best_square, best_line)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
+     ON CONFLICT (map_id, player_id) DO UPDATE SET
+       owned_max = GREATEST(t.owned_max, EXCLUDED.owned_max), first_claims = GREATEST(t.first_claims, EXCLUDED.first_claims),
+       retakes = GREATEST(t.retakes, EXCLUDED.retakes), best_square = GREATEST(t.best_square, EXCLUDED.best_square),
+       best_line = GREATEST(t.best_line, EXCLUDED.best_line)`,
+    [mapId, playerId, s.ownedMax, s.firstClaims, s.retakes, s.bestSquare, s.bestLine]);
 }
 
 // Clears all of a player's blocks on one map and records the wipe. Their wipe_floor becomes the higher of

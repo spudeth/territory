@@ -228,6 +228,28 @@ test("a player's upgrade levels change the hits they need and the squares they e
   assert.equal(squares, 6, '1 for the first block, then 5 with Earnings');
 });
 
+test('stats: counted per claim, saved, announced to the player and on the server, lost blocks counted too', async () => {
+  const seen = [];
+  game.events.on('stat', e => seen.push(e));
+  const a = player(), b = player();
+  await Promise.all([a.welcome, b.welcome]);
+  a.hit3(20, 25);
+  const youA = await a.next('you');
+  a.hit3(21, 25);
+  await a.next('stat', d => d.name === 'bestLine' && d.value === 2);
+  b.hit3(23, 25);
+  const youB = await b.next('you');
+  b.hit3(22, 25);
+  await b.next('claim', d => d.x === 22);
+  a.hit3(22, 25);   // A retakes it from B
+  await a.next('stat', d => d.name === 'retakes' && d.value === 1);
+  await b.next('stat', d => d.name === 'blocksLost' && d.value === 1);
+  assert.ok(seen.some(e => e.pid === youA.pid && e.mapId === mapId && e.name === 'bestLine' && e.value === 3));
+  const row = pid => pool.query('SELECT owned_max, first_claims, retakes, blocks_lost, best_square, best_line FROM player_map_stats WHERE player_id = $1', [pid]).then(r => r.rows[0]);
+  assert.deepEqual(await row(youA.pid), { owned_max: 3, first_claims: 2, retakes: 1, blocks_lost: 0, best_square: 1, best_line: 3 });
+  assert.deepEqual(await row(youB.pid), { owned_max: 2, first_claims: 2, retakes: 0, blocks_lost: 1, best_square: 1, best_line: 2 });
+});
+
 test('guests cannot rename', async () => {
   const a = player();
   await a.welcome;
