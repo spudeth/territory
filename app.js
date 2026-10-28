@@ -52,7 +52,7 @@ function createGame(pool, { guestsPerIp = rules.GUESTS_PER_IP, crackDecayMs = ru
   const limiter = guestLimiter(guestsPerIp, rules.GUEST_WINDOW_MINUTES * 60 * 1000);
 
   // In-memory copy of each loaded map:
-  //   cells:   "x,y" -> owner id or null    players: id -> { name, color }
+  //   cells:   "x,y" -> owner id or null    players: id -> { name, color, coverage }
   //   counts:  owner id -> blocks owned      hits:    "x,y" -> { by, n, at } (crack progress, never saved)
   const maps = new Map();     // id -> Promise of the map
   const loaded = new Set();   // the maps that have finished loading
@@ -61,7 +61,8 @@ function createGame(pool, { guestsPerIp = rules.GUESTS_PER_IP, crackDecayMs = ru
       maps.set(id, store.loadMap(pool, id).then(m => {
         if (!m) return null;
         const map = { id: m.id, name: m.name, style: m.style, room: 'map:' + m.id, cells: new Map(), counts: new Map(),
-          players: new Map(m.players.map(p => [p.player_id, { name: p.name, color: p.color }])), hits: new Map(), queue: Promise.resolve() };
+          players: new Map(m.players.map(p => [p.player_id, { name: p.name, color: p.color, coverage: p.coverage }])),
+          hits: new Map(), queue: Promise.resolve() };
         for (const c of m.cells) {
           map.cells.set(key(c.x, c.y), c.owner_id);
           if (c.owner_id) map.counts.set(c.owner_id, (map.counts.get(c.owner_id) || 0) + 1);
@@ -151,6 +152,7 @@ function createGame(pool, { guestsPerIp = rules.GUESTS_PER_IP, crackDecayMs = ru
       }
       me = player ? { pid: player.id, name: player.name, account: !!player.auth_user_id, renameAt: renameAt(player.name_changed_at) }
         : { pid: null, name: guestName(), account: false, renameAt: null };
+      if (upgraded) renamed(me.pid, me.name);   // the guest's old name was showing to everyone
       map = (player?.last_map_id && await getMap(player.last_map_id)) || await getMap(await getDefaultMapId());
       if (player && player.last_map_id !== map.id) await store.setLastMap(pool, player.id, map.id);
     } catch (err) {
@@ -159,12 +161,15 @@ function createGame(pool, { guestsPerIp = rules.GUESTS_PER_IP, crackDecayMs = ru
       return socket.disconnect();
     }
     socket.data.me = me;
+    // Color, skin and coverage are fixed on the first claim on a map. Until then they are only proposals:
+    // color is random for now, and the player may pick a coverage (the 'coverage' event).
     const color = map.players.get(me.pid)?.color ?? randomColor();
+    let coverage = map.players.get(me.pid)?.coverage ?? rules.COVERAGES[0];
     socket.join(map.room);
     if (me.pid) socket.join('player:' + me.pid);
 
     socket.emit('welcome', {
-      me: { ...me, color },
+      me: { ...me, color, coverage, locked: map.players.has(me.pid) },   // locked: color, skin and coverage are set here
       accounts: !!auth,   // false when logins aren't set up on this server
       upgraded,           // the guest profile just became an account; the browser can forget its guest token
       loginFailed,        // a login token was sent but wasn't valid
@@ -192,8 +197,9 @@ function createGame(pool, { guestsPerIp = rules.GUESTS_PER_IP, crackDecayMs = ru
         newGuest = { names: guestNames(me.name), tokenHash: store.hashToken(token) };
       }
 
+      const joining = !map.players.has(me.pid);
       const r = await store.claimBlock(pool, { mapId: map.id, x, y, from, playerId: me.pid, newGuest,
-        color: map.players.has(me.pid) ? null : color });
+        color: joining ? color : null, coverage });
       if (r.conflict) {
         // Another server got there first (e.g. during a deploy). Resync this block for everyone.
         setOwner(map, k, await store.cellOwner(pool, map.id, x, y));
@@ -210,8 +216,8 @@ function createGame(pool, { guestsPerIp = rules.GUESTS_PER_IP, crackDecayMs = ru
         socket.emit('you', { token, pid: me.pid, name: me.name });
       }
       if (r.joinedMap) {
-        map.players.set(me.pid, { name: me.name, color });
-        io.to(map.room).emit('player', { pid: me.pid, name: me.name, color });
+        map.players.set(me.pid, { name: me.name, color, coverage });
+        io.to(map.room).emit('player', { pid: me.pid, name: me.name, color, coverage });
       }
       setOwner(map, k, me.pid);
       io.to(map.room).emit('claim', { x, y, pid: me.pid });
@@ -257,6 +263,16 @@ function createGame(pool, { guestsPerIp = rules.GUESTS_PER_IP, crackDecayMs = ru
         console.error(`WIPE FAILED (map ${map.id}, player ${me.pid}): ${err.message}`);
         socket.emit('denied', 'Could not wipe your territory. Try again.');
       });
+    });
+
+    // Picks how the player's skin will cover their territory on this map. Only before their first claim here:
+    // after that it is locked, like color and skin. Answers with { coverage } or { error }.
+    socket.on('coverage', (value, reply) => {
+      if (typeof reply !== 'function') return;
+      if (map.players.has(me.pid)) return reply({ error: 'Your coverage is locked for this map' });
+      if (!rules.COVERAGES.includes(value)) return reply({ error: 'Unknown coverage' });
+      coverage = value;
+      reply({ coverage });
     });
 
     // Accounts only. Answers with { name, renameAt } or { error }.

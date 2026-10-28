@@ -17,10 +17,11 @@ async function findPlayerByToken(pool, token) {
 }
 
 // The player for a logged-in account, created the first time that account plays. Returns { player, upgraded }.
+// Every new account is named "NewUser" and a number, and may rename straight away.
 // A brand-new account takes over the guest `guestId` (their own guest profile: the caller checks that) if
-// given, keeping its blocks, squares and settings; the guest's token is deleted, so after logging out that
-// browser starts afresh. Any other new account gets a "NewUser" name. An account that already has a player
-// never takes over anything, so logging in never merges.
+// given, keeping its blocks, squares and settings but not its guest name; the guest's token is deleted, so
+// after logging out that browser starts afresh. An account that already has a player never takes over
+// anything, so logging in never merges.
 function accountPlayer(pool, authUserId, guestId = null) {
   return tx(pool, async c => {
     // Two tabs logging in to a new account at once must not create two players.
@@ -29,16 +30,25 @@ function accountPlayer(pool, authUserId, guestId = null) {
     const existing = await find();
     if (existing) return { player: existing, upgraded: false };
 
-    if (guestId) {
-      const { rowCount } = await c.query('UPDATE players SET auth_user_id = $1 WHERE id = $2 AND auth_user_id IS NULL', [authUserId, guestId]);
-      if (rowCount) {
-        await c.query('DELETE FROM player_tokens WHERE player_id = $1', [guestId]);
-        return { player: await find(), upgraded: true };
-      }
-    }
     for (const name of accountNames()) {
-      const { rowCount } = await c.query('INSERT INTO players (name, auth_user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [name, authUserId]);
-      if (rowCount) return { player: await find(), upgraded: false };
+      // A name another player took a moment ago fails the unique index; the savepoint lets us try the next one.
+      await c.query('SAVEPOINT pick_name');
+      try {
+        const upgraded = guestId !== null && (await c.query(
+          'UPDATE players SET auth_user_id = $1, name = $3, name_changed_at = NULL WHERE id = $2 AND auth_user_id IS NULL',
+          [authUserId, guestId, name])).rowCount === 1;
+        if (upgraded) {
+          await c.query('DELETE FROM player_tokens WHERE player_id = $1', [guestId]);
+        } else {
+          guestId = null;   // that guest is already an account: make a fresh player instead
+          await c.query('INSERT INTO players (name, auth_user_id) VALUES ($1, $2)', [name, authUserId]);
+        }
+        await c.query('RELEASE SAVEPOINT pick_name');
+        return { player: await find(), upgraded };
+      } catch (err) {
+        if (err.code !== '23505' || err.constraint !== 'players_name_unique') throw err;
+        await c.query('ROLLBACK TO SAVEPOINT pick_name');
+      }
     }
     throw new Error('could not find a free NewUser name');
   });
@@ -78,7 +88,7 @@ async function loadMap(pool, mapId) {
   if (!map) return null;
   const [cells, players] = await Promise.all([
     pool.query('SELECT x, y, owner_id FROM map_cells WHERE map_id = $1', [mapId]),
-    pool.query('SELECT s.player_id, p.name, s.color FROM player_map_settings s JOIN players p ON p.id = s.player_id WHERE s.map_id = $1', [mapId]),
+    pool.query('SELECT s.player_id, p.name, s.color, s.coverage FROM player_map_settings s JOIN players p ON p.id = s.player_id WHERE s.map_id = $1', [mapId]),
   ]);
   return { ...map, cells: cells.rows, players: players.rows };
 }
@@ -129,9 +139,10 @@ class Conflict extends Error {}
 // A first claim (from = null) also grows the map and may earn a square, all in the same transaction.
 //   playerId: an existing player, or null to create a guest from `newGuest` = { names, tokenHash }
 //   color:    stored if this is the player's first claim on this map; null if they have already joined it
+//   coverage: stored with the color ('tile' or 'stretch'); like color and skin it can never change afterwards
 // Returns { conflict: true } if the block changed hands first, otherwise
 //   { playerId, name, joinedMap, grown: {x, y} | null, squares: new balance | null }.
-async function claimBlock(pool, { mapId, x, y, from, playerId, newGuest, color }) {
+async function claimBlock(pool, { mapId, x, y, from, playerId, newGuest, color, coverage = 'tile' }) {
   try {
     return await tx(pool, async c => {
       // First claims on a map take turns, so two of them can never pick the same growth spot.
@@ -156,8 +167,8 @@ async function claimBlock(pool, { mapId, x, y, from, playerId, newGuest, color }
       let joinedMap = false;
       if (color !== null) {
         const r = await c.query(
-          "INSERT INTO player_map_settings (player_id, map_id, color, skin_id) VALUES ($1, $2, $3, 'default') ON CONFLICT DO NOTHING",
-          [playerId, mapId, color]);
+          "INSERT INTO player_map_settings (player_id, map_id, color, skin_id, coverage) VALUES ($1, $2, $3, 'default', $4) ON CONFLICT DO NOTHING",
+          [playerId, mapId, color, coverage]);
         joinedMap = r.rowCount === 1;
       }
 

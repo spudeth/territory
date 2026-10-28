@@ -305,8 +305,8 @@ socket.on('you', ({ token, pid, name }) => {
   updateUI();
 });
 
-socket.on('player', ({ pid, name, color }) => {
-  players[pid] = { name, color };
+socket.on('player', ({ pid, name, color, coverage }) => {
+  players[pid] = { name, color, coverage };
   if (pid === me) myColor = color;
 });
 socket.on('hit', ({ x, y, n }) => {

@@ -169,6 +169,45 @@ test('cracks fade one level per decay period after the last hit, for everyone', 
   await watcher.next('claim', at(4, 25));
 });
 
+test('coverage is picked before the first claim on a map, then locked there for good', async () => {
+  const a = player();
+  const w = await a.welcome;
+  assert.equal(w.me.coverage, 'tile', 'tile unless they pick');
+  assert.equal(w.me.locked, false);
+  assert.deepEqual(await a.ask('coverage', 'sideways'), { error: 'Unknown coverage' });
+  assert.deepEqual(await a.ask('coverage', 'stretch'), { coverage: 'stretch' });
+  a.hit3(12, 25);
+  const you = await a.next('you');
+  assert.equal((await a.next('player', d => d.pid === you.pid)).coverage, 'stretch');
+  assert.deepEqual(await a.ask('coverage', 'tile'), { error: 'Your coverage is locked for this map' });
+  const saved = 'SELECT coverage FROM player_map_settings WHERE player_id = $1';
+  assert.equal((await pool.query(saved, [you.pid])).rows[0].coverage, 'stretch');
+
+  // Coming back: still stretch, still locked.
+  const again = player({ token: you.token });
+  const w2 = await again.welcome;
+  assert.equal(w2.me.coverage, 'stretch');
+  assert.equal(w2.me.locked, true);
+  assert.equal(w2.players[you.pid].coverage, 'stretch');
+  assert.deepEqual(await again.ask('coverage', 'tile'), { error: 'Your coverage is locked for this map' });
+});
+
+test('the database refuses to change color, skin or coverage once set, but wipes still work', async () => {
+  const a = player();
+  await a.welcome;
+  a.hit3(14, 25);
+  const you = await a.next('you');
+  for (const change of ["coverage = 'stretch'", "color = 'hsl(1, 75%, 55%)'", "skin_id = 'default', color = 'x'", "coverage_options = '{\"a\":1}'"]) {
+    await assert.rejects(pool.query(`UPDATE player_map_settings SET ${change} WHERE player_id = $1`, [you.pid]),
+      /locked once chosen/, change);
+  }
+  await assert.rejects(pool.query("INSERT INTO player_map_settings (player_id, map_id, color, skin_id, coverage) VALUES ($1, $2, 'red', 'default', 'sideways')",
+    [you.pid, '999']), /player_map_settings_coverage|violates/);
+  a.emit('wipe');
+  await a.next('wipe');
+  assert.equal((await pool.query('SELECT wipe_floor FROM player_map_settings WHERE player_id = $1', [you.pid])).rows[0].wipe_floor, 1);
+});
+
 test('guests cannot rename', async () => {
   const a = player();
   await a.welcome;

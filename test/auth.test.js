@@ -127,31 +127,46 @@ test('reset a forgotten password with the emailed link', async () => {
   assert.equal((await b.post('reset-password', { newPassword: 'another-1234', token })).status, 400, 'a reset link works once');
 });
 
-test('a guest who signs up from their own profile keeps their blocks, squares and settings', async () => {
+test('a guest who signs up from their own profile keeps their blocks, squares and settings, and becomes a NewUser', async () => {
   const guest = player();
   await guest.welcome;
+  assert.deepEqual(await guest.ask('coverage', 'stretch'), { coverage: 'stretch' });
   guest.hit3(0, 1);
   const you = await guest.next('you');
   guest.hit3(1, 1);
   await guest.next('claim', d => d.x === 1 && d.y === 1);
   const before = (await pool.query('SELECT squares FROM players WHERE id = $1', [you.pid])).rows[0];
+  const settings = 'SELECT color, skin_id, coverage, wipe_floor FROM player_map_settings WHERE player_id = $1';
+  const settingsBefore = (await pool.query(settings, [you.pid])).rows;
   guest.disconnect();
 
   const b = browser(url);
   await signUp(b);
   const watcher = player();
   await watcher.welcome;
-  const w = await player({ token: you.token, jwt: await b.jwt(), upgrade: true }).welcome;
+  const a = player({ token: you.token, jwt: await b.jwt(), upgrade: true });
+  const w = await a.welcome;
   assert.equal(w.upgraded, true);
   assert.equal(w.me.pid, you.pid, 'same player');
-  assert.equal(w.me.name, you.name, 'keeps the guest name');
+  assert.match(w.me.name, /^NewUser\d+$/, 'the guest name is replaced');
+  assert.notEqual(w.me.name, you.name);
+  assert.equal(w.me.renameAt, null, 'may rename straight away');
   assert.equal(w.me.account, true);
+  assert.deepEqual(await watcher.next('rename'), { pid: you.pid, name: w.me.name }, 'everyone sees the new name');
   assert.equal(await ownerOf(0, 1), you.pid);
   assert.equal(await ownerOf(1, 1), you.pid);
-  const after = (await pool.query('SELECT squares, auth_user_id FROM players WHERE id = $1', [you.pid])).rows[0];
+  const after = (await pool.query('SELECT name, squares, auth_user_id, name_changed_at FROM players WHERE id = $1', [you.pid])).rows[0];
+  assert.equal(after.name, w.me.name);
   assert.equal(after.squares, before.squares);
   assert.ok(after.auth_user_id);
-  assert.equal(await db.count('SELECT count(*) FROM player_map_settings WHERE player_id = $1', [you.pid]), 1);
+  assert.equal(after.name_changed_at, null);
+  assert.deepEqual((await pool.query(settings, [you.pid])).rows, settingsBefore, 'color, skin and coverage unchanged');
+  assert.equal(settingsBefore[0].coverage, 'stretch');
+
+  // The first rename is allowed at once; the 10-minute wait starts after it.
+  const name = 'Up ' + run.slice(0, 6);
+  assert.equal((await a.ask('rename', name)).name, name);
+  assert.match((await a.ask('rename', 'Up Again')).error, /^You can change your name again in/);
 
   // The guest token is gone, so after logging out this browser starts afresh instead of reopening the account.
   assert.equal((await player({ token: you.token }).welcome).me.pid, null);

@@ -31,7 +31,7 @@ Logins use Neon's managed Better Auth, enabled on both branches. The browser cal
 
 - Email and password, with a 6-digit code to verify the email. Password reset is by emailed link, which comes back to `/?reset=1&token=…`.
 - Google sign-in returns to `/?neon_auth_session_verifier=…`, which `auth.js` swaps for the login cookie.
-- The first time an account plays it gets a player named "NewUser" and a number, unless the browser has just signed up from its own guest profile: then the guest becomes the account, keeping its blocks, squares, settings and name, and the guest token is deleted. An account that already has a player never takes anything over, so logging in never merges.
+- The first time an account plays it gets a player named "NewUser" and a number, and may rename straight away. If the browser has just signed up from its own guest profile, the guest becomes that account: it keeps its blocks, squares and settings, its name changes to the NewUser one (shown to everyone at once), and the guest token is deleted. An account that already has a player never takes anything over, so logging in never merges.
 - Only accounts can rename (Menu → Settings): 15 characters, plain letters and numbers, unique ignoring case, through the filter in `profanity.js`, once every 10 minutes.
 - Emails go through Resend, set up as Neon's custom SMTP provider on each branch (the key lives in Neon, not here). Google uses our own OAuth client on production.
 
@@ -66,7 +66,7 @@ Controls: tap or click to hit a block, drag to pan, pinch or mouse wheel to zoom
 | `player_tokens` | SHA-256 hashes of guests' secret tokens |
 | `maps` | Each board: name, style, type (official, purchased, VIP) and creator |
 | `map_cells` | One row per block that exists, with its owner (empty if none) |
-| `player_map_settings` | A player's color, skin and coverage on one map, set on their first claim there, plus the wipe floor |
+| `player_map_settings` | A player's color, skin and coverage on one map, set on their first claim there and locked forever (a trigger refuses changes), plus the wipe floor |
 | `map_wipes` | Every wipe and how many blocks were cleared |
 | `square_ledger` | Every change to a squares balance |
 | `skins`, `player_skins` | The skin catalog and who owns which |

@@ -6,6 +6,7 @@ const settings = {
   GUESTS_PER_IP: 5,               // new guest players one network may create…
   GUEST_WINDOW_MINUTES: 60,       // …in this many minutes
   RENAME_COOLDOWN_MINUTES: 10,    // wait between name changes
+  COVERAGES: ['tile', 'stretch'], // how a skin covers a territory; chosen once per map (the first is the default)
 };
 
 // Rules that upgrades will change per player later (Click Power, Defense, Earnings). Every caller already
