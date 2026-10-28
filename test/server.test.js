@@ -250,8 +250,11 @@ test('a wipe unlocks color, skin and coverage on that map only, until the next c
   const wb = await b.welcome;
   assert.equal(wb.me.locked, false);
   assert.equal(wb.me.wipeFloor, 1);
+  // Forget earlier events: the claim on the other map announced this player too, in a random color that is
+  // red one time in eight, and must not be mistaken for the claim below.
+  a.events.length = 0;
   a.take(15, 27);
-  const joined = await a.next('player', d => d.pid === you.pid && d.color === '#ff4d4d');
+  const joined = await a.next('player', d => d.pid === you.pid);
   assert.deepEqual([joined.color, joined.coverage], ['#ff4d4d', 'stretch']);
   assert.deepEqual((await pool.query(settings, [you.pid, home])).rows[0], { color: '#ff4d4d', coverage: 'stretch', unlocked: false });
   assert.deepEqual(await a.ask('setup', { color: '#29adff' }), LOCKED);
@@ -298,7 +301,7 @@ test('menu screens: skins, upgrades and achievement progress come from the real 
   await a.welcome;
   assert.deepEqual(await a.ask('skins'), [{ id: 'default', name: 'Default', owned: true }]);
   assert.deepEqual(await a.ask('upgrades'), { levels: rules.NO_UPGRADES, hitsPerBlock: rules.HITS_PER_BLOCK,
-    squaresPerClaim: rules.SQUARES_PER_FIRST_CLAIM, upgrades: rules.UPGRADES });
+    squaresPerClaim: rules.SQUARES_PER_FIRST_CLAIM, upgrades: rules.UPGRADES, balance: 0 });
   const none = await a.ask('achievements');
   assert.equal(none.list.length, 8);
   assert.deepEqual([none.earned, none.best], [[], {}], 'a visitor has nothing yet');

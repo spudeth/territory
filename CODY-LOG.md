@@ -263,3 +263,30 @@ New Game Rules row for Bob (add under renameWaitMinutes):
 maxTapsPerSecond,12,"Taps per player per second the server accepts; faster taps are ignored (anti-bot)"
 
 QUESTION Q10: which Purchase sound? | Purchase A / B / C on the sound test page (https://claude.ai/artifact/ArEFRCP9bmyiDKH5QQt6EL) | using A until picked | OPEN
+#44 | 2026-10-28 | merge readiness: full suite run. Found and fixed the cause of the occasional "wipe unlocks" failure (#38): a test bug, not the game: the claim on the second map announces the player in a random color, red one time in eight, and the test could read that old announcement instead of the new one; it now clears old events first (3/3 alone, then the full suite) | tests: pass (90/90, 119 s)
+
+## Merge steps for Xoren (iterate -> main), loops 5 and 6
+
+What this merge does: game numbers come from data/economy.json (today's values, so play is the same); the Growth upgrade; buying upgrades; the squares icon; the tap-rate limit (12 taps a second). Two database changes run: 010 (Growth, level-move records) and 011 (tap-limit log). Blocks, names, squares and settings are kept.
+Important: the upgrade levels and prices aren't in economy.json yet (the sheet needs the Game Rules tab and whole-number Growth values, Q9). Until a real sync is merged, the Upgrades screen says "No levels yet" and nothing can be bought. You can merge now (everything else works), or wait and merge once the sync is in, so buying launches with it.
+
+1. Optional backup: Neon console -> project -> Branches -> production. Note the time. Restore on that page can put production back to that time.
+2. github.com/spudeth/territory -> Pull requests -> New pull request. base: main, compare: iterate. "Able to merge" -> Create pull request -> Create pull request.
+3. Merge pull request -> Confirm merge. Keep the iterate branch.
+4. Render -> the territory service -> Events: wait for Live.
+5. Render -> Logs: "Applied migrations: 010_growth_and_remaps.sql, 011_tap_limit_log.sql", then "Accounts are on." No "Upgrade levels moved" lines are expected this time. If you see "Startup failed", stop and send me that line.
+
+## Live checklist (territory.sarl), phone and computer
+
+- [ ] The HUD, the menu card and the Upgrades screen show the new square icon (a white square with a dark pixel outline).
+- [ ] Play as before: 10 taps take a block, the map grows by one block per brand-new block.
+- [ ] Tap one block as fast as you can: it still works at a normal fast pace. (Only more than 12 taps a second are ignored.)
+- [ ] Menu > Upgrades: four cards (Click Power, Defense, Earnings, Growth). Until the sync is merged they say "No levels yet".
+After a real sync is merged (I'll post its own steps):
+- [ ] Each card shows Level 0 of N, "now → next" (e.g. 10 → 9 clicks per block) and the cost with the icon; short of squares it says "Need X more".
+- [ ] Buy one you can afford: the purchase sound plays, the squares in the top-left drop by the cost, the level goes up, and the next tap on a block uses it.
+- [ ] Tap Upgrade twice very fast: only one level is bought.
+- [ ] As a guest: buy something, then sign up from that guest: the level is still there.
+
+## Summary (loop order 6 done)
+Squares icon in place; buying all four upgrades with squares (one transaction, exact fractions, double taps and two devices can't spend twice, instant effect everywhere, guests included and kept on sign-up); Purchase sound (Q10 open); tap-rate limit with a per-minute log. Full suite 90/90. Still open: Q5, Q6, Q8, Q9, Q10; the real sync (loop 5's last step) waits for the Game Rules tab and Q9. Next: loop order 7 (admin commands).
