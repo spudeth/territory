@@ -49,8 +49,34 @@ test('wipe rule: squares only beyond the most blocks owned at any wipe', () => {
 });
 
 test('defaults: 3 hits, 1 square, 60-second fade', () => {
-  assert.equal(rules.hitsToTake('A', null), 3);
-  assert.equal(rules.hitsToTake('A', 'B'), 3);
-  assert.equal(rules.squaresForFirstClaim('A'), 1);
+  assert.equal(rules.hitsToTake(rules.NO_UPGRADES, null), 3);
+  assert.equal(rules.hitsToTake(rules.NO_UPGRADES, rules.NO_UPGRADES), 3);
+  assert.equal(rules.squaresForFirstClaim(rules.NO_UPGRADES), 1);
   assert.equal(rules.CRACK_DECAY_SECONDS, 60);
+});
+
+test('upgrades: Click Power takes hits off, Defense multiplies (rounded up), Earnings multiplies (rounded down)', t => {
+  const saved = ['CLICK_POWER_HITS_REMOVED', 'DEFENSE_MULTIPLIER', 'EARNINGS_MULTIPLIER', 'HITS_TO_CLAIM', 'SQUARES_PER_FIRST_CLAIM']
+    .map(k => [k, rules[k]]);
+  t.after(() => { for (const [k, v] of saved) rules[k] = v; });
+  const none = rules.NO_UPGRADES, lv = (clickPower, defense, earnings) => ({ clickPower, defense, earnings });
+
+  // Defaults: no effect at any level.
+  assert.equal(rules.hitsToTake(lv(5, 5, 5), lv(5, 5, 5)), 3);
+  assert.equal(rules.squaresForFirstClaim(lv(5, 5, 5)), 1);
+  assert.equal(rules.hitsToTake(null, null), 3, 'a visitor with no levels');
+
+  rules.CLICK_POWER_HITS_REMOVED = [0, 1, 2];
+  rules.DEFENSE_MULTIPLIER = [1, 1.5, 2];
+  rules.EARNINGS_MULTIPLIER = [1, 1.5, 3];
+  assert.equal(rules.hitsToTake(lv(1, 0, 0), null), 2, 'Click Power 1 on an empty block');
+  assert.equal(rules.hitsToTake(lv(9, 0, 0), null), 1, 'past the table uses the last entry, never below MIN_HITS');
+  assert.equal(rules.hitsToTake(none, lv(0, 1, 0)), 5, '3 x 1.5 = 4.5, rounded up');
+  assert.equal(rules.hitsToTake(lv(1, 0, 0), lv(0, 2, 0)), 4, '(3 - 1) x 2');
+  assert.equal(rules.hitsToTake(lv(2, 0, 0), lv(0, 1, 0)), 2, '(3 - 2) x 1.5 = 1.5, rounded up');
+  assert.equal(rules.hitsToTake(lv(0, 0, 0), lv(0, -3, 0)), 3, 'a bad level counts as 0');
+  assert.equal(rules.squaresForFirstClaim(lv(0, 0, 1)), 1, '1 x 1.5 = 1.5, rounded down');
+  assert.equal(rules.squaresForFirstClaim(lv(0, 0, 2)), 3);
+  rules.SQUARES_PER_FIRST_CLAIM = 2;
+  assert.equal(rules.squaresForFirstClaim(lv(0, 0, 1)), 3);
 });

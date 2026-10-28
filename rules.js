@@ -16,6 +16,13 @@ const settings = {
   GUEST_WINDOW_MINUTES: 60,       // …in this many minutes
   RENAME_COOLDOWN_MINUTES: 10,    // wait between name changes
 
+  // Upgrades. Each player has a level for each (0 = none). These tables give the effect at each level,
+  // starting at level 0; a level past the end of a table uses its last entry. Defaults have no effect.
+  CLICK_POWER_HITS_REMOVED: [0],  // Click Power: hits taken off what the attacker needs
+  DEFENSE_MULTIPLIER: [1],        // Defense: multiplies the hits others need to take your blocks
+  EARNINGS_MULTIPLIER: [1],       // Earnings: multiplies squares per first claim
+  MIN_HITS: 1,                    // no block ever takes fewer hits than this
+
   // Per-map look, chosen on the first claim on a map and locked forever
   COVERAGES: ['tile', 'stretch'], // how a skin covers a territory (the first is the default)
 };
@@ -38,11 +45,23 @@ function hitError(map, pid, x, y) {
   return near ? null : 'You can only take blocks next to your territory';
 }
 
-// Hits needed for `attacker` to take a block owned by `owner` (null for an empty block).
-const hitsToTake = (attacker, owner) => settings.HITS_TO_CLAIM;
+// A player's upgrade levels. Visitors and new players have none.
+const NO_UPGRADES = Object.freeze({ clickPower: 0, defense: 0, earnings: 0 });
+const effect = (table, level) => table[Math.min(Math.max(0, level | 0), table.length - 1)];
 
-// Squares `playerId` earns for one first claim, if the wipe rule allows it (earnsSquares).
-const squaresForFirstClaim = playerId => settings.SQUARES_PER_FIRST_CLAIM;
+// Hits needed for `attacker` to take a block owned by `owner` (null for an empty block); both are upgrade
+// levels like NO_UPGRADES. The attacker's Click Power comes off first, then the owner's Defense multiplies
+// what is left, rounded up, and the result is at least MIN_HITS.
+function hitsToTake(attacker, owner) {
+  const base = settings.HITS_TO_CLAIM - effect(settings.CLICK_POWER_HITS_REMOVED, attacker?.clickPower);
+  const defended = owner ? base * effect(settings.DEFENSE_MULTIPLIER, owner.defense) : base;
+  return Math.max(settings.MIN_HITS, Math.ceil(defended - 1e-9));
+}
+
+// Squares a player with these upgrade levels earns for one first claim, if the wipe rule allows it
+// (earnsSquares). Rounded down.
+const squaresForFirstClaim = upgrades =>
+  Math.floor(settings.SQUARES_PER_FIRST_CLAIM * effect(settings.EARNINGS_MULTIPLIER, upgrades?.earnings) + 1e-9);
 
 // Crack fading. `crack` is { n: level, at: when the level last changed (ms) }. Returns the crack `now`:
 // one level lower per `decayMs` passed, never below 0, with `at` moved on by the whole periods used.
@@ -56,5 +75,6 @@ function decayCrack(crack, now, decayMs) {
 const earnsSquares = (ownedAfterClaim, wipeFloor) => ownedAfterClaim > wipeFloor;
 const wipeFloorAfterWipe = (wipeFloor, ownedAtWipe) => Math.max(wipeFloor, ownedAtWipe);
 
-module.exports = { ...settings, key, NEIGHBORS, hitError, hitsToTake, squaresForFirstClaim, decayCrack,
-  earnsSquares, wipeFloorAfterWipe };
+// The rules read the numbers from this same object, so tests can try other dial values.
+module.exports = Object.assign(settings, { key, NEIGHBORS, NO_UPGRADES, hitError, hitsToTake, squaresForFirstClaim,
+  decayCrack, earnsSquares, wipeFloorAfterWipe });

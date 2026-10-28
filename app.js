@@ -7,6 +7,7 @@ const rules = require('./rules');
 const { guestName, guestNames, checkName, randomColor } = require('./names');
 
 const { key } = rules;
+const upgradesOf = row => ({ clickPower: row.click_power, defense: row.defense, earnings: row.earnings });
 
 // Behind Render the socket address is a proxy's. Cloudflare (in front of every public Render service) sets
 // CF-Connecting-IP and overwrites any value the visitor sends, so prefer it. X-Forwarded-For is only a fallback:
@@ -60,7 +61,7 @@ function createGame(pool, { guestsPerIp = rules.GUESTS_PER_IP, crackDecayMs = ru
       maps.set(id, store.loadMap(pool, id).then(m => {
         if (!m) return null;
         const map = { id: m.id, name: m.name, style: m.style, room: 'map:' + m.id, cells: new Map(), counts: new Map(),
-          players: new Map(m.players.map(p => [p.player_id, { name: p.name, color: p.color, coverage: p.coverage }])),
+          players: new Map(m.players.map(p => [p.player_id, { name: p.name, color: p.color, coverage: p.coverage, upgrades: upgradesOf(p) }])),
           hits: new Map(), queue: Promise.resolve() };
         for (const c of m.cells) {
           map.cells.set(key(c.x, c.y), c.owner_id);
@@ -126,7 +127,7 @@ function createGame(pool, { guestsPerIp = rules.GUESTS_PER_IP, crackDecayMs = ru
     // What the browser sends: the guest's secret token (if it has one), a login token (if logged in), and
     // upgrade = true when the player has just signed up from their guest profile.
     const { token, jwt, upgrade } = socket.handshake.auth || {};
-    let me, map, upgraded = false, loginFailed = false;
+    let me, map, upgrades, upgraded = false, loginFailed = false;
     try {
       // Returning guests are recognised by their secret token. Visitors get a name and color to show,
       // but no database row until their first claim.
@@ -142,6 +143,7 @@ function createGame(pool, { guestsPerIp = rules.GUESTS_PER_IP, crackDecayMs = ru
       }
       me = player ? { pid: player.id, name: player.name, account: !!player.auth_user_id, renameAt: renameAt(player.name_changed_at) }
         : { pid: null, name: guestName(), account: false, renameAt: null };
+      upgrades = player ? upgradesOf(player) : rules.NO_UPGRADES;
       if (upgraded) renamed(me.pid, me.name);   // the guest's old name was showing to everyone
       map = (player?.last_map_id && await getMap(player.last_map_id)) || await getMap(await getDefaultMapId());
       if (player && player.last_map_id !== map.id) await store.setLastMap(pool, player.id, map.id);
@@ -165,7 +167,7 @@ function createGame(pool, { guestsPerIp = rules.GUESTS_PER_IP, crackDecayMs = ru
       loginFailed,        // a login token was sent but wasn't valid
       map: { id: map.id, name: map.name, style: map.style },
       cells: [...map.cells].map(([k, owner]) => [...k.split(',').map(Number), owner]),
-      players: Object.fromEntries(map.players),
+      players: Object.fromEntries([...map.players].map(([pid, { upgrades, ...shown }]) => [pid, shown])),
       hits: [...map.hits].map(([k, h]) => [...k.split(',').map(Number), h.n]),
     });
 
@@ -189,7 +191,7 @@ function createGame(pool, { guestsPerIp = rules.GUESTS_PER_IP, crackDecayMs = ru
 
       const joining = !map.players.has(me.pid);
       const r = await store.claimBlock(pool, { mapId: map.id, x, y, from, playerId: me.pid, newGuest,
-        color: joining ? color : null, coverage });
+        color: joining ? color : null, coverage, earn: rules.squaresForFirstClaim(upgrades) });
       if (r.conflict) {
         // Another server got there first (e.g. during a deploy). Resync this block for everyone.
         setOwner(map, k, await store.cellOwner(pool, map.id, x, y));
@@ -206,7 +208,7 @@ function createGame(pool, { guestsPerIp = rules.GUESTS_PER_IP, crackDecayMs = ru
         socket.emit('you', { token, pid: me.pid, name: me.name });
       }
       if (r.joinedMap) {
-        map.players.set(me.pid, { name: me.name, color, coverage });
+        map.players.set(me.pid, { name: me.name, color, coverage, upgrades });
         io.to(map.room).emit('player', { pid: me.pid, name: me.name, color, coverage });
       }
       setOwner(map, k, me.pid);
@@ -231,7 +233,8 @@ function createGame(pool, { guestsPerIp = rules.GUESTS_PER_IP, crackDecayMs = ru
       h = map.hits.get(k);
       if (h?.by !== by) map.hits.set(k, h = { by, n: 0 });
       h.at = now;
-      if (++h.n < rules.hitsToTake(me.pid, map.cells.get(k))) return io.to(map.room).emit('hit', { x, y, n: h.n });
+      const owner = map.cells.get(k);
+      if (++h.n < rules.hitsToTake(upgrades, owner ? map.players.get(owner)?.upgrades ?? rules.NO_UPGRADES : null)) return io.to(map.room).emit('hit', { x, y, n: h.n });
 
       map.hits.delete(k);
       serial(map, () => finishClaim(x, y)).catch(err => {

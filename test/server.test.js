@@ -2,6 +2,7 @@ const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const http = require('http');
 const { createGame } = require('../app');
+const rules = require('../rules');
 const { testDb, connectPlayer } = require('./helpers');
 
 const DECAY_MS = 400;   // crack decay, sped up from 60 seconds so the test is quick
@@ -206,6 +207,25 @@ test('the database refuses to change color, skin or coverage once set, but wipes
   a.emit('wipe');
   await a.next('wipe');
   assert.equal((await pool.query('SELECT wipe_floor FROM player_map_settings WHERE player_id = $1', [you.pid])).rows[0].wipe_floor, 1);
+});
+
+test("a player's upgrade levels change the hits they need and the squares they earn", async t => {
+  const saved = [rules.CLICK_POWER_HITS_REMOVED, rules.EARNINGS_MULTIPLIER];
+  t.after(() => { [rules.CLICK_POWER_HITS_REMOVED, rules.EARNINGS_MULTIPLIER] = saved; });
+  const a = player();
+  await a.welcome;
+  a.hit3(16, 25);
+  const you = await a.next('you');
+  a.disconnect();
+  rules.CLICK_POWER_HITS_REMOVED = [0, 2];
+  rules.EARNINGS_MULTIPLIER = [1, 5];
+  await pool.query('UPDATE players SET click_power = 1, earnings = 1 WHERE id = $1', [you.pid]);
+  const b = player({ token: you.token });
+  await b.welcome;
+  b.emit('hit', { x: 17, y: 25 });   // one hit is enough now
+  await b.next('claim', d => d.x === 17 && d.y === 25);
+  const squares = await b.next('squares');
+  assert.equal(squares, 6, '1 for the first block, then 5 with Earnings');
 });
 
 test('guests cannot rename', async () => {

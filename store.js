@@ -5,7 +5,7 @@ const rules = require('./rules');
 const { accountNames } = require('./names');
 
 const hashToken = token => crypto.createHash('sha256').update(token).digest();
-const PLAYER = 'p.id, p.name, p.last_map_id, p.auth_user_id, p.name_changed_at';
+const PLAYER = 'p.id, p.name, p.last_map_id, p.auth_user_id, p.name_changed_at, p.click_power, p.defense, p.earnings';
 
 // Only a real string can be a token, so values like {} or "__proto__" never match a player.
 async function findPlayerByToken(pool, token) {
@@ -88,7 +88,7 @@ async function loadMap(pool, mapId) {
   if (!map) return null;
   const [cells, players] = await Promise.all([
     pool.query('SELECT x, y, owner_id FROM map_cells WHERE map_id = $1', [mapId]),
-    pool.query('SELECT s.player_id, p.name, s.color, s.coverage FROM player_map_settings s JOIN players p ON p.id = s.player_id WHERE s.map_id = $1', [mapId]),
+    pool.query('SELECT s.player_id, p.name, s.color, s.coverage, p.click_power, p.defense, p.earnings FROM player_map_settings s JOIN players p ON p.id = s.player_id WHERE s.map_id = $1', [mapId]),
   ]);
   return { ...map, cells: cells.rows, players: players.rows };
 }
@@ -139,10 +139,11 @@ class Conflict extends Error {}
 // A first claim (from = null) also grows the map and may earn a square, all in the same transaction.
 //   playerId: an existing player, or null to create a guest from `newGuest` = { names, tokenHash }
 //   color:    stored if this is the player's first claim on this map; null if they have already joined it
+//   earn:     squares for a first claim (rules.squaresForFirstClaim with the player's upgrades)
 //   coverage: stored with the color ('tile' or 'stretch'); like color and skin it can never change afterwards
 // Returns { conflict: true } if the block changed hands first, otherwise
 //   { playerId, name, joinedMap, grown: {x, y} | null, squares: new balance | null }.
-async function claimBlock(pool, { mapId, x, y, from, playerId, newGuest, color, coverage = 'tile' }) {
+async function claimBlock(pool, { mapId, x, y, from, playerId, newGuest, color, coverage = 'tile', earn = rules.squaresForFirstClaim() }) {
   try {
     return await tx(pool, async c => {
       // First claims on a map take turns, so two of them can never pick the same growth spot.
@@ -175,7 +176,7 @@ async function claimBlock(pool, { mapId, x, y, from, playerId, newGuest, color, 
       let grown = null, squares = null;
       if (from === null) {
         grown = await growMap(c, mapId);
-        squares = (await c.query(EARN, [mapId, playerId, x, y, rules.squaresForFirstClaim(playerId)])).rows[0]?.balance_after ?? null;
+        squares = (await c.query(EARN, [mapId, playerId, x, y, earn])).rows[0]?.balance_after ?? null;
       }
       return { playerId, name, joinedMap, grown, squares: squares === null ? null : Number(squares) };
     });
