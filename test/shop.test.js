@@ -162,3 +162,28 @@ test('taps over the rate limit are ignored, and players who hit it are logged', 
   for (let i = 0; i < 5; i++) p.emit('hit', { x: 11, y });
   await p.next('claim', at(11, y));
 });
+
+test('reset all progress: blocks, squares, upgrades, stats and achievements go, everywhere; other devices reload', async () => {
+  const g = await guestWith(50);
+  await pool.query('UPDATE players SET click_power = 2, defense = 1 WHERE id = $1', [g.pid]);
+  const other = player({ token: g.token });   // a second device
+  await other.welcome;
+  const reloaded = other.next('notice', n => n.kind === 'reset');
+  assert.deepEqual(await g.s.ask('resetProgress'), { ok: true });
+  await reloaded;
+  const q = async sql => (await pool.query(sql, [g.pid])).rows[0];
+  assert.deepEqual(await q('SELECT squares::float AS s, click_power AS c, defense AS d, name IS NOT NULL AS named FROM players WHERE id = $1'),
+    { s: 0, c: 0, d: 0, named: true });
+  assert.equal((await q('SELECT count(*)::int AS n FROM map_cells WHERE owner_id = $1')).n, 0);
+  for (const t of ['player_map_settings', 'player_map_stats', 'player_achievements']) {
+    assert.equal((await q(`SELECT count(*)::int AS n FROM ${t} WHERE player_id = $1`)).n, 0, t);
+  }
+  assert.deepEqual(await q("SELECT delta::float AS d, reason FROM square_ledger WHERE player_id = $1 ORDER BY id DESC LIMIT 1"),
+    { d: -50, reason: 'progress reset' });
+  const back = player({ token: g.token });   // they come back as a fresh player with the same name
+  const w = await back.welcome;
+  assert.equal(w.you?.squares ?? 0, 0);
+  const viewer = player();
+  await viewer.welcome;
+  assert.ok(!viewer.events.some(e => e[0] === 'claim' && e[1]?.y === g.y), 'their block is empty for others');
+});

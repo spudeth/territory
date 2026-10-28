@@ -495,6 +495,27 @@ function deleteAccount(pool, playerId) {
   });
 }
 
+// A player's own fresh start: their blocks on every map go empty, and their squares, upgrades, stats,
+// achievements, skins and look on every map are reset, as for a new player. Kept: name, login, tutorial,
+// and skins bought with money. Returns { maps: ids of maps where they had blocks }.
+function resetProgress(pool, playerId) {
+  return tx(pool, async c => {
+    const { rows: [p] } = await c.query('SELECT squares FROM players WHERE id = $1 FOR UPDATE', [playerId]);
+    const { rows: maps } = await c.query('SELECT DISTINCT map_id FROM map_cells WHERE owner_id = $1', [playerId]);
+    await c.query('UPDATE map_cells SET owner_id = NULL, claimed_at = NULL WHERE owner_id = $1', [playerId]);
+    for (const t of ['player_map_settings', 'player_map_stats', 'player_achievements', 'level_remaps']) {
+      await c.query(`DELETE FROM ${t} WHERE player_id = $1`, [playerId]);
+    }
+    await c.query("DELETE FROM player_skins WHERE player_id = $1 AND source <> 'purchase'", [playerId]);
+    if (Number(p.squares) > 0) {
+      await c.query("INSERT INTO square_ledger (player_id, delta, balance_after, reason) VALUES ($1, $2, 0, 'progress reset')",
+        [playerId, -Number(p.squares)]);
+    }
+    await c.query('UPDATE players SET squares = 0, click_power = 0, defense = 0, earnings = 0, growth = 0 WHERE id = $1', [playerId]);
+    return { maps: maps.map(r => r.map_id) };
+  });
+}
+
 // An account's email, from Neon Auth (null for guests, or where Neon Auth isn't in this database).
 async function accountEmail(pool, authUserId) {
   if (!authUserId || !(await pool.query("SELECT to_regclass('neon_auth.user') AS t")).rows[0].t) return null;
@@ -535,4 +556,4 @@ async function logAdmin(pool, { command, target = null, args = {}, ok, result, i
 }
 
 Object.assign(module.exports, { findPlayer, findMap, linkPlayers, linkedPlayers, activeBan, banPlayers, unbanPlayers,
-  adjustSquares, wipeMap, deleteAccount, accountEmail, playerInfo, mapInfo, logAdmin });
+  adjustSquares, wipeMap, deleteAccount, resetProgress, accountEmail, playerInfo, mapInfo, logAdmin });

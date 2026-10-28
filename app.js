@@ -460,6 +460,25 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       });
     });
 
+    // Starts this player over everywhere (store.resetProgress). Answers { ok } or { error }; then every
+    // connection of theirs, this one too, is closed and reloads into the fresh start.
+    socket.on('resetProgress', async (...args) => {
+      const reply = args.at(-1);   // the answer callback, with or without data before it
+      if (typeof reply !== 'function') return;
+      if (!me.pid) return reply({ error: 'You have no progress to reset' });
+      const pid = me.pid;
+      try {
+        const hooks = adminHooks();
+        const r = await store.resetProgress(pool, pid);
+        reply({ ok: true });
+        hooks.kick([pid], 'reset', 'Your progress was reset. Reload the page to start again.');
+        await hooks.reloadMaps(r.maps);
+      } catch (err) {
+        console.error(`RESET FAILED (player ${pid}): ${err.message}`);
+        reply({ error: 'Could not reset your progress. Try again.' });
+      }
+    });
+
     // The setup screen: picks this player's color, skin and coverage on this map, which lock on their next
     // claim here. Only while unlocked (before their first claim here, or after a wipe). Any field may be left
     // out. Answers with { color, skin, coverage } or { error }.

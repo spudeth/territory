@@ -13,8 +13,8 @@ function show(name) {
   const section = menu.querySelector(`[data-view="${name}"]`);
   section.querySelector('.head').after($('menu-error'));   // errors show under the view's title
   $('menu-error').textContent = '';
-  menu.classList.toggle('strong', name === 'wipe' || name === 'setup');
-  menu.classList.toggle('bare', name === 'wipe');
+  menu.classList.toggle('strong', name === 'wipe' || name === 'reset' || name === 'setup');
+  menu.classList.toggle('bare', name === 'wipe' || name === 'reset');
   menu.hidden = false;
   view = name;
   fills[name]?.();
@@ -92,6 +92,22 @@ $('wipe-go').addEventListener('click', () => {
   if ($('wipe-word').value.trim() !== 'WIPE') return;
   $('wipe-go').disabled = true;
   socket.emit('wipe');   // the answer is a 'wipe' event (afterWipe below), or 'denied'
+});
+
+// ---------- Reset all progress ----------
+fills.reset = () => {
+  $('reset-squares').textContent = `${squares} square${squares === 1 ? '' : 's'}`;
+  $('reset-word').value = '';
+  $('reset-go').disabled = true;
+};
+$('reset-open').addEventListener('click', () => show('reset'));
+$('reset-word').addEventListener('input', () => { $('reset-go').disabled = $('reset-word').value.trim() !== 'RESET'; });
+$('reset-go').addEventListener('click', async () => {
+  if ($('reset-word').value.trim() !== 'RESET') return;
+  $('reset-go').disabled = true;
+  const r = await ask('resetProgress');   // on success the server also sends a 'reset' notice, which reloads
+  if (r.error) { fail(r.error); $('reset-go').disabled = false; return; }
+  location.reload();
 });
 
 // ---------- Maps ----------
