@@ -1,6 +1,7 @@
 // ---------- State (filled in by the server) ----------
 // cells: "x,y" -> owner id, or null when empty. A block that isn't in cells doesn't exist; maps grow into any shape.
 let me = null, myName = '', myColor = '#888', cells = null, players = {}, hits = new Map(), squares = 0;
+let myAccount = false, accountsOn = false, renameAt = null;   // logged in?  logins set up?  when renaming is allowed again
 let bounds = { x0: 0, y0: 0, x1: 1, y1: 1 };   // smallest box around every block; x1 and y1 are exclusive
 const key = (x, y) => x + ',' + y;
 
@@ -238,9 +239,9 @@ addEventListener('resize', clampView);
 
 // ---------- UI ----------
 let toastTimer;
-function toast(msg) {
+function toast(msg, kind = 'bad') {
   $('toast').textContent = msg;
-  $('toast').classList.add('show');
+  $('toast').className = 'show ' + kind;
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => $('toast').classList.remove('show'), 1800);
 }
@@ -269,13 +270,24 @@ function updateUI() {
 }
 
 // ---------- Networking ----------
-// The auth callback runs on every (re)connect, so a reconnect reuses the saved account.
-// Visitors have no token until their first claim.
-const socket = io({ auth: cb => cb({ token: localStorage.getItem('territory-token') }) });
+// The auth callback runs on every (re)connect. It sends the guest's saved token (visitors have none until their
+// first claim) and, when logged in, a fresh login token (loginToken() is in account.js).
+const socket = io({
+  auth: cb => loginToken().then(jwt => cb({
+    token: localStorage.getItem('territory-token'), jwt, upgrade: sessionStorage.getItem('territory-upgrade') === '1',
+  })),
+});
 
 socket.on('welcome', data => {
   const first = !cells;
-  ({ pid: me, name: myName, color: myColor } = data.me);
+  ({ pid: me, name: myName, color: myColor, account: myAccount, renameAt } = data.me);
+  accountsOn = data.accounts;
+  sessionStorage.removeItem('territory-upgrade');
+  if (data.upgraded) {
+    localStorage.removeItem('territory-token');   // the guest is now this account; logging out starts afresh
+    toast('Your blocks are saved to your account', 'good');
+  }
+  if (data.loginFailed) toast('Your login has expired. Log in again from the menu.');
   players = data.players;
   cells = new Map();
   bounds = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
@@ -316,6 +328,13 @@ socket.on('wipe', ({ cells: wiped }) => {
   updateUI();
   draw();
 });
+socket.on('rename', ({ pid, name }) => {
+  if (players[pid]) players[pid].name = name;
+  if (pid === me) myName = name;
+  updateUI();
+});
 socket.on('squares', n => { squares = n; });   // not shown yet
-socket.on('denied', toast);
-socket.on('disconnect', () => toast('Connection lost, reconnecting…'));
+socket.on('denied', msg => toast(msg));
+socket.on('disconnect', reason => {
+  if (reason !== 'io client disconnect') toast('Connection lost, reconnecting…');   // not when we reconnect on purpose
+});

@@ -1,6 +1,7 @@
 const os = require('os');
 const { createPool, waitForDb, migrate } = require('./db');
 const { createGame } = require('./app');
+const { createAuth } = require('./auth');
 
 // Locally, Neon writes DATABASE_URL to .env.local (or .env). Real environment variables win.
 for (const f of ['.env.local', '.env']) {
@@ -21,7 +22,11 @@ const pool = createPool(process.env.DATABASE_URL);
   const applied = await migrate(pool);
   console.log(applied.length ? `Applied migrations: ${applied.join(', ')}` : 'Database schema is up to date.');
 
-  const { server } = createGame(pool);
+  // Accounts need NEON_AUTH_BASE_URL (written by Neon) and NEON_AUTH_COOKIE_SECRET. Without them, guests only.
+  const auth = createAuth({ baseUrl: process.env.NEON_AUTH_BASE_URL, cookieSecret: process.env.NEON_AUTH_COOKIE_SECRET });
+  console.log(auth ? 'Accounts are on.' : 'NEON_AUTH_BASE_URL is not set, so accounts are off and everyone plays as a guest.');
+
+  const { server } = createGame(pool, { auth, publicUrl: process.env.PUBLIC_URL || null });
   server.on('error', err => {
     if (err.code !== 'EADDRINUSE') throw err;
     console.error(`Port ${PORT} is already in use by another program. Try another port, e.g.:  $env:PORT=3031; npm start`);

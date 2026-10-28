@@ -3,11 +3,8 @@ const http = require('http');
 const crypto = require('crypto');
 const { Server } = require('socket.io');
 const store = require('./store');
-const { guestName, guestNames, randomColor } = require('./names');
-
-const HITS = 3;                       // clicks needed to take a block
-const GUESTS_PER_IP = 5;              // new guest players one network may create…
-const GUEST_WINDOW_MS = 60 * 60 * 1000;   // …per hour
+const rules = require('./rules');
+const { guestName, guestNames, checkName, randomColor } = require('./names');
 
 const key = (x, y) => x + ',' + y;
 const NEIGHBORS = [[-1, 0], [1, 0], [0, -1], [0, 1]];
@@ -15,9 +12,8 @@ const NEIGHBORS = [[-1, 0], [1, 0], [0, -1], [0, 1]];
 // Behind Render the socket address is a proxy's. Cloudflare (in front of every public Render service) sets
 // CF-Connecting-IP and overwrites any value the visitor sends, so prefer it. X-Forwarded-For is only a fallback:
 // Render appends to it without clearing it, so its first entry can be forged.
-function clientIp(socket) {
-  const h = socket.handshake.headers;
-  return h['cf-connecting-ip'] || h['x-forwarded-for']?.split(',')[0].trim() || socket.handshake.address;
+function clientIp(headers, address) {
+  return headers['cf-connecting-ip'] || headers['x-forwarded-for']?.split(',')[0].trim() || address;
 }
 
 // Counts recent guest creations per IP address, in memory.
@@ -32,17 +28,34 @@ function guestLimiter(limit, windowMs) {
 
 // The game server. Postgres is the source of truth; each map is cached in memory once loaded, and the cache is
 // only changed after a database write commits. Claims and wipes on one map run one at a time.
-function createGame(pool, { guestsPerIp = GUESTS_PER_IP } = {}) {
+//   auth:      from createAuth(), or null to run with guests only
+//   publicUrl: the site's address (https://territory.sarl); requests for any other host, such as www or
+//              the onrender.com address, are sent there. Unset locally.
+function createGame(pool, { guestsPerIp = rules.GUESTS_PER_IP, crackDecayMs = rules.CRACK_DECAY_SECONDS * 1000,
+  auth = null, publicUrl = null } = {}) {
   const app = express();
-  app.use(express.static(__dirname + '/public'));
+  app.set('trust proxy', true);   // so req.protocol is https behind Render
+  if (publicUrl) {
+    const site = new URL(publicUrl);
+    app.use((req, res, next) => {
+      if (req.hostname === site.hostname || req.hostname === 'localhost') return next();
+      res.redirect(301, site.origin + req.originalUrl);
+    });
+  }
+  // The IP address the server sees for you, to check the per-IP guest limit works behind the custom domain.
+  app.get('/api/ip', (req, res) => res.json({ ip: clientIp(req.headers, req.socket.remoteAddress) }));
+  if (auth) app.use(auth.router);
+  app.use(express.static(__dirname + '/public', { extensions: ['html'] }));   // also serves /privacy and /terms
+
   const server = http.createServer(app);
   const io = new Server(server);
-  const limiter = guestLimiter(guestsPerIp, GUEST_WINDOW_MS);
+  const limiter = guestLimiter(guestsPerIp, rules.GUEST_WINDOW_MINUTES * 60 * 1000);
 
   // In-memory copy of each loaded map:
   //   cells:   "x,y" -> owner id or null    players: id -> { name, color }
-  //   counts:  owner id -> blocks owned      hits:    "x,y" -> { by, n } (crack progress, never saved)
-  const maps = new Map();   // id -> Promise of the map
+  //   counts:  owner id -> blocks owned      hits:    "x,y" -> { by, n, at } (crack progress, never saved)
+  const maps = new Map();     // id -> Promise of the map
+  const loaded = new Set();   // the maps that have finished loading
   function getMap(id) {
     if (!maps.has(id)) {
       maps.set(id, store.loadMap(pool, id).then(m => {
@@ -53,6 +66,7 @@ function createGame(pool, { guestsPerIp = GUESTS_PER_IP } = {}) {
           map.cells.set(key(c.x, c.y), c.owner_id);
           if (c.owner_id) map.counts.set(c.owner_id, (map.counts.get(c.owner_id) || 0) + 1);
         }
+        loaded.add(map);
         return map;
       }).catch(err => { maps.delete(id); throw err; }));
     }
@@ -75,6 +89,23 @@ function createGame(pool, { guestsPerIp = GUESTS_PER_IP } = {}) {
     map.cells.set(k, pid);
   }
 
+  // Cracks fade: a block loses one crack level for every crackDecayMs since it was last hit.
+  function decay(map, k, h, now) {
+    const lost = Math.floor((now - h.at) / crackDecayMs);
+    if (!lost) return;
+    h.n -= lost;
+    h.at += lost * crackDecayMs;
+    if (h.n <= 0) map.hits.delete(k);
+    const [x, y] = k.split(',').map(Number);
+    io.to(map.room).emit('hit', { x, y, n: Math.max(0, h.n) });
+  }
+  const sweep = setInterval(() => {
+    const now = Date.now();
+    for (const map of loaded) for (const [k, h] of map.hits) decay(map, k, h, now);
+  }, Math.min(1000, crackDecayMs / 4));
+  sweep.unref();
+  server.on('close', () => clearInterval(sweep));
+
   // Returns an error message, or null if player `pid` (null for a visitor with no account yet) may hit (x, y).
   function checkHit(map, pid, x, y) {
     const k = key(x, y);
@@ -86,14 +117,40 @@ function createGame(pool, { guestsPerIp = GUESTS_PER_IP } = {}) {
     return near ? null : 'You can only take blocks next to your territory';
   }
 
+  // When this player may rename again (ms since 1970), or null if they may now.
+  const renameAt = changedAt => {
+    const t = changedAt && new Date(changedAt).getTime() + rules.RENAME_COOLDOWN_MINUTES * 60 * 1000;
+    return t > Date.now() ? t : null;
+  };
+
+  // A new name shows to everyone at once: every loaded map, every connection of that player, every browser.
+  function renamed(pid, name) {
+    for (const map of loaded) { const p = map.players.get(pid); if (p) p.name = name; }
+    for (const s of io.sockets.sockets.values()) if (s.data.me?.pid === pid) s.data.me.name = name;
+    io.emit('rename', { pid, name });
+  }
+
   io.on('connection', async socket => {
-    const ip = clientIp(socket);
-    let me, map, color;
+    const ip = clientIp(socket.handshake.headers, socket.handshake.address);
+    // What the browser sends: the guest's secret token (if it has one), a login token (if logged in), and
+    // upgrade = true when the player has just signed up from their guest profile.
+    const { token, jwt, upgrade } = socket.handshake.auth || {};
+    let me, map, upgraded = false, loginFailed = false;
     try {
-      // Returning players are recognised by their secret token. Visitors get a name and color to show,
+      // Returning guests are recognised by their secret token. Visitors get a name and color to show,
       // but no database row until their first claim.
-      const player = await store.findPlayerByToken(pool, socket.handshake.auth?.token);
-      me = player ? { pid: player.id, name: player.name } : { pid: null, name: guestName() };
+      let player = await store.findPlayerByToken(pool, token);
+      if (jwt && auth) {
+        const authUserId = await auth.verify(jwt);
+        if (authUserId) {
+          const ownGuest = upgrade === true && player && !player.auth_user_id ? player.id : null;
+          ({ player, upgraded } = await store.accountPlayer(pool, authUserId, ownGuest));
+        } else {
+          loginFailed = true;
+        }
+      }
+      me = player ? { pid: player.id, name: player.name, account: !!player.auth_user_id, renameAt: renameAt(player.name_changed_at) }
+        : { pid: null, name: guestName(), account: false, renameAt: null };
       map = (player?.last_map_id && await getMap(player.last_map_id)) || await getMap(await getDefaultMapId());
       if (player && player.last_map_id !== map.id) await store.setLastMap(pool, player.id, map.id);
     } catch (err) {
@@ -101,12 +158,16 @@ function createGame(pool, { guestsPerIp = GUESTS_PER_IP } = {}) {
       socket.emit('denied', 'The server is having trouble. Try again in a moment.');
       return socket.disconnect();
     }
-    color = map.players.get(me.pid)?.color ?? randomColor();
+    socket.data.me = me;
+    const color = map.players.get(me.pid)?.color ?? randomColor();
     socket.join(map.room);
     if (me.pid) socket.join('player:' + me.pid);
 
     socket.emit('welcome', {
-      me: { pid: me.pid, name: me.name, color },
+      me: { ...me, color },
+      accounts: !!auth,   // false when logins aren't set up on this server
+      upgraded,           // the guest profile just became an account; the browser can forget its guest token
+      loginFailed,        // a login token was sent but wasn't valid
       map: { id: map.id, name: map.name, style: map.style },
       cells: [...map.cells].map(([k, owner]) => [...k.split(',').map(Number), owner]),
       players: Object.fromEntries(map.players),
@@ -115,7 +176,7 @@ function createGame(pool, { guestsPerIp = GUESTS_PER_IP } = {}) {
 
     const clearCrack = (x, y) => io.to(map.room).emit('hit', { x, y, n: 0 });
 
-    // Runs in the map's queue after the third hit. Checks the rules again, since the map may have changed.
+    // Runs in the map's queue after the last hit. Checks the rules again, since the map may have changed.
     async function finishClaim(x, y) {
       const error = checkHit(map, me.pid, x, y);
       if (error) { socket.emit('denied', error); return clearCrack(x, y); }
@@ -143,7 +204,8 @@ function createGame(pool, { guestsPerIp = GUESTS_PER_IP } = {}) {
 
       if (newGuest) {
         limiter.record(ip);
-        me = { pid: r.playerId, name: r.name };
+        me.pid = r.playerId;
+        me.name = r.name;
         socket.join('player:' + me.pid);
         socket.emit('you', { token, pid: me.pid, name: me.name });
       }
@@ -166,11 +228,14 @@ function createGame(pool, { guestsPerIp = GUESTS_PER_IP } = {}) {
       const error = checkHit(map, me.pid, x, y);
       if (error) return socket.emit('denied', error);
 
-      // Progress only counts while the same player keeps hitting the block.
-      const by = me.pid ?? 'visitor:' + socket.id;
+      // Progress only counts while the same player keeps hitting the block, and fades when they stop.
+      const by = me.pid ?? 'visitor:' + socket.id, now = Date.now();
       let h = map.hits.get(k);
+      if (h) decay(map, k, h, now);
+      h = map.hits.get(k);
       if (h?.by !== by) map.hits.set(k, h = { by, n: 0 });
-      if (++h.n < HITS) return io.to(map.room).emit('hit', { x, y, n: h.n });
+      h.at = now;
+      if (++h.n < rules.hitsToTake(me.pid, map.cells.get(k))) return io.to(map.room).emit('hit', { x, y, n: h.n });
 
       map.hits.delete(k);
       serial(map, () => finishClaim(x, y)).catch(err => {
@@ -192,6 +257,24 @@ function createGame(pool, { guestsPerIp = GUESTS_PER_IP } = {}) {
         console.error(`WIPE FAILED (map ${map.id}, player ${me.pid}): ${err.message}`);
         socket.emit('denied', 'Could not wipe your territory. Try again.');
       });
+    });
+
+    // Accounts only. Answers with { name, renameAt } or { error }.
+    socket.on('rename', async (raw, reply) => {
+      if (typeof reply !== 'function') return;
+      if (!me.account) return reply({ error: 'Create an account to change your name' });
+      const checked = checkName(raw);
+      if (checked.error) return reply(checked);
+      try {
+        const r = await store.renamePlayer(pool, me.pid, checked.name);
+        if (r.error) return reply(r);
+        renamed(me.pid, r.name);
+        me.renameAt = renameAt(r.changedAt);
+        reply({ name: r.name, renameAt: me.renameAt });
+      } catch (err) {
+        console.error(`RENAME FAILED (player ${me.pid}): ${err.message}`);
+        reply({ error: 'Could not change your name. Try again.' });
+      }
     });
   });
 

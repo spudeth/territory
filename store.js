@@ -1,16 +1,69 @@
 // Every database read and write the game makes. Ids come back from Postgres as strings.
 const crypto = require('crypto');
 const { tx } = require('./db');
+const rules = require('./rules');
+const { accountNames } = require('./names');
 
 const hashToken = token => crypto.createHash('sha256').update(token).digest();
+const PLAYER = 'p.id, p.name, p.last_map_id, p.auth_user_id, p.name_changed_at';
 
 // Only a real string can be a token, so values like {} or "__proto__" never match a player.
 async function findPlayerByToken(pool, token) {
   if (typeof token !== 'string' || !token || token.length > 100) return null;
   const { rows } = await pool.query(
-    'SELECT p.id, p.name, p.last_map_id FROM player_tokens t JOIN players p ON p.id = t.player_id WHERE t.token_hash = $1',
+    `SELECT ${PLAYER} FROM player_tokens t JOIN players p ON p.id = t.player_id WHERE t.token_hash = $1`,
     [hashToken(token)]);
   return rows[0] ?? null;
+}
+
+// The player for a logged-in account, created the first time that account plays. Returns { player, upgraded }.
+// A brand-new account takes over the guest `guestId` (their own guest profile: the caller checks that) if
+// given, keeping its blocks, squares and settings; the guest's token is deleted, so after logging out that
+// browser starts afresh. Any other new account gets a "NewUser" name. An account that already has a player
+// never takes over anything, so logging in never merges.
+function accountPlayer(pool, authUserId, guestId = null) {
+  return tx(pool, async c => {
+    // Two tabs logging in to a new account at once must not create two players.
+    await c.query('SELECT pg_advisory_xact_lock(hashtext($1))', [authUserId]);
+    const find = async () => (await c.query(`SELECT ${PLAYER} FROM players p WHERE p.auth_user_id = $1`, [authUserId])).rows[0];
+    const existing = await find();
+    if (existing) return { player: existing, upgraded: false };
+
+    if (guestId) {
+      const { rowCount } = await c.query('UPDATE players SET auth_user_id = $1 WHERE id = $2 AND auth_user_id IS NULL', [authUserId, guestId]);
+      if (rowCount) {
+        await c.query('DELETE FROM player_tokens WHERE player_id = $1', [guestId]);
+        return { player: await find(), upgraded: true };
+      }
+    }
+    for (const name of accountNames()) {
+      const { rowCount } = await c.query('INSERT INTO players (name, auth_user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [name, authUserId]);
+      if (rowCount) return { player: await find(), upgraded: false };
+    }
+    throw new Error('could not find a free NewUser name');
+  });
+}
+
+// Renames an account's player. Returns { name, changedAt } or { error } to show them.
+async function renamePlayer(pool, playerId, name) {
+  try {
+    const { rows } = await pool.query(
+      `UPDATE players SET name = $2, name_changed_at = now()
+       WHERE id = $1 AND auth_user_id IS NOT NULL AND name IS DISTINCT FROM $2
+         AND (name_changed_at IS NULL OR name_changed_at <= now() - make_interval(mins => $3))
+       RETURNING name, name_changed_at`, [playerId, name, rules.RENAME_COOLDOWN_MINUTES]);
+    if (rows[0]) return { name: rows[0].name, changedAt: rows[0].name_changed_at };
+  } catch (err) {
+    if (err.code === '23505') return { error: 'That name is taken' };
+    throw err;
+  }
+  // Nothing changed: work out why.
+  const { rows: [p] } = await pool.query(
+    `SELECT auth_user_id, name, ceil(extract(epoch FROM name_changed_at + make_interval(mins => $2) - now()) / 60) AS wait
+     FROM players WHERE id = $1`, [playerId, rules.RENAME_COOLDOWN_MINUTES]);
+  if (!p?.auth_user_id) return { error: 'Create an account to change your name' };
+  if (p.name === name) return { error: 'That is already your name' };
+  return { error: `You can change your name again in ${p.wait} minute${p.wait == 1 ? '' : 's'}` };
 }
 
 async function defaultMapId(pool) {
@@ -56,18 +109,18 @@ async function growMap(client, mapId) {
   return grown;
 }
 
-// Gives 1 square for a first claim, but only if the player now owns more blocks here than at any wipe (wipe_floor).
+// Gives $5 squares for a first claim, but only if the player now owns more blocks here than at any wipe (wipe_floor).
 // Returns the new balance, or nothing if no square was earned.
 const EARN = `
   WITH p AS (
-    UPDATE players SET squares = squares + 1
+    UPDATE players SET squares = squares + $5
     WHERE id = $2
       AND (SELECT count(*) FROM map_cells WHERE map_id = $1 AND owner_id = $2)
         > (SELECT wipe_floor FROM player_map_settings WHERE map_id = $1 AND player_id = $2)
     RETURNING squares
   )
   INSERT INTO square_ledger (player_id, delta, balance_after, reason, map_id, x, y)
-  SELECT $2, 1, squares, 'first_claim', $1, $3, $4 FROM p
+  SELECT $2, $5, squares, 'first_claim', $1, $3, $4 FROM p
   RETURNING balance_after`;
 
 class Conflict extends Error {}
@@ -111,7 +164,7 @@ async function claimBlock(pool, { mapId, x, y, from, playerId, newGuest, color }
       let grown = null, squares = null;
       if (from === null) {
         grown = await growMap(c, mapId);
-        squares = (await c.query(EARN, [mapId, playerId, x, y])).rows[0]?.balance_after ?? null;
+        squares = (await c.query(EARN, [mapId, playerId, x, y, rules.squaresForFirstClaim(playerId)])).rows[0]?.balance_after ?? null;
       }
       return { playerId, name, joinedMap, grown, squares: squares === null ? null : Number(squares) };
     });
@@ -138,4 +191,5 @@ function wipeTerritory(pool, mapId, playerId) {
   });
 }
 
-module.exports = { hashToken, findPlayerByToken, defaultMapId, loadMap, cellOwner, setLastMap, growMap, claimBlock, wipeTerritory };
+module.exports = { hashToken, findPlayerByToken, accountPlayer, renamePlayer, defaultMapId, loadMap, cellOwner, setLastMap,
+  growMap, claimBlock, wipeTerritory };

@@ -1,0 +1,19 @@
+/* Plain text pages: the Privacy Policy and Terms. */
+body {
+  margin: 0;
+  background: #14181f;
+  color: #e6e9ef;
+  font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+main { max-width: 680px; margin: 0 auto; padding: 24px 16px 48px; }
+h1 { margin: 0 0 4px; }
+h2 { margin: 28px 0 8px; font-size: 18px; }
+.sub { color: #9aa3b2; margin-top: 0; }
+a { color: #8fb6ff; }
+.draft {
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #4a3b12;
+  color: #ffe08a;
+  font-weight: 600;
+}

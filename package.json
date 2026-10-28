@@ -14,7 +14,9 @@
     "backup": "node scripts/backup.js"
   },
   "dependencies": {
+    "@neondatabase/auth": "0.7.0-beta",
     "express": "^4.21.2",
+    "jose": "6.2.5",
     "pg": "^8.23.1",
     "socket.io": "^4.8.1"
   },
