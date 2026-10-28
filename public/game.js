@@ -232,7 +232,7 @@ function render() {
 // The square that pops off a block when it earns a new whole square.
 // ms: how long it lasts; rise: blocks it travels up; power: how fast-then-slow (1 = steady); size: share of a block;
 // centered: starts centered on the block's top grid line instead of sitting on it.
-const SQUARE_POP = { ms: 900, rise: 1, power: 3, size: 0.35, centered: false };
+const SQUARE_POP = { ms: 1350, rise: 1.15, power: 4.5, size: 0.28, centered: false };   // Xoren's picks
 const squareIcon = Object.assign(new Image(), { src: 'icons/square.svg' });
 let squarePops = [], lastClaim = null;
 
