@@ -33,9 +33,9 @@ test('a first claim adds one block on the perimeter and earns one square', async
   const before = await cellCount();
   const r = await newGuest(pool, mapId, 0, y);
   assert.equal(r.conflict, undefined);
-  assert.ok(r.grown, 'the map grew');
+  assert.equal(r.grown.length, 1, 'the map grew by one block');
   assert.equal(await cellCount(), before + 1);
-  assert.ok(await touchesMap(r.grown.x, r.grown.y) >= 1, 'the new block touches the map');
+  assert.ok(await touchesMap(r.grown[0].x, r.grown[0].y) >= 1, 'the new block touches the map');
   assert.equal(r.squares, 1);
   assert.equal(await squaresOf(r.playerId), 1);
   const { rows: ledger } = await pool.query('SELECT delta, balance_after, reason, x, y FROM square_ledger WHERE player_id = $1', [r.playerId]);
@@ -49,7 +49,7 @@ test('a retake adds no block and earns no square', async () => {
   const b = await newGuest(pool, mapId, 1, y);
   const before = await cellCount();
   const r = await claim(pool, mapId, b.playerId, 0, y, a.playerId);
-  assert.equal(r.grown, null);
+  assert.deepEqual(r.grown, []);
   assert.equal(r.squares, null);
   assert.equal(await cellCount(), before);
   assert.equal(await squaresOf(b.playerId), 1);
@@ -127,7 +127,7 @@ test('wipe rule: squares only for blocks beyond the most owned at any wipe; grow
   const earned = [];
   for (let x = 0; x < 5; x++) {
     const r = await claim(pool, mapId, id, x, y);
-    assert.ok(r.grown, `claim ${x + 1} grew the map`);
+    assert.equal(r.grown.length, 1, `claim ${x + 1} grew the map`);
     earned.push(r.squares);
   }
   assert.equal(await cellCount(), cells + 5);
@@ -183,7 +183,7 @@ test('two players first-claiming different blocks at the same time: both win, wi
     const cells = await cellCount();
     const [ra, rb] = await Promise.all([claim(pool, mapId, a.playerId, 1, y), claim(pool, mapId, b.playerId, 2, y)]);
     assert.ok(!ra.conflict && !rb.conflict);
-    assert.notDeepEqual(ra.grown, rb.grown);
+    assert.notDeepEqual(ra.grown[0], rb.grown[0]);
     assert.equal(await cellCount(), cells + 2);
   }
 });
@@ -193,7 +193,7 @@ test('ten new guests first-claiming at once all succeed, each growing the map', 
   const cells = await cellCount();
   const rs = await Promise.all(Array.from({ length: 10 }, (_, x) => newGuest(pool, mapId, x * 2, y, 'Same Name')));
   assert.ok(rs.every(r => !r.conflict));
-  assert.equal(new Set(rs.map(r => r.grown.x + ',' + r.grown.y)).size, 10);
+  assert.equal(new Set(rs.map(r => r.grown[0].x + ',' + r.grown[0].y)).size, 10);
   assert.equal(await cellCount(), cells + 10);
   assert.equal(new Set(rs.map(r => r.name.toLowerCase())).size, 10, 'everyone got a different name');
 });
@@ -250,4 +250,27 @@ test('the database pays squares exactly as rules.earnsSquares says, over random 
   const { rows: [p] } = await pool.query('SELECT squares FROM players WHERE id = $1', [g.playerId]);
   assert.equal(Number(p.squares), expected);
   assert.ok(await db.count('SELECT count(*) FROM map_wipes WHERE map_id = $1', [id]) >= 2, 'the run included wipes');
+});
+
+test('a new sync moves stored upgrade levels so nobody gets weaker, all at once, and records each move', async () => {
+  const lv = values => [{ level: 0, value: 1, cost: 0 }, ...values.map((value, i) => ({ level: i + 1, value, cost: i + 1 }))];
+  const none = lv([]), old = { clickPower: lv([1.5, 2, 3]), defense: none, earnings: none, growth: none };
+  await pool.query('DELETE FROM economy_applied');
+  assert.deepEqual(await store.applyEconomy(pool, old), [], 'first run: nothing to move, the tables are recorded');
+  const ids = [];
+  for (const level of [0, 1, 2, 3, 1]) {
+    ids.push((await pool.query('INSERT INTO players (name, click_power) VALUES ($1, $2) RETURNING id', ['Remap ' + ids.length, level])).rows[0].id);
+  }
+  const next = { ...old, clickPower: lv([1.2, 1.4, 1.6, 1.8, 2, 2.5, 3, 3.5]) };
+  const moves = await store.applyEconomy(pool, next);
+  assert.deepEqual(moves.sort((a, b) => a.from - b.from), [
+    { upgrade: 'clickPower', from: 1, to: 3, players: 2 },
+    { upgrade: 'clickPower', from: 2, to: 5, players: 1 },
+    { upgrade: 'clickPower', from: 3, to: 7, players: 1 },
+  ]);
+  const { rows } = await pool.query('SELECT id, click_power FROM players WHERE id = ANY($1)', [ids]);
+  const level = new Map(rows.map(r => [r.id, r.click_power]));
+  assert.deepEqual(ids.map(id => level.get(id)), [0, 3, 5, 7, 3], 'the one at 1 went to 3, and was not moved again by 3 -> 7');
+  assert.equal(await db.count('SELECT count(*) FROM level_remaps WHERE player_id = ANY($1)', [ids]), 4);
+  assert.deepEqual(await store.applyEconomy(pool, next), [], 'run again: nothing moves twice');
 });

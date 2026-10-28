@@ -414,3 +414,6 @@ a:hover { color: var(--gold-light); }
 @keyframes coach-blink { 50% { border-color: var(--gold-light); } }
 @media (prefers-reduced-motion: reduce) { #coach-ring { animation: none; } }
 @media (max-width: 520px) { #coach { bottom: calc(136px + env(safe-area-inset-bottom)); } }
+
+.levels-box summary { cursor: pointer; font-size: 14px; color: var(--gold); min-height: 32px; display: flex; align-items: center; }
+.levels-box .levels { max-height: 220px; overflow-y: auto; }

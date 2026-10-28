@@ -297,8 +297,8 @@ test('menu screens: skins, upgrades and achievement progress come from the real 
   const a = player();
   await a.welcome;
   assert.deepEqual(await a.ask('skins'), [{ id: 'default', name: 'Default', owned: true }]);
-  assert.deepEqual(await a.ask('upgrades'), { levels: rules.NO_UPGRADES, hitsPerBlock: 10, squaresPerClaim: 1,
-    tables: { clickPower: [1], defense: [1], earnings: [1] } });
+  assert.deepEqual(await a.ask('upgrades'), { levels: rules.NO_UPGRADES, hitsPerBlock: rules.HITS_PER_BLOCK,
+    squaresPerClaim: rules.SQUARES_PER_FIRST_CLAIM, upgrades: rules.UPGRADES });
   const none = await a.ask('achievements');
   assert.equal(none.list.length, 8);
   assert.deepEqual([none.earned, none.best], [[], {}], 'a visitor has nothing yet');
@@ -335,6 +335,31 @@ test('tutorial progress: new players start fresh, saved on the server, back on r
   fresh.take(14, 28);
   const them = await fresh.next('you');
   assert.deepEqual((await player({ token: them.token }).welcome).me.tutorial, {}, 'a brand-new player has no progress yet');
+});
+
+test("Growth: a brand-new claim adds as many map blocks as the player's Growth level gives", async t => {
+  const saved = rules.GROWTH_BLOCKS;
+  t.after(() => { rules.GROWTH_BLOCKS = saved; });
+  const a = player();
+  await a.welcome;
+  a.take(26, 31);
+  const you = await a.next('you');
+  await a.next('grow');
+  a.disconnect();
+  rules.GROWTH_BLOCKS = [1, 3];
+  await pool.query('UPDATE players SET growth = 1 WHERE id = $1', [you.pid]);
+  const b = player({ token: you.token });
+  await b.welcome;
+  const before = await cellCount();
+  b.take(27, 31);
+  await b.next('claim', at(27, 31));
+  const spots = [await b.next('grow'), await b.next('grow'), await b.next('grow')];
+  assert.equal(new Set(spots.map(g => g.x + ',' + g.y)).size, 3, 'three different new blocks');
+  assert.equal(await cellCount(), before + 3);
+  b.take(28, 31);   // every brand-new block adds three
+  await b.next('claim', at(28, 31));
+  for (let i = 0; i < 3; i++) await b.next('grow');
+  assert.equal(await cellCount(), before + 6);
 });
 
 test('stats: counted per claim, saved, announced to the player and on the server, lost blocks counted too', async () => {

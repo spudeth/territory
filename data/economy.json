@@ -1,0 +1,60 @@
+{
+  "source": "the game's values before the first sync (upgrades have no levels yet); run npm run sync-rules to replace",
+  "syncedAt": null,
+  "rules": {
+    "hitsPerBlock": 10,
+    "crackFadeSeconds": 60,
+    "crackFadeHits": 1,
+    "squaresPerFirstClaim": 1,
+    "guestsPerIp": 5,
+    "guestWindowMinutes": 60,
+    "renameWaitMinutes": 10,
+    "nameMaxLength": 15,
+    "nameLabelShare": 0.25,
+    "newMapWidth": 32,
+    "newMapHeight": 32,
+    "soundMaxAtOnce": 6,
+    "soundHearingDistance": 1.2,
+    "soundOthersVolume": 0.6,
+    "defaultEffectsVolume": 0.7,
+    "defaultMusicVolume": 0.25,
+    "achievement.first-block": 1,
+    "achievement.owned-100": 100,
+    "achievement.owned-1000": 1000,
+    "achievement.square-10": 10,
+    "achievement.square-50": 50,
+    "achievement.line-10": 10,
+    "achievement.line-100": 100,
+    "achievement.retakes-10": 10
+  },
+  "upgrades": {
+    "clickPower": [
+      {
+        "level": 0,
+        "value": 1,
+        "cost": 0
+      }
+    ],
+    "defense": [
+      {
+        "level": 0,
+        "value": 1,
+        "cost": 0
+      }
+    ],
+    "earnings": [
+      {
+        "level": 0,
+        "value": 1,
+        "cost": 0
+      }
+    ],
+    "growth": [
+      {
+        "level": 0,
+        "value": 1,
+        "cost": 0
+      }
+    ]
+  }
+}

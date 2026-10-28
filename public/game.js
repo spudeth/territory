@@ -5,6 +5,7 @@ let myAccount = false, accountsOn = false, renameAt = null;   // logged in?  log
 // This map: its { id, name, style }, my skin and coverage here, whether they're locked, my wipe floor here, and
 // the colors and coverages the setup screen offers.
 let hitsPerBlock = 10;   // hits to take a block with no upgrades (the server sends the real number)
+let gameSettings = { nameLabelShare: 0.25, nameMaxLength: 15, sound: {} };   // replaced by the server's on welcome
 let mapInfo = null, mySkin = 'default', myCoverage = 'tile', locked = false, wipeFloor = 0, choices = { colors: [], coverages: [] };
 let bounds = { x0: 0, y0: 0, x1: 1, y1: 1 };   // smallest box around every block; x1 and y1 are exclusive
 const key = (x, y) => x + ',' + y;
@@ -185,7 +186,7 @@ function render() {
   ctx.font = `${14 * dpr}px 'Press Start 2P', monospace`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  for (const l of labels.namesToShow(cells, shown)) {
+  for (const l of labels.namesToShow(cells, shown, gameSettings.nameLabelShare)) {
     const name = players[l.owner]?.name;
     if (!name) continue;
     const sx = (ox + l.cx * scale) * dpr, sy = (oy + l.cy * scale) * dpr;
@@ -346,6 +347,9 @@ socket.on('welcome', data => {
   mapInfo = data.map;
   choices = data.choices;
   hitsPerBlock = data.hitsPerBlock;
+  gameSettings = data.settings;   // numbers from the sheet the browser needs
+  gameAudio.configure(gameSettings.sound);
+  $('name-input').maxLength = gameSettings.nameMaxLength;
   sessionStorage.removeItem('territory-upgrade');
   if (data.upgraded) {
     localStorage.removeItem('territory-token');   // the guest is now this account; logging out starts afresh

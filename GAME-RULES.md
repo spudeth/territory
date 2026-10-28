@@ -1,6 +1,8 @@
 # Territory: the game rules
 
-Every rule in the game, in plain English. Each number says where it lives, so you know which line to change. Most numbers are in `rules.js`. Change a number there, restart the server, and the game uses it. This file is updated whenever a rule changes.
+Every rule in the game, in plain English. This file is updated whenever a rule changes.
+
+**Where the numbers live:** Xoren's Google Sheet. Every game number is a row on its Game Rules tab (written below as `Game Rules: hitsPerBlock`), and upgrade levels and costs come from the Click Power, Defense, Earnings and Growth tabs. `npm run sync-rules` copies them into `data/economy.json` after checking them; nothing changes for players until that file is merged into main and deployed. The game never reads the sheet itself. The numbers quoted below are the current ones in `data/economy.json`.
 
 ## The map
 
@@ -11,22 +13,22 @@ Every rule in the game, in plain English. Each number says where it lives, so yo
 
 ## Taking blocks
 
-- **Every block takes 10 hits to take**, empty or owned. (`rules.js`, `HITS_PER_BLOCK: 10`)
+- **Every block takes 10 hits to take**, empty or owned. (Game Rules: `hitsPerBlock`)
 - One click counts as 1 hit, times your Click Power (see Upgrades). With no upgrades, 10 clicks take a block.
 - **Your first block** on a map must be an empty block. It can be anywhere.
 - **After that**, you can only hit blocks that touch your territory up, down, left or right. Diagonal doesn't count. Those blocks can be empty or owned by someone else.
 - You can't hit your own blocks.
 - **Only one player's progress counts.** Progress on a block only counts while the same player keeps hitting it. If someone else hits it, their hits start over from zero and yours are gone.
-- **Cracks fade.** A cracked block loses 1 hit of progress for every 60 seconds since it was last hit, down to zero. (`rules.js`, `CRACK_DECAY_SECONDS: 60` and `CRACK_DECAY_HITS: 1`)
+- **Cracks fade.** A cracked block loses 1 hit of progress for every 60 seconds since it was last hit, down to zero. (Game Rules: `crackFadeSeconds` and `crackFadeHits`)
 - Progress is kept as a fraction (for example 7.2 hits out of 10). It's never saved, so a server restart clears all cracks.
 - **What players see:** the crack drawing shows progress as a share of the hits needed. The existing art has 2 stages. The first shows from the first hit up to half way, and the second from just past half way. The block also darkens a little with every hit, up to 30% dark just before it's taken. (`public/game.js`, `CRACK_STAGES = 2`)
 - If two players finish the same block at almost the same moment, the first one saved wins, and the other sees "Someone got there first".
 
 ## Squares (the currency)
 
-- Claiming an **empty** block earns 1 square, times your Earnings (see Upgrades). (`rules.js`, `SQUARES_PER_FIRST_CLAIM: 1`)
+- Claiming an **empty** block earns 1 square, times your Earnings (see Upgrades). (Game Rules: `squaresPerFirstClaim`)
 - Taking a block from another player earns nothing.
-- **Fractions are kept.** With Earnings ×1.5, every empty block earns 1.5 squares. The exact balance is stored, to 6 decimal places. (`rules.js`, `SQUARE_DECIMALS: 6`, and the database columns from `db/migrations/007_fractional_squares.sql`)
+- **Fractions are kept.** With Earnings ×1.5, every empty block earns 1.5 squares. The exact balance is stored, to 6 decimal places. (a code constant, `rules.js` `SQUARE_DECIMALS`, matching the database columns from `db/migrations/007_fractional_squares.sql`)
 - **Players always see the whole number, rounded down.** A balance of 2.5 shows as 2. (`rules.js`, `shownSquares`)
 - Every change to a balance is written to a ledger, with the exact amount, the new balance, and the map and block it came from.
 - There's no way to spend squares yet.
@@ -40,14 +42,16 @@ Every rule in the game, in plain English. Each number says where it lives, so yo
 
 ## Upgrades
 
-Each player has a level for three upgrades. Everyone starts at level 0. Each upgrade has a table in `rules.js` giving its effect at each level, starting at level 0. A level past the end of the table uses the last entry.
+Each player has a level for four upgrades, which count on every map. Everyone starts at level 0, which is "no upgrade". Each upgrade's tab in the sheet lists its levels with the value after buying each one and its cost in squares (columns Level, Value after, Cost (squares)); the game uses them exactly as written. A level past the end of a table uses its last entry.
 
-**Right now every table is `[1]`, so upgrades do nothing at any level.** Levels and prices haven't been decided, and there's no way to buy upgrades yet.
+**Right now `data/economy.json` has no levels yet, so upgrades do nothing.** They arrive with the first sync from the sheet. There's no way to buy upgrades yet.
 
-- **Click Power:** how many hits one click counts as. ×1.2 means each click counts as 1.2 hits. (`rules.js`, `CLICK_POWER_MULTIPLIER: [1]`)
-- **Defense:** multiplies the hits other players need to take your blocks. ×2 means 20 hits. It never applies to empty blocks. (`rules.js`, `DEFENSE_MULTIPLIER: [1]`)
-- **Earnings:** multiplies the squares you earn per empty block, with fractions kept. (`rules.js`, `EARNINGS_MULTIPLIER: [1]`)
+- **Click Power:** how many hits one click counts as. ×1.2 means each click counts as 1.2 hits.
+- **Defense:** multiplies the hits other players need to take your blocks. ×2 means 20 hits. It never applies to empty blocks.
+- **Earnings:** multiplies the squares you earn per empty block, with fractions kept.
+- **Growth:** how many new map blocks each brand-new block you claim creates (1 with no upgrade). Whole numbers only. Each extra block appears at a random spot on the map's edge, exactly like the normal one.
 - **Example:** with Click Power ×1.2 against Defense ×2, the block needs 10 × 2 = 20 hits. 16 clicks make 19.2 hits, which isn't enough, so it takes 17 clicks.
+- **When the sheet changes the levels, nobody gets weaker.** At the next server start after a merge, each player's level moves to the lowest new level whose value is at least what they had (if no new level is that strong, the top level). Every move is recorded (table `level_remaps`) and listed in the server log. The sync report shows how levels will move.
 
 ## Your look on each map
 
@@ -62,18 +66,18 @@ Each player has a level for three upgrades. Everyone starts at level 0. Each upg
 ## Players, guests and accounts
 
 - **Visitors** can look at the map and start hitting. They become a **guest** on their first claim. A guest gets a random name like "Sly Wolf", which nobody else is using. (`names.js`)
-- **Guest limit:** one network (IP address) can create at most 5 new guests per 60 minutes. (`rules.js`, `GUESTS_PER_IP: 5` and `GUEST_WINDOW_MINUTES: 60`)
+- **Guest limit:** one network (IP address) can create at most 5 new guests per 60 minutes. (Game Rules: `guestsPerIp` and `guestWindowMinutes`)
 - A guest is remembered by a secret token in their browser. Clearing the browser loses the guest.
 - **Accounts** sign up with email and password (a 6-digit email code checks the address) or with Google.
   - A new account gets a name like "NewUser4821" and can rename straight away.
   - If a guest signs up from their own guest profile, the account takes over that guest. It keeps its blocks, squares and settings, and its name changes to a NewUser name.
   - Logging into an account that already has a player never merges anything.
 - **Renaming** is for accounts only (Menu → Settings).
-  - At most 15 characters: letters, numbers, spaces, `-`, `_` and `.`, starting with a letter or number. (`names.js`, `checkName`)
+  - At most 15 characters (Game Rules: `nameMaxLength`; the database allows no more than 15): letters, numbers, spaces, `-`, `_` and `.`, starting with a letter or number. (`names.js`, `checkName`)
   - Names must be unique, ignoring capital letters.
   - Names are run through the bad-word filter (`profanity.js`).
   - Some names are reserved: admin, mod, staff, support, official, territory, NewUser… and others.
-  - After a rename, you wait 10 minutes before renaming again. (`rules.js`, `RENAME_COOLDOWN_MINUTES: 10`)
+  - After a rename, you wait 10 minutes before renaming again. (Game Rules: `renameWaitMinutes`)
   - A new name shows to everyone at once.
 
 ## Stats
@@ -92,20 +96,20 @@ The largest square and the longest line are **records**. Losing blocks never low
 ## Achievements
 
 - Each achievement is earned once per player, on whichever map they first reach it. (Q3: answered A)
-- They're checked on every stat change. The current 8 are placeholders until the real list is approved (see Q5 in `CODY-LOG.md`): First Block (1 first claim), 100 Blocks, 1,000 Blocks (owned at once), 10 by 10, 50 by 50 (largest square), Line of 10, Line of 100, Raider (10 retakes). (`achievements.js`, `DEFINITIONS`)
+- They're checked on every stat change. The current 8 are placeholders until the real list is approved (see Q5 in `CODY-LOG.md`): First Block (1 first claim), 100 Blocks, 1,000 Blocks (owned at once), 10 by 10, 50 by 50 (largest square), Line of 10, Line of 100, Raider (10 retakes). (names in `achievements.js`; thresholds on Game Rules: `achievement.<id>`)
 - Menu → Achievements lists them, with progress toward each (your best on any map), and an All / Earned / Locked filter. A yellow pop-up shows when you earn one.
 
 ## Name labels
 
-- An owner's name shows on their territory once it covers at least 25% of the **whole screen**. When you're zoomed far out, names disappear. (`public/labels.js`, `NAME_LABEL_SHARE = 0.25`; Q4: answered A)
+- An owner's name shows on their territory once it covers at least 25% of the **whole screen**. When you're zoomed far out, names disappear. (Game Rules: `nameLabelShare`; Q4: answered A)
 - Names are drawn in the middle of the territory's part of the screen, in white pixel letters with a dark shadow.
 
 ## Sound and music
 
 - Every sound effect is made in code (`public/sfx.js`); Xoren picked one option per sound on the sound test page (`public/audio.js`, `PICKS`).
-- Your own sounds always play at full volume. Another player's taps, claims and new blocks play only when they're near what you're looking at: quieter further from the middle of the screen, silent past about one screen away, and coming from the left or right speaker by where they are. (`public/audio.js`, `HEARING` and `OTHERS_VOLUME`)
-- At most 6 sounds play at once; other players' sounds are skipped past that, your own never are. (`public/audio.js`, `MAX_VOICES`)
-- Music: "Keep your dream alive!" (CC0, see CREDITS.md) loops quietly once you first tap or click; browsers don't allow sound before that. Default volumes: sound effects 70%, music 25%. (`public/audio.js`, `DEFAULTS`)
+- Your own sounds always play at full volume. Another player's taps, claims and new blocks play only when they're near what you're looking at: quieter further from the middle of the screen, silent past about one screen away, and coming from the left or right speaker by where they are. (Game Rules: `soundHearingDistance` and `soundOthersVolume`)
+- At most 6 sounds play at once; other players' sounds are skipped past that, your own never are. (Game Rules: `soundMaxAtOnce`)
+- Music: "Keep your dream alive!" (CC0, see CREDITS.md) loops quietly once you first tap or click; browsers don't allow sound before that. Default volumes: sound effects 70%, music 25%. (Game Rules: `defaultEffectsVolume` and `defaultMusicVolume`)
 - Menu > Settings > Sound has a slider and a mute button for each, saved on that device.
 
 ## Tutorial and tips

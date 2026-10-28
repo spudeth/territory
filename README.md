@@ -49,6 +49,7 @@ Controls: tap or click to hit a block, drag to pan, pinch or mouse wheel to zoom
 ## Scripts
 
 - `npm test` runs the tests against the database in `.env.local`, each test file in its own throwaway schema. It refuses to run against `production`. The account tests use the dev branch's real Neon Auth with `@example.com` users, which they delete afterwards. Neon limits login requests per address, so those tests sometimes pause to wait it out.
+- `npm run sync-rules` copies the game numbers from Xoren's Google Sheet into `data/economy.json`, checking every tab first and naming any bad cell (`--check` checks only; `--from <folder>` uses saved CSVs). It reports what changed. `rules.js` reads that file; at startup the server moves stored upgrade levels if the tables changed, so nobody gets weaker.
 - `npm run create-map -- --name Snowfield --style white --width 32 --height 32` makes a new map (admin only; refuses the production branch without `--production`).
 - `npm run backup` saves every table to `backups/<branch>-<time>.json`. `npm run backup -- --branch production` backs up another Neon branch through the signed-in Neon CLI.
 

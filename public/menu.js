@@ -262,18 +262,22 @@ const UPGRADES = [
   { key: 'earnings', name: 'Earnings', about: 'More squares per brand-new block', color: 'var(--text)',
     icon: '<path d="M0 4h3v4H0zM5 4h3v4H5zM2 0h4v3H2z" fill="#0f131a"/>',
     effect: (v, u) => { const s = u.squaresPerClaim * v; return `${num(s)} ${plural(s, 'square')} per block`; } },
+  { key: 'growth', name: 'Growth', about: 'More new map blocks per brand-new block', color: 'var(--green)',
+    icon: '<path d="M3 0h2v3h3v2H5v3H3V5H0V3h3z" fill="#0f131a"/>',
+    effect: v => `${v} new map ${plural(v, 'block')} per block` },
 ];
 fills.upgrades = async () => {
   const u = await ask('upgrades');
   if (view !== 'upgrades') return;
   if (u.error) return fail(u.error);
   $('upgrade-list').replaceChildren(...UPGRADES.map(up => {
-    const table = u.tables[up.key], level = Math.min(Math.max(0, u.levels[up.key] | 0), table.length - 1);
+    const table = u.upgrades[up.key].map(l => l.value), level = Math.min(Math.max(0, u.levels[up.key] | 0), table.length - 1);
     const card = document.createElement('div');
     card.className = 'card upg';
     card.innerHTML = `<div class="top"><div class="ic"><svg class="pix" width="20" height="20" viewBox="0 0 8 8" aria-hidden="true">${up.icon}</svg></div>`
       + '<div style="display: flex; flex-direction: column"><span class="t"></span><span class="d"></span></div></div>'
-      + '<div class="pips" aria-hidden="true"></div><div class="stat"><span></span><span></span></div><ul class="levels"></ul>'
+      + '<div class="pips" aria-hidden="true"></div><div class="bar" hidden><div></div></div><div class="stat"><span></span><span></span></div>'
+      + '<details class="levels-box"><summary></summary><ul class="levels"></ul></details>'
       + '<button class="btn" type="button" disabled>Upgrade · SOON</button>';
     card.querySelector('.ic').style.background = up.color;
     card.querySelector('.btn').style.cssText = `background: ${up.color}; color: var(--well)`;
@@ -287,7 +291,11 @@ fills.upgrades = async () => {
       if (i < level) p.style.background = up.color;
       return p;
     }));
-    pips.hidden = table.length < 2;
+    // Many levels: a bar instead of pips.
+    pips.hidden = table.length < 2 || table.length > 21;
+    const bar = card.querySelector('.bar');
+    bar.hidden = table.length <= 21;
+    bar.firstElementChild.style.cssText = `width: ${level / (table.length - 1 || 1) * 100}%; background: ${up.color}`;
     const [lv, now] = card.querySelectorAll('.stat span');
     lv.textContent = `Level ${level}`;
     now.textContent = up.effect(table[level], u);
@@ -299,6 +307,8 @@ fills.upgrades = async () => {
       return li;
     }));
     if (table.length < 2) levels.insertAdjacentHTML('beforeend', '<li>More levels are coming.</li>');
+    card.querySelector('summary').textContent = `All ${table.length - 1} levels`;
+    card.querySelector('.levels-box').hidden = table.length < 2;
     return card;
   }));
 };

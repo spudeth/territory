@@ -5,7 +5,7 @@ const rules = require('./rules');
 const { accountNames } = require('./names');
 
 const hashToken = token => crypto.createHash('sha256').update(token).digest();
-const PLAYER = 'p.id, p.name, p.last_map_id, p.auth_user_id, p.name_changed_at, p.click_power, p.defense, p.earnings, p.squares, p.tutorial';
+const PLAYER = 'p.id, p.name, p.last_map_id, p.auth_user_id, p.name_changed_at, p.click_power, p.defense, p.earnings, p.growth, p.squares, p.tutorial';
 
 // Only a real string can be a token, so values like {} or "__proto__" never match a player.
 async function findPlayerByToken(pool, token) {
@@ -88,7 +88,7 @@ async function loadMap(pool, mapId) {
   if (!map) return null;
   const [cells, players, stats] = await Promise.all([
     pool.query('SELECT x, y, owner_id FROM map_cells WHERE map_id = $1', [mapId]),
-    pool.query('SELECT s.player_id, p.name, s.color, s.skin_id, s.coverage, s.unlocked, s.wipe_floor, p.click_power, p.defense, p.earnings FROM player_map_settings s JOIN players p ON p.id = s.player_id WHERE s.map_id = $1', [mapId]),
+    pool.query('SELECT s.player_id, p.name, s.color, s.skin_id, s.coverage, s.unlocked, s.wipe_floor, p.click_power, p.defense, p.earnings, p.growth FROM player_map_settings s JOIN players p ON p.id = s.player_id WHERE s.map_id = $1', [mapId]),
     pool.query('SELECT * FROM player_map_stats WHERE map_id = $1', [mapId]),
   ]);
   return { ...map, cells: cells.rows, players: players.rows, stats: stats.rows };
@@ -161,8 +161,9 @@ class Conflict extends Error {}
 //   coverage, skin: stored with the color; locked with it until the player wipes this map
 //   stats:    the claimer's stats after this claim (stats.afterClaim); `from` loses a block
 // Returns { conflict: true } if the block changed hands first, otherwise
-//   { playerId, name, joinedMap, grown: {x, y} | null, squares: new exact balance | null }.
-async function claimBlock(pool, { mapId, x, y, from, playerId, newGuest, color, coverage = 'tile', skin = 'default', earn = rules.squaresForFirstClaim(),
+//   { playerId, name, joinedMap, grown: [{x, y}, …] (empty unless a first claim), squares: new exact balance | null }.
+//   grow:     blocks a first claim adds to the map (rules.growthBlocks: 1, or more with the Growth upgrade)
+async function claimBlock(pool, { mapId, x, y, from, playerId, newGuest, color, coverage = 'tile', skin = 'default', grow = 1, earn = rules.squaresForFirstClaim(),
   stats = null }) {
   try {
     return await tx(pool, async c => {
@@ -203,9 +204,10 @@ async function claimBlock(pool, { mapId, x, y, from, playerId, newGuest, color, 
           ON CONFLICT (map_id, player_id) DO UPDATE SET blocks_lost = player_map_stats.blocks_lost + 1`, [mapId, from]);
       }
 
-      let grown = null, squares = null;
+      const grown = [];
+      let squares = null;
       if (from === null) {
-        grown = await growMap(c, mapId);
+        for (let i = 0; i < grow; i++) { const g = await growMap(c, mapId); if (g) grown.push(g); }
         if (earn > 0) squares = (await c.query(EARN, [mapId, playerId, x, y, earn])).rows[0]?.balance_after ?? null;
       }
       return { playerId, name, joinedMap, grown, squares: squares === null ? null : Number(squares) };
@@ -314,4 +316,39 @@ async function saveTutorial(pool, playerId, progress) {
   await pool.query('UPDATE players SET tutorial = $2 WHERE id = $1', [playerId, JSON.stringify(progress)]);
 }
 
-Object.assign(module.exports, { skinsFor, achievementProgress, saveTutorial });
+// Brings players' stored upgrade levels in line with `upgrades` (rules.UPGRADES, from data/economy.json).
+// Stored levels refer to the tables last applied; if those differ, each stored level moves to the lowest new
+// level at least as strong (economy.remapLevel), every move is recorded in level_remaps, and the new tables are
+// recorded. Run at startup, before players connect. Returns [{ upgrade, from, to, players }] for the log.
+const UPGRADE_COLUMNS = { clickPower: 'click_power', defense: 'defense', earnings: 'earnings', growth: 'growth' };
+function applyEconomy(pool, upgrades) {
+  const { remapLevel } = require('./economy');
+  return tx(pool, async c => {
+    await c.query('INSERT INTO economy_applied (upgrades) VALUES ($1) ON CONFLICT DO NOTHING', [JSON.stringify(upgrades)]);
+    const { rows: [applied] } = await c.query('SELECT upgrades FROM economy_applied FOR UPDATE');
+    const moves = [];
+    for (const [upgrade, column] of Object.entries(UPGRADE_COLUMNS)) {
+      const before = applied.upgrades[upgrade] ?? [{ level: 0, value: 1, cost: 0 }], after = upgrades[upgrade];
+      if (JSON.stringify(before) === JSON.stringify(after)) continue;
+      const { rows } = await c.query(`SELECT DISTINCT ${column} AS level FROM players WHERE ${column} > 0`);
+      const map = rows.map(r => [r.level, remapLevel(before, after, r.level)]).filter(([a, b]) => a !== b);
+      if (!map.length) continue;
+      // One statement, so a player moved from 1 to 3 is never moved again by a 3 -> 5 step.
+      const { rows: moved } = await c.query(
+        `WITH m (old_level, new_level) AS (SELECT * FROM unnest($1::int[], $2::int[])),
+              u AS (UPDATE players p SET ${column} = m.new_level FROM m WHERE p.${column} = m.old_level
+                    RETURNING p.id, m.old_level, m.new_level)
+         INSERT INTO level_remaps (player_id, upgrade, old_level, new_level) SELECT id, $3, old_level, new_level FROM u
+         RETURNING old_level, new_level`,
+        [map.map(m => m[0]), map.map(m => m[1]), upgrade]);
+      for (const [from, to] of map) {
+        const players = moved.filter(r => r.old_level === from).length;
+        if (players) moves.push({ upgrade, from, to, players });
+      }
+    }
+    await c.query('UPDATE economy_applied SET upgrades = $1, applied_at = now()', [JSON.stringify(upgrades)]);
+    return moves;
+  });
+}
+
+Object.assign(module.exports, { skinsFor, achievementProgress, saveTutorial, applyEconomy });

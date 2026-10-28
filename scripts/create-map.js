@@ -1,6 +1,7 @@
 // Makes a new official map of empty blocks. Players can switch to it straight away.
 //   npm run create-map -- --name "Snowfield" --style white --width 32 --height 32
 // Uses the database in .env.local (or DATABASE_URL). On the production branch it also needs --production.
+const rules = require('../rules');
 const path = require('path');
 const { createPool } = require('../db');
 const store = require('../store');
@@ -20,7 +21,7 @@ async function main() {
   const pool = createPool(url, { max: 1 });
   try {
     const id = await store.createMap(pool, {
-      name: arg('name'), style: arg('style'), width: Number(arg('width') ?? 32), height: Number(arg('height') ?? 32),
+      name: arg('name'), style: arg('style'), width: Number(arg('width') ?? rules.NEW_MAP_WIDTH), height: Number(arg('height') ?? rules.NEW_MAP_HEIGHT),
     });
     console.log(`Created map ${id}. Players can switch to it now; no restart needed.`);
   } finally {

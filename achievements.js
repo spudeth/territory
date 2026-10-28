@@ -2,16 +2,20 @@
 // map reaches its threshold. Stats are the names in stats.js, plus 'owned' (blocks owned right now).
 // These are placeholders until the real list is decided. Ids are stored in the database: never reuse or
 // rename one; add new ones instead.
-const DEFINITIONS = [
-  { id: 'first-block',  name: 'First Block',      stat: 'firstClaims', threshold: 1 },
-  { id: 'owned-100',    name: '100 Blocks',       stat: 'owned',       threshold: 100 },
-  { id: 'owned-1000',   name: '1,000 Blocks',     stat: 'owned',       threshold: 1000 },
-  { id: 'square-10',    name: '10 by 10',         stat: 'bestSquare',  threshold: 10 },
-  { id: 'square-50',    name: '50 by 50',         stat: 'bestSquare',  threshold: 50 },
-  { id: 'line-10',      name: 'Line of 10',       stat: 'bestLine',    threshold: 10 },
-  { id: 'line-100',     name: 'Line of 100',      stat: 'bestLine',    threshold: 100 },
-  { id: 'retakes-10',   name: 'Raider',           stat: 'retakes',     threshold: 10 },
+const rules = require('./rules');
+
+const LIST = [
+  { id: 'first-block',  name: 'First Block',      stat: 'firstClaims' },
+  { id: 'owned-100',    name: '100 Blocks',       stat: 'owned' },
+  { id: 'owned-1000',   name: '1,000 Blocks',     stat: 'owned' },
+  { id: 'square-10',    name: '10 by 10',         stat: 'bestSquare' },
+  { id: 'square-50',    name: '50 by 50',         stat: 'bestSquare' },
+  { id: 'line-10',      name: 'Line of 10',       stat: 'bestLine' },
+  { id: 'line-100',     name: 'Line of 100',      stat: 'bestLine' },
+  { id: 'retakes-10',   name: 'Raider',           stat: 'retakes' },
 ];
+// Thresholds come from the sheet (rules.ACHIEVEMENT_THRESHOLDS); the sync checks every id has one.
+const DEFINITIONS = LIST.map(d => ({ ...d, threshold: rules.ACHIEVEMENT_THRESHOLDS[d.id] }));
 
 // The checks a stat event needs, found by stat name so hundreds of definitions stay cheap.
 function index(definitions) {

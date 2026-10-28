@@ -10,7 +10,7 @@ const achievements = require('./achievements');
 const { guestName, guestNames, checkName } = require('./names');
 
 const { key } = rules;
-const upgradesOf = row => ({ clickPower: row.click_power, defense: row.defense, earnings: row.earnings });
+const upgradesOf = row => ({ clickPower: row.click_power, defense: row.defense, earnings: row.earnings, growth: row.growth });
 
 // Behind Render the socket address is a proxy's. Cloudflare (in front of every public Render service) sets
 // CF-Connecting-IP and overwrites any value the visitor sends, so prefer it. X-Forwarded-For is only a fallback:
@@ -232,6 +232,7 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
         me: { ...me, color, skin, coverage, locked: lockedHere(), wipeFloor: mine?.wipeFloor ?? 0, squares: rules.shownSquares(me.squares) },
         choices: { colors: rules.COLORS, coverages: rules.COVERAGES },
         hitsPerBlock: rules.HITS_PER_BLOCK,
+        settings: { nameLabelShare: rules.NAME_LABEL_SHARE, nameMaxLength: rules.NAME_MAX_LENGTH, sound: rules.SOUND },
         accounts: !!auth,                         // false when logins aren't set up on this server
         upgraded: false, loginFailed: false,      // see `flags`
         ...flags,
@@ -275,7 +276,7 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       const st = stats.afterClaim(me.pid ? statsOf(map, me.pid) : stats.empty(),
         { owns, x, y, owned: (map.counts.get(me.pid) || 0) + 1, from });
       const r = await store.claimBlock(pool, { mapId: map.id, x, y, from, playerId: me.pid, newGuest,
-        color: joining ? color : null, coverage, skin, earn: rules.squaresForFirstClaim(upgrades),
+        color: joining ? color : null, coverage, skin, earn: rules.squaresForFirstClaim(upgrades), grow: rules.growthBlocks(upgrades),
         stats: st.stats });
       if (r.conflict) {
         // Another server got there first (e.g. during a deploy). Resync this block for everyone.
@@ -306,9 +307,9 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
         statChanged(map, from, 'owned', map.counts.get(from));
         statChanged(map, from, 'blocksLost', ++statsOf(map, from).blocksLost);
       }
-      if (r.grown) {
-        map.cells.set(key(r.grown.x, r.grown.y), null);
-        io.to(map.room).emit('grow', r.grown);
+      for (const g of r.grown) {   // one new block, or more with Growth
+        map.cells.set(key(g.x, g.y), null);
+        io.to(map.room).emit('grow', g);
       }
       if (r.squares !== null) {
         me.squares = r.squares;
@@ -396,7 +397,7 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       const reply = args.at(-1);   // with or without an argument before it
       if (typeof reply !== 'function') return;
       reply({ levels: upgrades, hitsPerBlock: rules.HITS_PER_BLOCK, squaresPerClaim: rules.SQUARES_PER_FIRST_CLAIM,
-        tables: { clickPower: rules.CLICK_POWER_MULTIPLIER, defense: rules.DEFENSE_MULTIPLIER, earnings: rules.EARNINGS_MULTIPLIER } });
+        upgrades: rules.UPGRADES });   // { clickPower: [{ level, value, cost }, …], … } from the sheet
     });
 
     // Saves this player's tutorial progress: { step: id or null, done, tips: [ids] }. Visitors keep theirs in

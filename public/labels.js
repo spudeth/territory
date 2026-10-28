@@ -1,14 +1,13 @@
-// When to show an owner's name on their territory: when it covers at least NAME_LABEL_SHARE of the view.
+// When to show an owner's name on their territory: when it covers at least a share of the view (the sheet's
+// nameLabelShare; the server sends it to the browser).
 // Works in the browser (as a plain script) and on the server (require), so both agree.
 (function (exports) {
-  const NAME_LABEL_SHARE = 0.25;   // a quarter of the screen
-
   // Owners whose blocks cover at least `share` of the view, biggest first.
   //   cells: Map "x,y" -> owner id or null (blocks that exist; anything else is empty)
   //   view:  the visible area in block units { x, y, width, height }; it may cut blocks in half
   // Returns [{ owner, share, cx, cy }]: the share of the view they cover (0-1), and the centre of their
   // visible blocks, a natural place for the label.
-  function namesToShow(cells, view, share = NAME_LABEL_SHARE) {
+  function namesToShow(cells, view, share) {
     const area = view.width * view.height;
     if (!(area > 0)) return [];
     const totals = new Map();
@@ -32,6 +31,5 @@
     return out.sort((p, q) => q.share - p.share);
   }
 
-  exports.NAME_LABEL_SHARE = NAME_LABEL_SHARE;
   exports.namesToShow = namesToShow;
 })(typeof module === 'object' ? module.exports : (window.labels = {}));
