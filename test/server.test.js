@@ -295,6 +295,36 @@ test('maps: switch, claim there with a separate look, and come back to the last 
   assert.equal((await player({ token: you.token }).welcome).map.id, mapId);
 });
 
+test('reconnecting keeps crack progress, and a restarted server remembers stats and achievements', async t => {
+  const a = player();
+  await a.welcome;
+  a.hit3(2, 27);
+  const you = await a.next('you');
+  await a.next('achievement');
+  a.emit('hit', { x: 3, y: 27 });
+  a.emit('hit', { x: 3, y: 27 });
+  await a.next('hit', d => d.x === 3 && d.n === 2);
+  a.disconnect();
+  const b = player({ token: you.token });
+  const w = await b.welcome;
+  assert.deepEqual(w.hits.find(([x, y]) => x === 3 && y === 27), [3, 27, 2], 'the cracks are still there');
+  b.emit('hit', { x: 3, y: 27 });
+  await b.next('claim', d => d.x === 3 && d.y === 27 && d.pid === you.pid);
+  b.disconnect();
+
+  // A second server on the same database, as after a restart or deploy.
+  const other = createGame(pool);
+  await new Promise(r => other.server.listen(0, r));
+  t.after(() => other.io.close());
+  const c = connectPlayer(`http://localhost:${other.server.address().port}`, { token: you.token });
+  sockets.push(c);
+  await c.welcome;
+  c.hit3(4, 27);
+  await c.next('stat', d => d.name === 'firstClaims' && d.value === 3, 15000);
+  await new Promise(r => setTimeout(r, 300));
+  assert.equal(c.events.filter(([n]) => n === 'achievement').length, 0, 'First Block is not earned again');
+});
+
 test('guests cannot rename', async () => {
   const a = player();
   await a.welcome;

@@ -247,6 +247,9 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
 
       let token = null, newGuest = null;
       if (!me.pid) {
+        // A visitor who has gone could never receive their new player's token: the block would belong to a
+        // guest nobody can play. Drop the claim instead.
+        if (!socket.connected) return clearCrack(x, y);
         if (!limiter.allowed(ip)) {
           socket.emit('denied', 'Too many new players from your network. Try again later.');
           return clearCrack(x, y);
