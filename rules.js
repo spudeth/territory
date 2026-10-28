@@ -22,6 +22,7 @@ const settings = {
   GUESTS_PER_IP: R.guestsPerIp,                 // new guest players one network may create…
   GUEST_WINDOW_MINUTES: R.guestWindowMinutes,   // …in this many minutes
   RENAME_COOLDOWN_MINUTES: R.renameWaitMinutes, // wait between name changes
+  MAX_TAPS_PER_SECOND: R.maxTapsPerSecond,      // anti-bot: taps per player per second beyond this are ignored
   NAME_MAX_LENGTH: R.nameMaxLength,             // longest name (the database allows at most 15)
 
   // Upgrades. Each player has a level for each (0 = none). These tables give the effect at each level, starting
@@ -108,6 +109,15 @@ function decayCrack(crack, now, decayMs) {
   return { n: Math.max(0, crack.n - lost * settings.CRACK_DECAY_HITS), at: crack.at + lost * decayMs, lost };
 }
 
+// The tap-rate limit (anti-bot), as a token bucket: a player may tap `rate` times a second on average, in short
+// bursts of up to `rate` taps. bucket is { tokens, at } (or null for a player's first tap). Returns
+// { allowed, bucket } with the bucket to keep.
+function tapAllowed(bucket, now, rate) {
+  const b = bucket ?? { tokens: rate, at: now };
+  const tokens = Math.min(rate, b.tokens + Math.max(0, now - b.at) / 1000 * rate);
+  return tokens >= 1 ? { allowed: true, bucket: { tokens: tokens - 1, at: now } } : { allowed: false, bucket: { tokens, at: now } };
+}
+
 // The wipe rule (anti-farm): a first claim earns squares only if the player now owns more blocks on this map
 // than they did at any wipe there. `wipeFloor` is that highest count (0 if they never wiped).
 const earnsSquares = (ownedAfterClaim, wipeFloor) => ownedAfterClaim > wipeFloor;
@@ -115,4 +125,4 @@ const wipeFloorAfterWipe = (wipeFloor, ownedAtWipe) => Math.max(wipeFloor, owned
 
 // The rules read the numbers from this same object, so tests can try other dial values.
 module.exports = Object.assign(settings, { key, NEIGHBORS, NO_UPGRADES, hitError, hitsNeeded, hitPower, growthBlocks, isTaken,
-  squaresForFirstClaim, shownSquares, decayCrack, earnsSquares, wipeFloorAfterWipe });
+  squaresForFirstClaim, shownSquares, decayCrack, tapAllowed, earnsSquares, wipeFloorAfterWipe });

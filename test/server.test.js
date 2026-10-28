@@ -11,7 +11,7 @@ let db, pool, mapId, game, url;
 const sockets = [];
 before(async () => {
   ({ pool, mapId } = db = await testDb());
-  game = createGame(pool, { guestsPerIp: 2, crackDecayMs: DECAY_MS, publicUrl: 'https://territory.sarl' });
+  game = createGame(pool, { guestsPerIp: 2, crackDecayMs: DECAY_MS, publicUrl: 'https://territory.sarl', tapsPerSecond: 1000 });   // these tests tap like bots
   await new Promise(r => game.server.listen(0, r));
   url = `http://localhost:${game.server.address().port}`;
 });

@@ -417,3 +417,8 @@ a:hover { color: var(--gold-light); }
 
 .levels-box summary { cursor: pointer; font-size: 14px; color: var(--gold); min-height: 32px; display: flex; align-items: center; }
 .levels-box .levels { max-height: 220px; overflow-y: auto; }
+
+/* The squares icon (public/icons/square.svg): keep its pixels sharp at any size */
+.sq-icon { image-rendering: pixelated; flex: none; vertical-align: middle; }
+
+.stat span:first-child { white-space: nowrap; }

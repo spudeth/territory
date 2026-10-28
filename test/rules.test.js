@@ -102,3 +102,14 @@ test('players see whole squares, rounded down', () => {
   assert.equal(rules.shownSquares('3.000000'), 3, 'as the database returns it');
   assert.equal(rules.shownSquares(3.3), 3);
 });
+
+test('tap-rate limit: a burst up to the rate, then the rate per second', () => {
+  let b = null, allowed = 0;
+  for (let i = 0; i < 20; i++) { const r = rules.tapAllowed(b, 1000, 12); b = r.bucket; allowed += r.allowed; }
+  assert.equal(allowed, 12, 'a burst of 12, the rest ignored');
+  assert.equal(rules.tapAllowed(b, 1000 + 1000 / 12 - 1, 12).allowed, false, 'not refilled yet');
+  assert.equal(rules.tapAllowed(b, 1000 + 1000 / 12 + 1, 12).allowed, true, 'one tap per 1/12 second');
+  let steady = 0;
+  for (let t = 0; t < 10000; t += 20) { const r = rules.tapAllowed(b, 2000 + t, 12); b = r.bucket; steady += r.allowed; }
+  assert.ok(steady >= 118 && steady <= 132, `about 12 a second over 10 s: ${steady}`);
+});

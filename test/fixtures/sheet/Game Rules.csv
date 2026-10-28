@@ -6,6 +6,7 @@ squaresPerFirstClaim,1,"Squares for claiming a brand-new block, before Earnings 
 guestsPerIp,5,New guest players one network can create…
 guestWindowMinutes,60,…in this many minutes
 renameWaitMinutes,10,Minutes to wait between name changes
+maxTapsPerSecond,12,Taps per player per second the server accepts; faster taps are ignored (anti-bot)
 nameMaxLength,15,"Longest name, in characters (1 to 15; above 15 needs a database change)"
 nameLabelShare,0.25,A territory shows its owner's name once it covers this share of the screen (0.25 = a quarter)
 newMapWidth,32,Width in blocks of a new map made with the admin script

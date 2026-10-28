@@ -35,7 +35,8 @@ function guestLimiter(limit, windowMs) {
 //   publicUrl: the site's address (https://territory.sarl); requests for any other host, such as www or
 //              the onrender.com address, are sent there. Unset locally.
 function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPerIp = rules.GUESTS_PER_IP, crackDecayMs = rules.CRACK_DECAY_SECONDS * 1000,
-  auth = null, publicUrl = null } = {}) {
+  auth = null, publicUrl = null, tapsPerSecond = null, tapLogMs = 60 * 1000 } = {}) {
+  // tapsPerSecond: the tap-rate limit, or null for rules.MAX_TAPS_PER_SECOND (tests that tap like a bot raise it)
   const app = express();
   app.set('trust proxy', true);   // so req.protocol is https behind Render
   if (publicUrl) {
@@ -55,6 +56,19 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
   // a fifth. Small ones (hits, claims) are sent as they are.
   const io = new Server(server, { perMessageDeflate: { threshold: 4096, zlibDeflateOptions: { level: 1 } } });
   const limiter = guestLimiter(guestsPerIp, rules.GUEST_WINDOW_MINUTES * 60 * 1000);
+
+  // The tap-rate limit (anti-bot): taps over the rate are ignored (rules.tapAllowed). Each minute, players who
+  // went over are written to tap_limit_log and the server log, so bots can be spotted later. No bans yet.
+  const taps = new Map();      // player id (or 'visitor:<socket>') -> token bucket
+  const ignoredTaps = new Map();
+  const tapLog = setInterval(() => {
+    const over = [...ignoredTaps].filter(([who]) => !String(who).startsWith('visitor:'));
+    for (const [who, n] of ignoredTaps) console.log(`TAP LIMIT: ${who} had ${n} tap${n === 1 ? '' : 's'} ignored`);
+    ignoredTaps.clear();
+    for (const [who, b] of taps) if (Date.now() - b.at > 60 * 1000) taps.delete(who);
+    if (over.length) store.logTapLimits(pool, over).catch(err => console.error(`TAP LOG FAILED: ${err.message}`));
+  }, tapLogMs);
+  tapLog.unref();
 
   // In-memory copy of each loaded map:
   //   cells:   "x,y" -> owner id or null    players: id -> { name, color, skin, coverage, unlocked, wipeFloor, upgrades }
@@ -161,7 +175,7 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
     for (const map of loaded) for (const [k, h] of map.hits) decay(map, k, h, now);
   }, Math.min(1000, crackDecayMs / 4));
   sweep.unref();
-  server.on('close', () => clearInterval(sweep));
+  server.on('close', () => { clearInterval(sweep); clearInterval(tapLog); });
 
   const checkHit = rules.hitError;
 
@@ -170,6 +184,18 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
     const t = changedAt && new Date(changedAt).getTime() + rules.RENAME_COOLDOWN_MINUTES * 60 * 1000;
     return t > Date.now() ? t : null;
   };
+
+  // A purchase: new upgrade levels and balance for every connection of the player and every loaded map (where
+  // Defense is read from), so the new level counts from the next tap.
+  function upgradesChanged(pid, levels, balance) {
+    for (const s of io.sockets.sockets.values()) {
+      if (s.data.me?.pid !== pid) continue;
+      s.data.setUpgrades(levels);
+      s.data.me.squares = balance;
+    }
+    for (const map of loaded) { const p = map.players.get(pid); if (p) p.upgrades = levels; }
+    io.to('player:' + pid).emit('squares', rules.shownSquares(balance));
+  }
 
   // A new name shows to everyone at once: every loaded map, every connection of that player, every browser.
   function renamed(pid, name) {
@@ -210,6 +236,7 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       return socket.disconnect();
     }
     socket.data.me = me;
+    socket.data.setUpgrades = u => { upgrades = u; };   // a purchase on any device changes them at once
     // Color, skin and coverage are fixed on the first claim on a map (or the first since a wipe there). Until
     // then they are only proposals, which the player picks on the setup screen (the 'setup' event).
     let color, skin, coverage;
@@ -319,6 +346,10 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
 
     socket.on('hit', p => {
       if (!p || !Number.isInteger(p.x) || !Number.isInteger(p.y)) return;
+      const who = me.pid ?? 'visitor:' + socket.id;
+      const t = rules.tapAllowed(taps.get(who), Date.now(), tapsPerSecond ?? rules.MAX_TAPS_PER_SECOND);
+      taps.set(who, t.bucket);
+      if (!t.allowed) return ignoredTaps.set(who, (ignoredTaps.get(who) || 0) + 1);
       const { x, y } = p, k = key(x, y);
       const error = checkHit(map, me.pid, x, y);
       if (error) return socket.emit('denied', error);
@@ -397,7 +428,8 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       const reply = args.at(-1);   // with or without an argument before it
       if (typeof reply !== 'function') return;
       reply({ levels: upgrades, hitsPerBlock: rules.HITS_PER_BLOCK, squaresPerClaim: rules.SQUARES_PER_FIRST_CLAIM,
-        upgrades: rules.UPGRADES });   // { clickPower: [{ level, value, cost }, …], … } from the sheet
+        upgrades: rules.UPGRADES,       // { clickPower: [{ level, value, cost }, …], … } from the sheet
+        balance: Number(me.squares) }); // the exact balance, so "Need X more" is right with fractions
     });
 
     // Saves this player's tutorial progress: { step: id or null, done, tips: [ids] }. Visitors keep theirs in
@@ -415,6 +447,29 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
         console.error(`TUTORIAL SAVE FAILED (player ${me.pid}): ${err.message}`);
         reply({ error: 'Not saved' });
       });
+    });
+
+    // Buys the next level of an upgrade with squares: { upgrade, level } where level is the one the player
+    // sees (so a double tap can't buy twice). Guests may buy. Answers with { levels, squares, balance } or
+    // { error, need }. The new level works straight away on every device and map.
+    let buying = false;
+    socket.on('buyUpgrade', async (p, reply) => {
+      if (typeof reply !== 'function') return;
+      if (!me.pid) return reply({ error: 'Claim a block first' });
+      if (!p || !(p.upgrade in rules.UPGRADES) || !Number.isInteger(p.level)) return reply({ error: 'Unknown upgrade' });
+      if (buying) return reply({ error: 'One purchase at a time' });
+      buying = true;
+      try {
+        const r = await store.buyUpgrade(pool, me.pid, p.upgrade, p.level, rules.UPGRADES[p.upgrade]);
+        if (r.error) return reply({ error: r.error, need: r.need });
+        upgradesChanged(me.pid, { ...upgrades, [p.upgrade]: r.level }, r.squares);
+        reply({ levels: upgrades, squares: rules.shownSquares(r.squares), balance: r.squares });
+      } catch (err) {
+        console.error(`PURCHASE FAILED (player ${me.pid}, ${p.upgrade}): ${err.message}`);
+        reply({ error: 'Could not buy that. Try again.' });
+      } finally {
+        buying = false;
+      }
     });
 
     // The skin catalog for the Skins screen: [{ id, name, owned }].

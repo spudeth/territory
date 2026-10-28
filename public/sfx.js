@@ -78,6 +78,14 @@
       C: [{ wave: 'saw', freq: 600, slide: -5, attack: 0, hold: 0.3, decay: 0.2, vol: 0.25 },
           { wave: 'noise', freq: 1500, attack: 0.1, hold: 0.1, decay: 0.3, vol: 0.25 }],
     },
+    purchase: {
+      label: 'You buy an upgrade',
+      A: [{ wave: 'square', freq: 1319, duty: 0.5, attack: 0, hold: 0.05, decay: 0.05, vol: 0.3 },
+          { wave: 'square', freq: 1976, duty: 0.5, attack: 0, hold: 0.06, decay: 0.25, vol: 0.3, at: 0.06 }],
+      B: { wave: 'triangle', freq: 523, attack: 0, hold: 0.24, decay: 0.2, vol: 0.6, steps: [[0.06, 1.26], [0.12, 1.5], [0.18, 2]], vib: [0.01, 9] },
+      C: [{ wave: 'noise', freq: 7000, attack: 0, hold: 0.02, decay: 0.06, vol: 0.3 },
+          { wave: 'square', freq: 784, duty: 0.25, slide: 2, attack: 0, hold: 0.1, decay: 0.15, vol: 0.3, at: 0.03 }],
+    },
     spawn: {
       label: 'Spawn (setup screen)',
       A: [{ wave: 'saw', freq: 220, slide: 4, attack: 0, hold: 0.18, decay: 0.05, vol: 0.25 },

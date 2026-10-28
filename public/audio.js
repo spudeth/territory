@@ -7,7 +7,8 @@
 (function (exports) {
   // The options Xoren picked on the sound test page (Q7). Button wasn't picked, so it stays on A.
   const PICKS = { tap: 'B', claim: 'B', taken: 'A', grow: 'A', achievement: 'B', menuOpen: 'B', menuClose: 'B',
-    button: 'A', denied: 'B', wipe: 'A', spawn: 'C' };
+    button: 'A', denied: 'B', wipe: 'A', spawn: 'C',
+    purchase: 'A' };   // purchase: option A until Xoren picks (Q10)
   const MUSIC = 'music/keep-your-dream-alive.mp3';   // Music A (CREDITS.md)
 
   // From the sheet (Game Rules tab); the server sends them in the welcome, and configure() takes them.

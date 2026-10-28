@@ -240,7 +240,7 @@ fills.skins = async () => {
     t.querySelector('.nm').textContent = name;
     const pr = t.querySelector('.pr');
     if (ownedSkin) { pr.textContent = 'Owned'; pr.style.color = 'var(--green)'; }
-    else pr.innerHTML = price ? '<svg class="pix" width="10" height="10" aria-hidden="true"><use href="#i-square"/></svg>SOON' : 'Coming soon';
+    else pr.innerHTML = price ? '<img class="sq-icon" src="icons/square.svg" width="10" height="10" alt="">SOON' : 'Coming soon';
     return t;
   };
   $('catalog').replaceChildren(
@@ -252,66 +252,102 @@ fills.skins = async () => {
 // ---------- Upgrades ----------
 const num = v => (Math.round(v * 100) / 100).toLocaleString(undefined, { minimumFractionDigits: Number.isInteger(v) ? 1 : 0, maximumFractionDigits: 2 });
 const plural = (v, word) => `${word}${v === 1 ? '' : 's'}`;
+// Each upgrade's effect at a level, as a number and what it counts (shown as "10 → 9 clicks per block").
 const UPGRADES = [
   { key: 'clickPower', name: 'Click Power', about: 'Each click counts as more hits', color: 'var(--orange)',
     icon: '<path d="M4 0h2v3h2v1H7v1H6v1H5v1H4v1H3V5H1V4h1V3h1V2h1z" fill="#0f131a"/>',
-    effect: (v, u) => `${num(v)} ${plural(v, 'hit')} per click` },
+    effect: (v, u) => { const n = Math.ceil(u.hitsPerBlock / v - 1e-9); return [n, plural(n, 'click') + ' per block']; } },
   { key: 'defense', name: 'Defense', about: 'Others need more hits to take your blocks', color: 'var(--blue)',
     icon: '<path d="M0 0h8v4H7v2H6v1H5v1H3V7H2V6H1V4H0z" fill="#0f131a"/>',
-    effect: (v, u) => { const h = Math.round(u.hitsPerBlock * v * 100) / 100; return `${h.toLocaleString()} ${plural(h, 'hit')} to take`; } },
+    effect: (v, u) => { const n = Math.round(u.hitsPerBlock * v * 100) / 100; return [n, plural(n, 'hit') + ' to take your block']; } },
   { key: 'earnings', name: 'Earnings', about: 'More squares per brand-new block', color: 'var(--text)',
     icon: '<path d="M0 4h3v4H0zM5 4h3v4H5zM2 0h4v3H2z" fill="#0f131a"/>',
-    effect: (v, u) => { const s = u.squaresPerClaim * v; return `${num(s)} ${plural(s, 'square')} per block`; } },
+    effect: (v, u) => { const n = u.squaresPerClaim * v; return [n, plural(n, 'square') + ' per new block']; } },
   { key: 'growth', name: 'Growth', about: 'More new map blocks per brand-new block', color: 'var(--green)',
     icon: '<path d="M3 0h2v3h3v2H5v3H3V5H0V3h3z" fill="#0f131a"/>',
-    effect: v => `${v} new map ${plural(v, 'block')} per block` },
+    effect: v => [v, 'new map ' + plural(v, 'block') + ' per claim'] },
 ];
+const show2 = n => num(n).replace(/\.0$/, '');   // 4 rather than 4.0 in "5 → 4"
+
+let upgradeData = null;
 fills.upgrades = async () => {
   const u = await ask('upgrades');
   if (view !== 'upgrades') return;
   if (u.error) return fail(u.error);
+  upgradeData = u;
+  drawUpgrades();
+  $('upg-squares').textContent = squares;
+};
+function drawUpgrades() {
+  const u = upgradeData;
   $('upgrade-list').replaceChildren(...UPGRADES.map(up => {
-    const table = u.upgrades[up.key].map(l => l.value), level = Math.min(Math.max(0, u.levels[up.key] | 0), table.length - 1);
+    const levels = u.upgrades[up.key], top = levels.length - 1;
+    const level = Math.min(Math.max(0, u.levels[up.key] | 0), top), next = levels[level + 1];
     const card = document.createElement('div');
     card.className = 'card upg';
     card.innerHTML = `<div class="top"><div class="ic"><svg class="pix" width="20" height="20" viewBox="0 0 8 8" aria-hidden="true">${up.icon}</svg></div>`
       + '<div style="display: flex; flex-direction: column"><span class="t"></span><span class="d"></span></div></div>'
       + '<div class="pips" aria-hidden="true"></div><div class="bar" hidden><div></div></div><div class="stat"><span></span><span></span></div>'
       + '<details class="levels-box"><summary></summary><ul class="levels"></ul></details>'
-      + '<button class="btn" type="button" disabled>Upgrade · SOON</button>';
+      + '<button class="btn" type="button"></button>';
     card.querySelector('.ic').style.background = up.color;
-    card.querySelector('.btn').style.cssText = `background: ${up.color}; color: var(--well)`;
     card.querySelector('.t').textContent = up.name;
     card.querySelector('.d').textContent = up.about;
-    // One pip per level above 0; filled up to the player's level.
-    const pips = card.querySelector('.pips');
-    pips.replaceChildren(...table.slice(1).map((_, i) => {
+    // Pips for a few levels, a bar for many.
+    const pips = card.querySelector('.pips'), bar = card.querySelector('.bar');
+    pips.replaceChildren(...levels.slice(1).map((_, i) => {
       const p = document.createElement('span');
       p.className = 'pip';
       if (i < level) p.style.background = up.color;
       return p;
     }));
-    // Many levels: a bar instead of pips.
-    pips.hidden = table.length < 2 || table.length > 21;
-    const bar = card.querySelector('.bar');
-    bar.hidden = table.length <= 21;
-    bar.firstElementChild.style.cssText = `width: ${level / (table.length - 1 || 1) * 100}%; background: ${up.color}`;
-    const [lv, now] = card.querySelectorAll('.stat span');
-    lv.textContent = `Level ${level}`;
-    now.textContent = up.effect(table[level], u);
-    const levels = card.querySelector('.levels');
-    levels.replaceChildren(...table.map((v, i) => {
+    pips.hidden = top < 1 || top > 20;
+    bar.hidden = top <= 20;
+    bar.firstElementChild.style.cssText = `width: ${level / (top || 1) * 100}%; background: ${up.color}`;
+    // "Level 3" and "10 → 9 clicks per block", or "… · MAX" at the top.
+    const [lv, eff] = card.querySelectorAll('.stat span');
+    lv.textContent = `Level ${level}${top ? ` of ${top}` : ''}`;
+    const [now, unit] = up.effect(levels[level].value, u);
+    eff.textContent = next ? `${show2(now)} → ${show2(up.effect(next.value, u)[0])} ${unit}` : `${show2(now)} ${unit}`;
+    // Every level, with its effect and cost.
+    card.querySelector('summary').textContent = `All ${top} levels`;
+    card.querySelector('.levels-box').hidden = top < 1;
+    card.querySelector('.levels').replaceChildren(...levels.slice(1).map(l => {
       const li = document.createElement('li');
-      li.className = i === level ? 'cur' : '';
-      li.textContent = `Level ${i}: ${up.effect(v, u)}`;
+      li.className = l.level === level ? 'cur' : '';
+      const [n, what] = up.effect(l.value, u);
+      li.textContent = `Level ${l.level}: ${show2(n)} ${what} · ${l.cost.toLocaleString()} squares`;
       return li;
     }));
-    if (table.length < 2) levels.insertAdjacentHTML('beforeend', '<li>More levels are coming.</li>');
-    card.querySelector('summary').textContent = `All ${table.length - 1} levels`;
-    card.querySelector('.levels-box').hidden = table.length < 2;
+    // The button: buy the next level, or why not.
+    const btn = card.querySelector('.btn');
+    btn.style.cssText = `background: ${up.color}; color: var(--well)`;
+    if (!next) { btn.disabled = true; btn.textContent = top ? 'MAX' : 'No levels yet'; }
+    else if (u.balance + 1e-9 >= next.cost) {
+      btn.innerHTML = `Upgrade · <img class="sq-icon" src="icons/square.svg" width="16" height="16" alt="squares"> ${next.cost.toLocaleString()}`;
+      btn.addEventListener('click', () => buy(up, level, btn));
+    } else {
+      btn.disabled = true;
+      btn.innerHTML = `<img class="sq-icon" src="icons/square.svg" width="16" height="16" alt="squares"> ${next.cost.toLocaleString()} · Need ${Math.ceil(next.cost - u.balance - 1e-9).toLocaleString()} more`;
+    }
     return card;
   }));
-};
+}
+async function buy(up, level, btn) {
+  btn.disabled = true;   // one tap, one purchase (the server refuses repeats too)
+  const r = await ask('buyUpgrade', { upgrade: up.key, level });
+  if (r.error) {
+    toast(r.need ? `${r.error}: need ${Math.ceil(r.need - 1e-9)} more` : r.error);
+    return fills.upgrades();
+  }
+  gameAudio.play('purchase');
+  Object.assign(upgradeData, { levels: r.levels, balance: r.balance });
+  squares = r.squares;
+  updateUI();
+  $('upg-squares').textContent = squares;
+  toast(`${up.name} level ${r.levels[up.key]}`, 'good');
+  if (view === 'upgrades') drawUpgrades();
+}
 
 // ---------- Achievements ----------
 const ACH_TEXT = {

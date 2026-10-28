@@ -416,7 +416,12 @@ socket.on('rename', ({ pid, name }) => {
   if (pid === me) myName = name;
   updateUI();
 });
-socket.on('squares', n => { squares = n; updateUI(); if (n > 0) tell('squares', n); });
+socket.on('squares', n => {
+  squares = n;
+  updateUI();
+  if (n > 0) tell('squares', n);
+  if (view === 'upgrades') fills.upgrades();   // menu.js: what can be afforded now
+});
 socket.on('stat', d => onStat(d));                  // menu.js
 socket.on('achievement', a => onAchievement(a));    // menu.js
 socket.on('denied', msg => {

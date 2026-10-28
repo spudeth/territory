@@ -351,4 +351,35 @@ function applyEconomy(pool, upgrades) {
   });
 }
 
-Object.assign(module.exports, { skinsFor, achievementProgress, saveTutorial, applyEconomy });
+// Buys the next level of one upgrade with squares, in one transaction: the player's row is locked, so two
+// purchases at the same moment (two taps, two tabs) take turns and can never spend the same squares twice.
+//   levels: the upgrade's table (rules.UPGRADES[upgrade]); expected: the level the player saw when tapping,
+//   so a repeated tap for a level already bought is refused instead of buying the next one too.
+// Returns { level, squares } (the new level and exact balance) or { error, need? } (need: squares short).
+async function buyUpgrade(pool, playerId, upgrade, expected, levels) {
+  const column = UPGRADE_COLUMNS[upgrade];
+  if (!column) return { error: 'Unknown upgrade' };
+  return tx(pool, async c => {
+    const { rows: [p] } = await c.query(`SELECT squares, ${column} AS level FROM players WHERE id = $1 FOR UPDATE`, [playerId]);
+    if (!p) return { error: 'No such player' };
+    if (p.level !== expected) return { error: 'Already bought', level: p.level, squares: Number(p.squares) };
+    const next = levels[p.level + 1];
+    if (!next) return { error: 'This upgrade is at its maximum' };
+    // Compared in the database, so fractions are exact.
+    const { rows: [paid] } = await c.query(
+      `UPDATE players SET squares = squares - $2, ${column} = ${column} + 1 WHERE id = $1 AND squares >= $2 RETURNING squares`,
+      [playerId, next.cost]);
+    if (!paid) return { error: 'Not enough squares', need: Number(next.cost) - Number(p.squares) };
+    await c.query(`INSERT INTO square_ledger (player_id, delta, balance_after, reason) VALUES ($1, $2, $3, $4)`,
+      [playerId, -next.cost, paid.squares, `upgrade:${upgrade}:${next.level}`]);
+    return { level: next.level, squares: Number(paid.squares) };
+  });
+}
+
+// Records players who went over the tap-rate limit: [[playerId, taps ignored], …].
+async function logTapLimits(pool, entries) {
+  await pool.query('INSERT INTO tap_limit_log (player_id, ignored) SELECT * FROM unnest($1::bigint[], $2::int[])',
+    [entries.map(e => e[0]), entries.map(e => e[1])]);
+}
+
+Object.assign(module.exports, { skinsFor, achievementProgress, saveTutorial, applyEconomy, buyUpgrade, logTapLimits });

@@ -22,6 +22,7 @@ Every rule in the game, in plain English. This file is updated whenever a rule c
 - **Cracks fade.** A cracked block loses 1 hit of progress for every 60 seconds since it was last hit, down to zero. (Game Rules: `crackFadeSeconds` and `crackFadeHits`)
 - Progress is kept as a fraction (for example 7.2 hits out of 10). It's never saved, so a server restart clears all cracks.
 - **What players see:** the crack drawing shows progress as a share of the hits needed. The existing art has 2 stages. The first shows from the first hit up to half way, and the second from just past half way. The block also darkens a little with every hit, up to 30% dark just before it's taken. (`public/game.js`, `CRACK_STAGES = 2`)
+- **Tap-rate limit (anti-bot):** the server counts at most 12 taps a second from one player, in short bursts of up to 12; faster taps are ignored. Players who go over are logged each minute (table `tap_limit_log` and the server log) to spot bots later. No bans. (Game Rules: `maxTapsPerSecond`)
 - If two players finish the same block at almost the same moment, the first one saved wins, and the other sees "Someone got there first".
 
 ## Squares (the currency)
@@ -44,7 +45,12 @@ Every rule in the game, in plain English. This file is updated whenever a rule c
 
 Each player has a level for four upgrades, which count on every map. Everyone starts at level 0, which is "no upgrade". Each upgrade's tab in the sheet lists its levels with the value after buying each one and its cost in squares (columns Level, Value after, Cost (squares)); the game uses them exactly as written. A level past the end of a table uses its last entry.
 
-**Right now `data/economy.json` has no levels yet, so upgrades do nothing.** They arrive with the first sync from the sheet. There's no way to buy upgrades yet.
+**Right now `data/economy.json` has no levels yet, so upgrades do nothing and there's nothing to buy.** They arrive with the first sync from the sheet.
+
+**Buying:** Menu > Upgrades. Each upgrade shows its level, what it does now and after the next level (e.g. "9 → 8 clicks per block"), and a button with the next level's cost from the sheet. Without enough squares the button says how many more are needed; at the top level it says MAX.
+- Guests can buy too (after their first block); upgrades work on every map and stay with the guest when they make an account from their guest profile.
+- A purchase is one database transaction: the exact balance (fractions included) is checked, the cost taken and written to the ledger, and the level raised. Taps at the same moment, from one device or several, take turns, and a tap for a level already bought is refused, so nobody can spend the same squares twice.
+- The new level counts from the very next tap, on every device and map.
 
 - **Click Power:** how many hits one click counts as. ×1.2 means each click counts as 1.2 hits.
 - **Defense:** multiplies the hits other players need to take your blocks. ×2 means 20 hits. It never applies to empty blocks.

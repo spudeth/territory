@@ -251,3 +251,15 @@ QUESTION Q9: the Growth tab doesn't match the order. The sheet has 5 levels with
 #37 | 2026-10-28 | Growth upgrade: players.growth (migration 010); a brand-new claim creates rules.growthBlocks blocks (1 at level 0), each at a random edge spot like the normal one; a Growth card on the Upgrades screen; long level tables show a bar and an "All N levels" list | tests: Growth test (3 new blocks per claim)
 #38 | 2026-10-28 | option B remapping: economy_applied records the tables stored levels refer to; at startup, if a merged sync changed them, every stored level moves to the lowest new level at least as strong (top level if none is), in one statement per upgrade so nobody moves twice; each move recorded in level_remaps and printed in the server log; the sync report lists how levels will move | tests: economy 9/9 (remap rules over the real tables), store remap test; affected files 69/70 on one run (the "wipe unlocks" test failed once, not reproduced in 4 runs since; not touched by this loop; watching it)
 #39 | 2026-10-28 | real sync attempted (--check): blocked. The sheet has no Game Rules tab yet, and Growth now has 6 levels with fractions (1.83, 2.67, 3.5, 4.33, 5.17, …): Q9. Nothing written. Starting loop order 6 meanwhile; the real sync, change summary and loop 5 merge steps follow once the tab exists and Q9 is answered | tests: n/a
+
+## Loop order 6: squares and buying upgrades
+
+#40 | 2026-10-28 | squares icon saved exactly as public/icons/square.svg and used everywhere squares appear (HUD, menu, shop, prices); the old inline icon removed | tests: checked in Chrome
+#41 | 2026-10-28 | buying upgrades: Upgrades screen shows level, "now → next" effect (e.g. 9 → 8 clicks per block), the next cost with the icon, "Need X more" when short, MAX at the top; all four upgrades. Server: one transaction (row lock, exact balance check in SQL, cost taken, ledger row "upgrade:<name>:<level>", level raised); the tapped level must match (double taps refused), one purchase at a time per connection; new levels pushed to every connection and loaded map at once. Guests may buy; their row becomes their account | tests: shop 6/6; checked in Chrome with the saved sheet (30.5 squares, bought Click Power 1 for 22, 8.5 left)
+#42 | 2026-10-28 | Purchase sound: 3 options added to the sound test page (same link), option A used until picked | tests: rendered
+#43 | 2026-10-28 | tap-rate limit: token bucket per player (rules.tapAllowed), 12 taps a second suggested (people manage about 6-10 a second; bursts allowed up to 12), extra taps ignored; per-minute log of players who went over (tap_limit_log, migration 011, plus the server log); Game Rules key maxTapsPerSecond | tests: limiter unit test; shop test: 10 taps at once with a limit of 5 counts 5, logs 5 ignored, works again a second later
+
+New Game Rules row for Bob (add under renameWaitMinutes):
+maxTapsPerSecond,12,"Taps per player per second the server accepts; faster taps are ignored (anti-bot)"
+
+QUESTION Q10: which Purchase sound? | Purchase A / B / C on the sound test page (https://claude.ai/artifact/ArEFRCP9bmyiDKH5QQt6EL) | using A until picked | OPEN

@@ -9,6 +9,7 @@
     "guestsPerIp": 5,
     "guestWindowMinutes": 60,
     "renameWaitMinutes": 10,
+    "maxTapsPerSecond": 12,
     "nameMaxLength": 15,
     "nameLabelShare": 0.25,
     "newMapWidth": 32,

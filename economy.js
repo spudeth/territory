@@ -20,6 +20,7 @@ const RULE_KEYS = {
   guestsPerIp: int(1, 10000),
   guestWindowMinutes: num(1, 100000),
   renameWaitMinutes: num(0, 100000),
+  maxTapsPerSecond: num(1, 100),
   nameMaxLength: int(1, 15),          // the database allows at most 15
   nameLabelShare: num(0.01, 1),
   newMapWidth: int(1, 1000),
