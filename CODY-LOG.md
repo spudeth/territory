@@ -28,3 +28,13 @@ QUESTION Q4: does "25% of the screen" mean the whole screen, or only the part of
 
 #12 | 2026-10-28 | new hit system: every block takes HITS_PER_BLOCK = 10; a click counts as Click Power hits (multiplier, fractions kept); Defense multiplies the hits needed; cracks fade 1 hit per 60 s; browsers get progress as a share (p) and the 2 existing crack stages split it evenly; balances keep fractions (migration 007, numeric to 6 places), players see the rounded-down number; Q1-Q4 marked answered | tests: pass (rules 6/6, store + server 35/35)
 #13 | 2026-10-28 | GAME-RULES.md: every rule in plain English with each number and where it lives; README updated for 10 hits | tests: n/a (docs only)
+
+#14 | 2026-10-28 | achievement draft posted as Q5 (30 achievements on existing stats); not added to the game | tests: n/a
+QUESTION Q5: approve this achievement list (30, replaces the 8 placeholders; each earned once per player)?
+  Empty blocks claimed: First Block 1, Settler 10, Pioneer 50, Homesteader 250, Frontier 1,000, Founder 5,000
+  Blocks owned at once: Plot 10, Field 50, Estate 100, Domain 500, Province 1,000, Kingdom 5,000, Empire 10,000
+  Largest solid square: Little Square 3x3, Courtyard 5x5, 10 by 10, 25 by 25, 50 by 50, 100 by 100
+  Longest straight line: Fence 5, Line of 10, Wall 25, Long Wall 50, Line of 100
+  Blocks taken from others: First Raid 1, Raider 10, Conqueror 100, Warlord 1,000
+  Blocks lost to others: Under Attack 1, Battle-Scarred 100
+  | A: approve as is / B: change names or numbers (say which) / C: also add shapes or counts that need new stats (e.g. hollow ring, cross, maps played on) | pick A: uses only stats already tracked, so adding it is a data-only change in achievements.js; C can come later | OPEN
