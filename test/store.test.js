@@ -220,3 +220,34 @@ test('tokens are stored only as hashes and only real tokens find a player', asyn
     assert.equal(await store.findPlayerByToken(pool, bad), null, `token ${JSON.stringify(bad)}`);
   }
 });
+
+test('the database pays squares exactly as rules.earnsSquares says, over random claims and wipes', async () => {
+  const rules = require('../rules');
+  const id = await store.createMap(pool, { name: 'Wipes', style: 'grass', width: 12, height: 12 });
+  const free = [];
+  for (let y = 0; y < 12; y++) for (let x = 0; x < 12; x++) free.push([x, y]);
+  let seed = 11;
+  const rand = n => (seed = (seed * 1103515245 + 12345) % 2 ** 31) % n;
+  const take = () => free.splice(rand(free.length), 1)[0];
+
+  const first = take();
+  const g = await newGuest(pool, id, ...first);
+  let owned = 1, floor = 0, expected = 1, mine = [first];
+  for (let step = 0; step < 24; step++) {
+    if (rand(5) === 0) {
+      await store.wipeTerritory(pool, id, g.playerId);
+      floor = rules.wipeFloorAfterWipe(floor, owned);
+      free.push(...mine);
+      mine = []; owned = 0;
+      continue;
+    }
+    const spot = take();
+    const r = await claim(pool, id, g.playerId, ...spot);
+    mine.push(spot); owned++;
+    if (rules.earnsSquares(owned, floor)) expected += rules.squaresForFirstClaim(rules.NO_UPGRADES);
+    assert.equal(r.squares === null, !rules.earnsSquares(owned, floor), `step ${step}`);
+  }
+  const { rows: [p] } = await pool.query('SELECT squares FROM players WHERE id = $1', [g.playerId]);
+  assert.equal(Number(p.squares), expected);
+  assert.ok(await db.count('SELECT count(*) FROM map_wipes WHERE map_id = $1', [id]) >= 2, 'the run included wipes');
+});

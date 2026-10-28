@@ -325,6 +325,59 @@ test('reconnecting keeps crack progress, and a restarted server remembers stats 
   assert.equal(c.events.filter(([n]) => n === 'achievement').length, 0, 'First Block is not earned again');
 });
 
+test('random play by four players: database, server and every screen agree; the map grows once per first claim', async () => {
+  const store = require('../store');
+  const id = await store.createMap(pool, { name: 'Soak', style: 'grass', width: 6, height: 6 });
+  const players = [player(), player(), player(), player()];
+  await Promise.all(players.map(p => p.welcome));
+  // Everyone's own copy of the map, built only from what the server tells them.
+  const views = players.map(p => {
+    const v = new Map();
+    p.on('welcome', w => { v.clear(); for (const [x, y, o] of w.cells) v.set(x + ',' + y, o); });
+    p.on('claim', d => v.set(d.x + ',' + d.y, d.pid));
+    p.on('grow', d => v.set(d.x + ',' + d.y, null));
+    return v;
+  });
+  for (const p of players) { await p.ask('switchMap', id); await p.next('welcome'); }
+
+  let seed = 7;
+  const rand = n => (seed = (seed * 1103515245 + 12345) % 2 ** 31) % n;
+  const pids = [null, null, null, null];
+  let firstClaims = 0;
+  for (let round = 0; round < 30; round++) {
+    const i = rand(4), p = players[i], view = views[i];
+    // Pick a block this player may take, as the rules see it in their view.
+    const counts = new Map();
+    for (const o of view.values()) if (o) counts.set(o, (counts.get(o) || 0) + 1);
+    const options = [...view.keys()].filter(k => {
+      const [x, y] = k.split(',').map(Number);
+      return rules.hitError({ cells: view, counts }, pids[i], x, y) === null;
+    });
+    if (!options.length) continue;
+    const [x, y] = options[rand(options.length)].split(',').map(Number);
+    const wasEmpty = view.get(x + ',' + y) === null;
+    p.hit3(x, y);
+    const c = await p.next('claim', d => d.x === x && d.y === y, 15000);
+    if (!pids[i]) pids[i] = (await p.next('you')).pid;
+    assert.equal(c.pid, pids[i]);
+    if (wasEmpty) { firstClaims++; await p.next('grow'); }
+  }
+  await new Promise(r => setTimeout(r, 300));   // let the last events arrive everywhere
+
+  const { rows } = await pool.query('SELECT x, y, owner_id FROM map_cells WHERE map_id = $1', [id]);
+  const db = new Map(rows.map(r => [r.x + ',' + r.y, r.owner_id]));
+  assert.equal(db.size, 36 + firstClaims, 'one new block per first claim');
+  for (const [i, v] of views.entries()) assert.deepEqual(new Map([...v].sort()), new Map([...db].sort()), `player ${i} sees the database`);
+  const kept = await pool.query('SELECT x, y FROM map_edges WHERE map_id = $1 ORDER BY x, y', [id]);
+  await store.rebuildEdges(pool, id);
+  assert.deepEqual(kept.rows, (await pool.query('SELECT x, y FROM map_edges WHERE map_id = $1 ORDER BY x, y', [id])).rows);
+  for (const pid of pids.filter(Boolean)) {
+    const owned = [...db.values()].filter(o => o === pid).length;
+    const st = (await pool.query('SELECT owned_max FROM player_map_stats WHERE map_id = $1 AND player_id = $2', [id, pid])).rows[0];
+    assert.ok(st.owned_max >= owned, 'most ever owned is at least what they own now');
+  }
+});
+
 test('guests cannot rename', async () => {
   const a = player();
   await a.welcome;
