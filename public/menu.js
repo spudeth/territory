@@ -8,6 +8,7 @@ const fills = {};     // view name -> function that fills the view in just befor
 let view = null;      // the view showing, or null when the menu is closed
 
 function show(name) {
+  if (name === 'main') return closeMenu();   // the old menu hub: the welcome screen is underneath now
   if (menu.hidden) gameAudio.play('menuOpen');
   for (const v of menu.querySelectorAll('[data-view]')) v.hidden = v.dataset.view !== name;
   const section = menu.querySelector(`[data-view="${name}"]`);
@@ -59,7 +60,7 @@ fills.main = () => {
 
 for (const b of menu.querySelectorAll('[data-soon]')) b.addEventListener('click', () => toast(`${b.dataset.soon}: coming soon`, 'good'));
 
-$('menu-button').addEventListener('click', () => show('main'));
+$('menu-button').addEventListener('click', () => welcomeScreen.open());   // welcome.js
 menu.addEventListener('click', e => {
   if (e.target.closest('button, a') && !e.target.closest('.close, #spawn')) gameAudio.play('button');
   const go = e.target.closest('[data-go]');
@@ -431,7 +432,7 @@ function onStat() {
 function afterWelcome() {
   if (!locked && chosen.has(mapInfo.id)) {
     ask('setup', chosen.get(mapInfo.id)).then(r => { if (!r.error) ({ color: myColor, skin: mySkin, coverage: myCoverage } = r); updateUI(); });
-  } else if (!locked) {
+  } else if (!locked && !welcomeScreen.isOpen()) {   // on the welcome screen, PLAY shows it (welcome.js)
     pick = null;
     return show('setup');
   }

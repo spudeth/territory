@@ -49,13 +49,13 @@
     { id: 'menu', title: 'The menu', text: 'Open the menu.',
       highlight: { element: '#menu-button' }, done: 'menu:main' },
     { id: 'menu-maps', title: 'Maps', text: 'Switch to other maps here.',
-      highlight: { element: '[data-view="main"] [data-go="maps"]' }, done: 'next' },
+      highlight: { element: '#w-picker' }, done: 'next' },
     { id: 'menu-skins', title: 'Skins', text: 'Skins change how your land looks.',
-      highlight: { element: '[data-view="main"] [data-go="skins"]' }, done: 'next' },
+      highlight: { element: '#welcome [data-go="skins"]' }, done: 'next' },
     { id: 'menu-achievements', title: 'Achievements', text: 'Your achievements and how close you are to the next ones.',
-      highlight: { element: '[data-view="main"] [data-go="achievements"]' }, done: 'next' },
-    { id: 'menu-settings', title: 'Settings', text: 'Your name, sound and music, and a fresh start on this map. That is everything. Have fun!',
-      highlight: { element: '[data-view="main"] [data-go="settings"]' }, done: 'next' },
+      highlight: { element: '#welcome [data-go="achievements"]' }, done: 'next' },
+    { id: 'menu-settings', title: 'Settings', text: 'Your name, sound and music, and a fresh start on this map. Press PLAY to get back to your land. Have fun!',
+      highlight: { element: '#welcome [data-go="settings"]' }, done: 'next' },
   ];
 
   const TIPS = [

@@ -365,3 +365,25 @@ Admin (on your computer, with the setup done):
 
 ## Summary (loop order 7 done, stopping)
 Admin commands through the live server with a secret key, dev by default and --prod for the live game; previews, typed confirmation, a backup before every destructive command, and a log of everything; bans covering linked guests; account deletion that erases Neon Auth data; ADMIN.md for Xoren. Full suite 100/100. Open: Q5 (achievements), Q6 (Spawn), Q8 (tutorial wording), Q10 (Purchase sound).
+#57 | 2026-10-28 | Loop 8: welcome screen (welcome.js) from Welcome.dc.html / WelcomeDesktop.dc.html: logo (placeholder in #logo) over the card, sound toggle top right, Privacy · Terms; card with name, color, GUEST/ACCOUNT, squares, map picker (arrows, live thumbnail, name, stats on two lines, dots), PLAY, Skins/Awards/Upgrades/Settings, Log in / Sign up for guests. Placeholder maps in PLACEHOLDER_MAPS (welcome.js) show COMING SOON. Server: 'maps' now answers each map's size and the player's blocks, rank and played (store.mapsFor) | tests: server maps test extended
+#58 | 2026-10-28 | Loop 8: background = the live map, blurred 7px, dimmed 50%, drawn at 0.4-0.6 resolution; zooms out over 20 s then drifts (CSS only, paused when the tab is hidden); picker switches cross-fade it. PLAY: card fades and drops, blur clears, 1.2 s zoom to their territory (or a random open patch for players with no blocks there), HUD fades in at the end; new or wiped look -> setup, then the tutorial. MENU reverses it. Reduce motion: cross-fade only | checked in headless Chrome (below)
+#59 | 2026-10-28 | Loop 8: MENU button now opens the welcome screen; menu screens' back buttons return to it; the old hub's How to play moved into Settings; the old hub's Get squares / VIP "soon" tiles and the Maps screen are no longer reachable (the picker replaces Maps). Tutorial menu tour points at the welcome screen (one line added: "Press PLAY to get back to your land."; Q8 wording still open). A tip showing when the welcome screen opens waits for the game | tests: tutorial test passes with the new highlights
+#60 | 2026-10-28 | Loop 8 checks in headless Chrome, desktop 1440x900 and phone 390x844: new visitor opens on welcome; COMING SOON map; PLAY -> setup -> Spawn -> tutorial; claim; MENU back with "You: 1 block · #1"; Upgrades opens and returns; reload -> PLAY goes straight in, centred on their block; wipe -> setup; reduce motion (no zoom, no drift); phone with a 4x slower CPU: 61 fps on the welcome screen. Not checked: a logged-in account (needs an email code; only the tag and the hidden login button differ), switching between two real maps (dev has only Grass; covered by the server test) | full suite 106/106
+
+## Merge steps (loop 8, plus #53-#56 since Xoren's last merge)
+1. On GitHub: open a pull request from `iterate` into `main` (it merges cleanly) and merge it.
+2. Render deploys by itself. No database changes this time.
+3. Logs should end with `Territory running on …`.
+
+## Live checklist (after the deploy)
+- Open the site: it opens on the welcome screen, over a blurred map that slowly zooms out.
+- ◀ ▶: White Plains and ??? show COMING SOON; PLAY turns grey.
+- PLAY: the card drops away and the map zooms in. On your own account you land on your territory.
+- MENU: zooms back out to the welcome screen. Skins, Awards, Upgrades and Settings open and close back to it.
+- In a private window (a brand-new guest): PLAY -> pick a look -> Spawn -> the tutorial starts.
+- The sound button top right mutes and unmutes everything.
+- Names: every territory shows a dark name tag on its own land.
+- Mine a brand-new block: a square rises off it.
+- Settings > Reset all progress on a test account, then mine again: squares come in.
+
+Loop order 8 done. Open: Q5 (achievements), Q6 (Spawn), Q8 (tutorial wording), Q10 (Purchase sound), Q11 (nameLabelShare row). Stopping.

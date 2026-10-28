@@ -288,7 +288,22 @@ async function createMap(pool, { name, style, width, height }) {
   });
 }
 
-Object.assign(module.exports, { STYLES, listMaps, createMap });
+// The maps for the welcome screen's picker, with this player's place on each:
+// [{ id, name, style, blocks: the map's size, mine: their blocks, rank: 1 = most blocks (null with none), played }].
+async function mapsFor(pool, playerId) {
+  const { rows } = await pool.query(`
+    WITH owned AS (SELECT map_id, owner_id, count(*)::int AS n FROM map_cells WHERE owner_id IS NOT NULL GROUP BY 1, 2)
+    SELECT m.id, m.name, m.style,
+      (SELECT count(*)::int FROM map_cells c WHERE c.map_id = m.id) AS blocks,
+      coalesce(o.n, 0) AS mine,
+      CASE WHEN o.n IS NULL THEN NULL ELSE 1 + (SELECT count(*)::int FROM owned b WHERE b.map_id = m.id AND b.n > o.n) END AS rank,
+      (o.n IS NOT NULL OR EXISTS (SELECT 1 FROM player_map_settings s WHERE s.map_id = m.id AND s.player_id = $1)) AS played
+    FROM maps m LEFT JOIN owned o ON o.map_id = m.id AND o.owner_id = $1
+    WHERE m.type = 'official' ORDER BY m.id`, [playerId]);
+  return rows;
+}
+
+Object.assign(module.exports, { STYLES, listMaps, createMap, mapsFor });
 
 // The skin catalog, with whether this player owns each (free skins count as owned by everyone).
 async function skinsFor(pool, playerId) {

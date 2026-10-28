@@ -51,11 +51,15 @@ function addCell(x, y, owner) {
 
 // ---------- Camera ----------
 let scale = 20, ox = 0, oy = 0;   // scale = CSS pixels per block, (ox, oy) = screen position of block (0, 0)
+let renderScale = 1;              // under 1 draws the map at lower resolution (the blurred welcome background)
 const mapSpan = () => Math.max(bounds.x1 - bounds.x0, bounds.y1 - bounds.y0);
 const minScale = () => Math.min(innerWidth, innerHeight) / mapSpan() * 0.5;
 const MAX_SCALE = 160;
 
 function clampView() {
+  // The welcome screen places the camera itself (welcome.js).
+  if (window.welcomeScreen?.isMoving()) return draw();
+  if (window.welcomeScreen?.isOpen()) return welcomeScreen.reframe();
   scale = Math.min(MAX_SCALE, Math.max(minScale(), scale));
   ox = Math.min(innerWidth / 2 - bounds.x0 * scale, Math.max(innerWidth / 2 - bounds.x1 * scale, ox));
   oy = Math.min(innerHeight / 2 - bounds.y0 * scale, Math.max(innerHeight / 2 - bounds.y1 * scale, oy));
@@ -100,7 +104,7 @@ function draw() {
 
 function render() {
   queued = false;
-  const dpr = devicePixelRatio || 1;
+  const dpr = (devicePixelRatio || 1) * renderScale;
   const w = Math.round(innerWidth * dpr), h = Math.round(innerHeight * dpr);
   if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
   ctx.imageSmoothingEnabled = false;   // keep pixel art crisp
@@ -358,6 +362,7 @@ function updateUI() {
     return li;
   }));
   if (!top.length) $('board-list').innerHTML = '<li class="empty">No blocks claimed yet</li>';
+  window.welcomeScreen?.refresh();
 }
 
 // ---------- Networking ----------
@@ -391,7 +396,8 @@ socket.on('welcome', data => {
   bounds = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
   for (const [x, y, owner] of data.cells) addCell(x, y, owner);
   hits = new Map(data.hits.map(([x, y, p]) => [key(x, y), p]));
-  if (first) initialView(); else clampView();
+  if (window.welcomeScreen?.isOpen()) welcomeScreen.onWelcome(first);
+  else if (first) initialView(); else clampView();
   updateUI();
   loadProgress(data.me.tutorial);   // coach.js
   afterWelcome();   // menu.js: the setup screen if this map's look isn't chosen yet
