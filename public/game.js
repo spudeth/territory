@@ -2,6 +2,10 @@
 // cells: "x,y" -> owner id, or null when empty. A block that isn't in cells doesn't exist; maps grow into any shape.
 let me = null, myName = '', myColor = '#888', cells = null, players = {}, hits = new Map(), squares = 0;
 let myAccount = false, accountsOn = false, renameAt = null;   // logged in?  logins set up?  when renaming is allowed again
+// This map: its { id, name, style }, my skin and coverage here, whether they're locked, my wipe floor here, and
+// the colors and coverages the setup screen offers.
+let hitsPerBlock = 10;   // hits to take a block with no upgrades (the server sends the real number)
+let mapInfo = null, mySkin = 'default', myCoverage = 'tile', locked = false, wipeFloor = 0, choices = { colors: [], coverages: [] };
 let bounds = { x0: 0, y0: 0, x1: 1, y1: 1 };   // smallest box around every block; x1 and y1 are exclusive
 const key = (x, y) => x + ',' + y;
 
@@ -168,6 +172,22 @@ function render() {
     }
   }
 
+  // Owners' names on territories covering at least a quarter of the screen (labels.js), in the design's
+  // style: Press Start 2P in white with a hard dark shadow, at the middle of their visible blocks.
+  const shown = { x: -ox / scale, y: -oy / scale, width: innerWidth / scale, height: innerHeight / scale };
+  ctx.font = `${14 * dpr}px 'Press Start 2P', monospace`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (const l of labels.namesToShow(cells, shown)) {
+    const name = players[l.owner]?.name;
+    if (!name) continue;
+    const sx = (ox + l.cx * scale) * dpr, sy = (oy + l.cy * scale) * dpr;
+    ctx.fillStyle = '#0a0d12';
+    ctx.fillText(name, sx + 3 * dpr, sy + 3 * dpr);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(name, sx, sy);
+  }
+
   // Mouse hover outline (desktop only).
   if (hover) {
     const { x, y } = hover;
@@ -240,6 +260,7 @@ canvas.addEventListener('wheel', e => {
 
 document.addEventListener('gesturestart', e => e.preventDefault());   // stop iOS page zoom
 addEventListener('resize', clampView);
+document.fonts?.ready.then(draw);   // the label font arrives after the first frames
 
 // ---------- UI ----------
 let toastTimer;
@@ -250,21 +271,30 @@ function toast(msg, kind = 'bad') {
   toastTimer = setTimeout(() => $('toast').classList.remove('show'), 1800);
 }
 
-// The leaderboard covers this map only, ranked by blocks owned.
-function updateUI() {
+// Blocks owned on this map, by owner id.
+function blockCounts() {
   const counts = {};
   for (const o of cells.values()) if (o) counts[o] = (counts[o] || 0) + 1;
+  return counts;
+}
+const myBlocks = () => (me && blockCounts()[me]) || 0;
 
+// The player card (top left) and the leaderboard (top right, this map only, ranked by blocks owned).
+function updateUI() {
+  const counts = blockCounts();
   $('me-name').textContent = myName;
   $('me-color').style.background = myColor;
-  $('me-count').textContent = (me && counts[me]) || 0;
+  const mine = (me && counts[me]) || 0;
+  $('me-count').textContent = `${mine} block${mine === 1 ? '' : 's'}`;
+  $('me-squares').textContent = squares;
   $('hint').hidden = !!(me && counts[me]);
+  $('hint').textContent = `Tap any empty block ${hitsPerBlock} times to claim your first block`;
 
   const top = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5);
   $('board-list').replaceChildren(...top.map(([pid, n]) => {
     const li = document.createElement('li');
     li.className = pid === me ? 'mine' : '';
-    li.innerHTML = '<span class="swatch"></span><span class="name"></span><span class="n"></span>';
+    li.innerHTML = '<span class="sq"></span><span class="name"></span><span class="n"></span>';
     li.children[0].style.background = players[pid]?.color || '#888';
     li.children[1].textContent = players[pid]?.name || '…';
     li.children[2].textContent = n;
@@ -283,9 +313,13 @@ const socket = io({
 });
 
 socket.on('welcome', data => {
-  const first = !cells;
-  ({ pid: me, name: myName, color: myColor, account: myAccount, renameAt } = data.me);
+  const first = !cells || data.map.id !== mapInfo?.id;   // a new map (or a switch) gets a fresh view
+  ({ pid: me, name: myName, color: myColor, skin: mySkin, coverage: myCoverage, locked, wipeFloor, squares,
+    account: myAccount, renameAt } = data.me);
   accountsOn = data.accounts;
+  mapInfo = data.map;
+  choices = data.choices;
+  hitsPerBlock = data.hitsPerBlock;
   sessionStorage.removeItem('territory-upgrade');
   if (data.upgraded) {
     localStorage.removeItem('territory-token');   // the guest is now this account; logging out starts afresh
@@ -299,6 +333,7 @@ socket.on('welcome', data => {
   hits = new Map(data.hits.map(([x, y, p]) => [key(x, y), p]));
   if (first) initialView(); else clampView();
   updateUI();
+  afterWelcome();   // menu.js: the setup screen if this map's look isn't chosen yet
 });
 
 // After a visitor's first claim the server creates their player and hands over the secret token.
@@ -309,9 +344,9 @@ socket.on('you', ({ token, pid, name }) => {
   updateUI();
 });
 
-socket.on('player', ({ pid, name, color, coverage }) => {
-  players[pid] = { name, color, coverage };
-  if (pid === me) myColor = color;
+socket.on('player', ({ pid, name, color, skin, coverage }) => {
+  players[pid] = { name, color, skin, coverage };
+  if (pid === me) { myColor = color; mySkin = skin; myCoverage = coverage; locked = true; updateUI(); }
 });
 socket.on('hit', ({ x, y, p }) => {
   if (p) hits.set(key(x, y), p); else hits.delete(key(x, y));
@@ -327,17 +362,20 @@ socket.on('grow', ({ x, y }) => {
   addCell(x, y, null);
   draw();
 });
-socket.on('wipe', ({ cells: wiped }) => {
+socket.on('wipe', ({ pid, cells: wiped, floor }) => {
   for (const [x, y] of wiped) cells.set(key(x, y), null);
   updateUI();
   draw();
+  if (pid === me) { locked = false; wipeFloor = floor; afterWipe(); }   // menu.js: pick a new look
 });
 socket.on('rename', ({ pid, name }) => {
   if (players[pid]) players[pid].name = name;
   if (pid === me) myName = name;
   updateUI();
 });
-socket.on('squares', n => { squares = n; });   // not shown yet
+socket.on('squares', n => { squares = n; updateUI(); });
+socket.on('stat', d => onStat(d));                  // menu.js
+socket.on('achievement', a => onAchievement(a));    // menu.js
 socket.on('denied', msg => toast(msg));
 socket.on('disconnect', reason => {
   if (reason !== 'io client disconnect') toast('Connection lost, reconnecting…');   // not when we reconnect on purpose

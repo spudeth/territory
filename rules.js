@@ -29,7 +29,12 @@ const settings = {
   NAME_LABEL_SHARE: require('./public/labels').NAME_LABEL_SHARE,
 
   // Per-map look, chosen on the first claim on a map and locked forever
-  COVERAGES: ['tile', 'stretch'], // how a skin covers a territory (the first is the default)
+  COVERAGES: ['tile', 'stretch'], // how a skin covers a territory: per block, or one image over the full area (the first is the default)
+  COLORS: [                       // the free colors a player picks from on a map (from the approved menu design)
+    { hex: '#29adff', name: 'Blue' }, { hex: '#ff77a8', name: 'Pink' }, { hex: '#ffa300', name: 'Orange' },
+    { hex: '#ffec27', name: 'Yellow' }, { hex: '#00e4a0', name: 'Teal' }, { hex: '#c29bff', name: 'Purple' },
+    { hex: '#ff4d4d', name: 'Red' }, { hex: '#f2f4f8', name: 'White' },
+  ],
 };
 
 const key = (x, y) => x + ',' + y;

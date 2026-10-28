@@ -63,3 +63,47 @@ Then check on territory.sarl (a private window is fine):
 
 ## Summary (loop order 2 done, stopping)
 Built the 10-hit system (one setting; Click Power, Defense and Earnings are multipliers, all 1.0), fractional squares balances (migration 007), and crack art driven by progress share. Added GAME-RULES.md. Achievement draft is Q5, OPEN. Full suite 65/65. Ready to merge with the steps above.
+
+## Loop order 3: the menu from the design
+
+#16 | 2026-10-28 | wipe unlocks color, skin and coverage on that map only (migration 008: unlocked column, trigger allows one change while unlocked; next claim locks again); setup event replaces coverage (8 colors in rules.COLORS, owned skins, coverage); welcome now carries squares (whole), wipe floor and the choices; GAME-RULES.md updated | tests: pass (server 22/22)
+#17 | 2026-10-28 | HUD restyle from the design: fonts, palette, 3px borders, pixel shadows and icons; player card with color, name, blocks and whole squares; leaderboard; yellow MENU button bottom-left | tests: checked in Chrome, phone and desktop
+#18 | 2026-10-28 | menu hub: account card (GUEST / ACCOUNT / VISITOR tag, map, squares), Log in / Sign up for guests, tiles (Upgrades, Get squares, VIP marked SOON), Settings, legal links; desktop shows it as a centered card with 3 columns | tests: checked in Chrome
+#19 | 2026-10-28 | account screens: Log in / Sign up tabs, Google, email and password, 6-digit code, forgot and reset password, wired to the existing login | tests: checked in Chrome (no real sign-up run, to spare Neon's login limit)
+#20 | 2026-10-28 | settings: rename with counter, rules text and cooldown message; this map's locked choices; wipe button; log out (accounts only) | tests: checked in Chrome
+#21 | 2026-10-28 | wipe dialog: real block count and floor, type WIPE to confirm, wired to the wipe; afterwards the setup screen opens | tests: checked in Chrome (wipe then setup)
+#22 | 2026-10-28 | maps: playing now (thumbnail of the real map, your blocks and rank, map size), map list with switching, Buy / Create as SOON | tests: server 23/23 (new menu data test), checked in Chrome
+#23 | 2026-10-28 | setup screen: 8 colors, Default skin plus 4 locked, Per block / Full area, the lock warning, Spawn; shown on entering a map unlocked and after a wipe; choices resent if the connection restarts | tests: checked in Chrome
+#24 | 2026-10-28 | skins: catalog with Default owned and the design's other skins locked, prices as SOON | tests: checked in Chrome
+#25 | 2026-10-28 | upgrades: each level and its effect from rules.js (one level each today), buttons say SOON | tests: checked in Chrome
+#26 | 2026-10-28 | achievements: the 8 placeholders with real progress (best on any map) and the map each was earned on, All / Earned / Locked filter, yellow pop-up with the description; name labels drawn on the map (white pixel letters, dark shadow) | tests: checked in Chrome
+
+QUESTION Q6: what should SPAWN do on the setup screen? | A: save the choices and close, then you tap your own first block (built) / B: also claim a random empty block for you straight away | built A: it changes no game rule; B would be a new rule (where, how many hits) | OPEN
+#27 | 2026-10-28 | merge readiness: full suite run; iterate merges into main with no conflicts (main's only extra commit is Xoren's merge of loop order 2) | tests: pass (67/67, 111 s)
+
+## Merge steps for Xoren (iterate -> main), loop order 3
+
+Before you start: the whole screen look changes (new HUD, menu, setup screen). Players' blocks, names, squares and colors are kept. Only one database change runs: 008, which lets a wipe unlock color, skin and coverage. Half-cracked blocks reset on restart, as on every deploy.
+
+1. Optional backup: Neon console -> project -> Branches -> production. Note the time. Restore on that page can put production back to that time.
+2. github.com/spudeth/territory -> Pull requests -> New pull request.
+3. base: main, compare: iterate. It should say "Able to merge". -> Create pull request -> Create pull request.
+4. Merge pull request -> Confirm merge. Keep the iterate branch.
+5. Render -> the territory service -> Events: wait for the new deploy to say Live.
+6. Render -> Logs: "Applied migrations: 008_unlock_after_wipe.sql", then "Accounts are on." If you see "Startup failed", stop and send me that line.
+
+## Live checklist (territory.sarl, phone and computer)
+
+- [ ] New visitor (private window): the setup screen opens first. Pick a color and Full area, press SPAWN.
+- [ ] Tap an empty block 10 times: it turns your color; a yellow "First Block" pop-up shows; the top-left card says 1 block and 1 square.
+- [ ] Menu (bottom left): your name, GUEST tag, map name, squares; tiles; Upgrades, Get squares and VIP marked SOON.
+- [ ] Maps: Grass with your blocks and rank, the map list; switching works if there's a second map.
+- [ ] Skins: Default owned, the rest locked with SOON. Upgrades: Level 0 and its effect for all three. Achievements: First Block earned, the rest with progress bars; the filter tabs work.
+- [ ] Settings: your color, skin and coverage with a lock. Wipe: shows your real block count, the button only works after typing WIPE; afterwards the setup screen opens again and a new color sticks after your next block.
+- [ ] Log in / Sign up: both tabs, Google, the 6-digit code, forgot password still work (as before).
+- [ ] Logged in: Settings rename shows the counter and, after a rename, the "change it again at" message.
+- [ ] An existing player who joined before today keeps their old color until they wipe.
+- [ ] Zoomed in on a big territory: the owner's name shows on it.
+
+## Summary (loop order 3 done, stopping)
+Wipe now unlocks a map's color, skin and coverage (migration 008, trigger updated, GAME-RULES.md updated). Built the HUD and every menu screen from the approved design, wired to the real login, rename, wipe, maps, stats and achievements; prices show as SOON; the 8 placeholder achievements stay until Q5 is answered. Checked every screen in Chrome at phone and desktop sizes. Full suite 67/67. Open: Q5 (achievement list), Q6 (what Spawn does). Ready to merge with the steps above.

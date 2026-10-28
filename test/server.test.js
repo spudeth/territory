@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const http = require('http');
 const { createGame } = require('../app');
 const rules = require('../rules');
+const store = require('../store');
 const { testDb, connectPlayer } = require('./helpers');
 
 const DECAY_MS = 400;   // crack decay, sped up from 60 seconds so the test is quick
@@ -171,19 +172,27 @@ test('cracks fade one hit per decay period after the last hit, for everyone, sho
   await watcher.next('claim', at(4, 25));
 });
 
-test('coverage is picked before the first claim on a map, then locked there for good', async () => {
+test('color, skin and coverage are picked before the first claim on a map, then locked there', async () => {
+  const LOCKED = { error: 'Your color, skin and coverage are locked for this map' };
   const a = player();
   const w = await a.welcome;
   assert.equal(w.me.coverage, 'tile', 'tile unless they pick');
+  assert.equal(w.me.skin, 'default');
+  assert.ok(w.choices.colors.some(c => c.hex === w.me.color), 'the proposed color is one of the 8');
+  assert.equal(w.choices.colors.length, 8);
   assert.equal(w.me.locked, false);
-  assert.deepEqual(await a.ask('coverage', 'sideways'), { error: 'Unknown coverage' });
-  assert.deepEqual(await a.ask('coverage', 'stretch'), { coverage: 'stretch' });
+  assert.deepEqual(await a.ask('setup', { coverage: 'sideways' }), { error: 'Unknown coverage' });
+  assert.deepEqual(await a.ask('setup', { color: '#123456' }), { error: 'Pick one of the colors shown' });
+  assert.deepEqual(await a.ask('setup', { skin: 'checker' }), { error: "You don't own that skin" });
+  assert.deepEqual(await a.ask('setup', { color: '#ffa300', skin: 'default', coverage: 'stretch' }),
+    { color: '#ffa300', skin: 'default', coverage: 'stretch' });
   a.take(12, 25);
   const you = await a.next('you');
-  assert.equal((await a.next('player', d => d.pid === you.pid)).coverage, 'stretch');
-  assert.deepEqual(await a.ask('coverage', 'tile'), { error: 'Your coverage is locked for this map' });
-  const saved = 'SELECT coverage FROM player_map_settings WHERE player_id = $1';
-  assert.equal((await pool.query(saved, [you.pid])).rows[0].coverage, 'stretch');
+  const joined = await a.next('player', d => d.pid === you.pid);
+  assert.deepEqual([joined.color, joined.coverage], ['#ffa300', 'stretch']);
+  assert.deepEqual(await a.ask('setup', { coverage: 'tile' }), LOCKED);
+  const saved = 'SELECT color, coverage FROM player_map_settings WHERE player_id = $1';
+  assert.deepEqual((await pool.query(saved, [you.pid])).rows[0], { color: '#ffa300', coverage: 'stretch' });
 
   // Coming back: still stretch, still locked.
   const again = player({ token: you.token });
@@ -191,7 +200,7 @@ test('coverage is picked before the first claim on a map, then locked there for 
   assert.equal(w2.me.coverage, 'stretch');
   assert.equal(w2.me.locked, true);
   assert.equal(w2.players[you.pid].coverage, 'stretch');
-  assert.deepEqual(await again.ask('coverage', 'tile'), { error: 'Your coverage is locked for this map' });
+  assert.deepEqual(await again.ask('setup', { coverage: 'tile' }), LOCKED);
 });
 
 test('the database refuses to change color, skin or coverage once set, but wipes still work', async () => {
@@ -208,6 +217,46 @@ test('the database refuses to change color, skin or coverage once set, but wipes
   a.emit('wipe');
   await a.next('wipe');
   assert.equal((await pool.query('SELECT wipe_floor FROM player_map_settings WHERE player_id = $1', [you.pid])).rows[0].wipe_floor, 1);
+});
+
+test('a wipe unlocks color, skin and coverage on that map only, until the next claim there', async () => {
+  const LOCKED = { error: 'Your color, skin and coverage are locked for this map' };
+  const settings = 'SELECT color, coverage, unlocked FROM player_map_settings WHERE player_id = $1 AND map_id = $2';
+  const other = await store.createMap(pool, { name: 'Unlock Test', style: 'white', width: 3, height: 3 });
+  const a = player();
+  const w = await a.welcome;
+  const home = w.map.id;
+  assert.equal((await a.ask('setup', { color: '#29adff' })).color, '#29adff');
+  a.take(15, 27);
+  const you = await a.next('you');
+  await a.next('claim', at(15, 27));
+  assert.deepEqual(await a.ask('switchMap', other), { ok: true });
+  await a.next('welcome', d => d.map.id === other);
+  a.take(1, 1);
+  await a.next('claim', at(1, 1));
+  assert.deepEqual(await a.ask('switchMap', home), { ok: true });
+  await a.next('welcome', d => d.map.id === home);
+
+  a.emit('wipe');
+  assert.equal((await a.next('wipe')).floor, 1);
+  assert.deepEqual((await pool.query(settings, [you.pid, home])).rows[0], { color: '#29adff', coverage: 'tile', unlocked: true });
+  assert.equal((await pool.query(settings, [you.pid, other])).rows[0].unlocked, false, 'the other map stays locked');
+  await assert.rejects(pool.query('UPDATE player_map_settings SET color = $3 WHERE player_id = $1 AND map_id = $2', [you.pid, other, 'x']),
+    /locked once chosen/);
+
+  // The setup screen works again, here and on reconnecting, and the next claim locks the new choices.
+  assert.deepEqual(await a.ask('setup', { color: '#ff4d4d', coverage: 'stretch' }), { color: '#ff4d4d', skin: 'default', coverage: 'stretch' });
+  const b = player({ token: you.token });
+  const wb = await b.welcome;
+  assert.equal(wb.me.locked, false);
+  assert.equal(wb.me.wipeFloor, 1);
+  a.take(15, 27);
+  const joined = await a.next('player', d => d.pid === you.pid && d.color === '#ff4d4d');
+  assert.deepEqual([joined.color, joined.coverage], ['#ff4d4d', 'stretch']);
+  assert.deepEqual((await pool.query(settings, [you.pid, home])).rows[0], { color: '#ff4d4d', coverage: 'stretch', unlocked: false });
+  assert.deepEqual(await a.ask('setup', { color: '#29adff' }), LOCKED);
+  await assert.rejects(pool.query('UPDATE player_map_settings SET color = $3 WHERE player_id = $1 AND map_id = $2', [you.pid, home, 'x']),
+    /locked once chosen/);
 });
 
 test("upgrades: Click Power and Defense multiply hits (Bob's example: 17 clicks), Earnings keeps fractions", async t => {
@@ -244,6 +293,26 @@ test("upgrades: Click Power and Defense multiply hits (Bob's example: 17 clicks)
   await c.next('claim', d => d.x === 17 && d.y === 25 && d.pid !== you.pid);
 });
 
+test('menu screens: skins, upgrades and achievement progress come from the real data', async () => {
+  const a = player();
+  await a.welcome;
+  assert.deepEqual(await a.ask('skins'), [{ id: 'default', name: 'Default', owned: true }]);
+  assert.deepEqual(await a.ask('upgrades'), { levels: rules.NO_UPGRADES, hitsPerBlock: 10, squaresPerClaim: 1,
+    tables: { clickPower: [1], defense: [1], earnings: [1] } });
+  const none = await a.ask('achievements');
+  assert.equal(none.list.length, 8);
+  assert.deepEqual([none.earned, none.best], [[], {}], 'a visitor has nothing yet');
+  a.take(10, 28);
+  await a.next('achievement');
+  a.take(11, 28);
+  await a.next('claim', at(11, 28));
+  const got = await a.ask('achievements');
+  assert.deepEqual(got.earned, [{ id: 'first-block', map: 'Grass' }]);
+  assert.equal(got.best.firstClaims, 2);
+  assert.equal(got.best.bestLine, 2);
+  assert.equal(got.best.owned, 2);
+});
+
 test('stats: counted per claim, saved, announced to the player and on the server, lost blocks counted too', async () => {
   const seen = [];
   game.events.on('stat', e => seen.push(e));
@@ -271,7 +340,7 @@ test('achievements: earned once on the stat event, saved, and announced', async 
   await a.welcome;
   a.take(26, 25);
   const you = await a.next('you');
-  assert.deepEqual(await a.next('achievement'), { id: 'first-block', name: 'First Block', mapId });
+  assert.deepEqual(await a.next('achievement'), { id: 'first-block', name: 'First Block', stat: 'firstClaims', threshold: 1, mapId });
   a.take(27, 25);
   await a.next('claim', d => d.x === 27);
   await new Promise(r => setTimeout(r, 300));
@@ -280,7 +349,6 @@ test('achievements: earned once on the stat event, saved, and announced', async 
 });
 
 test('maps: switch, claim there with a separate look, and come back to the last map', async () => {
-  const store = require('../store');
   const second = await store.createMap(pool, { name: 'Snow', style: 'white', width: 4, height: 4 });
   await assert.rejects(store.createMap(pool, { name: 'X', style: 'lava', width: 4, height: 4 }), /style/);
   const a = player();
@@ -288,7 +356,7 @@ test('maps: switch, claim there with a separate look, and come back to the last 
   a.take(28, 25);
   const you = await a.next('you');
   const maps = await a.ask('maps');
-  assert.deepEqual(maps.map(m => m.name), ['Grass', 'Snow']);
+  assert.deepEqual(maps.map(m => m.name).filter(n => n !== 'Unlock Test'), ['Grass', 'Snow']);
   assert.deepEqual(await a.ask('switchMap', '99999'), { error: 'That map does not exist' });
   assert.deepEqual(await a.ask('switchMap', second), { ok: true });
   const w = await a.next('welcome');

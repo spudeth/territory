@@ -33,7 +33,8 @@ Every rule in the game, in plain English. Each number says where it lives, so yo
 
 ## The wipe rule (anti-farming)
 
-- A player can wipe (clear) all their blocks on a map. There's no button for it yet.
+- A player can wipe (clear) all their blocks on a map (Menu → Settings → Wipe and restart this map, then type WIPE).
+- A wipe also unlocks their color, skin and coverage on that map (see below).
 - After a wipe, claiming empty blocks on that map earns squares only once the player owns **more** blocks there than they had when they wiped. Before that, the map still grows, but no squares are earned.
 - If a player wipes more than once, the highest count from any wipe is the one that counts. Wiping again never lowers it. (`rules.js`, `earnsSquares` and `wipeFloorAfterWipe`)
 
@@ -50,9 +51,13 @@ Each player has a level for three upgrades. Everyone starts at level 0. Each upg
 
 ## Your look on each map
 
-- On your first claim on a map you get a random color (any color except grass green), the default skin, and a coverage: `tile` (the default) or `stretch`. Coverage is how a skin covers your territory. (`rules.js`, `COVERAGES`; colors in `names.js`, `randomColor`)
-- **Once set, color, skin and coverage are locked forever on that map.** The database refuses any change.
-- You can have a different look on each map.
+- Before your first claim on a map, the setup screen asks for:
+  - a **color**, from 8 free colors: Blue, Pink, Orange, Yellow, Teal, Purple, Red, White. One is picked at random until you choose. (`rules.js`, `COLORS`)
+  - a **skin**. Only Default exists so far; the others show as locked.
+  - a **coverage**: Per block (`tile`, the default: the skin repeats on each block) or Full area (`stretch`: one big image over the whole territory). (`rules.js`, `COVERAGES`)
+- **Your first claim locks them on that map.** The database refuses any change while they're locked.
+- **A wipe unlocks them**, on that map only. Your next claim there shows the setup screen again, and the new choices lock until your next wipe. (`db/migrations/008_unlock_after_wipe.sql`)
+- You can have a different look on each map. Players who joined before the 8 colors keep their old color until they wipe.
 
 ## Players, guests and accounts
 
@@ -88,14 +93,15 @@ The largest square and the longest line are **records**. Losing blocks never low
 
 - Each achievement is earned once per player, on whichever map they first reach it. (Q3: answered A)
 - They're checked on every stat change. The current 8 are placeholders until the real list is approved (see Q5 in `CODY-LOG.md`): First Block (1 first claim), 100 Blocks, 1,000 Blocks (owned at once), 10 by 10, 50 by 50 (largest square), Line of 10, Line of 100, Raider (10 retakes). (`achievements.js`, `DEFINITIONS`)
-- They're not shown on screen yet.
+- Menu → Achievements lists them, with progress toward each (your best on any map), and an All / Earned / Locked filter. A yellow pop-up shows when you earn one.
 
 ## Name labels
 
 - An owner's name shows on their territory once it covers at least 25% of the **whole screen**. When you're zoomed far out, names disappear. (`public/labels.js`, `NAME_LABEL_SHARE = 0.25`; Q4: answered A)
-- The logic is built, but the names aren't drawn yet.
+- Names are drawn in the middle of the territory's part of the screen, in white pixel letters with a dark shadow.
 
 ## Controls
 
 - Tap or click a block to hit it. Drag to move around. Pinch or use the mouse wheel to zoom.
+- The Menu button (bottom left) opens the menu: your account, Maps, Skins, Achievements, Upgrades, Settings. Get squares, VIP, buying skins, buying or creating maps, and buying upgrades show as SOON.
 - A touch that moves more than 10 pixels counts as a drag, not a tap. (`public/game.js`)

@@ -1,6 +1,6 @@
 // ---------- Accounts and the menu ----------
 // Logins go through /api/auth/* on our own site, which passes them on to Neon's managed Better Auth.
-// Loaded after game.js and uses its socket, toast and state. game.js calls loginToken() from here, which is
+// Loaded after game.js and menu.js, and uses their socket, state, toast and menu views. game.js calls loginToken() from here, which is
 // fine because the connection only asks for it once the network is open, after this file has run.
 
 // Calls one auth endpoint. Resolves with { data } or { error: message, code }.
@@ -36,50 +36,34 @@ function markUpgrade() {
   if (me && !myAccount) sessionStorage.setItem(UPGRADE, '1');
 }
 
-const menu = $('menu');
 let email = '';   // the address being signed up / verified
 
-function show(view) {
-  for (const v of menu.querySelectorAll('[data-view]')) v.hidden = v.dataset.view !== view;
-  menu.hidden = false;
-  $('menu-error').textContent = '';
-  if (view === 'main') fillMain();
-  if (view === 'settings') fillSettings();
-  menu.querySelector(`[data-view="${view}"] input`)?.focus();
-}
-function closeMenu() { menu.hidden = true; }
-const fail = msg => { $('menu-error').textContent = msg; };
+// ---------- Settings ----------
+const clock = t => new Date(t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+const nameCount = () => { $('name-count').textContent = `${$('name-input').value.length} / 15`; };
+$('name-input').addEventListener('input', nameCount);
 
-async function fillMain() {
-  $('menu-who').textContent = myAccount ? `Logged in as ${myName}` : me ? `Playing as guest ${myName}` : 'Playing as a visitor';
-  $('menu-email').textContent = '';
-  $('menu-login').hidden = myAccount || !accountsOn;
-  $('menu-logout').hidden = !myAccount;
-  $('menu-off').hidden = accountsOn;
-  if (myAccount) {
-    const { data } = await authApi('get-session');
-    $('menu-email').textContent = data?.user?.email || '';
-  }
-}
-
-function fillSettings() {
+fills.settings = () => {
   $('name-input').value = myName;
-  const can = myAccount;
-  $('name-input').disabled = $('name-save').disabled = !can;
-  $('name-note').textContent = !can ? 'Create an account to change your name.'
-    : renameAt > Date.now() ? `You can change your name again at ${new Date(renameAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.`
-    : 'Up to 15 letters and numbers. You can change it every 10 minutes.';
-}
+  nameCount();
+  const waiting = renameAt > Date.now();
+  $('name-input').disabled = $('name-save').disabled = !myAccount || waiting;
+  $('name-note').textContent = !myAccount ? 'Create an account to pick your own name.'
+    : waiting ? `You changed your name recently. You can change it again at ${clock(renameAt)}.`
+    : 'Letters, numbers, spaces and - _ . only. Names are unique. You can change it every 10 minutes.';
 
-// Runs a form's action with its button disabled, so a double tap doesn't send it twice.
-function onSubmit(form, action) {
-  form.addEventListener('submit', async e => {
-    e.preventDefault();
-    const button = form.querySelector('button[type=submit]');
-    button.disabled = true;
-    try { await action(new FormData(form)); } finally { button.disabled = false; }
-  });
-}
+  // This map's choices: locked after the first claim here, until a wipe.
+  $('look-title').textContent = `THIS MAP · ${(mapInfo?.name ?? '').toUpperCase()}`;
+  $('look-color').style.background = myColor;
+  $('look-lock').hidden = !locked;
+  $('look-text').textContent = locked ? lookText() : 'Not chosen yet: you pick them before your first block here';
+  const blocks = myBlocks();
+  $('wipe-open').disabled = !blocks;
+  $('wipe-note').textContent = blocks ? 'Clears your territory here so you can start fresh with a new color, skin and coverage.'
+    : 'You have no blocks here to wipe.';
+  $('menu-logout').hidden = !myAccount;
+};
+fills.signup = () => { $('signup-keep').hidden = !me; };
 
 function loggedIn() {
   closeMenu();
@@ -141,12 +125,12 @@ for (const b of menu.querySelectorAll('.google')) {
 }
 
 onSubmit($('form-name'), async f => {
-  const r = await new Promise(resolve => socket.timeout(10000).emit('rename', f.get('name'), (err, res) => resolve(err ? { error: 'No answer from the server. Try again.' } : res)));
+  const r = await ask('rename', f.get('name'));
   if (r.error) return fail(r.error);
   myName = r.name;
   renameAt = r.renameAt;
   updateUI();
-  fillSettings();
+  fills.settings();
   toast('Name changed', 'good');
 });
 
@@ -156,12 +140,6 @@ $('menu-logout').addEventListener('click', async () => {
   toast('Logged out', 'good');
   reconnect();
 });
-
-$('menu-button').addEventListener('click', () => show('main'));
-for (const b of menu.querySelectorAll('[data-go]')) b.addEventListener('click', e => { e.preventDefault(); show(b.dataset.go); });
-for (const b of menu.querySelectorAll('.close')) b.addEventListener('click', closeMenu);
-menu.addEventListener('click', e => { if (e.target === menu) closeMenu(); });
-addEventListener('keydown', e => { if (e.key === 'Escape') closeMenu(); });
 
 // Links from emails and Google bring the player back with something in the address.
 {

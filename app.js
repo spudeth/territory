@@ -7,7 +7,7 @@ const store = require('./store');
 const rules = require('./rules');
 const stats = require('./stats');
 const achievements = require('./achievements');
-const { guestName, guestNames, checkName, randomColor } = require('./names');
+const { guestName, guestNames, checkName } = require('./names');
 
 const { key } = rules;
 const upgradesOf = row => ({ clickPower: row.click_power, defense: row.defense, earnings: row.earnings });
@@ -57,7 +57,7 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
   const limiter = guestLimiter(guestsPerIp, rules.GUEST_WINDOW_MINUTES * 60 * 1000);
 
   // In-memory copy of each loaded map:
-  //   cells:   "x,y" -> owner id or null    players: id -> { name, color, coverage }
+  //   cells:   "x,y" -> owner id or null    players: id -> { name, color, skin, coverage, unlocked, wipeFloor, upgrades }
   //   counts:  owner id -> blocks owned      hits:    "x,y" -> { by, n, need, at } (crack progress in hits, never saved)
   const maps = new Map();     // id -> Promise of the map
   const loaded = new Set();   // the maps that have finished loading
@@ -66,7 +66,8 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       maps.set(id, store.loadMap(pool, id).then(m => {
         if (!m) return null;
         const map = { id: m.id, name: m.name, style: m.style, room: 'map:' + m.id, cells: new Map(), counts: new Map(),
-          players: new Map(m.players.map(p => [p.player_id, { name: p.name, color: p.color, coverage: p.coverage, upgrades: upgradesOf(p) }])),
+          players: new Map(m.players.map(p => [p.player_id, { name: p.name, color: p.color, skin: p.skin_id, coverage: p.coverage,
+            unlocked: p.unlocked, wipeFloor: p.wipe_floor, upgrades: upgradesOf(p) }])),
           hits: new Map(), queue: Promise.resolve() };
         for (const c of m.cells) {
           map.cells.set(key(c.x, c.y), c.owner_id);
@@ -121,7 +122,7 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       for (const d of hits) {
         have.add(d.id);
         if (!fresh.has(d.id)) continue;
-        const a = { id: d.id, name: d.name, mapId };
+        const a = { id: d.id, name: d.name, stat: d.stat, threshold: d.threshold, mapId };
         events.emit('achievement', { pid, ...a });
         io.to('player:' + pid).emit('achievement', a);
       }
@@ -196,8 +197,8 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
           loginFailed = true;
         }
       }
-      me = player ? { pid: player.id, name: player.name, account: !!player.auth_user_id, renameAt: renameAt(player.name_changed_at) }
-        : { pid: null, name: guestName(), account: false, renameAt: null };
+      me = player ? { pid: player.id, name: player.name, account: !!player.auth_user_id, renameAt: renameAt(player.name_changed_at), squares: player.squares }
+        : { pid: null, name: guestName(), account: false, renameAt: null, squares: 0 };
       upgrades = player ? upgradesOf(player) : rules.NO_UPGRADES;
       if (upgraded) renamed(me.pid, me.name);   // the guest's old name was showing to everyone
       map = (player?.last_map_id && await getMap(player.last_map_id)) || await getMap(await getDefaultMapId());
@@ -208,9 +209,10 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       return socket.disconnect();
     }
     socket.data.me = me;
-    // Color, skin and coverage are fixed on the first claim on a map. Until then they are only proposals:
-    // color is random for now, and the player may pick a coverage (the 'coverage' event).
-    let color, coverage;
+    // Color, skin and coverage are fixed on the first claim on a map (or the first since a wipe there). Until
+    // then they are only proposals, which the player picks on the setup screen (the 'setup' event).
+    let color, skin, coverage;
+    const lockedHere = () => map.players.has(me.pid) && !map.players.get(me.pid).unlocked;
     if (me.pid) socket.join('player:' + me.pid);
 
     // Puts this connection on `next` and sends the whole map. Also used when switching maps, so the browser
@@ -219,10 +221,15 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       if (map) socket.leave(map.room);
       map = next;
       socket.join(map.room);
-      color = map.players.get(me.pid)?.color ?? randomColor();
-      coverage = map.players.get(me.pid)?.coverage ?? rules.COVERAGES[0];
+      const mine = map.players.get(me.pid);
+      color = mine?.color ?? rules.COLORS[Math.floor(Math.random() * rules.COLORS.length)].hex;
+      skin = mine?.skin ?? 'default';
+      coverage = mine?.coverage ?? rules.COVERAGES[0];
       socket.emit('welcome', {
-        me: { ...me, color, coverage, locked: map.players.has(me.pid) },   // locked: color, skin and coverage are set here
+        // locked: color, skin and coverage are set here; wipeFloor: see the wipe rule; squares: whole squares
+        me: { ...me, color, skin, coverage, locked: lockedHere(), wipeFloor: mine?.wipeFloor ?? 0, squares: rules.shownSquares(me.squares) },
+        choices: { colors: rules.COLORS, coverages: rules.COVERAGES },
+        hitsPerBlock: rules.HITS_PER_BLOCK,
         accounts: !!auth,                         // false when logins aren't set up on this server
         upgraded: false, loginFailed: false,      // see `flags`
         ...flags,
@@ -261,12 +268,12 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
         newGuest = { names: guestNames(me.name), tokenHash: store.hashToken(token) };
       }
 
-      const joining = !map.players.has(me.pid);
+      const joining = !lockedHere();
       const owns = (a, b) => (a === x && b === y) || (me.pid !== null && map.cells.get(key(a, b)) === me.pid);
       const st = stats.afterClaim(me.pid ? statsOf(map, me.pid) : stats.empty(),
         { owns, x, y, owned: (map.counts.get(me.pid) || 0) + 1, from });
       const r = await store.claimBlock(pool, { mapId: map.id, x, y, from, playerId: me.pid, newGuest,
-        color: joining ? color : null, coverage, earn: rules.squaresForFirstClaim(upgrades),
+        color: joining ? color : null, coverage, skin, earn: rules.squaresForFirstClaim(upgrades),
         stats: st.stats });
       if (r.conflict) {
         // Another server got there first (e.g. during a deploy). Resync this block for everyone.
@@ -284,8 +291,9 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
         socket.emit('you', { token, pid: me.pid, name: me.name });
       }
       if (r.joinedMap) {
-        map.players.set(me.pid, { name: me.name, color, coverage, upgrades });
-        io.to(map.room).emit('player', { pid: me.pid, name: me.name, color, coverage });
+        const before = map.players.get(me.pid);
+        map.players.set(me.pid, { name: me.name, color, skin, coverage, unlocked: false, wipeFloor: before?.wipeFloor ?? 0, upgrades });
+        io.to(map.room).emit('player', { pid: me.pid, name: me.name, color, skin, coverage });
       }
       setOwner(map, k, me.pid);
       io.to(map.room).emit('claim', { x, y, pid: me.pid });
@@ -300,7 +308,10 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
         map.cells.set(key(r.grown.x, r.grown.y), null);
         io.to(map.room).emit('grow', r.grown);
       }
-      if (r.squares !== null) io.to('player:' + me.pid).emit('squares', rules.shownSquares(r.squares));
+      if (r.squares !== null) {
+        me.squares = r.squares;
+        io.to('player:' + me.pid).emit('squares', rules.shownSquares(r.squares));
+      }
     }
 
     socket.on('hit', p => {
@@ -332,7 +343,7 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       });
     });
 
-    // Clears this player's whole territory on this map. There is no button for it yet.
+    // Clears this player's whole territory on this map, and unlocks their color, skin and coverage here.
     socket.on('wipe', () => {
       if (!me.pid) return;
       const here = map;
@@ -340,7 +351,8 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
         const r = await store.wipeTerritory(pool, here.id, me.pid);
         if (!r) return socket.emit('denied', 'You have no blocks to wipe');
         for (const [x, y] of r.cells) setOwner(here, key(x, y), null);
-        io.to(here.room).emit('wipe', { pid: me.pid, cells: r.cells });
+        Object.assign(here.players.get(me.pid), { unlocked: true, wipeFloor: r.floor });
+        io.to(here.room).emit('wipe', { pid: me.pid, cells: r.cells, floor: r.floor });
         statChanged(here, me.pid, 'owned', 0);
       }).catch(err => {
         console.error(`WIPE FAILED (map ${here.id}, player ${me.pid}): ${err.message}`);
@@ -348,14 +360,48 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       });
     });
 
-    // Picks how the player's skin will cover their territory on this map. Only before their first claim here:
-    // after that it is locked, like color and skin. Answers with { coverage } or { error }.
-    socket.on('coverage', (value, reply) => {
+    // The setup screen: picks this player's color, skin and coverage on this map, which lock on their next
+    // claim here. Only while unlocked (before their first claim here, or after a wipe). Any field may be left
+    // out. Answers with { color, skin, coverage } or { error }.
+    socket.on('setup', async (choice, reply) => {
       if (typeof reply !== 'function') return;
-      if (map.players.has(me.pid)) return reply({ error: 'Your coverage is locked for this map' });
-      if (!rules.COVERAGES.includes(value)) return reply({ error: 'Unknown coverage' });
-      coverage = value;
-      reply({ coverage });
+      if (lockedHere()) return reply({ error: 'Your color, skin and coverage are locked for this map' });
+      const c = choice || {};
+      if (c.color !== undefined && !rules.COLORS.some(k => k.hex === c.color)) return reply({ error: 'Pick one of the colors shown' });
+      if (c.coverage !== undefined && !rules.COVERAGES.includes(c.coverage)) return reply({ error: 'Unknown coverage' });
+      if (c.skin !== undefined) {
+        try {
+          if (!(await store.skinsFor(pool, me.pid)).some(s => s.id === c.skin && s.owned)) return reply({ error: "You don't own that skin" });
+        } catch { return reply({ error: 'Could not check your skins. Try again.' }); }
+      }
+      color = c.color ?? color;
+      skin = c.skin ?? skin;
+      coverage = c.coverage ?? coverage;
+      reply({ color, skin, coverage });
+    });
+
+    // The Achievements screen: { list: [{ id, name, stat, threshold }], earned: [{ id, map }], best: { stat: value } }.
+    socket.on('achievements', async (...args) => {
+      const reply = args.at(-1);   // with or without an argument before it
+      if (typeof reply !== 'function') return;
+      const list = achievementList.map(({ id, name, stat, threshold }) => ({ id, name, stat, threshold }));
+      if (!me.pid) return reply({ list, earned: [], best: {} });
+      try { reply({ list, ...await store.achievementProgress(pool, me.pid) }); } catch { reply({ error: 'Could not load achievements. Try again.' }); }
+    });
+
+    // The Upgrades screen: this player's levels and what each level does, from rules.js.
+    socket.on('upgrades', (...args) => {
+      const reply = args.at(-1);   // with or without an argument before it
+      if (typeof reply !== 'function') return;
+      reply({ levels: upgrades, hitsPerBlock: rules.HITS_PER_BLOCK, squaresPerClaim: rules.SQUARES_PER_FIRST_CLAIM,
+        tables: { clickPower: rules.CLICK_POWER_MULTIPLIER, defense: rules.DEFENSE_MULTIPLIER, earnings: rules.EARNINGS_MULTIPLIER } });
+    });
+
+    // The skin catalog for the Skins screen: [{ id, name, owned }].
+    socket.on('skins', async (...args) => {
+      const reply = args.at(-1);   // with or without an argument before it
+      if (typeof reply !== 'function') return;
+      try { reply(await store.skinsFor(pool, me.pid)); } catch { reply([]); }
     });
 
     // The maps this player can go to. Answers with [{ id, name, style }].
