@@ -1,0 +1,25 @@
+Key,Value,What it means
+hitsPerBlock,10,"Hits needed to take any block, empty or owned, before upgrades"
+crackFadeSeconds,60,A cracked block fades every this many seconds since it was last hit…
+crackFadeHits,1,…by this many hits
+squaresPerFirstClaim,1,"Squares for claiming a brand-new block, before Earnings (and only beyond the wipe floor)"
+guestsPerIp,5,New guest players one network can create…
+guestWindowMinutes,60,…in this many minutes
+renameWaitMinutes,10,Minutes to wait between name changes
+nameMaxLength,15,"Longest name, in characters (1 to 15; above 15 needs a database change)"
+nameLabelShare,0.25,A territory shows its owner's name once it covers this share of the screen (0.25 = a quarter)
+newMapWidth,32,Width in blocks of a new map made with the admin script
+newMapHeight,32,Height in blocks of a new map made with the admin script
+soundMaxAtOnce,6,Most sound effects playing at once
+soundHearingDistance,1.2,"How far away other players are heard, in half-screens from the middle"
+soundOthersVolume,0.6,"Other players' sounds at the middle of the screen, compared with your own (1)"
+defaultEffectsVolume,0.7,Sound effects volume for a new device (0 to 1)
+defaultMusicVolume,0.25,Music volume for a new device (0 to 1)
+achievement.first-block,1,First Block: empty blocks claimed
+achievement.owned-100,100,100 Blocks: blocks owned at once
+achievement.owned-1000,1000,"1,000 Blocks: blocks owned at once"
+achievement.square-10,10,10 by 10: side of the largest solid square
+achievement.square-50,50,50 by 50: side of the largest solid square
+achievement.line-10,10,Line of 10: longest straight line
+achievement.line-100,100,Line of 100: longest straight line
+achievement.retakes-10,10,Raider: blocks taken from other players
