@@ -6,6 +6,7 @@ const { Server } = require('socket.io');
 const store = require('./store');
 const rules = require('./rules');
 const stats = require('./stats');
+const achievements = require('./achievements');
 const { guestName, guestNames, checkName, randomColor } = require('./names');
 
 const { key } = rules;
@@ -33,7 +34,7 @@ function guestLimiter(limit, windowMs) {
 //   auth:      from createAuth(), or null to run with guests only
 //   publicUrl: the site's address (https://territory.sarl); requests for any other host, such as www or
 //              the onrender.com address, are sent there. Unset locally.
-function createGame(pool, { guestsPerIp = rules.GUESTS_PER_IP, crackDecayMs = rules.CRACK_DECAY_SECONDS * 1000,
+function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPerIp = rules.GUESTS_PER_IP, crackDecayMs = rules.CRACK_DECAY_SECONDS * 1000,
   auth = null, publicUrl = null } = {}) {
   const app = express();
   app.set('trust proxy', true);   // so req.protocol is https behind Render
@@ -95,6 +96,35 @@ function createGame(pool, { guestsPerIp = rules.GUESTS_PER_IP, crackDecayMs = ru
     events.emit('stat', { mapId: map.id, pid, name, value });
     io.to('player:' + pid).emit('stat', { map: map.id, name, value });
   }
+
+  // Achievements: checked on every stat event. Each player's earned ids are loaded once and kept in memory.
+  // An earned achievement is saved, then announced as 'achievement' on `events` and to the player's browsers.
+  const byStat = achievements.index(achievementList);
+  const earned = new Map();   // pid -> Promise of a Set of ids
+  const earnedBy = pid => {
+    if (!earned.has(pid)) {
+      earned.set(pid, store.earnedAchievements(pool, pid).then(ids => new Set(ids))
+        .catch(err => { earned.delete(pid); throw err; }));
+    }
+    return earned.get(pid);
+  };
+  let checks = Promise.resolve();   // one player's checks never overlap another's save
+  events.on('stat', ({ mapId, pid, name, value }) => {
+    if (!byStat.has(name)) return;
+    checks = checks.then(async () => {
+      const have = await earnedBy(pid);
+      const hits = achievements.reached(byStat, name, value, have);
+      if (!hits.length) return;
+      const fresh = new Set(await store.earnAchievements(pool, pid, mapId, hits.map(d => d.id)));
+      for (const d of hits) {
+        have.add(d.id);
+        if (!fresh.has(d.id)) continue;
+        const a = { id: d.id, name: d.name, mapId };
+        events.emit('achievement', { pid, ...a });
+        io.to('player:' + pid).emit('achievement', a);
+      }
+    }).catch(err => console.error(`ACHIEVEMENT CHECK FAILED (player ${pid}): ${err.message}`));
+  });
 
   // Runs claims and wipes on one map in arrival order, so each sees the result of the one before.
   function serial(map, fn) {

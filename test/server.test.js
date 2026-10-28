@@ -250,6 +250,19 @@ test('stats: counted per claim, saved, announced to the player and on the server
   assert.deepEqual(await row(youB.pid), { owned_max: 2, first_claims: 2, retakes: 0, blocks_lost: 1, best_square: 1, best_line: 2 });
 });
 
+test('achievements: earned once on the stat event, saved, and announced', async () => {
+  const a = player();
+  await a.welcome;
+  a.hit3(26, 25);
+  const you = await a.next('you');
+  assert.deepEqual(await a.next('achievement'), { id: 'first-block', name: 'First Block', mapId });
+  a.hit3(27, 25);
+  await a.next('claim', d => d.x === 27);
+  await new Promise(r => setTimeout(r, 300));
+  assert.equal(a.events.filter(([n]) => n === 'achievement').length, 0, 'not earned twice');
+  assert.equal(await db.count('SELECT count(*) FROM player_achievements WHERE player_id = $1', [you.pid]), 1);
+});
+
 test('guests cannot rename', async () => {
   const a = player();
   await a.welcome;

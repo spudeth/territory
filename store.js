@@ -226,3 +226,19 @@ function wipeTerritory(pool, mapId, playerId) {
 
 module.exports = { hashToken, findPlayerByToken, accountPlayer, renamePlayer, defaultMapId, loadMap, cellOwner, setLastMap,
   growMap, claimBlock, wipeTerritory };
+
+// Achievement ids a player has earned.
+async function earnedAchievements(pool, playerId) {
+  const { rows } = await pool.query('SELECT achievement_id FROM player_achievements WHERE player_id = $1', [playerId]);
+  return rows.map(r => r.achievement_id);
+}
+
+// Records achievements; returns the ids that were new (not already earned).
+async function earnAchievements(pool, playerId, mapId, ids) {
+  const { rows } = await pool.query(
+    `INSERT INTO player_achievements (player_id, achievement_id, map_id) SELECT $1, unnest($2::text[]), $3
+     ON CONFLICT DO NOTHING RETURNING achievement_id`, [playerId, ids, mapId]);
+  return rows.map(r => r.achievement_id);
+}
+
+Object.assign(module.exports, { earnedAchievements, earnAchievements });
