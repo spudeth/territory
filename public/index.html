@@ -42,6 +42,17 @@
     <ol id="board-list"></ol>
   </div>
 
+  <!-- Chat with everyone on this map (chat.js) -->
+  <div id="chat">
+    <ul id="chat-log" aria-live="polite" aria-label="Chat"></ul>
+    <div class="card" id="chat-muted" hidden><span id="chat-muted-n"></span><button class="text-btn" type="button" id="chat-unmute">Unmute all</button></div>
+    <form class="card" id="chat-form" hidden>
+      <input class="field" id="chat-input" maxlength="120" placeholder="Say something" autocomplete="off" enterkeyhint="send" aria-label="Chat message">
+      <button class="btn" type="submit" id="chat-send">Send</button>
+    </form>
+    <button class="btn" type="button" id="chat-button" aria-expanded="false">CHAT</button>
+  </div>
+
   <div class="card" id="hint"></div>
   <div class="card" id="toast" role="status"></div>
   <div class="card" id="popup" role="status" hidden>
@@ -395,5 +406,6 @@
   <script src="account.js"></script>
   <script src="tutorial.js"></script>
   <script src="coach.js"></script>
+  <script src="chat.js"></script>
 </body>
 </html>

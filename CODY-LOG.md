@@ -326,6 +326,7 @@ This merge turns on buying upgrades, with the levels and prices from your sheet.
 #50 | 2026-10-28 | ADMIN.md for Xoren: one-time setup (making the key, .env.admin, Render), opening a terminal, every command with an example and what it shows, what to do when something goes wrong, restoring (from a backup file, or Neon's restore); README and GAME-RULES.md updated. npm run create-map and npm run backup still work; the same things are now admin commands too | tests: pass (100/100, 149 s)
 #51 | 2026-10-28 | Reset all progress (Xoren): Settings > ALL PROGRESS, type RESET. Empties their blocks on every map; squares, upgrades, stats, achievements, unlocked skins and looks back to new; keeps name, login, tutorial and paid skins; ledger "progress reset"; their other devices reload | tests: shop 7/7
 #52 | 2026-10-28 | Music stations (Xoren): Heavenly Loop, Calm Ambient 1 and Outer Space Loop added beside the current track; "Change station" text button bottom right of the Sound box picks another track at random (short fade); CREDITS.md | checked in headless Chrome
+#53 | 2026-10-28 | Text chat (Xoren): one chat per map, bottom right; guests chat once they have a player (first claim); bad-word filter (chat.js, disguises undone), 120 characters, 1 message per 2 s; tap a name to mute on this device, Unmute all; last 30 per map kept in memory only (no database); phones show a dot instead of messages while closed | tests: chat 3/3; checked in headless Chrome
 
 ## Xoren's one-time setup for admin commands (details in ADMIN.md, section 1)
 
