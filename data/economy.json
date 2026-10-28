@@ -1,6 +1,6 @@
 {
-  "source": "the game's values before the first sync (upgrades have no levels yet); run npm run sync-rules to replace",
-  "syncedAt": null,
+  "source": "https://docs.google.com/spreadsheets/d/1YIivEUXUWMkdw3w3hlmRn7PkTzH6Xry7EJTr8SuFKiM",
+  "syncedAt": "2026-10-28T19:47:41.381Z",
   "rules": {
     "hitsPerBlock": 10,
     "crackFadeSeconds": 60,
@@ -9,7 +9,6 @@
     "guestsPerIp": 5,
     "guestWindowMinutes": 60,
     "renameWaitMinutes": 10,
-    "maxTapsPerSecond": 12,
     "nameMaxLength": 15,
     "nameLabelShare": 0.25,
     "newMapWidth": 32,
@@ -26,7 +25,8 @@
     "achievement.square-50": 50,
     "achievement.line-10": 10,
     "achievement.line-100": 100,
-    "achievement.retakes-10": 10
+    "achievement.retakes-10": 10,
+    "maxTapsPerSecond": 12
   },
   "upgrades": {
     "clickPower": [
@@ -34,6 +34,356 @@
         "level": 0,
         "value": 1,
         "cost": 0
+      },
+      {
+        "level": 1,
+        "value": 1.13,
+        "cost": 22
+      },
+      {
+        "level": 2,
+        "value": 1.26,
+        "cost": 24
+      },
+      {
+        "level": 3,
+        "value": 1.39,
+        "cost": 26
+      },
+      {
+        "level": 4,
+        "value": 1.51,
+        "cost": 29
+      },
+      {
+        "level": 5,
+        "value": 1.64,
+        "cost": 32
+      },
+      {
+        "level": 6,
+        "value": 1.77,
+        "cost": 35
+      },
+      {
+        "level": 7,
+        "value": 1.9,
+        "cost": 38
+      },
+      {
+        "level": 8,
+        "value": 2.03,
+        "cost": 42
+      },
+      {
+        "level": 9,
+        "value": 2.16,
+        "cost": 47
+      },
+      {
+        "level": 10,
+        "value": 2.29,
+        "cost": 51
+      },
+      {
+        "level": 11,
+        "value": 2.41,
+        "cost": 56
+      },
+      {
+        "level": 12,
+        "value": 2.54,
+        "cost": 62
+      },
+      {
+        "level": 13,
+        "value": 2.67,
+        "cost": 68
+      },
+      {
+        "level": 14,
+        "value": 2.8,
+        "cost": 75
+      },
+      {
+        "level": 15,
+        "value": 2.93,
+        "cost": 82
+      },
+      {
+        "level": 16,
+        "value": 3.06,
+        "cost": 91
+      },
+      {
+        "level": 17,
+        "value": 3.19,
+        "cost": 100
+      },
+      {
+        "level": 18,
+        "value": 3.31,
+        "cost": 110
+      },
+      {
+        "level": 19,
+        "value": 3.44,
+        "cost": 121
+      },
+      {
+        "level": 20,
+        "value": 3.57,
+        "cost": 133
+      },
+      {
+        "level": 21,
+        "value": 3.7,
+        "cost": 146
+      },
+      {
+        "level": 22,
+        "value": 3.83,
+        "cost": 161
+      },
+      {
+        "level": 23,
+        "value": 3.96,
+        "cost": 177
+      },
+      {
+        "level": 24,
+        "value": 4.09,
+        "cost": 194
+      },
+      {
+        "level": 25,
+        "value": 4.21,
+        "cost": 214
+      },
+      {
+        "level": 26,
+        "value": 4.34,
+        "cost": 235
+      },
+      {
+        "level": 27,
+        "value": 4.47,
+        "cost": 259
+      },
+      {
+        "level": 28,
+        "value": 4.6,
+        "cost": 285
+      },
+      {
+        "level": 29,
+        "value": 4.73,
+        "cost": 313
+      },
+      {
+        "level": 30,
+        "value": 4.86,
+        "cost": 344
+      },
+      {
+        "level": 31,
+        "value": 4.99,
+        "cost": 379
+      },
+      {
+        "level": 32,
+        "value": 5.11,
+        "cost": 417
+      },
+      {
+        "level": 33,
+        "value": 5.24,
+        "cost": 458
+      },
+      {
+        "level": 34,
+        "value": 5.37,
+        "cost": 504
+      },
+      {
+        "level": 35,
+        "value": 5.5,
+        "cost": 555
+      },
+      {
+        "level": 36,
+        "value": 5.63,
+        "cost": 610
+      },
+      {
+        "level": 37,
+        "value": 5.76,
+        "cost": 671
+      },
+      {
+        "level": 38,
+        "value": 5.89,
+        "cost": 738
+      },
+      {
+        "level": 39,
+        "value": 6.01,
+        "cost": 812
+      },
+      {
+        "level": 40,
+        "value": 6.14,
+        "cost": 893
+      },
+      {
+        "level": 41,
+        "value": 6.27,
+        "cost": 983
+      },
+      {
+        "level": 42,
+        "value": 6.4,
+        "cost": 1081
+      },
+      {
+        "level": 43,
+        "value": 6.53,
+        "cost": 1189
+      },
+      {
+        "level": 44,
+        "value": 6.66,
+        "cost": 1308
+      },
+      {
+        "level": 45,
+        "value": 6.79,
+        "cost": 1439
+      },
+      {
+        "level": 46,
+        "value": 6.91,
+        "cost": 1583
+      },
+      {
+        "level": 47,
+        "value": 7.04,
+        "cost": 1741
+      },
+      {
+        "level": 48,
+        "value": 7.17,
+        "cost": 1915
+      },
+      {
+        "level": 49,
+        "value": 7.3,
+        "cost": 2107
+      },
+      {
+        "level": 50,
+        "value": 7.43,
+        "cost": 2317
+      },
+      {
+        "level": 51,
+        "value": 7.56,
+        "cost": 2549
+      },
+      {
+        "level": 52,
+        "value": 7.69,
+        "cost": 2804
+      },
+      {
+        "level": 53,
+        "value": 7.81,
+        "cost": 3084
+      },
+      {
+        "level": 54,
+        "value": 7.94,
+        "cost": 3393
+      },
+      {
+        "level": 55,
+        "value": 8.07,
+        "cost": 3732
+      },
+      {
+        "level": 56,
+        "value": 8.2,
+        "cost": 4105
+      },
+      {
+        "level": 57,
+        "value": 8.33,
+        "cost": 4516
+      },
+      {
+        "level": 58,
+        "value": 8.46,
+        "cost": 4967
+      },
+      {
+        "level": 59,
+        "value": 8.59,
+        "cost": 5464
+      },
+      {
+        "level": 60,
+        "value": 8.71,
+        "cost": 6011
+      },
+      {
+        "level": 61,
+        "value": 8.84,
+        "cost": 6612
+      },
+      {
+        "level": 62,
+        "value": 8.97,
+        "cost": 7273
+      },
+      {
+        "level": 63,
+        "value": 9.1,
+        "cost": 8000
+      },
+      {
+        "level": 64,
+        "value": 9.23,
+        "cost": 8800
+      },
+      {
+        "level": 65,
+        "value": 9.36,
+        "cost": 9680
+      },
+      {
+        "level": 66,
+        "value": 9.49,
+        "cost": 10648
+      },
+      {
+        "level": 67,
+        "value": 9.61,
+        "cost": 11713
+      },
+      {
+        "level": 68,
+        "value": 9.74,
+        "cost": 12884
+      },
+      {
+        "level": 69,
+        "value": 9.87,
+        "cost": 14173
+      },
+      {
+        "level": 70,
+        "value": 10,
+        "cost": 15590
       }
     ],
     "defense": [
@@ -41,6 +391,256 @@
         "level": 0,
         "value": 1,
         "cost": 0
+      },
+      {
+        "level": 1,
+        "value": 1.04,
+        "cost": 124
+      },
+      {
+        "level": 2,
+        "value": 1.08,
+        "cost": 136
+      },
+      {
+        "level": 3,
+        "value": 1.12,
+        "cost": 150
+      },
+      {
+        "level": 4,
+        "value": 1.16,
+        "cost": 165
+      },
+      {
+        "level": 5,
+        "value": 1.2,
+        "cost": 181
+      },
+      {
+        "level": 6,
+        "value": 1.24,
+        "cost": 199
+      },
+      {
+        "level": 7,
+        "value": 1.28,
+        "cost": 219
+      },
+      {
+        "level": 8,
+        "value": 1.32,
+        "cost": 241
+      },
+      {
+        "level": 9,
+        "value": 1.36,
+        "cost": 265
+      },
+      {
+        "level": 10,
+        "value": 1.4,
+        "cost": 292
+      },
+      {
+        "level": 11,
+        "value": 1.44,
+        "cost": 321
+      },
+      {
+        "level": 12,
+        "value": 1.48,
+        "cost": 353
+      },
+      {
+        "level": 13,
+        "value": 1.52,
+        "cost": 388
+      },
+      {
+        "level": 14,
+        "value": 1.56,
+        "cost": 427
+      },
+      {
+        "level": 15,
+        "value": 1.6,
+        "cost": 470
+      },
+      {
+        "level": 16,
+        "value": 1.64,
+        "cost": 517
+      },
+      {
+        "level": 17,
+        "value": 1.68,
+        "cost": 568
+      },
+      {
+        "level": 18,
+        "value": 1.72,
+        "cost": 625
+      },
+      {
+        "level": 19,
+        "value": 1.76,
+        "cost": 688
+      },
+      {
+        "level": 20,
+        "value": 1.8,
+        "cost": 757
+      },
+      {
+        "level": 21,
+        "value": 1.84,
+        "cost": 832
+      },
+      {
+        "level": 22,
+        "value": 1.88,
+        "cost": 916
+      },
+      {
+        "level": 23,
+        "value": 1.92,
+        "cost": 1007
+      },
+      {
+        "level": 24,
+        "value": 1.96,
+        "cost": 1108
+      },
+      {
+        "level": 25,
+        "value": 2,
+        "cost": 1219
+      },
+      {
+        "level": 26,
+        "value": 2.04,
+        "cost": 1340
+      },
+      {
+        "level": 27,
+        "value": 2.08,
+        "cost": 1475
+      },
+      {
+        "level": 28,
+        "value": 2.12,
+        "cost": 1622
+      },
+      {
+        "level": 29,
+        "value": 2.16,
+        "cost": 1784
+      },
+      {
+        "level": 30,
+        "value": 2.2,
+        "cost": 1963
+      },
+      {
+        "level": 31,
+        "value": 2.24,
+        "cost": 2159
+      },
+      {
+        "level": 32,
+        "value": 2.28,
+        "cost": 2375
+      },
+      {
+        "level": 33,
+        "value": 2.32,
+        "cost": 2612
+      },
+      {
+        "level": 34,
+        "value": 2.36,
+        "cost": 2873
+      },
+      {
+        "level": 35,
+        "value": 2.4,
+        "cost": 3161
+      },
+      {
+        "level": 36,
+        "value": 2.44,
+        "cost": 3477
+      },
+      {
+        "level": 37,
+        "value": 2.48,
+        "cost": 3825
+      },
+      {
+        "level": 38,
+        "value": 2.52,
+        "cost": 4207
+      },
+      {
+        "level": 39,
+        "value": 2.56,
+        "cost": 4628
+      },
+      {
+        "level": 40,
+        "value": 2.6,
+        "cost": 5090
+      },
+      {
+        "level": 41,
+        "value": 2.64,
+        "cost": 5600
+      },
+      {
+        "level": 42,
+        "value": 2.68,
+        "cost": 6159
+      },
+      {
+        "level": 43,
+        "value": 2.72,
+        "cost": 6775
+      },
+      {
+        "level": 44,
+        "value": 2.76,
+        "cost": 7453
+      },
+      {
+        "level": 45,
+        "value": 2.8,
+        "cost": 8198
+      },
+      {
+        "level": 46,
+        "value": 2.84,
+        "cost": 9018
+      },
+      {
+        "level": 47,
+        "value": 2.88,
+        "cost": 9920
+      },
+      {
+        "level": 48,
+        "value": 2.92,
+        "cost": 10912
+      },
+      {
+        "level": 49,
+        "value": 2.96,
+        "cost": 12003
+      },
+      {
+        "level": 50,
+        "value": 3,
+        "cost": 13203
       }
     ],
     "earnings": [
@@ -48,6 +648,506 @@
         "level": 0,
         "value": 1,
         "cost": 0
+      },
+      {
+        "level": 1,
+        "value": 1.09,
+        "cost": 9
+      },
+      {
+        "level": 2,
+        "value": 1.18,
+        "cost": 10
+      },
+      {
+        "level": 3,
+        "value": 1.27,
+        "cost": 11
+      },
+      {
+        "level": 4,
+        "value": 1.36,
+        "cost": 12
+      },
+      {
+        "level": 5,
+        "value": 1.45,
+        "cost": 14
+      },
+      {
+        "level": 6,
+        "value": 1.54,
+        "cost": 15
+      },
+      {
+        "level": 7,
+        "value": 1.63,
+        "cost": 16
+      },
+      {
+        "level": 8,
+        "value": 1.72,
+        "cost": 18
+      },
+      {
+        "level": 9,
+        "value": 1.81,
+        "cost": 20
+      },
+      {
+        "level": 10,
+        "value": 1.9,
+        "cost": 22
+      },
+      {
+        "level": 11,
+        "value": 1.99,
+        "cost": 24
+      },
+      {
+        "level": 12,
+        "value": 2.08,
+        "cost": 26
+      },
+      {
+        "level": 13,
+        "value": 2.17,
+        "cost": 29
+      },
+      {
+        "level": 14,
+        "value": 2.26,
+        "cost": 32
+      },
+      {
+        "level": 15,
+        "value": 2.35,
+        "cost": 35
+      },
+      {
+        "level": 16,
+        "value": 2.44,
+        "cost": 39
+      },
+      {
+        "level": 17,
+        "value": 2.53,
+        "cost": 43
+      },
+      {
+        "level": 18,
+        "value": 2.62,
+        "cost": 47
+      },
+      {
+        "level": 19,
+        "value": 2.71,
+        "cost": 52
+      },
+      {
+        "level": 20,
+        "value": 2.8,
+        "cost": 57
+      },
+      {
+        "level": 21,
+        "value": 2.89,
+        "cost": 62
+      },
+      {
+        "level": 22,
+        "value": 2.98,
+        "cost": 69
+      },
+      {
+        "level": 23,
+        "value": 3.07,
+        "cost": 75
+      },
+      {
+        "level": 24,
+        "value": 3.16,
+        "cost": 83
+      },
+      {
+        "level": 25,
+        "value": 3.25,
+        "cost": 91
+      },
+      {
+        "level": 26,
+        "value": 3.34,
+        "cost": 100
+      },
+      {
+        "level": 27,
+        "value": 3.43,
+        "cost": 111
+      },
+      {
+        "level": 28,
+        "value": 3.52,
+        "cost": 122
+      },
+      {
+        "level": 29,
+        "value": 3.61,
+        "cost": 134
+      },
+      {
+        "level": 30,
+        "value": 3.7,
+        "cost": 147
+      },
+      {
+        "level": 31,
+        "value": 3.79,
+        "cost": 162
+      },
+      {
+        "level": 32,
+        "value": 3.88,
+        "cost": 178
+      },
+      {
+        "level": 33,
+        "value": 3.97,
+        "cost": 196
+      },
+      {
+        "level": 34,
+        "value": 4.06,
+        "cost": 215
+      },
+      {
+        "level": 35,
+        "value": 4.15,
+        "cost": 237
+      },
+      {
+        "level": 36,
+        "value": 4.24,
+        "cost": 261
+      },
+      {
+        "level": 37,
+        "value": 4.33,
+        "cost": 287
+      },
+      {
+        "level": 38,
+        "value": 4.42,
+        "cost": 315
+      },
+      {
+        "level": 39,
+        "value": 4.51,
+        "cost": 347
+      },
+      {
+        "level": 40,
+        "value": 4.6,
+        "cost": 382
+      },
+      {
+        "level": 41,
+        "value": 4.69,
+        "cost": 420
+      },
+      {
+        "level": 42,
+        "value": 4.78,
+        "cost": 462
+      },
+      {
+        "level": 43,
+        "value": 4.87,
+        "cost": 508
+      },
+      {
+        "level": 44,
+        "value": 4.96,
+        "cost": 559
+      },
+      {
+        "level": 45,
+        "value": 5.05,
+        "cost": 614
+      },
+      {
+        "level": 46,
+        "value": 5.14,
+        "cost": 676
+      },
+      {
+        "level": 47,
+        "value": 5.23,
+        "cost": 744
+      },
+      {
+        "level": 48,
+        "value": 5.32,
+        "cost": 818
+      },
+      {
+        "level": 49,
+        "value": 5.41,
+        "cost": 900
+      },
+      {
+        "level": 50,
+        "value": 5.5,
+        "cost": 990
+      },
+      {
+        "level": 51,
+        "value": 5.59,
+        "cost": 1089
+      },
+      {
+        "level": 52,
+        "value": 5.68,
+        "cost": 1197
+      },
+      {
+        "level": 53,
+        "value": 5.77,
+        "cost": 1317
+      },
+      {
+        "level": 54,
+        "value": 5.86,
+        "cost": 1449
+      },
+      {
+        "level": 55,
+        "value": 5.95,
+        "cost": 1594
+      },
+      {
+        "level": 56,
+        "value": 6.04,
+        "cost": 1753
+      },
+      {
+        "level": 57,
+        "value": 6.13,
+        "cost": 1928
+      },
+      {
+        "level": 58,
+        "value": 6.22,
+        "cost": 2121
+      },
+      {
+        "level": 59,
+        "value": 6.31,
+        "cost": 2333
+      },
+      {
+        "level": 60,
+        "value": 6.4,
+        "cost": 2567
+      },
+      {
+        "level": 61,
+        "value": 6.49,
+        "cost": 2823
+      },
+      {
+        "level": 62,
+        "value": 6.58,
+        "cost": 3106
+      },
+      {
+        "level": 63,
+        "value": 6.67,
+        "cost": 3416
+      },
+      {
+        "level": 64,
+        "value": 6.76,
+        "cost": 3758
+      },
+      {
+        "level": 65,
+        "value": 6.85,
+        "cost": 4134
+      },
+      {
+        "level": 66,
+        "value": 6.94,
+        "cost": 4547
+      },
+      {
+        "level": 67,
+        "value": 7.03,
+        "cost": 5002
+      },
+      {
+        "level": 68,
+        "value": 7.12,
+        "cost": 5502
+      },
+      {
+        "level": 69,
+        "value": 7.21,
+        "cost": 6052
+      },
+      {
+        "level": 70,
+        "value": 7.3,
+        "cost": 6658
+      },
+      {
+        "level": 71,
+        "value": 7.39,
+        "cost": 7323
+      },
+      {
+        "level": 72,
+        "value": 7.48,
+        "cost": 8056
+      },
+      {
+        "level": 73,
+        "value": 7.57,
+        "cost": 8861
+      },
+      {
+        "level": 74,
+        "value": 7.66,
+        "cost": 9747
+      },
+      {
+        "level": 75,
+        "value": 7.75,
+        "cost": 10722
+      },
+      {
+        "level": 76,
+        "value": 7.84,
+        "cost": 11794
+      },
+      {
+        "level": 77,
+        "value": 7.93,
+        "cost": 12974
+      },
+      {
+        "level": 78,
+        "value": 8.02,
+        "cost": 14271
+      },
+      {
+        "level": 79,
+        "value": 8.11,
+        "cost": 15698
+      },
+      {
+        "level": 80,
+        "value": 8.2,
+        "cost": 17268
+      },
+      {
+        "level": 81,
+        "value": 8.29,
+        "cost": 18995
+      },
+      {
+        "level": 82,
+        "value": 8.38,
+        "cost": 20894
+      },
+      {
+        "level": 83,
+        "value": 8.47,
+        "cost": 22984
+      },
+      {
+        "level": 84,
+        "value": 8.56,
+        "cost": 25282
+      },
+      {
+        "level": 85,
+        "value": 8.65,
+        "cost": 27811
+      },
+      {
+        "level": 86,
+        "value": 8.74,
+        "cost": 30592
+      },
+      {
+        "level": 87,
+        "value": 8.83,
+        "cost": 33651
+      },
+      {
+        "level": 88,
+        "value": 8.92,
+        "cost": 37016
+      },
+      {
+        "level": 89,
+        "value": 9.01,
+        "cost": 40717
+      },
+      {
+        "level": 90,
+        "value": 9.1,
+        "cost": 44789
+      },
+      {
+        "level": 91,
+        "value": 9.19,
+        "cost": 49268
+      },
+      {
+        "level": 92,
+        "value": 9.28,
+        "cost": 54195
+      },
+      {
+        "level": 93,
+        "value": 9.37,
+        "cost": 59614
+      },
+      {
+        "level": 94,
+        "value": 9.46,
+        "cost": 65576
+      },
+      {
+        "level": 95,
+        "value": 9.55,
+        "cost": 72133
+      },
+      {
+        "level": 96,
+        "value": 9.64,
+        "cost": 79347
+      },
+      {
+        "level": 97,
+        "value": 9.73,
+        "cost": 87281
+      },
+      {
+        "level": 98,
+        "value": 9.82,
+        "cost": 96010
+      },
+      {
+        "level": 99,
+        "value": 9.91,
+        "cost": 105611
+      },
+      {
+        "level": 100,
+        "value": 10,
+        "cost": 116172
       }
     ],
     "growth": [
@@ -55,6 +1155,31 @@
         "level": 0,
         "value": 1,
         "cost": 0
+      },
+      {
+        "level": 1,
+        "value": 2,
+        "cost": 1161
+      },
+      {
+        "level": 2,
+        "value": 3,
+        "cost": 2323
+      },
+      {
+        "level": 3,
+        "value": 4,
+        "cost": 4645
+      },
+      {
+        "level": 4,
+        "value": 5,
+        "cost": 9290
+      },
+      {
+        "level": 5,
+        "value": 6,
+        "cost": 18581
       }
     ]
   }

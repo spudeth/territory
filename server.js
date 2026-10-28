@@ -45,7 +45,11 @@ const pool = createPool(process.env.DATABASE_URL);
       }
     }
   });
-})().catch(err => {
+})().catch(async err => {
   console.error(`Startup failed: ${err.message}`);
-  process.exit(1);
+  // Close the database pool first, then stop: exiting with connection attempts still open can crash Node
+  // itself on Windows (seen once in tests as exit code 0xC0000409 instead of 1).
+  process.exitCode = 1;
+  await pool.end().catch(() => {});
+  setTimeout(() => process.exit(1), 2000).unref();   // in case something else keeps it running
 });

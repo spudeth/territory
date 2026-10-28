@@ -45,7 +45,16 @@ Every rule in the game, in plain English. This file is updated whenever a rule c
 
 Each player has a level for four upgrades, which count on every map. Everyone starts at level 0, which is "no upgrade". Each upgrade's tab in the sheet lists its levels with the value after buying each one and its cost in squares (columns Level, Value after, Cost (squares)); the game uses them exactly as written. A level past the end of a table uses its last entry.
 
-**Right now `data/economy.json` has no levels yet, so upgrades do nothing and there's nothing to buy.** They arrive with the first sync from the sheet.
+**Current levels (first sync, 2026-10-28):**
+
+| Upgrade | Levels | Level 1 costs | Top value |
+| --- | --- | --- | --- |
+| Click Power | 70 | 22 squares | ×10 (1 hit per click → 10) |
+| Defense | 50 | 124 squares | ×3 (10 hits → 30) |
+| Earnings | 100 | 9 squares | ×10 squares per new block |
+| Growth | 5 | 1,161 squares | 6 new map blocks per new block |
+
+Every level's value and cost is in `data/economy.json`, exactly as in the sheet.
 
 **Buying:** Menu > Upgrades. Each upgrade shows its level, what it does now and after the next level (e.g. "9 → 8 clicks per block"), and a button with the next level's cost from the sheet. Without enough squares the button says how many more are needed; at the top level it says MAX.
 - Guests can buy too (after their first block); upgrades work on every map and stay with the guest when they make an account from their guest profile.

@@ -73,10 +73,17 @@ test('upgrades: Click Power multiplies each click, Defense multiplies hits neede
   t.after(() => { for (const [k, v] of saved) rules[k] = v; });
   const none = rules.NO_UPGRADES, lv = (clickPower, defense, earnings) => ({ clickPower, defense, earnings });
 
-  // Defaults: no effect at any level.
+  // With the synced tables, level 0 is no upgrade.
+  assert.equal(clicks(none, none), 10);
+  assert.equal(rules.squaresForFirstClaim(none), 1);
+  assert.equal(clicks(null, null), 10, 'a visitor with no levels');
+
+  // Tables that do nothing: levels make no difference.
+  rules.CLICK_POWER_MULTIPLIER = [1];
+  rules.DEFENSE_MULTIPLIER = [1];
+  rules.EARNINGS_MULTIPLIER = [1];
   assert.equal(clicks(lv(5, 5, 5), lv(5, 5, 5)), 10);
   assert.equal(rules.squaresForFirstClaim(lv(5, 5, 5)), 1);
-  assert.equal(clicks(null, null), 10, 'a visitor with no levels');
 
   rules.CLICK_POWER_MULTIPLIER = [1, 1.2, 2];
   rules.DEFENSE_MULTIPLIER = [1, 1.5, 2];

@@ -294,3 +294,26 @@ Squares icon in place; buying all four upgrades with squares (one transaction, e
 
 Row to add to the Game Rules tab (anywhere):
 maxTapsPerSecond | 12 | Taps per player per second the server accepts; faster taps are ignored (anti-bot)
+#46 | 2026-10-28 | real sync done (Bob added maxTapsPerSecond): data/economy.json written from the sheet. Change summary: Click Power 0 → 70 levels (level 1 costs 22, top value 10); Defense 0 → 50 levels (124; top ×3); Earnings 0 → 100 levels (9; top ×10); Growth 0 → 5 levels (1,161; top 6 blocks); every Game Rules value unchanged; no stored levels move (everyone is at level 0). Also: one test assumed upgrades did nothing at any level (updated), and the "database unreachable" startup test once saw Node itself crash on exit (0xC0000409): the server now closes its database pool before exiting | tests: pass (90/90, 118 s)
+
+## Merge steps for Xoren (iterate -> main): the first real sync (with loops 5 and 6)
+
+This merge turns on buying upgrades, with the levels and prices from your sheet. It also includes everything in loops 5 and 6 (#44 above). Database changes 010 and 011 run on start. Blocks, names and squares are kept.
+
+1. Optional backup: Neon console -> project -> Branches -> production. Note the time. Restore on that page can put production back to that time.
+2. github.com/spudeth/territory -> Pull requests -> New pull request. base: main, compare: iterate. "Able to merge" -> Create pull request -> Create pull request.
+3. Merge pull request -> Confirm merge. Keep the iterate branch.
+4. Render -> the territory service -> Events: wait for Live.
+5. Render -> Logs: "Applied migrations: 010_growth_and_remaps.sql, 011_tap_limit_log.sql", then "Accounts are on." There should be no "Upgrade levels moved" lines (nobody has levels yet). If you see "Startup failed", stop and send me that line.
+
+## Live checklist (territory.sarl), phone and computer
+
+- [ ] Menu > Upgrades shows four cards: Click Power "Level 0 of 70", Defense "of 50", Earnings "of 100", Growth "of 5".
+- [ ] Click Power says "10 → 9 clicks per block"; its button shows the square icon and 22.
+- [ ] With fewer squares than a price, that button is greyed out and says "Need X more".
+- [ ] Earn 22 squares (claim 22 brand-new blocks), then buy Click Power: the purchase sound plays, your squares drop by 22, the card says Level 1 of 70 and "9 → 8 clicks per block", and an empty block now takes 9 taps.
+- [ ] Tap the Upgrade button twice very fast: only one level is bought.
+- [ ] Open the game on a second device as the same player: after buying on one, the other shows the new squares straight away.
+- [ ] Do the same as a guest, then sign up from that guest: the upgrade is still there.
+- [ ] "All 70 levels" opens the full list with each level's effect and cost.
+
