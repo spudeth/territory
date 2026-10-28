@@ -51,7 +51,9 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
   app.use(express.static(__dirname + '/public', { extensions: ['html'] }));   // also serves /privacy and /terms
 
   const server = http.createServer(app);
-  const io = new Server(server);
+  // Large messages (the whole map on joining: 1.4 MB at 100,000 blocks) are compressed, fast setting, to about
+  // a fifth. Small ones (hits, claims) are sent as they are.
+  const io = new Server(server, { perMessageDeflate: { threshold: 4096, zlibDeflateOptions: { level: 1 } } });
   const limiter = guestLimiter(guestsPerIp, rules.GUEST_WINDOW_MINUTES * 60 * 1000);
 
   // In-memory copy of each loaded map:
