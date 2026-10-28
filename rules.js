@@ -23,6 +23,10 @@ const settings = {
   EARNINGS_MULTIPLIER: [1],       // Earnings: multiplies squares per first claim
   MIN_HITS: 1,                    // no block ever takes fewer hits than this
 
+  // Name labels: an owner's name shows on their territory once it covers this share of the screen.
+  // Set in public/labels.js, which the browser loads too.
+  NAME_LABEL_SHARE: require('./public/labels').NAME_LABEL_SHARE,
+
   // Per-map look, chosen on the first claim on a map and locked forever
   COVERAGES: ['tile', 'stretch'], // how a skin covers a territory (the first is the default)
 };
