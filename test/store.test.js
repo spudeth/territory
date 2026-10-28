@@ -188,10 +188,11 @@ test('ten new guests first-claiming at once all succeed, each growing the map', 
 
 test('names are unique regardless of case', async () => {
   const y = row();
-  const a = await newGuest(pool, mapId, 0, y, 'Calm Otter');
-  const b = await newGuest(pool, mapId, 2, y, 'calm otter');
-  assert.equal(a.name, 'Calm Otter');
-  assert.notEqual(b.name.toLowerCase(), 'calm otter');
+  // Not a name the guest name generator can produce, so no earlier test can have taken it.
+  const a = await newGuest(pool, mapId, 0, y, 'Unique Test');
+  const b = await newGuest(pool, mapId, 2, y, 'unique test');
+  assert.equal(a.name, 'Unique Test');
+  assert.notEqual(b.name.toLowerCase(), 'unique test');
   assert.ok(b.name.length <= 15);
 });
 

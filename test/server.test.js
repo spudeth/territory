@@ -1,14 +1,15 @@
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const { io: connect } = require('socket.io-client');
+const http = require('http');
 const { createGame } = require('../app');
-const { testDb } = require('./helpers');
+const { testDb, connectPlayer } = require('./helpers');
 
+const DECAY_MS = 400;   // crack decay, sped up from 60 seconds so the test is quick
 let db, pool, mapId, game, url;
 const sockets = [];
 before(async () => {
   ({ pool, mapId } = db = await testDb());
-  game = createGame(pool, { guestsPerIp: 2 });
+  game = createGame(pool, { guestsPerIp: 2, crackDecayMs: DECAY_MS, publicUrl: 'https://territory.sarl' });
   await new Promise(r => game.server.listen(0, r));
   url = `http://localhost:${game.server.address().port}`;
 });
@@ -18,30 +19,9 @@ after(async () => {
   await db?.drop();
 });
 
-// A player's browser. Each gets its own IP unless told otherwise, so the guest limit only bites when meant to.
-let nextIp = 1;
-function player({ token, ip = `10.0.0.${nextIp++}` } = {}) {
-  const s = connect(url, { auth: { token }, transports: ['websocket'], forceNew: true, reconnection: false,
-    extraHeaders: { 'cf-connecting-ip': ip, 'x-forwarded-for': '203.0.113.9' } });
+function player(opts) {
+  const s = connectPlayer(url, opts);
   sockets.push(s);
-  const events = [];
-  s.onAny((name, data) => events.push([name, data]));
-  s.events = events;
-  // Resolves with the first `name` event (already received or still to come) that passes `match`.
-  s.next = (name, match = () => true, ms = 15000) => new Promise((resolve, reject) => {
-    const hit = events.find(([n, d]) => n === name && match(d));
-    if (hit) { events.splice(events.indexOf(hit), 1); return resolve(hit[1]); }
-    const timer = setTimeout(() => { s.offAny(on); reject(new Error(`no "${name}" event within ${ms}ms`)); }, ms);
-    function on(n, d) {
-      if (n !== name || !match(d)) return;
-      clearTimeout(timer); s.offAny(on);
-      events.splice(events.findIndex(e => e[1] === d), 1);
-      resolve(d);
-    }
-    s.onAny(on);
-  });
-  s.welcome = s.next('welcome');
-  s.hit3 = (x, y) => { for (let i = 0; i < 3; i++) s.emit('hit', { x, y }); };
   return s;
 }
 const at = (x, y) => d => d.x === x && d.y === y;
@@ -162,4 +142,71 @@ test('a wipe clears the territory for everyone and frees the land', async () => 
   assert.equal(await cellCount(), cells + 2);
   a.hit3(12, 15); await a.next('claim', at(12, 15));
   assert.equal(await a.next('squares', n => n === 3), 3, 'the third block is beyond N and earns a square');
+});
+
+test('cracks fade one level per decay period after the last hit, for everyone', async () => {
+  const a = player(), watcher = player();
+  await Promise.all([a.welcome, watcher.welcome]);
+  a.emit('hit', { x: 3, y: 25 });
+  a.emit('hit', { x: 3, y: 25 });
+  await watcher.next('hit', d => d.x === 3 && d.y === 25 && d.n === 2);
+  const t0 = Date.now();
+  await watcher.next('hit', d => d.x === 3 && d.y === 25 && d.n === 1);
+  await watcher.next('hit', d => d.x === 3 && d.y === 25 && d.n === 0);
+  const took = Date.now() - t0;
+  assert.ok(took >= DECAY_MS * 1.5 && took < DECAY_MS * 4, `two levels faded in ${took}ms`);
+  assert.equal(watcher.events.filter(([n]) => n === 'claim').length, 0, 'nothing was claimed');
+
+  // A hit after some fading continues from the faded level: two hits, one level fades, so two more are needed.
+  a.emit('hit', { x: 4, y: 25 });
+  a.emit('hit', { x: 4, y: 25 });
+  await watcher.next('hit', d => d.x === 4 && d.n === 1);   // the hits themselves
+  await watcher.next('hit', d => d.x === 4 && d.n === 2);
+  await watcher.next('hit', d => d.x === 4 && d.n === 1);   // then the fade
+  a.emit('hit', { x: 4, y: 25 });
+  await watcher.next('hit', d => d.x === 4 && d.n === 2);
+  a.emit('hit', { x: 4, y: 25 });
+  await watcher.next('claim', at(4, 25));
+});
+
+test('guests cannot rename', async () => {
+  const a = player();
+  await a.welcome;
+  assert.deepEqual(await a.ask('rename', 'Cool Name'), { error: 'Create an account to change your name' });
+  a.hit3(8, 25);
+  await a.next('you');
+  assert.deepEqual(await a.ask('rename', 'Cool Name'), { error: 'Create an account to change your name' });
+});
+
+test('without accounts set up, the server says so and treats a login token as a failed login', async () => {
+  const w = await player({ jwt: 'not-a-real-token' }).welcome;
+  assert.equal(w.accounts, false);
+  assert.equal(w.me.pid, null);
+  assert.equal((await fetch(url + '/api/auth/token')).status, 404);
+});
+
+test('other hosts (www, onrender.com) redirect to the site address; localhost is left alone', async () => {
+  // fetch() won't send a different Host header, so use a plain HTTP request.
+  const get = host => new Promise((resolve, reject) =>
+    http.get(url + '/terms?x=1', { headers: { host } }, res => { res.resume(); resolve(res); }).on('error', reject));
+  for (const host of ['www.territory.sarl', 'territory.onrender.com']) {
+    const res = await get(host);
+    assert.equal(res.statusCode, 301, host);
+    assert.equal(res.headers.location, 'https://territory.sarl/terms?x=1');
+  }
+  assert.equal((await get('territory.sarl')).statusCode, 200);
+  assert.equal((await fetch(url + '/', { redirect: 'manual' })).status, 200);
+});
+
+test('/api/ip shows the address the guest limit uses', async () => {
+  const res = await fetch(url + '/api/ip', { headers: { 'cf-connecting-ip': '198.51.100.23', 'x-forwarded-for': '1.2.3.4, 10.0.0.1' } });
+  assert.deepEqual(await res.json(), { ip: '198.51.100.23' });
+});
+
+test('the Privacy Policy and Terms pages are served, marked as placeholders', async () => {
+  for (const page of ['/privacy', '/terms']) {
+    const res = await fetch(url + page);
+    assert.equal(res.status, 200, page);
+    assert.match(await res.text(), /PLACEHOLDER/);
+  }
 });
