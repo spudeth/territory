@@ -497,11 +497,14 @@ function deleteAccount(pool, playerId) {
 
 // A player's own fresh start: their blocks on every map go empty, and their squares, upgrades, stats,
 // achievements, skins and look on every map are reset, as for a new player. Kept: name, login, tutorial,
-// and skins bought with money. Returns { maps: ids of maps where they had blocks }.
+// and skins bought with money. Returns { maps: ids of every map they had played }.
 function resetProgress(pool, playerId) {
   return tx(pool, async c => {
     const { rows: [p] } = await c.query('SELECT squares FROM players WHERE id = $1 FOR UPDATE', [playerId]);
-    const { rows: maps } = await c.query('SELECT DISTINCT map_id FROM map_cells WHERE owner_id = $1', [playerId]);
+    // Every map they've played, with blocks or not: the game reloads them all, so none keeps their old look,
+    // wipe floor or stats in memory (a stale one would stop them earning squares there).
+    const { rows: maps } = await c.query(`SELECT map_id FROM map_cells WHERE owner_id = $1
+      UNION SELECT map_id FROM player_map_settings WHERE player_id = $1 UNION SELECT map_id FROM player_map_stats WHERE player_id = $1`, [playerId]);
     await c.query('UPDATE map_cells SET owner_id = NULL, claimed_at = NULL WHERE owner_id = $1', [playerId]);
     for (const t of ['player_map_settings', 'player_map_stats', 'player_achievements', 'level_remaps']) {
       await c.query(`DELETE FROM ${t} WHERE player_id = $1`, [playerId]);

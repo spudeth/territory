@@ -187,3 +187,21 @@ test('reset all progress: blocks, squares, upgrades, stats and achievements go, 
   await viewer.welcome;
   assert.ok(!viewer.events.some(e => e[0] === 'claim' && e[1]?.y === g.y), 'their block is empty for others');
 });
+
+test('after a reset, a player earns squares again, also on a map where they had lost all their blocks', async () => {
+  const g = await guestWith(0);
+  const thief = player();   // takes their only block, so they have none on this map when they reset
+  await thief.welcome;
+  thief.take(1, g.y);   // next to theirs first: blocks can only be taken from next door
+  await thief.next('claim', at(1, g.y));
+  thief.take(0, g.y);
+  await g.s.next('claim', d => d.x === 0 && d.y === g.y && String(d.pid) !== String(g.pid));
+  assert.deepEqual(await g.s.ask('resetProgress'), { ok: true });
+  const back = player({ token: g.token });
+  await back.welcome;
+  const y = row++;
+  back.take(0, y);
+  await back.next('claim', at(0, y));
+  assert.equal(await back.next('squares'), 1, 'the first block after a reset earns a square');
+  assert.ok((await pool.query("SELECT 1 FROM player_map_settings WHERE player_id = $1 AND wipe_floor = 0", [g.pid])).rowCount);
+});

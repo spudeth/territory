@@ -328,6 +328,7 @@ This merge turns on buying upgrades, with the levels and prices from your sheet.
 #52 | 2026-10-28 | Music stations (Xoren): Heavenly Loop, Calm Ambient 1 and Outer Space Loop added beside the current track; "Change station" text button bottom right of the Sound box picks another track at random (short fade); CREDITS.md | checked in headless Chrome
 #53 | 2026-10-28 | Text chat (Xoren): one chat per map, bottom right; guests chat once they have a player (first claim); bad-word filter (chat.js, disguises undone), 120 characters, 1 message per 2 s; tap a name to mute on this device, Unmute all; last 30 per map kept in memory only (no database); phones show a dot instead of messages while closed | tests: chat 3/3; checked in headless Chrome
 #54 | 2026-10-28 | Square pop (Xoren, mockup PXtXotyzsRZayFM6m3pBXh): when the shown squares go up, the square icon rises off the top grid line of the block just claimed, 35% of a block, fast then slow with a matching fade; Xoren's picks: 28%, 1.15 blocks, 1350 ms, power 4.5, sits on the line | checked in headless Chrome
+#55 | 2026-10-28 | Fix (Xoren, live): after Reset all progress, no squares on a map where they had no blocks left (taken by others): the server kept their old map record in memory, so it never stored a fresh one. The reset now reloads every map they played. The next deploy also restarts the server, which clears it for anyone already affected | tests: shop 8/8
 
 ## Xoren's one-time setup for admin commands (details in ADMIN.md, section 1)
 
