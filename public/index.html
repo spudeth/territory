@@ -27,7 +27,92 @@
   <div id="hint">Tap any empty block 3× to claim your first block</div>
   <div id="toast"></div>
 
+  <button id="menu-button" type="button" aria-label="Menu">☰ Menu</button>
+
+  <div id="menu" hidden>
+    <div class="panel" role="dialog" aria-modal="true" aria-label="Menu">
+      <button class="close" type="button" aria-label="Close">×</button>
+
+      <section data-view="main">
+        <h2>Menu</h2>
+        <p id="menu-who"></p>
+        <p class="sub" id="menu-email"></p>
+        <button type="button" id="menu-login" data-go="login">Log in / Sign up</button>
+        <p class="sub" id="menu-off" hidden>Accounts aren't available on this server yet.</p>
+        <button type="button" data-go="settings">Settings</button>
+        <button type="button" id="menu-logout" class="quiet">Log out</button>
+        <p class="links"><a href="/privacy" target="_blank">Privacy Policy</a> · <a href="/terms" target="_blank">Terms</a></p>
+      </section>
+
+      <section data-view="login" hidden>
+        <h2>Log in</h2>
+        <button type="button" class="google">Continue with Google</button>
+        <p class="or">or with email</p>
+        <form id="form-login">
+          <input name="email" type="email" placeholder="Email" autocomplete="email" required>
+          <input name="password" type="password" placeholder="Password" autocomplete="current-password" required>
+          <button type="submit">Log in</button>
+        </form>
+        <p class="links"><a href="#" data-go="forgot">Forgot password?</a> · <a href="#" data-go="signup">Create an account</a></p>
+      </section>
+
+      <section data-view="signup" hidden>
+        <h2>Create an account</h2>
+        <p class="sub">Your blocks and squares come with you.</p>
+        <button type="button" class="google">Continue with Google</button>
+        <p class="or">or with email</p>
+        <form id="form-signup">
+          <input name="email" type="email" placeholder="Email" autocomplete="email" required>
+          <input name="password" type="password" placeholder="Password (8+ characters)" autocomplete="new-password" minlength="8" required>
+          <button type="submit">Sign up</button>
+        </form>
+        <p class="links"><a href="#" data-go="login">I already have an account</a></p>
+      </section>
+
+      <section data-view="verify" hidden>
+        <h2>Check your email</h2>
+        <p class="sub">We sent you a 6-digit code. It works for 15 minutes.</p>
+        <form id="form-verify">
+          <input name="code" inputmode="numeric" autocomplete="one-time-code" placeholder="Code" maxlength="6" required>
+          <button type="submit">Verify</button>
+        </form>
+        <p class="links"><a href="#" id="verify-resend">Send a new code</a></p>
+      </section>
+
+      <section data-view="forgot" hidden>
+        <h2>Reset your password</h2>
+        <form id="form-forgot">
+          <input name="email" type="email" placeholder="Email" autocomplete="email" required>
+          <button type="submit">Send reset link</button>
+        </form>
+        <p class="links"><a href="#" data-go="login">Back to log in</a></p>
+      </section>
+
+      <section data-view="reset" hidden>
+        <h2>Choose a new password</h2>
+        <form id="form-reset">
+          <input name="password" type="password" placeholder="New password (8+ characters)" autocomplete="new-password" minlength="8" required>
+          <button type="submit">Save password</button>
+        </form>
+      </section>
+
+      <section data-view="settings" hidden>
+        <h2>Settings</h2>
+        <form id="form-name">
+          <label for="name-input">Name</label>
+          <input id="name-input" name="name" maxlength="15" autocomplete="off" required>
+          <button type="submit" id="name-save">Save name</button>
+        </form>
+        <p class="sub" id="name-note"></p>
+        <p class="links"><a href="#" data-go="main">Back</a></p>
+      </section>
+
+      <p id="menu-error" role="alert"></p>
+    </div>
+  </div>
+
   <script src="/socket.io/socket.io.js"></script>
   <script src="game.js"></script>
+  <script src="account.js"></script>
 </body>
 </html>
