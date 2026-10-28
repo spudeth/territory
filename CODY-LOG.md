@@ -38,3 +38,28 @@ QUESTION Q5: approve this achievement list (30, replaces the 8 placeholders; eac
   Blocks taken from others: First Raid 1, Raider 10, Conqueror 100, Warlord 1,000
   Blocks lost to others: Under Attack 1, Battle-Scarred 100
   | A: approve as is / B: change names or numbers (say which) / C: also add shapes or counts that need new stats (e.g. hollow ring, cross, maps played on) | pick A: uses only stats already tracked, so adding it is a data-only change in achievements.js; C can come later | OPEN
+
+#15 | 2026-10-28 | merge readiness: full suite run; iterate is ahead of main with no conflicts (main has nothing iterate lacks); merge steps below | tests: pass (65/65, 118 s)
+
+## Merge steps for Xoren (iterate -> main)
+
+Before you start: this changes live gameplay. Blocks take 10 hits instead of 3. Any half-cracked blocks reset when the server restarts, as on every deploy. Blocks, names and squares balances are kept.
+
+1. Backup (optional, recommended): Neon console -> project -> Branches -> production. Note the time now. If anything goes wrong, Restore on that page can put production back to that time, within the restore window it shows.
+2. Go to github.com/spudeth/territory -> Pull requests -> New pull request.
+3. Set base: main and compare: iterate. It should say "Able to merge". -> Create pull request -> Create pull request again.
+4. Click Merge pull request -> Confirm merge. Leave the iterate branch; don't delete it.
+5. Render dashboard -> the territory service -> Events. Wait for the new deploy to say Live (a few minutes).
+6. Render -> Logs. You should see "Applied migrations: 003_upgrades.sql, 004_player_map_stats.sql, 005_achievements.sql, 006_map_edges.sql, 007_fractional_squares.sql", then "Accounts are on." If you see "Startup failed", stop and send me that line. The old version keeps running until a new one starts.
+
+Then check on territory.sarl (a private window is fine):
+- The map loads, with everyone's blocks where they were.
+- Tap an empty block: the crack shows from the first tap, gets bigger past half way, and the block is taken on the 10th tap.
+- Stop half way and wait 1 minute: the crack fades a little (1 hit per minute).
+- Retake a block next to yours from another player (a second browser works): also 10 taps.
+- Log in on an existing account: same name, same blocks.
+- Menu -> Settings -> rename still works.
+- Tell me if anything looks off. Squares aren't shown on screen yet, so there's nothing to check there.
+
+## Summary (loop order 2 done, stopping)
+Built the 10-hit system (one setting; Click Power, Defense and Earnings are multipliers, all 1.0), fractional squares balances (migration 007), and crack art driven by progress share. Added GAME-RULES.md. Achievement draft is Q5, OPEN. Full suite 65/65. Ready to merge with the steps above.
