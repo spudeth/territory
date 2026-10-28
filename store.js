@@ -242,3 +242,25 @@ async function earnAchievements(pool, playerId, mapId, ids) {
 }
 
 Object.assign(module.exports, { earnedAchievements, earnAchievements });
+
+// The maps players can go to (official ones; purchased and VIP maps come later), oldest first.
+async function listMaps(pool) {
+  const { rows } = await pool.query("SELECT id, name, style FROM maps WHERE type = 'official' ORDER BY id");
+  return rows;
+}
+
+// Makes a new official map: a width-by-height rectangle of empty blocks. Admin script only (scripts/create-map.js).
+const STYLES = ['grass', 'white'];
+async function createMap(pool, { name, style, width, height }) {
+  if (!name || typeof name !== 'string') throw new Error('a map needs a name');
+  if (!STYLES.includes(style)) throw new Error(`style must be one of: ${STYLES.join(', ')}`);
+  for (const n of [width, height]) if (!Number.isInteger(n) || n < 1 || n > 1000) throw new Error('width and height must be 1-1000');
+  return tx(pool, async c => {
+    const { rows: [m] } = await c.query("INSERT INTO maps (name, style, type) VALUES ($1, $2, 'official') RETURNING id", [name, style]);
+    await c.query(`INSERT INTO map_cells (map_id, x, y)
+      SELECT $1, x, y FROM generate_series(0, $2 - 1) AS x, generate_series(0, $3 - 1) AS y`, [m.id, width, height]);
+    return m.id;
+  });
+}
+
+Object.assign(module.exports, { STYLES, listMaps, createMap });

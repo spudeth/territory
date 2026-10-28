@@ -263,6 +263,38 @@ test('achievements: earned once on the stat event, saved, and announced', async 
   assert.equal(await db.count('SELECT count(*) FROM player_achievements WHERE player_id = $1', [you.pid]), 1);
 });
 
+test('maps: switch, claim there with a separate look, and come back to the last map', async () => {
+  const store = require('../store');
+  const second = await store.createMap(pool, { name: 'Snow', style: 'white', width: 4, height: 4 });
+  await assert.rejects(store.createMap(pool, { name: 'X', style: 'lava', width: 4, height: 4 }), /style/);
+  const a = player();
+  await a.welcome;
+  a.hit3(28, 25);
+  const you = await a.next('you');
+  const maps = await a.ask('maps');
+  assert.deepEqual(maps.map(m => m.name), ['Grass', 'Snow']);
+  assert.deepEqual(await a.ask('switchMap', '99999'), { error: 'That map does not exist' });
+  assert.deepEqual(await a.ask('switchMap', second), { ok: true });
+  const w = await a.next('welcome');
+  assert.equal(w.map.id, second);
+  assert.equal(w.map.style, 'white');
+  assert.equal(w.cells.length, 16);
+  assert.equal(w.me.locked, false, 'a new map means a new color, skin and coverage');
+  a.hit3(1, 1);
+  await a.next('claim', d => d.x === 1 && d.y === 1);
+  assert.equal(await db.count('SELECT count(*) FROM player_map_settings WHERE player_id = $1', [you.pid]), 2);
+
+  const watcher = player();
+  assert.equal((await watcher.welcome).map.id, mapId, 'others stay where they are');
+
+  // Reconnecting returns to the last map.
+  const back = player({ token: you.token });
+  assert.equal((await back.welcome).map.id, second);
+  assert.deepEqual(await back.ask('switchMap', mapId), { ok: true });
+  assert.equal((await back.next('welcome')).map.id, mapId);
+  assert.equal((await player({ token: you.token }).welcome).map.id, mapId);
+});
+
 test('guests cannot rename', async () => {
   const a = player();
   await a.welcome;

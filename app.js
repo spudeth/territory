@@ -205,26 +205,40 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
     socket.data.me = me;
     // Color, skin and coverage are fixed on the first claim on a map. Until then they are only proposals:
     // color is random for now, and the player may pick a coverage (the 'coverage' event).
-    const color = map.players.get(me.pid)?.color ?? randomColor();
-    let coverage = map.players.get(me.pid)?.coverage ?? rules.COVERAGES[0];
-    socket.join(map.room);
+    let color, coverage;
     if (me.pid) socket.join('player:' + me.pid);
 
-    socket.emit('welcome', {
-      me: { ...me, color, coverage, locked: map.players.has(me.pid) },   // locked: color, skin and coverage are set here
-      accounts: !!auth,   // false when logins aren't set up on this server
-      upgraded,           // the guest profile just became an account; the browser can forget its guest token
-      loginFailed,        // a login token was sent but wasn't valid
-      map: { id: map.id, name: map.name, style: map.style },
-      cells: [...map.cells].map(([k, owner]) => [...k.split(',').map(Number), owner]),
-      players: Object.fromEntries([...map.players].map(([pid, { upgrades, ...shown }]) => [pid, shown])),
-      hits: [...map.hits].map(([k, h]) => [...k.split(',').map(Number), h.n]),
-    });
+    // Puts this connection on `next` and sends the whole map. Also used when switching maps, so the browser
+    // handles a switch like a fresh welcome.
+    function enter(next, flags = {}) {
+      if (map) socket.leave(map.room);
+      map = next;
+      socket.join(map.room);
+      color = map.players.get(me.pid)?.color ?? randomColor();
+      coverage = map.players.get(me.pid)?.coverage ?? rules.COVERAGES[0];
+      socket.emit('welcome', {
+        me: { ...me, color, coverage, locked: map.players.has(me.pid) },   // locked: color, skin and coverage are set here
+        accounts: !!auth,                         // false when logins aren't set up on this server
+        upgraded: false, loginFailed: false,      // see `flags`
+        ...flags,
+        map: { id: map.id, name: map.name, style: map.style },
+        cells: [...map.cells].map(([k, owner]) => [...k.split(',').map(Number), owner]),
+        players: Object.fromEntries([...map.players].map(([pid, { upgrades, ...shown }]) => [pid, shown])),
+        hits: [...map.hits].map(([k, h]) => [...k.split(',').map(Number), h.n]),
+      });
+    }
+    // upgraded: the guest profile just became an account; the browser can forget its guest token
+    // loginFailed: a login token was sent but wasn't valid
+    const first = map;
+    map = null;
+    enter(first, { upgraded, loginFailed });
 
     const clearCrack = (x, y) => io.to(map.room).emit('hit', { x, y, n: 0 });
 
     // Runs in the map's queue after the last hit. Checks the rules again, since the map may have changed.
-    async function finishClaim(x, y) {
+    // `here` is the map the last hit was on; if the player has switched maps since, the claim is dropped.
+    async function finishClaim(here, x, y) {
+      if (here !== map) return;
       const error = checkHit(map, me.pid, x, y);
       if (error) { socket.emit('denied', error); return clearCrack(x, y); }
       const k = key(x, y), from = map.cells.get(k);
@@ -298,7 +312,8 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       if (++h.n < rules.hitsToTake(upgrades, owner ? map.players.get(owner)?.upgrades ?? rules.NO_UPGRADES : null)) return io.to(map.room).emit('hit', { x, y, n: h.n });
 
       map.hits.delete(k);
-      serial(map, () => finishClaim(x, y)).catch(err => {
+      const here = map;
+      serial(map, () => finishClaim(here, x, y)).catch(err => {
         console.error(`CLAIM FAILED (map ${map.id}, ${k}): ${err.message}`);
         socket.emit('denied', 'Could not save your claim. Try again.');
         clearCrack(x, y);
@@ -308,14 +323,15 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
     // Clears this player's whole territory on this map. There is no button for it yet.
     socket.on('wipe', () => {
       if (!me.pid) return;
-      serial(map, async () => {
-        const r = await store.wipeTerritory(pool, map.id, me.pid);
+      const here = map;
+      serial(here, async () => {
+        const r = await store.wipeTerritory(pool, here.id, me.pid);
         if (!r) return socket.emit('denied', 'You have no blocks to wipe');
-        for (const [x, y] of r.cells) setOwner(map, key(x, y), null);
-        io.to(map.room).emit('wipe', { pid: me.pid, cells: r.cells });
-        statChanged(map, me.pid, 'owned', 0);
+        for (const [x, y] of r.cells) setOwner(here, key(x, y), null);
+        io.to(here.room).emit('wipe', { pid: me.pid, cells: r.cells });
+        statChanged(here, me.pid, 'owned', 0);
       }).catch(err => {
-        console.error(`WIPE FAILED (map ${map.id}, player ${me.pid}): ${err.message}`);
+        console.error(`WIPE FAILED (map ${here.id}, player ${me.pid}): ${err.message}`);
         socket.emit('denied', 'Could not wipe your territory. Try again.');
       });
     });
@@ -328,6 +344,31 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       if (!rules.COVERAGES.includes(value)) return reply({ error: 'Unknown coverage' });
       coverage = value;
       reply({ coverage });
+    });
+
+    // The maps this player can go to. Answers with [{ id, name, style }].
+    socket.on('maps', async (...args) => {
+      const reply = args.at(-1);   // with or without an argument before it
+      if (typeof reply !== 'function') return;
+      try { reply(await store.listMaps(pool)); } catch { reply([]); }
+    });
+
+    // Moves to another map; the next map loaded on any device is this one. Answers with { ok } or { error };
+    // the map itself arrives as a 'welcome'.
+    socket.on('switchMap', async (id, reply) => {
+      if (typeof reply !== 'function') return;
+      try {
+        const target = (await store.listMaps(pool)).find(m => String(m.id) === String(id));
+        if (!target) return reply({ error: 'That map does not exist' });
+        if (target.id === map.id) return reply({ ok: true });
+        const next = await getMap(target.id);
+        if (me.pid) await store.setLastMap(pool, me.pid, next.id);
+        enter(next);
+        reply({ ok: true });
+      } catch (err) {
+        console.error(`SWITCH FAILED (player ${me.pid}): ${err.message}`);
+        reply({ error: 'Could not switch maps. Try again.' });
+      }
     });
 
     // Accounts only. Answers with { name, renameAt } or { error }.
