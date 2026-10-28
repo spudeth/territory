@@ -430,5 +430,16 @@ socket.on('denied', msg => {
   if (/next to your territory/.test(msg)) tell('denied:range');
 });
 socket.on('disconnect', reason => {
-  if (reason !== 'io client disconnect') toast('Connection lost, reconnecting…');   // not when we reconnect on purpose
+  // Not when we reconnect on purpose, nor when the server ended the game for now with a notice.
+  if (reason !== 'io client disconnect' && reason !== 'io server disconnect') toast('Connection lost, reconnecting…');
 });
+// The server is about to disconnect us for good: banned, kicked by an admin, account deleted, or restored.
+const NOTICE_TITLES = { banned: "YOU'VE BEEN BANNED", kicked: 'DISCONNECTED', deleted: 'ACCOUNT DELETED', restored: 'GAME RESTORED' };
+socket.on('notice', ({ kind, message }) => {
+  $('notice-title').textContent = NOTICE_TITLES[kind] ?? 'DISCONNECTED';
+  $('notice-text').textContent = message;
+  $('notice-reload').hidden = kind === 'banned';
+  $('notice').hidden = false;
+  if (kind === 'deleted') localStorage.removeItem('territory-token');
+});
+$('notice-reload').addEventListener('click', () => location.reload());

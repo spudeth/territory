@@ -383,3 +383,156 @@ async function logTapLimits(pool, entries) {
 }
 
 Object.assign(module.exports, { skinsFor, achievementProgress, saveTutorial, applyEconomy, buyUpgrade, logTapLimits });
+
+// ---------- Admin (npm run admin; admin.js) ----------
+
+// A player by "#123" (id) or name, ignoring case. Null if none.
+async function findPlayer(pool, ref) {
+  const id = /^#\d+$/.test(ref) ? ref.slice(1) : null;
+  const { rows } = await pool.query(
+    `SELECT ${PLAYER}, p.deleted_at, p.created_at FROM players p WHERE ${id ? 'p.id = $1' : 'lower(p.name) = lower($1)'}`, [id ?? ref]);
+  return rows[0] ?? null;
+}
+
+// A map by "#12" (id) or name, ignoring case. Null if none.
+async function findMap(pool, ref) {
+  const id = /^#\d+$/.test(ref) ? ref.slice(1) : null;
+  const { rows } = await pool.query(
+    `SELECT id, name, style, type FROM maps WHERE ${id ? 'id = $1' : 'lower(name) = lower($1)'} ORDER BY id LIMIT 1`, [id ?? ref]);
+  return rows[0] ?? null;
+}
+
+// Profiles seen together on one device (a logged-in account and the guest token the browser also held).
+async function linkPlayers(pool, accountId, guestId) {
+  await pool.query('INSERT INTO player_links (account_id, guest_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [accountId, guestId]);
+}
+async function linkedPlayers(pool, playerId) {
+  const { rows } = await pool.query(`SELECT guest_id AS id FROM player_links WHERE account_id = $1
+    UNION SELECT account_id FROM player_links WHERE guest_id = $1`, [playerId]);
+  return rows.map(r => r.id);
+}
+
+// The ban stopping any of these players, if one is in force: { reason, until } or null.
+async function activeBan(pool, ids) {
+  const { rows } = await pool.query(`SELECT reason, until FROM bans WHERE player_id = ANY($1::bigint[]) AND lifted_at IS NULL
+    AND (until IS NULL OR until > now()) ORDER BY until IS NULL DESC, until DESC LIMIT 1`, [ids.filter(Boolean)]);
+  return rows[0] ?? null;
+}
+async function banPlayers(pool, ids, reason, until) {
+  await pool.query('INSERT INTO bans (player_id, reason, until) SELECT unnest($1::bigint[]), $2, $3', [ids, reason, until]);
+}
+// Lifts the bans in force on these players. Returns how many were lifted.
+async function unbanPlayers(pool, ids) {
+  const r = await pool.query(`UPDATE bans SET lifted_at = now() WHERE player_id = ANY($1::bigint[]) AND lifted_at IS NULL
+    AND (until IS NULL OR until > now())`, [ids]);
+  return r.rowCount;
+}
+
+// Adds (or with a negative amount, takes) squares, written to the ledger. Never below 0.
+// Returns { squares: new exact balance } or { error }.
+function adjustSquares(pool, playerId, delta, reason) {
+  return tx(pool, async c => {
+    const { rows: [p] } = await c.query(
+      'UPDATE players SET squares = squares + $2 WHERE id = $1 AND squares + $2 >= 0 RETURNING squares', [playerId, delta]);
+    if (!p) return { error: 'They have fewer squares than that' };
+    await c.query('INSERT INTO square_ledger (player_id, delta, balance_after, reason) VALUES ($1, $2, $3, $4)',
+      [playerId, delta, p.squares, reason]);
+    return { squares: Number(p.squares) };
+  });
+}
+
+// Empties every block on a map, resets every player's wipe floor there and unlocks their color, skin and
+// coverage. With size { width, height } the map also becomes a fresh rectangle of that size.
+// Returns { cleared: blocks that had an owner, players: players who had blocks, blocks: the map's size after }.
+function wipeMap(pool, mapId, size = null) {
+  return tx(pool, async c => {
+    await c.query('SELECT 1 FROM maps WHERE id = $1 FOR UPDATE', [mapId]);
+    const { rows: [n] } = await c.query(
+      'SELECT count(owner_id)::int AS cleared, count(DISTINCT owner_id)::int AS players FROM map_cells WHERE map_id = $1', [mapId]);
+    if (size) {
+      await c.query('DELETE FROM map_cells WHERE map_id = $1', [mapId]);
+      await c.query(`INSERT INTO map_cells (map_id, x, y)
+        SELECT $1, x, y FROM generate_series(0, $2 - 1) AS x, generate_series(0, $3 - 1) AS y`, [mapId, size.width, size.height]);
+      await rebuildEdges(c, mapId);
+    } else {
+      await c.query('UPDATE map_cells SET owner_id = NULL, claimed_at = NULL WHERE map_id = $1 AND owner_id IS NOT NULL', [mapId]);
+    }
+    await c.query('UPDATE player_map_settings SET wipe_floor = 0, unlocked = true WHERE map_id = $1', [mapId]);
+    const { rows: [b] } = await c.query('SELECT count(*)::int AS blocks FROM map_cells WHERE map_id = $1', [mapId]);
+    return { ...n, blocks: b.blocks };
+  });
+}
+
+// Deletes an account for good. Their blocks everywhere go empty; their login, sessions, email codes and
+// personal data are erased, in Neon Auth too; their name is freed. The row stays, anonymous, because the
+// squares ledger refers to it. Returns { maps: ids of maps where they had blocks, authDeleted }.
+function deleteAccount(pool, playerId) {
+  return tx(pool, async c => {
+    const { rows: [p] } = await c.query('SELECT auth_user_id, squares FROM players WHERE id = $1 FOR UPDATE', [playerId]);
+    const { rows: maps } = await c.query('SELECT DISTINCT map_id FROM map_cells WHERE owner_id = $1', [playerId]);
+    await c.query('UPDATE map_cells SET owner_id = NULL, claimed_at = NULL WHERE owner_id = $1', [playerId]);
+    for (const t of ['player_tokens', 'player_map_settings', 'player_map_stats', 'player_achievements', 'player_skins',
+      'level_remaps', 'tap_limit_log', 'bans']) {
+      await c.query(`DELETE FROM ${t} WHERE player_id = $1`, [playerId]);
+    }
+    await c.query('DELETE FROM player_links WHERE account_id = $1 OR guest_id = $1', [playerId]);
+    if (Number(p.squares) > 0) {
+      await c.query("INSERT INTO square_ledger (player_id, delta, balance_after, reason) VALUES ($1, $2, 0, 'account deleted')",
+        [playerId, -Number(p.squares)]);
+    }
+    await c.query(`UPDATE players SET name = 'deleted' || id, auth_user_id = NULL, name_changed_at = NULL, last_map_id = NULL,
+      squares = 0, click_power = 0, defense = 0, earnings = 0, growth = 0, tutorial = '{}', deleted_at = now() WHERE id = $1`, [playerId]);
+    // Neon Auth keeps its users in this same database; deleting the user removes their sessions and logins too.
+    let authDeleted = false;
+    if (p.auth_user_id && (await c.query("SELECT to_regclass('neon_auth.user') AS t")).rows[0].t) {
+      const { rows: [u] } = await c.query('DELETE FROM neon_auth."user" WHERE id = $1 RETURNING email', [p.auth_user_id]);
+      if (u) {
+        await c.query('DELETE FROM neon_auth.verification WHERE identifier = $1 OR identifier LIKE $2', [u.email, '%' + u.email]);
+        authDeleted = true;
+      }
+    }
+    return { maps: maps.map(r => r.map_id), authDeleted };
+  });
+}
+
+// An account's email, from Neon Auth (null for guests, or where Neon Auth isn't in this database).
+async function accountEmail(pool, authUserId) {
+  if (!authUserId || !(await pool.query("SELECT to_regclass('neon_auth.user') AS t")).rows[0].t) return null;
+  return (await pool.query('SELECT email FROM neon_auth."user" WHERE id = $1', [authUserId])).rows[0]?.email ?? null;
+}
+
+// What the player command shows.
+async function playerInfo(pool, playerId) {
+  const [p, blocks, achievements, links, bans] = await Promise.all([
+    pool.query(`SELECT ${PLAYER}, p.deleted_at, p.created_at FROM players p WHERE p.id = $1`, [playerId]),
+    pool.query(`SELECT m.name, count(*)::int AS blocks FROM map_cells c JOIN maps m ON m.id = c.map_id
+      WHERE c.owner_id = $1 GROUP BY m.name ORDER BY m.name`, [playerId]),
+    pool.query('SELECT achievement_id FROM player_achievements WHERE player_id = $1 ORDER BY earned_at', [playerId]),
+    linkedPlayers(pool, playerId),
+    pool.query('SELECT reason, until, lifted_at, created_at FROM bans WHERE player_id = $1 ORDER BY id', [playerId]),
+  ]);
+  const player = p.rows[0];
+  const linked = links.length ? (await pool.query('SELECT id, name FROM players WHERE id = ANY($1::bigint[])', [links])).rows : [];
+  return { player, email: await accountEmail(pool, player.auth_user_id), blocks: blocks.rows,
+    achievements: achievements.rows.map(r => r.achievement_id), linked, bans: bans.rows };
+}
+
+// What the map command shows.
+async function mapInfo(pool, mapId) {
+  const [size, top] = await Promise.all([
+    pool.query(`SELECT count(*)::int AS blocks, count(owner_id)::int AS claimed, count(DISTINCT owner_id)::int AS players,
+      min(x) AS x0, max(x) AS x1, min(y) AS y0, max(y) AS y1 FROM map_cells WHERE map_id = $1`, [mapId]),
+    pool.query(`SELECT p.name, count(*)::int AS blocks FROM map_cells c JOIN players p ON p.id = c.owner_id
+      WHERE c.map_id = $1 GROUP BY p.name ORDER BY 2 DESC, 1 LIMIT 5`, [mapId]),
+  ]);
+  return { ...size.rows[0], top: top.rows };
+}
+
+// One line in admin_log.
+async function logAdmin(pool, { command, target = null, args = {}, ok, result, ip = null }) {
+  await pool.query('INSERT INTO admin_log (command, target, args, ok, result, ip) VALUES ($1, $2, $3, $4, $5, $6)',
+    [command, target, JSON.stringify(args), ok, result, ip]);
+}
+
+Object.assign(module.exports, { findPlayer, findMap, linkPlayers, linkedPlayers, activeBan, banPlayers, unbanPlayers,
+  adjustSquares, wipeMap, deleteAccount, accountEmail, playerInfo, mapInfo, logAdmin });

@@ -4,7 +4,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
-const { createPool, tx } = require('../db');
+const { createPool, dumpTables } = require('../db');
 
 const root = path.join(__dirname, '..');
 for (const f of ['.env.local', '.env']) {
@@ -22,14 +22,7 @@ async function main() {
 
   const pool = createPool(url, { max: 1 });
   try {
-    const tables = await tx(pool, async c => {
-      await c.query('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY');
-      const { rows } = await c.query(
-        "SELECT table_name FROM information_schema.tables WHERE table_schema = current_schema() AND table_type = 'BASE TABLE' ORDER BY table_name");
-      const out = {};
-      for (const { table_name: t } of rows) out[t] = (await c.query(`SELECT * FROM "${t}"`)).rows;
-      return out;
-    });
+    const tables = await dumpTables(pool);
     const dir = path.join(root, 'backups');
     fs.mkdirSync(dir, { recursive: true });
     const file = path.join(dir, `${branch}-${new Date().toISOString().replace(/[:.]/g, '-')}.json`);

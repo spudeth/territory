@@ -422,3 +422,9 @@ a:hover { color: var(--gold-light); }
 .sq-icon { image-rendering: pixelated; flex: none; vertical-align: middle; }
 
 .stat span:first-child { white-space: nowrap; }
+
+/* A notice that ends the game for now (banned, kicked, deleted, restored) */
+#notice { position: fixed; inset: 0; z-index: 60; background: rgba(10, 13, 18, .85); display: flex; align-items: center; justify-content: center; padding: 16px; }
+#notice .card { background: var(--panel); border-color: var(--red); padding: 20px; width: min(400px, 100%); display: flex; flex-direction: column; gap: 14px; }
+#notice h1 { margin: 0; font: 14px/1.5 var(--title); }
+#notice p { margin: 0; font-size: 17px; line-height: 1.4; color: #e1e6ee; }

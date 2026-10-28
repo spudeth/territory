@@ -6,7 +6,7 @@ const store = require('./store');
 const rules = require('./rules');
 
 // Locally, Neon writes DATABASE_URL to .env.local (or .env). Real environment variables win.
-for (const f of ['.env.local', '.env']) {
+for (const f of ['.env.local', '.env', '.env.admin']) {   // .env.admin: ADMIN_KEY for npm run admin
   try { process.loadEnvFile(__dirname + '/' + f); } catch {}
 }
 
@@ -31,7 +31,8 @@ const pool = createPool(process.env.DATABASE_URL);
   const auth = createAuth({ baseUrl: process.env.NEON_AUTH_BASE_URL, cookieSecret: process.env.NEON_AUTH_COOKIE_SECRET });
   console.log(auth ? 'Accounts are on.' : 'NEON_AUTH_BASE_URL is not set, so accounts are off and everyone plays as a guest.');
 
-  const { server } = createGame(pool, { auth, publicUrl: process.env.PUBLIC_URL || null });
+  const { server } = createGame(pool, { auth, publicUrl: process.env.PUBLIC_URL || null, adminKey: process.env.ADMIN_KEY || null });
+  console.log(process.env.ADMIN_KEY ? 'Admin commands are on.' : 'ADMIN_KEY is not set, so admin commands are off.');
   server.on('error', err => {
     if (err.code !== 'EADDRINUSE') throw err;
     console.error(`Port ${PORT} is already in use by another program. Try another port, e.g.:  $env:PORT=3031; npm start`);

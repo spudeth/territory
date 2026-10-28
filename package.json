@@ -13,7 +13,8 @@
     "test": "node --test --test-concurrency=1 \"test/*.test.js\"",
     "backup": "node scripts/backup.js",
     "create-map": "node scripts/create-map.js",
-    "sync-rules": "node scripts/sync-rules.js"
+    "sync-rules": "node scripts/sync-rules.js",
+    "admin": "node scripts/admin.js"
   },
   "dependencies": {
     "@neondatabase/auth": "0.7.0-beta",

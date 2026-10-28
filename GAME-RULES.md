@@ -119,6 +119,15 @@ The largest square and the longest line are **records**. Losing blocks never low
 - An owner's name shows on their territory once it covers at least 25% of the **whole screen**. When you're zoomed far out, names disappear. (Game Rules: `nameLabelShare`; Q4: answered A)
 - Names are drawn in the middle of the territory's part of the screen, in white pixel letters with a dark shadow.
 
+## Admin actions
+
+Xoren can run these with `npm run admin` (see ADMIN.md). Each is recorded in the `admin_log` table.
+- **Bans** stop a player, and every profile linked to them, from connecting: the guest they signed up from, and any guest seen in the same browser as their account. A ban is permanent unless it has an end date; it can be lifted. Banned players are disconnected at once and see "You've been banned" with the reason.
+- **Map wipes** empty every block on a map (optionally back to a fresh newMapWidth × newMapHeight rectangle), reset everyone's wipe floor there to 0 and unlock everyone's look there. Squares, upgrades, achievements and accounts are untouched.
+- **Player wipes** work exactly like a player's own wipe.
+- **Deleting an account** empties the player's blocks everywhere, erases their login and personal data, frees their name, and keeps only an anonymous row for the squares ledger.
+- **Squares** given or taken by an admin go through the ledger like any other change; a balance never goes below 0.
+
 ## Sound and music
 
 - Every sound effect is made in code (`public/sfx.js`); Xoren picked one option per sound on the sound test page (`public/audio.js`, `PICKS`).

@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const { EventEmitter } = require('events');
 const { Server } = require('socket.io');
 const store = require('./store');
+const { adminRouter, bannedMessage } = require('./admin');
 const rules = require('./rules');
 const stats = require('./stats');
 const achievements = require('./achievements');
@@ -35,7 +36,9 @@ function guestLimiter(limit, windowMs) {
 //   publicUrl: the site's address (https://territory.sarl); requests for any other host, such as www or
 //              the onrender.com address, are sent there. Unset locally.
 function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPerIp = rules.GUESTS_PER_IP, crackDecayMs = rules.CRACK_DECAY_SECONDS * 1000,
-  auth = null, publicUrl = null, tapsPerSecond = null, tapLogMs = 60 * 1000 } = {}) {
+  auth = null, publicUrl = null, tapsPerSecond = null, tapLogMs = 60 * 1000, adminKey = null } = {}) {
+  // adminKey: the secret npm run admin must send (ADMIN_KEY); without it, admin commands are off.
+  // The server counts as production when it has a publicUrl; admin commands then need --prod.
   // tapsPerSecond: the tap-rate limit, or null for rules.MAX_TAPS_PER_SECOND (tests that tap like a bot raise it)
   const app = express();
   app.set('trust proxy', true);   // so req.protocol is https behind Render
@@ -49,6 +52,7 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
   // The IP address the server sees for you, to check the per-IP guest limit works behind the custom domain.
   app.get('/api/ip', (req, res) => res.json({ ip: clientIp(req.headers, req.socket.remoteAddress) }));
   if (auth) app.use(auth.router);
+  app.use('/admin', adminRouter({ pool, key: adminKey, production: !!publicUrl, hooks: adminHooks() }));
   app.use(express.static(__dirname + '/public', { extensions: ['html'] }));   // also serves /privacy and /terms
 
   const server = http.createServer(app);
@@ -185,6 +189,63 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
     return t > Date.now() ? t : null;
   };
 
+  // Clears one player's territory on a loaded map (their own wipe, or an admin's), in the map's queue.
+  // Returns store.wipeTerritory's { cells, floor }, or null if they had no blocks there.
+  async function wipeOn(map, pid) {
+    const r = await store.wipeTerritory(pool, map.id, pid);
+    if (!r) return null;
+    for (const [x, y] of r.cells) setOwner(map, key(x, y), null);
+    Object.assign(map.players.get(pid), { unlocked: true, wipeFloor: r.floor });
+    io.to(map.room).emit('wipe', { pid, cells: r.cells, floor: r.floor });
+    statChanged(map, pid, 'owned', 0);
+    return r;
+  }
+
+  // What admin commands (admin.js) do to the live game, so players see the change at once.
+  function adminHooks() {
+    const socketsOf = ids => [...io.sockets.sockets.values()].filter(s => ids.some(id => String(id) === String(s.data.me?.pid)));
+    // Loads a map again from the database and sends it to everyone on it.
+    async function reloadMap(id) {
+      const old = [...loaded].find(m => String(m.id) === String(id));
+      if (old) loaded.delete(old);
+      maps.delete(old?.id ?? id);
+      const fresh = await getMap(old?.id ?? id);
+      for (const s of io.sockets.sockets.values()) if (s.data.mapId !== undefined && String(s.data.mapId) === String(id)) s.data.reenter(fresh);
+    }
+    return {
+      // Disconnects these players' connections with a message (kind: kicked, banned, deleted). Returns how many.
+      kick(ids, kind, message) {
+        const list = socketsOf(ids);
+        for (const s of list) { s.emit('notice', { kind, message }); s.disconnect(true); }
+        return list.length;
+      },
+      async wipePlayer(mapId, pid) {
+        const m = await getMap(mapId);
+        return serial(m, () => wipeOn(m, pid));
+      },
+      async wipeMap(mapId, size) {
+        const m = await getMap(mapId);
+        const r = await serial(m, () => store.wipeMap(pool, mapId, size));
+        await reloadMap(mapId);
+        return r;
+      },
+      async reloadMaps(ids) { for (const id of ids) await reloadMap(id); },
+      squaresChanged(pid, balance) {
+        for (const s of socketsOf([pid])) s.data.me.squares = balance;
+        io.to('player:' + pid).emit('squares', rules.shownSquares(balance));
+      },
+      // After a restore: forget every loaded map and disconnect everyone, who reconnect to the restored game.
+      reloadAll() {
+        maps.clear();
+        loaded.clear();
+        for (const s of io.sockets.sockets.values()) {
+          s.emit('notice', { kind: 'restored', message: 'The game was restored from a backup. Reload the page to keep playing.' });
+          s.disconnect(true);
+        }
+      },
+    };
+  }
+
   // A purchase: new upgrade levels and balance for every connection of the player and every loaded map (where
   // Defense is read from), so the new level counts from the next tap.
   function upgradesChanged(pid, levels, balance) {
@@ -214,6 +275,7 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       // Returning guests are recognised by their secret token. Visitors get a name and color to show,
       // but no database row until their first claim.
       let player = await store.findPlayerByToken(pool, token);
+      const tokenPlayer = player;   // the guest this browser holds, if any
       if (jwt && auth) {
         const authUserId = await auth.verify(jwt);
         if (authUserId) {
@@ -222,6 +284,13 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
         } else {
           loginFailed = true;
         }
+      }
+      // A logged-in account and a different guest on one device belong to the same person (bans cover both).
+      if (player && tokenPlayer && player.id !== tokenPlayer.id) await store.linkPlayers(pool, player.id, tokenPlayer.id);
+      const ban = await store.activeBan(pool, [player?.id, tokenPlayer?.id]);
+      if (ban) {
+        socket.emit('notice', { kind: 'banned', message: bannedMessage(ban) });
+        return socket.disconnect(true);
       }
       me = player ? { pid: player.id, name: player.name, account: !!player.auth_user_id, renameAt: renameAt(player.name_changed_at), squares: player.squares,
           tutorial: player.tutorial }
@@ -237,6 +306,7 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
     }
     socket.data.me = me;
     socket.data.setUpgrades = u => { upgrades = u; };   // a purchase on any device changes them at once
+    socket.data.reenter = fresh => enter(fresh);         // an admin reloaded this map: send it again
     // Color, skin and coverage are fixed on the first claim on a map (or the first since a wipe there). Until
     // then they are only proposals, which the player picks on the setup screen (the 'setup' event).
     let color, skin, coverage;
@@ -249,6 +319,7 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
     function enter(next, flags = {}) {
       if (map) socket.leave(map.room);
       map = next;
+      socket.data.mapId = map.id;
       socket.join(map.room);
       const mine = map.players.get(me.pid);
       color = mine?.color ?? rules.COLORS[Math.floor(Math.random() * rules.COLORS.length)].hex;
@@ -382,12 +453,7 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       if (!me.pid) return;
       const here = map;
       serial(here, async () => {
-        const r = await store.wipeTerritory(pool, here.id, me.pid);
-        if (!r) return socket.emit('denied', 'You have no blocks to wipe');
-        for (const [x, y] of r.cells) setOwner(here, key(x, y), null);
-        Object.assign(here.players.get(me.pid), { unlocked: true, wipeFloor: r.floor });
-        io.to(here.room).emit('wipe', { pid: me.pid, cells: r.cells, floor: r.floor });
-        statChanged(here, me.pid, 'owned', 0);
+        if (!await wipeOn(here, me.pid)) socket.emit('denied', 'You have no blocks to wipe');
       }).catch(err => {
         console.error(`WIPE FAILED (map ${here.id}, player ${me.pid}): ${err.message}`);
         socket.emit('denied', 'Could not wipe your territory. Try again.');

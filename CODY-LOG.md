@@ -317,3 +317,45 @@ This merge turns on buying upgrades, with the levels and prices from your sheet.
 - [ ] Do the same as a guest, then sign up from that guest: the upgrade is still there.
 - [ ] "All 70 levels" opens the full list with each level's effect and cost.
 
+
+## Loop order 7: admin commands
+
+#47 | 2026-10-28 | database for admin (migration 012): admin_log, bans, player_links (an account and a guest seen in one browser), players.deleted_at; the backup's table dump moved into db/index.js and a matching restore added (all tables in one transaction, ids kept, id counters continue, refuses a backup from a different database version) | tests: covered below
+#48 | 2026-10-28 | server side (admin.js at /admin): ADMIN_KEY checked on every request (wrong or missing: refused, logged, slowed); production only with --prod and --prod only on production; preview, then run; destructive commands refused without a backup taken through the server in the last 10 minutes; every change logged. Commands: player, map, kick, give-squares, take-squares, wipe-player, wipe-map [--reset-size], wipe-all-maps, ban [--reason --days --wipe-blocks], unban, delete-account (Neon Auth user, sessions and email codes erased too), create-map, backup, restore. Changes reach players at once (maps reloaded and resent, players disconnected with a message). Connecting checks bans for the account and the browser's guest, and records the link | tests: admin 10/10
+#49 | 2026-10-28 | npm run admin (scripts/admin.js): help in plain English; dev by default, --prod for the live game; shows the preview, asks for the name (or ALL MAPS / RESTORE) to be typed, saves the backup on this computer (backups/<dev|prod>-<time>-before-<command>.json), then runs; --yes skips only the typing. Players see "You've been banned" (with the reason), "Disconnected", "Account deleted" or "Game restored" instead of "reconnecting" | tests: admin 10/10
+#50 | 2026-10-28 | ADMIN.md for Xoren: one-time setup (making the key, .env.admin, Render), opening a terminal, every command with an example and what it shows, what to do when something goes wrong, restoring (from a backup file, or Neon's restore); README and GAME-RULES.md updated. npm run create-map and npm run backup still work; the same things are now admin commands too | tests: pass (100/100, 149 s)
+
+## Xoren's one-time setup for admin commands (details in ADMIN.md, section 1)
+
+1. Open a terminal in the game folder (VS Code: Terminal -> New Terminal).
+2. Make a key: node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))" -> copy what it prints. Don't paste it anywhere else.
+3. Make the file .env.admin in the game folder with one line: ADMIN_KEY=<the key>. Save. (Git ignores it.)
+4. Render -> territory -> Environment -> Add Environment Variable: ADMIN_KEY = the same key -> Save Changes.
+5. After the merge below, check: npm run admin -- map Grass --prod prints the Grass map.
+
+## Merge steps for Xoren (iterate -> main): loops 5, 6 and 7 with the first real sync
+
+This merge brings: game numbers from your sheet with buyable upgrades (#46), Growth, the squares icon, the tap-rate limit, and the admin commands. Database changes 010, 011 and 012 run on start. Blocks, names, squares and settings are kept.
+
+1. Do the one-time setup above first (at least step 4, so Render has ADMIN_KEY).
+2. Optional backup: Neon console -> project -> Branches -> production. Note the time.
+3. github.com/spudeth/territory -> Pull requests -> New pull request. base: main, compare: iterate. "Able to merge" -> Create pull request -> Create pull request.
+4. Merge pull request -> Confirm merge. Keep the iterate branch.
+5. Render -> territory -> Events: wait for Live.
+6. Render -> Logs: "Applied migrations: 010_growth_and_remaps.sql, 011_tap_limit_log.sql, 012_admin.sql", "Accounts are on." and "Admin commands are on." If you see "Startup failed", stop and send me that line.
+
+## Live checklist (territory.sarl)
+
+Upgrades: the checklist under #46 above.
+Admin (on your computer, with the setup done):
+- [ ] npm run admin -- help lists the commands.
+- [ ] npm run admin -- map Grass --prod shows Grass's size, claimed blocks and top players.
+- [ ] npm run admin -- player "<your own name>" --prod shows you, with your squares and blocks.
+- [ ] npm run admin -- backup --prod saves a file in the backups folder.
+- [ ] npm run admin -- map Grass (without --prod, the dev server not running) says it can't reach the dev server: nothing went to the live game by accident.
+- [ ] With a second browser as a throwaway guest: npm run admin -- kick "<that guest's name>" --prod -> that browser shows "DISCONNECTED"; Reload gets them back in.
+- [ ] npm run admin -- ban "<that guest>" --reason test --days 1 --prod -> type the name -> a backup is saved, the browser shows "YOU'VE BEEN BANNED … Reason: test", and reloading doesn't let them in. Then unban "<that guest>" --prod -> they can play again.
+- [ ] npm run admin -- give-squares "<that guest>" 5 --prod -> the squares in their top-left corner go up straight away.
+
+## Summary (loop order 7 done, stopping)
+Admin commands through the live server with a secret key, dev by default and --prod for the live game; previews, typed confirmation, a backup before every destructive command, and a log of everything; bans covering linked guests; account deletion that erases Neon Auth data; ADMIN.md for Xoren. Full suite 100/100. Open: Q5 (achievements), Q6 (Spawn), Q8 (tutorial wording), Q10 (Purchase sound).
