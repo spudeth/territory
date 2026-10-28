@@ -6,8 +6,7 @@ const store = require('./store');
 const rules = require('./rules');
 const { guestName, guestNames, checkName, randomColor } = require('./names');
 
-const key = (x, y) => x + ',' + y;
-const NEIGHBORS = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+const { key } = rules;
 
 // Behind Render the socket address is a proxy's. Cloudflare (in front of every public Render service) sets
 // CF-Connecting-IP and overwrites any value the visitor sends, so prefer it. X-Forwarded-For is only a fallback:
@@ -90,15 +89,15 @@ function createGame(pool, { guestsPerIp = rules.GUESTS_PER_IP, crackDecayMs = ru
     map.cells.set(k, pid);
   }
 
-  // Cracks fade: a block loses one crack level for every crackDecayMs since it was last hit.
+  // Cracks fade (rules.decayCrack). Tells everyone when a level is lost.
   function decay(map, k, h, now) {
-    const lost = Math.floor((now - h.at) / crackDecayMs);
-    if (!lost) return;
-    h.n -= lost;
-    h.at += lost * crackDecayMs;
-    if (h.n <= 0) map.hits.delete(k);
+    const d = rules.decayCrack(h, now, crackDecayMs);
+    if (!d.lost) return;
+    h.n = d.n;
+    h.at = d.at;
+    if (!h.n) map.hits.delete(k);
     const [x, y] = k.split(',').map(Number);
-    io.to(map.room).emit('hit', { x, y, n: Math.max(0, h.n) });
+    io.to(map.room).emit('hit', { x, y, n: h.n });
   }
   const sweep = setInterval(() => {
     const now = Date.now();
@@ -107,16 +106,7 @@ function createGame(pool, { guestsPerIp = rules.GUESTS_PER_IP, crackDecayMs = ru
   sweep.unref();
   server.on('close', () => clearInterval(sweep));
 
-  // Returns an error message, or null if player `pid` (null for a visitor with no account yet) may hit (x, y).
-  function checkHit(map, pid, x, y) {
-    const k = key(x, y);
-    if (!map.cells.has(k)) return 'Invalid block';
-    const owner = map.cells.get(k);
-    if (pid && owner === pid) return 'You already own this block';
-    if (!pid || !map.counts.get(pid)) return owner ? 'Your first block must be unclaimed' : null;
-    const near = NEIGHBORS.some(([dx, dy]) => map.cells.get(key(x + dx, y + dy)) === pid);
-    return near ? null : 'You can only take blocks next to your territory';
-  }
+  const checkHit = rules.hitError;
 
   // When this player may rename again (ms since 1970), or null if they may now.
   const renameAt = changedAt => {
