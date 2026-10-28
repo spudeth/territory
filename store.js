@@ -5,7 +5,7 @@ const rules = require('./rules');
 const { accountNames } = require('./names');
 
 const hashToken = token => crypto.createHash('sha256').update(token).digest();
-const PLAYER = 'p.id, p.name, p.last_map_id, p.auth_user_id, p.name_changed_at';
+const PLAYER = 'p.id, p.name, p.last_map_id, p.auth_user_id, p.name_changed_at, p.click_power, p.defense, p.earnings';
 
 // Only a real string can be a token, so values like {} or "__proto__" never match a player.
 async function findPlayerByToken(pool, token) {
@@ -86,11 +86,12 @@ async function defaultMapId(pool) {
 async function loadMap(pool, mapId) {
   const { rows: [map] } = await pool.query('SELECT id, name, style FROM maps WHERE id = $1', [mapId]);
   if (!map) return null;
-  const [cells, players] = await Promise.all([
+  const [cells, players, stats] = await Promise.all([
     pool.query('SELECT x, y, owner_id FROM map_cells WHERE map_id = $1', [mapId]),
-    pool.query('SELECT s.player_id, p.name, s.color, s.coverage FROM player_map_settings s JOIN players p ON p.id = s.player_id WHERE s.map_id = $1', [mapId]),
+    pool.query('SELECT s.player_id, p.name, s.color, s.coverage, p.click_power, p.defense, p.earnings FROM player_map_settings s JOIN players p ON p.id = s.player_id WHERE s.map_id = $1', [mapId]),
+    pool.query('SELECT * FROM player_map_stats WHERE map_id = $1', [mapId]),
   ]);
-  return { ...map, cells: cells.rows, players: players.rows };
+  return { ...map, cells: cells.rows, players: players.rows, stats: stats.rows };
 }
 
 async function cellOwner(pool, mapId, x, y) {
@@ -102,18 +103,35 @@ const setLastMap = (pool, playerId, mapId) =>
   pool.query('UPDATE players SET last_map_id = $2 WHERE id = $1 AND last_map_id IS DISTINCT FROM $2', [playerId, mapId]);
 
 // Adds one block at a random empty spot touching the map on one of its four sides. Each spot is equally likely.
+// Growth: a random spot from map_edges (each equally likely) becomes a block, and its empty neighbours become
+// edge spots. growMap holds the map's lock, so two growths never pick the same spot.
 const GROW = `
-  INSERT INTO map_cells (map_id, x, y)
-  SELECT $1, n.x, n.y
-  FROM map_cells c
-  CROSS JOIN LATERAL (VALUES (c.x + 1, c.y), (c.x - 1, c.y), (c.x, c.y + 1), (c.x, c.y - 1)) AS n (x, y)
-  WHERE c.map_id = $1
-    AND NOT EXISTS (SELECT 1 FROM map_cells e WHERE e.map_id = $1 AND e.x = n.x AND e.y = n.y)
-  GROUP BY n.x, n.y
-  ORDER BY random()
-  LIMIT 1
-  RETURNING x, y`;
+  WITH spot AS (
+    DELETE FROM map_edges WHERE (map_id, x, y) =
+      (SELECT map_id, x, y FROM map_edges WHERE map_id = $1 ORDER BY random() LIMIT 1)
+    RETURNING x, y
+  ), cell AS (
+    INSERT INTO map_cells (map_id, x, y) SELECT $1, x, y FROM spot RETURNING x, y
+  ), edges AS (
+    INSERT INTO map_edges (map_id, x, y)
+    SELECT $1, n.x, n.y FROM cell
+    CROSS JOIN LATERAL (VALUES (cell.x + 1, cell.y), (cell.x - 1, cell.y), (cell.x, cell.y + 1), (cell.x, cell.y - 1)) AS n (x, y)
+    WHERE NOT EXISTS (SELECT 1 FROM map_cells e WHERE e.map_id = $1 AND e.x = n.x AND e.y = n.y)
+    ON CONFLICT DO NOTHING
+  )
+  SELECT x, y FROM cell`;
+// Recomputes a map's edge spots from its blocks. For new maps, or after changing blocks by hand.
+async function rebuildEdges(client, mapId) {
+  await client.query('DELETE FROM map_edges WHERE map_id = $1', [mapId]);
+  await client.query(`
+    INSERT INTO map_edges (map_id, x, y)
+    SELECT DISTINCT $1::bigint, n.x, n.y FROM map_cells c
+    CROSS JOIN LATERAL (VALUES (c.x + 1, c.y), (c.x - 1, c.y), (c.x, c.y + 1), (c.x, c.y - 1)) AS n (x, y)
+    WHERE c.map_id = $1 AND NOT EXISTS (SELECT 1 FROM map_cells e WHERE e.map_id = $1 AND e.x = n.x AND e.y = n.y)`, [mapId]);
+}
+
 async function growMap(client, mapId) {
+  await client.query('SELECT 1 FROM maps WHERE id = $1 FOR UPDATE', [mapId]);   // one growth at a time per map
   const grown = (await client.query(GROW, [mapId])).rows[0];
   if (!grown) throw new Error('map growth found no free spot');
   return grown;
@@ -139,10 +157,13 @@ class Conflict extends Error {}
 // A first claim (from = null) also grows the map and may earn a square, all in the same transaction.
 //   playerId: an existing player, or null to create a guest from `newGuest` = { names, tokenHash }
 //   color:    stored if this is the player's first claim on this map; null if they have already joined it
+//   earn:     squares for a first claim (rules.squaresForFirstClaim with the player's upgrades; may be a fraction)
 //   coverage: stored with the color ('tile' or 'stretch'); like color and skin it can never change afterwards
+//   stats:    the claimer's stats after this claim (stats.afterClaim); `from` loses a block
 // Returns { conflict: true } if the block changed hands first, otherwise
-//   { playerId, name, joinedMap, grown: {x, y} | null, squares: new balance | null }.
-async function claimBlock(pool, { mapId, x, y, from, playerId, newGuest, color, coverage = 'tile' }) {
+//   { playerId, name, joinedMap, grown: {x, y} | null, squares: new exact balance | null }.
+async function claimBlock(pool, { mapId, x, y, from, playerId, newGuest, color, coverage = 'tile', earn = rules.squaresForFirstClaim(),
+  stats = null }) {
   try {
     return await tx(pool, async c => {
       // First claims on a map take turns, so two of them can never pick the same growth spot.
@@ -172,10 +193,16 @@ async function claimBlock(pool, { mapId, x, y, from, playerId, newGuest, color, 
         joinedMap = r.rowCount === 1;
       }
 
+      if (stats) await saveStats(c, mapId, playerId, stats);
+      if (from !== null) {
+        await c.query(`INSERT INTO player_map_stats (map_id, player_id, blocks_lost) VALUES ($1, $2, 1)
+          ON CONFLICT (map_id, player_id) DO UPDATE SET blocks_lost = player_map_stats.blocks_lost + 1`, [mapId, from]);
+      }
+
       let grown = null, squares = null;
       if (from === null) {
         grown = await growMap(c, mapId);
-        squares = (await c.query(EARN, [mapId, playerId, x, y, rules.squaresForFirstClaim(playerId)])).rows[0]?.balance_after ?? null;
+        if (earn > 0) squares = (await c.query(EARN, [mapId, playerId, x, y, earn])).rows[0]?.balance_after ?? null;
       }
       return { playerId, name, joinedMap, grown, squares: squares === null ? null : Number(squares) };
     });
@@ -183,6 +210,18 @@ async function claimBlock(pool, { mapId, x, y, from, playerId, newGuest, color, 
     if (err instanceof Conflict) return { conflict: true };
     throw err;
   }
+}
+
+// Stores a player's stats on a map. Records only ever go up, so a stale write can't lower them.
+function saveStats(c, mapId, playerId, s) {
+  return c.query(
+    `INSERT INTO player_map_stats AS t (map_id, player_id, owned_max, first_claims, retakes, best_square, best_line)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
+     ON CONFLICT (map_id, player_id) DO UPDATE SET
+       owned_max = GREATEST(t.owned_max, EXCLUDED.owned_max), first_claims = GREATEST(t.first_claims, EXCLUDED.first_claims),
+       retakes = GREATEST(t.retakes, EXCLUDED.retakes), best_square = GREATEST(t.best_square, EXCLUDED.best_square),
+       best_line = GREATEST(t.best_line, EXCLUDED.best_line)`,
+    [mapId, playerId, s.ownedMax, s.firstClaims, s.retakes, s.bestSquare, s.bestLine]);
 }
 
 // Clears all of a player's blocks on one map and records the wipe. Their wipe_floor becomes the higher of
@@ -203,4 +242,43 @@ function wipeTerritory(pool, mapId, playerId) {
 }
 
 module.exports = { hashToken, findPlayerByToken, accountPlayer, renamePlayer, defaultMapId, loadMap, cellOwner, setLastMap,
-  growMap, claimBlock, wipeTerritory };
+  growMap, rebuildEdges, claimBlock, wipeTerritory };
+
+// Achievement ids a player has earned.
+async function earnedAchievements(pool, playerId) {
+  const { rows } = await pool.query('SELECT achievement_id FROM player_achievements WHERE player_id = $1', [playerId]);
+  return rows.map(r => r.achievement_id);
+}
+
+// Records achievements; returns the ids that were new (not already earned).
+async function earnAchievements(pool, playerId, mapId, ids) {
+  const { rows } = await pool.query(
+    `INSERT INTO player_achievements (player_id, achievement_id, map_id) SELECT $1, unnest($2::text[]), $3
+     ON CONFLICT DO NOTHING RETURNING achievement_id`, [playerId, ids, mapId]);
+  return rows.map(r => r.achievement_id);
+}
+
+Object.assign(module.exports, { earnedAchievements, earnAchievements });
+
+// The maps players can go to (official ones; purchased and VIP maps come later), oldest first.
+async function listMaps(pool) {
+  const { rows } = await pool.query("SELECT id, name, style FROM maps WHERE type = 'official' ORDER BY id");
+  return rows;
+}
+
+// Makes a new official map: a width-by-height rectangle of empty blocks. Admin script only (scripts/create-map.js).
+const STYLES = ['grass', 'white'];
+async function createMap(pool, { name, style, width, height }) {
+  if (!name || typeof name !== 'string') throw new Error('a map needs a name');
+  if (!STYLES.includes(style)) throw new Error(`style must be one of: ${STYLES.join(', ')}`);
+  for (const n of [width, height]) if (!Number.isInteger(n) || n < 1 || n > 1000) throw new Error('width and height must be 1-1000');
+  return tx(pool, async c => {
+    const { rows: [m] } = await c.query("INSERT INTO maps (name, style, type) VALUES ($1, $2, 'official') RETURNING id", [name, style]);
+    await c.query(`INSERT INTO map_cells (map_id, x, y)
+      SELECT $1, x, y FROM generate_series(0, $2 - 1) AS x, generate_series(0, $3 - 1) AS y`, [m.id, width, height]);
+    await rebuildEdges(c, m.id);
+    return m.id;
+  });
+}
+
+Object.assign(module.exports, { STYLES, listMaps, createMap });

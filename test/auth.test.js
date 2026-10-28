@@ -131,9 +131,9 @@ test('a guest who signs up from their own profile keeps their blocks, squares an
   const guest = player();
   await guest.welcome;
   assert.deepEqual(await guest.ask('coverage', 'stretch'), { coverage: 'stretch' });
-  guest.hit3(0, 1);
+  guest.take(0, 1);
   const you = await guest.next('you');
-  guest.hit3(1, 1);
+  guest.take(1, 1);
   await guest.next('claim', d => d.x === 1 && d.y === 1);
   const before = (await pool.query('SELECT squares FROM players WHERE id = $1', [you.pid])).rows[0];
   const settings = 'SELECT color, skin_id, coverage, wipe_floor FROM player_map_settings WHERE player_id = $1';
@@ -180,7 +180,7 @@ test('logging into an existing account never merges the guest into it', async ()
 
   const guest = player();
   await guest.welcome;
-  guest.hit3(0, 3);
+  guest.take(0, 3);
   const you = await guest.next('you');
   guest.disconnect();
 
@@ -200,7 +200,7 @@ test('logging into an existing account never merges the guest into it', async ()
 test('a brand-new account without the upgrade request does not take over a guest', async () => {
   const guest = player();
   await guest.welcome;
-  guest.hit3(0, 5);
+  guest.take(0, 5);
   const you = await guest.next('you');
   const b = browser(url);
   await signUp(b);
@@ -213,7 +213,7 @@ test('a brand-new account without the upgrade request does not take over a guest
 test('renaming: accounts only, unique ignoring case, filtered, every 10 minutes, shown to everyone at once', async () => {
   const guest = player();
   await guest.welcome;
-  guest.hit3(0, 7);
+  guest.take(0, 7);
   const other = await guest.next('you');
 
   const b = browser(url);

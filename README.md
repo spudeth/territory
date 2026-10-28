@@ -1,6 +1,6 @@
 # Territory
 
-A tiny multiplayer browser game. Everyone shares a map that starts at 32×32. Tap a block 3 times to take it. Your first block can be any empty block. After that you can only take blocks next to your territory, including blocks owned by other players. Every time an empty block is claimed, one new block appears somewhere on the map's edge, so maps keep growing.
+A tiny multiplayer browser game. Every rule and number, in plain English, is in [GAME-RULES.md](GAME-RULES.md). Everyone shares a map that starts at 32×32. Tap a block 10 times to take it. Your first block can be any empty block. After that you can only take blocks next to your territory, including blocks owned by other players. Every time an empty block is claimed, one new block appears somewhere on the map's edge, so maps keep growing.
 
 ## Run
 
@@ -37,23 +37,29 @@ Logins use Neon's managed Better Auth, enabled on both branches. The browser cal
 
 ## Game settings
 
-`rules.js` holds the numbers that are easy to change: taps to take a block, crack fade time (60 seconds per level), squares per first claim, the guest limit and the rename wait. Click power, defense and earnings upgrades will later change `hitsToTake` and `squaresForFirstClaim` there, which already receive the players involved.
+`rules.js` holds every game number (hits, crack fade, squares, guest limit, rename wait, upgrade tables, name-label share) and the core rules as pure functions with no database or sockets: who may hit a block, hits needed and hits per click with upgrades, squares earned, crack fading and the wipe rule. Upgrade levels (Click Power, Defense, Earnings) are stored per player; each is a multiplier table that defaults to no effect, and nothing buys them yet. Squares balances keep fractions (6 places); players see them rounded down.
+
+- `stats.js`: per-player, per-map stats (most blocks owned, first claims, retakes, blocks lost, largest square, longest line), updated on each claim, saved in `player_map_stats`, and announced as `stat` events.
+- `achievements.js`: achievements as data (id, name, stat, threshold), checked on each stat event, saved in `player_achievements` and announced as `achievement` events. The list is placeholders.
+- `public/labels.js`: decides which territories cover 25% of the view and should show their owner's name (not drawn yet).
+- Maps: players can list (`maps`) and switch (`switchMap`) maps; the last map is remembered. Growth picks from `map_edges`, the empty spots touching the map.
 
 Controls: tap or click to hit a block, drag to pan, pinch or mouse wheel to zoom.
 
 ## Scripts
 
 - `npm test` runs the tests against the database in `.env.local`, each test file in its own throwaway schema. It refuses to run against `production`. The account tests use the dev branch's real Neon Auth with `@example.com` users, which they delete afterwards. Neon limits login requests per address, so those tests sometimes pause to wait it out.
+- `npm run create-map -- --name Snowfield --style white --width 32 --height 32` makes a new map (admin only; refuses the production branch without `--production`).
 - `npm run backup` saves every table to `backups/<branch>-<time>.json`. `npm run backup -- --branch production` backs up another Neon branch through the signed-in Neon CLI.
 
 ## How the code is organized
 
 - `server.js` starts everything: loads env, connects, migrates, sets up accounts, listens.
-- `auth.js` connects the site to Neon Auth (see Accounts). `rules.js` holds the game settings.
+- `auth.js` connects the site to Neon Auth (see Accounts). `rules.js` holds the game settings and rules; `stats.js` and `achievements.js` hold stats and achievements.
 - `names.js` and `profanity.js` make guest and NewUser names and check names players type.
 - `public/account.js` is the menu: log in, sign up, verify, reset password, settings, log out. `public/privacy.html` and `public/terms.html` are placeholder legal pages, served at `/privacy` and `/terms`.
 - `/api/ip` shows the IP address the server sees for you, to check the guest limit behind the domain.
-- `app.js` is the game server. Express serves `public/`, Socket.IO handles players. Postgres is the source of truth. Each map is cached in memory once loaded, and the cache only changes after a database write commits. Claims and wipes on one map run one at a time. The server checks every hit (does the block exist, does it touch the player's territory or is it an empty first block, has the same player hit it 3 times in a row), then broadcasts `hit` (crack progress), `claim`, `grow` and `wipe` to everyone on the map. Crack progress lives in memory only and fades one level per minute without hits. New guests per IP address are limited.
+- `app.js` is the game server. Express serves `public/`, Socket.IO handles players. Postgres is the source of truth. Each map is cached in memory once loaded, and the cache only changes after a database write commits. Claims and wipes on one map run one at a time. The server checks every hit (does the block exist, does it touch the player's territory or is it an empty first block, has the same player kept hitting it until their hits reach the hits needed), then broadcasts `hit` (crack progress as a share of the hits needed), `claim`, `grow` and `wipe` to everyone on the map. Crack progress lives in memory only and fades by one hit per minute without hits. New guests per IP address are limited.
 - `store.js` holds every query. A claim is one transaction: the block changes hands only if it still has the owner the server expected, and a first claim also grows the map and may earn a square.
 - `db/index.js` has the connection pool, startup retries and the migration runner. `db/migrations/*.sql` run once each, in name order.
 - `public/game.js` is the whole client, split into sections. *State* comes from the server: a list of blocks, since maps grow into any shape. *Camera* holds the pan/zoom numbers. *Rendering* redraws the canvas only when something changes, with image smoothing off so the pixel art stays sharp. *Input* uses pointer events to tell taps, drags and pinches apart; a touch that moves more than 10px is no longer a tap. *UI* covers the overlay and leaderboard (this map only, by blocks owned), and *Networking* has the socket handlers. `public/index.html` and `public/style.css` hold the overlay markup and styles. `public/tiles/` contains the three grass tiles used from Kenney's [Tiny Town](https://kenney.nl/assets/tiny-town) pack (CC0, license included).

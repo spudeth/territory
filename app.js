@@ -1,13 +1,16 @@
 const express = require('express');
 const http = require('http');
 const crypto = require('crypto');
+const { EventEmitter } = require('events');
 const { Server } = require('socket.io');
 const store = require('./store');
 const rules = require('./rules');
+const stats = require('./stats');
+const achievements = require('./achievements');
 const { guestName, guestNames, checkName, randomColor } = require('./names');
 
-const key = (x, y) => x + ',' + y;
-const NEIGHBORS = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+const { key } = rules;
+const upgradesOf = row => ({ clickPower: row.click_power, defense: row.defense, earnings: row.earnings });
 
 // Behind Render the socket address is a proxy's. Cloudflare (in front of every public Render service) sets
 // CF-Connecting-IP and overwrites any value the visitor sends, so prefer it. X-Forwarded-For is only a fallback:
@@ -31,7 +34,7 @@ function guestLimiter(limit, windowMs) {
 //   auth:      from createAuth(), or null to run with guests only
 //   publicUrl: the site's address (https://territory.sarl); requests for any other host, such as www or
 //              the onrender.com address, are sent there. Unset locally.
-function createGame(pool, { guestsPerIp = rules.GUESTS_PER_IP, crackDecayMs = rules.CRACK_DECAY_SECONDS * 1000,
+function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPerIp = rules.GUESTS_PER_IP, crackDecayMs = rules.CRACK_DECAY_SECONDS * 1000,
   auth = null, publicUrl = null } = {}) {
   const app = express();
   app.set('trust proxy', true);   // so req.protocol is https behind Render
@@ -48,12 +51,14 @@ function createGame(pool, { guestsPerIp = rules.GUESTS_PER_IP, crackDecayMs = ru
   app.use(express.static(__dirname + '/public', { extensions: ['html'] }));   // also serves /privacy and /terms
 
   const server = http.createServer(app);
-  const io = new Server(server);
+  // Large messages (the whole map on joining: 1.4 MB at 100,000 blocks) are compressed, fast setting, to about
+  // a fifth. Small ones (hits, claims) are sent as they are.
+  const io = new Server(server, { perMessageDeflate: { threshold: 4096, zlibDeflateOptions: { level: 1 } } });
   const limiter = guestLimiter(guestsPerIp, rules.GUEST_WINDOW_MINUTES * 60 * 1000);
 
   // In-memory copy of each loaded map:
   //   cells:   "x,y" -> owner id or null    players: id -> { name, color, coverage }
-  //   counts:  owner id -> blocks owned      hits:    "x,y" -> { by, n, at } (crack progress, never saved)
+  //   counts:  owner id -> blocks owned      hits:    "x,y" -> { by, n, need, at } (crack progress in hits, never saved)
   const maps = new Map();     // id -> Promise of the map
   const loaded = new Set();   // the maps that have finished loading
   function getMap(id) {
@@ -61,11 +66,19 @@ function createGame(pool, { guestsPerIp = rules.GUESTS_PER_IP, crackDecayMs = ru
       maps.set(id, store.loadMap(pool, id).then(m => {
         if (!m) return null;
         const map = { id: m.id, name: m.name, style: m.style, room: 'map:' + m.id, cells: new Map(), counts: new Map(),
-          players: new Map(m.players.map(p => [p.player_id, { name: p.name, color: p.color, coverage: p.coverage }])),
+          players: new Map(m.players.map(p => [p.player_id, { name: p.name, color: p.color, coverage: p.coverage, upgrades: upgradesOf(p) }])),
           hits: new Map(), queue: Promise.resolve() };
         for (const c of m.cells) {
           map.cells.set(key(c.x, c.y), c.owner_id);
           if (c.owner_id) map.counts.set(c.owner_id, (map.counts.get(c.owner_id) || 0) + 1);
+        }
+        // Stats as saved, with squares and lines recomputed from the map in case they are behind.
+        map.stats = new Map(m.stats.map(r => [r.player_id, { ownedMax: r.owned_max, firstClaims: r.first_claims,
+          retakes: r.retakes, blocksLost: r.blocks_lost, bestSquare: r.best_square, bestLine: r.best_line }]));
+        for (const [pid, best] of stats.bestOnMap(map.cells)) {
+          const st = statsOf(map, pid);
+          st.bestSquare = Math.max(st.bestSquare, best.bestSquare);
+          st.bestLine = Math.max(st.bestLine, best.bestLine);
         }
         loaded.add(map);
         return map;
@@ -75,6 +88,45 @@ function createGame(pool, { guestsPerIp = rules.GUESTS_PER_IP, crackDecayMs = ru
   }
   let defaultMap;
   const getDefaultMapId = () => (defaultMap ??= store.defaultMapId(pool).catch(err => { defaultMap = null; throw err; }));
+
+  // Stats (stats.js) per player per map, in memory, saved with each claim. Every change is announced as a
+  // 'stat' event: on `events` for the server (achievements), and to the player's own browsers.
+  // 'owned' (blocks owned now) is announced too, though it is counted from the map rather than stored.
+  const events = new EventEmitter();
+  const statsOf = (map, pid) => map.stats.get(pid) ?? map.stats.set(pid, stats.empty()).get(pid);
+  function statChanged(map, pid, name, value) {
+    events.emit('stat', { mapId: map.id, pid, name, value });
+    io.to('player:' + pid).emit('stat', { map: map.id, name, value });
+  }
+
+  // Achievements: checked on every stat event. Each player's earned ids are loaded once and kept in memory.
+  // An earned achievement is saved, then announced as 'achievement' on `events` and to the player's browsers.
+  const byStat = achievements.index(achievementList);
+  const earned = new Map();   // pid -> Promise of a Set of ids
+  const earnedBy = pid => {
+    if (!earned.has(pid)) {
+      earned.set(pid, store.earnedAchievements(pool, pid).then(ids => new Set(ids))
+        .catch(err => { earned.delete(pid); throw err; }));
+    }
+    return earned.get(pid);
+  };
+  let checks = Promise.resolve();   // one player's checks never overlap another's save
+  events.on('stat', ({ mapId, pid, name, value }) => {
+    if (!byStat.has(name)) return;
+    checks = checks.then(async () => {
+      const have = await earnedBy(pid);
+      const hits = achievements.reached(byStat, name, value, have);
+      if (!hits.length) return;
+      const fresh = new Set(await store.earnAchievements(pool, pid, mapId, hits.map(d => d.id)));
+      for (const d of hits) {
+        have.add(d.id);
+        if (!fresh.has(d.id)) continue;
+        const a = { id: d.id, name: d.name, mapId };
+        events.emit('achievement', { pid, ...a });
+        io.to('player:' + pid).emit('achievement', a);
+      }
+    }).catch(err => console.error(`ACHIEVEMENT CHECK FAILED (player ${pid}): ${err.message}`));
+  });
 
   // Runs claims and wipes on one map in arrival order, so each sees the result of the one before.
   function serial(map, fn) {
@@ -90,15 +142,18 @@ function createGame(pool, { guestsPerIp = rules.GUESTS_PER_IP, crackDecayMs = ru
     map.cells.set(k, pid);
   }
 
-  // Cracks fade: a block loses one crack level for every crackDecayMs since it was last hit.
+  // Browsers see crack progress as a share of the hits needed (p, from 0 to 1), not the hits themselves.
+  const share = h => Math.round(Math.min(1, h.n / h.need) * 1000) / 1000;
+
+  // Cracks fade (rules.decayCrack). Tells everyone when progress is lost.
   function decay(map, k, h, now) {
-    const lost = Math.floor((now - h.at) / crackDecayMs);
-    if (!lost) return;
-    h.n -= lost;
-    h.at += lost * crackDecayMs;
-    if (h.n <= 0) map.hits.delete(k);
+    const d = rules.decayCrack(h, now, crackDecayMs);
+    if (!d.lost) return;
+    h.n = d.n;
+    h.at = d.at;
+    if (!h.n) map.hits.delete(k);
     const [x, y] = k.split(',').map(Number);
-    io.to(map.room).emit('hit', { x, y, n: Math.max(0, h.n) });
+    io.to(map.room).emit('hit', { x, y, p: share(h) });
   }
   const sweep = setInterval(() => {
     const now = Date.now();
@@ -107,16 +162,7 @@ function createGame(pool, { guestsPerIp = rules.GUESTS_PER_IP, crackDecayMs = ru
   sweep.unref();
   server.on('close', () => clearInterval(sweep));
 
-  // Returns an error message, or null if player `pid` (null for a visitor with no account yet) may hit (x, y).
-  function checkHit(map, pid, x, y) {
-    const k = key(x, y);
-    if (!map.cells.has(k)) return 'Invalid block';
-    const owner = map.cells.get(k);
-    if (pid && owner === pid) return 'You already own this block';
-    if (!pid || !map.counts.get(pid)) return owner ? 'Your first block must be unclaimed' : null;
-    const near = NEIGHBORS.some(([dx, dy]) => map.cells.get(key(x + dx, y + dy)) === pid);
-    return near ? null : 'You can only take blocks next to your territory';
-  }
+  const checkHit = rules.hitError;
 
   // When this player may rename again (ms since 1970), or null if they may now.
   const renameAt = changedAt => {
@@ -136,7 +182,7 @@ function createGame(pool, { guestsPerIp = rules.GUESTS_PER_IP, crackDecayMs = ru
     // What the browser sends: the guest's secret token (if it has one), a login token (if logged in), and
     // upgrade = true when the player has just signed up from their guest profile.
     const { token, jwt, upgrade } = socket.handshake.auth || {};
-    let me, map, upgraded = false, loginFailed = false;
+    let me, map, upgrades, upgraded = false, loginFailed = false;
     try {
       // Returning guests are recognised by their secret token. Visitors get a name and color to show,
       // but no database row until their first claim.
@@ -152,6 +198,7 @@ function createGame(pool, { guestsPerIp = rules.GUESTS_PER_IP, crackDecayMs = ru
       }
       me = player ? { pid: player.id, name: player.name, account: !!player.auth_user_id, renameAt: renameAt(player.name_changed_at) }
         : { pid: null, name: guestName(), account: false, renameAt: null };
+      upgrades = player ? upgradesOf(player) : rules.NO_UPGRADES;
       if (upgraded) renamed(me.pid, me.name);   // the guest's old name was showing to everyone
       map = (player?.last_map_id && await getMap(player.last_map_id)) || await getMap(await getDefaultMapId());
       if (player && player.last_map_id !== map.id) await store.setLastMap(pool, player.id, map.id);
@@ -163,32 +210,49 @@ function createGame(pool, { guestsPerIp = rules.GUESTS_PER_IP, crackDecayMs = ru
     socket.data.me = me;
     // Color, skin and coverage are fixed on the first claim on a map. Until then they are only proposals:
     // color is random for now, and the player may pick a coverage (the 'coverage' event).
-    const color = map.players.get(me.pid)?.color ?? randomColor();
-    let coverage = map.players.get(me.pid)?.coverage ?? rules.COVERAGES[0];
-    socket.join(map.room);
+    let color, coverage;
     if (me.pid) socket.join('player:' + me.pid);
 
-    socket.emit('welcome', {
-      me: { ...me, color, coverage, locked: map.players.has(me.pid) },   // locked: color, skin and coverage are set here
-      accounts: !!auth,   // false when logins aren't set up on this server
-      upgraded,           // the guest profile just became an account; the browser can forget its guest token
-      loginFailed,        // a login token was sent but wasn't valid
-      map: { id: map.id, name: map.name, style: map.style },
-      cells: [...map.cells].map(([k, owner]) => [...k.split(',').map(Number), owner]),
-      players: Object.fromEntries(map.players),
-      hits: [...map.hits].map(([k, h]) => [...k.split(',').map(Number), h.n]),
-    });
+    // Puts this connection on `next` and sends the whole map. Also used when switching maps, so the browser
+    // handles a switch like a fresh welcome.
+    function enter(next, flags = {}) {
+      if (map) socket.leave(map.room);
+      map = next;
+      socket.join(map.room);
+      color = map.players.get(me.pid)?.color ?? randomColor();
+      coverage = map.players.get(me.pid)?.coverage ?? rules.COVERAGES[0];
+      socket.emit('welcome', {
+        me: { ...me, color, coverage, locked: map.players.has(me.pid) },   // locked: color, skin and coverage are set here
+        accounts: !!auth,                         // false when logins aren't set up on this server
+        upgraded: false, loginFailed: false,      // see `flags`
+        ...flags,
+        map: { id: map.id, name: map.name, style: map.style },
+        cells: [...map.cells].map(([k, owner]) => [...k.split(',').map(Number), owner]),
+        players: Object.fromEntries([...map.players].map(([pid, { upgrades, ...shown }]) => [pid, shown])),
+        hits: [...map.hits].map(([k, h]) => [...k.split(',').map(Number), share(h)]),
+      });
+    }
+    // upgraded: the guest profile just became an account; the browser can forget its guest token
+    // loginFailed: a login token was sent but wasn't valid
+    const first = map;
+    map = null;
+    enter(first, { upgraded, loginFailed });
 
-    const clearCrack = (x, y) => io.to(map.room).emit('hit', { x, y, n: 0 });
+    const clearCrack = (x, y) => io.to(map.room).emit('hit', { x, y, p: 0 });
 
     // Runs in the map's queue after the last hit. Checks the rules again, since the map may have changed.
-    async function finishClaim(x, y) {
+    // `here` is the map the last hit was on; if the player has switched maps since, the claim is dropped.
+    async function finishClaim(here, x, y) {
+      if (here !== map) return;
       const error = checkHit(map, me.pid, x, y);
       if (error) { socket.emit('denied', error); return clearCrack(x, y); }
       const k = key(x, y), from = map.cells.get(k);
 
       let token = null, newGuest = null;
       if (!me.pid) {
+        // A visitor who has gone could never receive their new player's token: the block would belong to a
+        // guest nobody can play. Drop the claim instead.
+        if (!socket.connected) return clearCrack(x, y);
         if (!limiter.allowed(ip)) {
           socket.emit('denied', 'Too many new players from your network. Try again later.');
           return clearCrack(x, y);
@@ -198,8 +262,12 @@ function createGame(pool, { guestsPerIp = rules.GUESTS_PER_IP, crackDecayMs = ru
       }
 
       const joining = !map.players.has(me.pid);
+      const owns = (a, b) => (a === x && b === y) || (me.pid !== null && map.cells.get(key(a, b)) === me.pid);
+      const st = stats.afterClaim(me.pid ? statsOf(map, me.pid) : stats.empty(),
+        { owns, x, y, owned: (map.counts.get(me.pid) || 0) + 1, from });
       const r = await store.claimBlock(pool, { mapId: map.id, x, y, from, playerId: me.pid, newGuest,
-        color: joining ? color : null, coverage });
+        color: joining ? color : null, coverage, earn: rules.squaresForFirstClaim(upgrades),
+        stats: st.stats });
       if (r.conflict) {
         // Another server got there first (e.g. during a deploy). Resync this block for everyone.
         setOwner(map, k, await store.cellOwner(pool, map.id, x, y));
@@ -216,16 +284,23 @@ function createGame(pool, { guestsPerIp = rules.GUESTS_PER_IP, crackDecayMs = ru
         socket.emit('you', { token, pid: me.pid, name: me.name });
       }
       if (r.joinedMap) {
-        map.players.set(me.pid, { name: me.name, color, coverage });
+        map.players.set(me.pid, { name: me.name, color, coverage, upgrades });
         io.to(map.room).emit('player', { pid: me.pid, name: me.name, color, coverage });
       }
       setOwner(map, k, me.pid);
       io.to(map.room).emit('claim', { x, y, pid: me.pid });
+      map.stats.set(me.pid, st.stats);
+      statChanged(map, me.pid, 'owned', map.counts.get(me.pid));
+      for (const name of st.changed) statChanged(map, me.pid, name, st.stats[name]);
+      if (from) {
+        statChanged(map, from, 'owned', map.counts.get(from));
+        statChanged(map, from, 'blocksLost', ++statsOf(map, from).blocksLost);
+      }
       if (r.grown) {
         map.cells.set(key(r.grown.x, r.grown.y), null);
         io.to(map.room).emit('grow', r.grown);
       }
-      if (r.squares !== null) io.to('player:' + me.pid).emit('squares', r.squares);
+      if (r.squares !== null) io.to('player:' + me.pid).emit('squares', rules.shownSquares(r.squares));
     }
 
     socket.on('hit', p => {
@@ -235,16 +310,22 @@ function createGame(pool, { guestsPerIp = rules.GUESTS_PER_IP, crackDecayMs = ru
       if (error) return socket.emit('denied', error);
 
       // Progress only counts while the same player keeps hitting the block, and fades when they stop.
+      // Each click adds the player's Click Power; the owner's Defense sets the hits needed.
       const by = me.pid ?? 'visitor:' + socket.id, now = Date.now();
       let h = map.hits.get(k);
       if (h) decay(map, k, h, now);
       h = map.hits.get(k);
+      const owner = map.cells.get(k);
+      const need = rules.hitsNeeded(owner ? map.players.get(owner)?.upgrades ?? rules.NO_UPGRADES : null);
       if (h?.by !== by) map.hits.set(k, h = { by, n: 0 });
       h.at = now;
-      if (++h.n < rules.hitsToTake(me.pid, map.cells.get(k))) return io.to(map.room).emit('hit', { x, y, n: h.n });
+      h.need = need;
+      h.n += rules.hitPower(upgrades);
+      if (!rules.isTaken(h.n, need)) return io.to(map.room).emit('hit', { x, y, p: share(h) });
 
       map.hits.delete(k);
-      serial(map, () => finishClaim(x, y)).catch(err => {
+      const here = map;
+      serial(map, () => finishClaim(here, x, y)).catch(err => {
         console.error(`CLAIM FAILED (map ${map.id}, ${k}): ${err.message}`);
         socket.emit('denied', 'Could not save your claim. Try again.');
         clearCrack(x, y);
@@ -254,13 +335,15 @@ function createGame(pool, { guestsPerIp = rules.GUESTS_PER_IP, crackDecayMs = ru
     // Clears this player's whole territory on this map. There is no button for it yet.
     socket.on('wipe', () => {
       if (!me.pid) return;
-      serial(map, async () => {
-        const r = await store.wipeTerritory(pool, map.id, me.pid);
+      const here = map;
+      serial(here, async () => {
+        const r = await store.wipeTerritory(pool, here.id, me.pid);
         if (!r) return socket.emit('denied', 'You have no blocks to wipe');
-        for (const [x, y] of r.cells) setOwner(map, key(x, y), null);
-        io.to(map.room).emit('wipe', { pid: me.pid, cells: r.cells });
+        for (const [x, y] of r.cells) setOwner(here, key(x, y), null);
+        io.to(here.room).emit('wipe', { pid: me.pid, cells: r.cells });
+        statChanged(here, me.pid, 'owned', 0);
       }).catch(err => {
-        console.error(`WIPE FAILED (map ${map.id}, player ${me.pid}): ${err.message}`);
+        console.error(`WIPE FAILED (map ${here.id}, player ${me.pid}): ${err.message}`);
         socket.emit('denied', 'Could not wipe your territory. Try again.');
       });
     });
@@ -273,6 +356,31 @@ function createGame(pool, { guestsPerIp = rules.GUESTS_PER_IP, crackDecayMs = ru
       if (!rules.COVERAGES.includes(value)) return reply({ error: 'Unknown coverage' });
       coverage = value;
       reply({ coverage });
+    });
+
+    // The maps this player can go to. Answers with [{ id, name, style }].
+    socket.on('maps', async (...args) => {
+      const reply = args.at(-1);   // with or without an argument before it
+      if (typeof reply !== 'function') return;
+      try { reply(await store.listMaps(pool)); } catch { reply([]); }
+    });
+
+    // Moves to another map; the next map loaded on any device is this one. Answers with { ok } or { error };
+    // the map itself arrives as a 'welcome'.
+    socket.on('switchMap', async (id, reply) => {
+      if (typeof reply !== 'function') return;
+      try {
+        const target = (await store.listMaps(pool)).find(m => String(m.id) === String(id));
+        if (!target) return reply({ error: 'That map does not exist' });
+        if (target.id === map.id) return reply({ ok: true });
+        const next = await getMap(target.id);
+        if (me.pid) await store.setLastMap(pool, me.pid, next.id);
+        enter(next);
+        reply({ ok: true });
+      } catch (err) {
+        console.error(`SWITCH FAILED (player ${me.pid}): ${err.message}`);
+        reply({ error: 'Could not switch maps. Try again.' });
+      }
     });
 
     // Accounts only. Answers with { name, renameAt } or { error }.
@@ -294,7 +402,7 @@ function createGame(pool, { guestsPerIp = rules.GUESTS_PER_IP, crackDecayMs = ru
     });
   });
 
-  return { server, io };
+  return { server, io, events };
 }
 
 module.exports = { createGame };

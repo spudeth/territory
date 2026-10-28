@@ -19,6 +19,7 @@ function variant(x, y) {
 }
 
 // Crack overlay drawn on the 16x16 texel grid: '1' shows after the 1st hit, '2' after the 2nd.
+const CRACK_STAGES = 2;
 const CRACK = [
   '................',
   '..............2.',
@@ -132,9 +133,12 @@ function render() {
         ctx.fillRect(x0, y0, bw, bh);
       }
 
-      const n = hits.get(key(x, y));
-      if (n) {
-        ctx.fillStyle = `rgba(0,0,0,${0.1 * n})`;
+      // Crack progress p runs from 0 to 1 (a share of the hits needed). The art has CRACK_STAGES stages,
+      // split evenly over it; the shade deepens with every hit.
+      const p = hits.get(key(x, y));
+      if (p) {
+        const n = Math.ceil(p * CRACK_STAGES);
+        ctx.fillStyle = `rgba(0,0,0,${0.3 * p})`;
         ctx.fillRect(x0, y0, bw, bh);
         ctx.fillStyle = 'rgba(25,18,10,0.85)';
         const tx = t => x0 + Math.round(t * bw / 16), ty = t => y0 + Math.round(t * bh / 16);
@@ -292,7 +296,7 @@ socket.on('welcome', data => {
   cells = new Map();
   bounds = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
   for (const [x, y, owner] of data.cells) addCell(x, y, owner);
-  hits = new Map(data.hits.map(([x, y, n]) => [key(x, y), n]));
+  hits = new Map(data.hits.map(([x, y, p]) => [key(x, y), p]));
   if (first) initialView(); else clampView();
   updateUI();
 });
@@ -309,8 +313,8 @@ socket.on('player', ({ pid, name, color, coverage }) => {
   players[pid] = { name, color, coverage };
   if (pid === me) myColor = color;
 });
-socket.on('hit', ({ x, y, n }) => {
-  if (n) hits.set(key(x, y), n); else hits.delete(key(x, y));
+socket.on('hit', ({ x, y, p }) => {
+  if (p) hits.set(key(x, y), p); else hits.delete(key(x, y));
   draw();
 });
 socket.on('claim', ({ x, y, pid }) => {
