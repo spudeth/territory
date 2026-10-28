@@ -103,18 +103,35 @@ const setLastMap = (pool, playerId, mapId) =>
   pool.query('UPDATE players SET last_map_id = $2 WHERE id = $1 AND last_map_id IS DISTINCT FROM $2', [playerId, mapId]);
 
 // Adds one block at a random empty spot touching the map on one of its four sides. Each spot is equally likely.
+// Growth: a random spot from map_edges (each equally likely) becomes a block, and its empty neighbours become
+// edge spots. growMap holds the map's lock, so two growths never pick the same spot.
 const GROW = `
-  INSERT INTO map_cells (map_id, x, y)
-  SELECT $1, n.x, n.y
-  FROM map_cells c
-  CROSS JOIN LATERAL (VALUES (c.x + 1, c.y), (c.x - 1, c.y), (c.x, c.y + 1), (c.x, c.y - 1)) AS n (x, y)
-  WHERE c.map_id = $1
-    AND NOT EXISTS (SELECT 1 FROM map_cells e WHERE e.map_id = $1 AND e.x = n.x AND e.y = n.y)
-  GROUP BY n.x, n.y
-  ORDER BY random()
-  LIMIT 1
-  RETURNING x, y`;
+  WITH spot AS (
+    DELETE FROM map_edges WHERE (map_id, x, y) =
+      (SELECT map_id, x, y FROM map_edges WHERE map_id = $1 ORDER BY random() LIMIT 1)
+    RETURNING x, y
+  ), cell AS (
+    INSERT INTO map_cells (map_id, x, y) SELECT $1, x, y FROM spot RETURNING x, y
+  ), edges AS (
+    INSERT INTO map_edges (map_id, x, y)
+    SELECT $1, n.x, n.y FROM cell
+    CROSS JOIN LATERAL (VALUES (cell.x + 1, cell.y), (cell.x - 1, cell.y), (cell.x, cell.y + 1), (cell.x, cell.y - 1)) AS n (x, y)
+    WHERE NOT EXISTS (SELECT 1 FROM map_cells e WHERE e.map_id = $1 AND e.x = n.x AND e.y = n.y)
+    ON CONFLICT DO NOTHING
+  )
+  SELECT x, y FROM cell`;
+// Recomputes a map's edge spots from its blocks. For new maps, or after changing blocks by hand.
+async function rebuildEdges(client, mapId) {
+  await client.query('DELETE FROM map_edges WHERE map_id = $1', [mapId]);
+  await client.query(`
+    INSERT INTO map_edges (map_id, x, y)
+    SELECT DISTINCT $1::bigint, n.x, n.y FROM map_cells c
+    CROSS JOIN LATERAL (VALUES (c.x + 1, c.y), (c.x - 1, c.y), (c.x, c.y + 1), (c.x, c.y - 1)) AS n (x, y)
+    WHERE c.map_id = $1 AND NOT EXISTS (SELECT 1 FROM map_cells e WHERE e.map_id = $1 AND e.x = n.x AND e.y = n.y)`, [mapId]);
+}
+
 async function growMap(client, mapId) {
+  await client.query('SELECT 1 FROM maps WHERE id = $1 FOR UPDATE', [mapId]);   // one growth at a time per map
   const grown = (await client.query(GROW, [mapId])).rows[0];
   if (!grown) throw new Error('map growth found no free spot');
   return grown;
@@ -225,7 +242,7 @@ function wipeTerritory(pool, mapId, playerId) {
 }
 
 module.exports = { hashToken, findPlayerByToken, accountPlayer, renamePlayer, defaultMapId, loadMap, cellOwner, setLastMap,
-  growMap, claimBlock, wipeTerritory };
+  growMap, rebuildEdges, claimBlock, wipeTerritory };
 
 // Achievement ids a player has earned.
 async function earnedAchievements(pool, playerId) {
@@ -259,6 +276,7 @@ async function createMap(pool, { name, style, width, height }) {
     const { rows: [m] } = await c.query("INSERT INTO maps (name, style, type) VALUES ($1, $2, 'official') RETURNING id", [name, style]);
     await c.query(`INSERT INTO map_cells (map_id, x, y)
       SELECT $1, x, y FROM generate_series(0, $2 - 1) AS x, generate_series(0, $3 - 1) AS y`, [m.id, width, height]);
+    await rebuildEdges(c, m.id);
     return m.id;
   });
 }

@@ -73,6 +73,7 @@ test('growth picks any empty spot touching the map on one of four sides, holes i
   const { rows: [m] } = await pool.query("INSERT INTO maps (name, style, type) VALUES ('ring', 'white', 'official') RETURNING id");
   await pool.query(`INSERT INTO map_cells (map_id, x, y) SELECT $1, x, y FROM generate_series(0, 2) x, generate_series(0, 2) y
                     WHERE NOT (x = 1 AND y = 1)`, [m.id]);
+  await store.rebuildEdges(pool, m.id);
   const expected = new Set(['1,1', '-1,0', '-1,1', '-1,2', '3,0', '3,1', '3,2', '0,-1', '1,-1', '2,-1', '0,3', '1,3', '2,3']);
   // Each draw grows the ring in a transaction that is then rolled back, so every draw starts from the same shape.
   const draw = () => tx(pool, async c => {
@@ -91,7 +92,18 @@ test('growth picks any empty spot touching the map on one of four sides, holes i
   // 260 draws over 13 spots is 20 each on average; a spot weighted by its neighbour count would skew this.
   for (const [k, n] of seen) assert.ok(n >= 5 && n <= 45, `${k} came up ${n} times`);
   await pool.query('DELETE FROM map_cells WHERE map_id = $1', [m.id]);
+  await pool.query('DELETE FROM map_edges WHERE map_id = $1', [m.id]);
   await pool.query('DELETE FROM maps WHERE id = $1', [m.id]);
+});
+
+test('edge spots stay exactly the empty spots touching the map as it grows', async () => {
+  const id = await store.createMap(pool, { name: 'Edges', style: 'grass', width: 3, height: 2 });
+  for (let i = 0; i < 25; i++) await tx(pool, c => store.growMap(c, id));
+  const kept = await pool.query('SELECT x, y FROM map_edges WHERE map_id = $1 ORDER BY x, y', [id]);
+  await store.rebuildEdges(pool, id);
+  const fresh = await pool.query('SELECT x, y FROM map_edges WHERE map_id = $1 ORDER BY x, y', [id]);
+  assert.deepEqual(kept.rows, fresh.rows);
+  assert.equal(await db.count('SELECT count(*) FROM map_cells WHERE map_id = $1', [id]), 31);
 });
 
 test('wipe rule: squares only for blocks beyond the most owned at any wipe; growth still happens', async () => {
