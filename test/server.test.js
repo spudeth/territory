@@ -409,6 +409,10 @@ test('maps: switch, claim there with a separate look, and come back to the last 
   const you = await a.next('you');
   const maps = await a.ask('maps');
   assert.deepEqual(maps.map(m => m.name).filter(n => n !== 'Unlock Test'), ['Grass', 'Snow']);
+  const [grass, snow] = maps.filter(m => m.name !== 'Unlock Test');
+  assert.equal(grass.mine, 1);
+  assert.ok(grass.rank >= 1 && grass.played, 'their place on the map they play');
+  assert.deepEqual([snow.blocks, snow.mine, snow.rank, snow.played], [16, 0, null, false], 'a map they have not played');
   assert.deepEqual(await a.ask('switchMap', '99999'), { error: 'That map does not exist' });
   assert.deepEqual(await a.ask('switchMap', second), { ok: true });
   const w = await a.next('welcome');

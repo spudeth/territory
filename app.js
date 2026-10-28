@@ -586,11 +586,11 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       try { reply(await store.skinsFor(pool, me.pid)); } catch { reply([]); }
     });
 
-    // The maps this player can go to. Answers with [{ id, name, style }].
+    // The maps this player can go to, with their place on each (store.mapsFor). Answers with an array.
     socket.on('maps', async (...args) => {
       const reply = args.at(-1);   // with or without an argument before it
       if (typeof reply !== 'function') return;
-      try { reply(await store.listMaps(pool)); } catch { reply([]); }
+      try { reply(await store.mapsFor(pool, me.pid)); } catch { reply([]); }
     });
 
     // Moves to another map; the next map loaded on any device is this one. Answers with { ok } or { error };

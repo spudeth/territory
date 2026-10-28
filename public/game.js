@@ -51,11 +51,15 @@ function addCell(x, y, owner) {
 
 // ---------- Camera ----------
 let scale = 20, ox = 0, oy = 0;   // scale = CSS pixels per block, (ox, oy) = screen position of block (0, 0)
+let renderScale = 1;              // under 1 draws the map at lower resolution (the blurred welcome background)
 const mapSpan = () => Math.max(bounds.x1 - bounds.x0, bounds.y1 - bounds.y0);
 const minScale = () => Math.min(innerWidth, innerHeight) / mapSpan() * 0.5;
 const MAX_SCALE = 160;
 
 function clampView() {
+  // The welcome screen places the camera itself (welcome.js).
+  if (window.welcomeScreen?.isMoving()) return draw();
+  if (window.welcomeScreen?.isOpen()) return welcomeScreen.reframe();
   scale = Math.min(MAX_SCALE, Math.max(minScale(), scale));
   ox = Math.min(innerWidth / 2 - bounds.x0 * scale, Math.max(innerWidth / 2 - bounds.x1 * scale, ox));
   oy = Math.min(innerHeight / 2 - bounds.y0 * scale, Math.max(innerHeight / 2 - bounds.y1 * scale, oy));
@@ -100,7 +104,7 @@ function draw() {
 
 function render() {
   queued = false;
-  const dpr = devicePixelRatio || 1;
+  const dpr = (devicePixelRatio || 1) * renderScale;
   const w = Math.round(innerWidth * dpr), h = Math.round(innerHeight * dpr);
   if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
   ctx.imageSmoothingEnabled = false;   // keep pixel art crisp
@@ -180,20 +184,30 @@ function render() {
     }
   }
 
-  // Owners' names on territories covering at least a quarter of the screen (labels.js), in the design's
-  // style: Press Start 2P in white with a hard dark shadow, at the middle of their visible blocks.
+  // Who's who (labels.js): a name tag on every territory in view, on its deepest visible block. A dark tag with
+  // the owner's color, white text (yours in gold). Yours goes first, then the biggest; a tag that would overlap
+  // one already placed waits until you zoom in.
   const shown = { x: -ox / scale, y: -oy / scale, width: innerWidth / scale, height: innerHeight / scale };
-  ctx.font = `${14 * dpr}px 'Press Start 2P', monospace`;
-  ctx.textAlign = 'center';
+  const fontPx = 10 * dpr, pad = 5 * dpr, dot = 8 * dpr;
+  ctx.font = `${fontPx}px 'Press Start 2P', monospace`;
+  ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
-  for (const l of labels.namesToShow(cells, shown, gameSettings.nameLabelShare)) {
+  const tags = [];
+  for (const l of labels.nameSpots(cells, shown)) {
     const name = players[l.owner]?.name;
     if (!name) continue;
-    const sx = (ox + l.cx * scale) * dpr, sy = (oy + l.cy * scale) * dpr;
-    ctx.fillStyle = '#0a0d12';
-    ctx.fillText(name, sx + 3 * dpr, sy + 3 * dpr);
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText(name, sx, sy);
+    const w = dot + pad + ctx.measureText(name).width + pad * 2, h = fontPx + pad * 2;
+    const cx = (ox + l.cx * scale) * dpr, cy = (oy + l.cy * scale) * dpr;
+    const tag = { owner: l.owner, name, box: { x: Math.round(cx - w / 2), y: Math.round(cy - h / 2), w: Math.round(w), h: Math.round(h) } };
+    if (String(l.owner) === String(me)) tags.unshift(tag); else tags.push(tag);
+  }
+  for (const { owner, name, box } of labels.withoutOverlaps(tags, 4 * dpr)) {
+    ctx.fillStyle = 'rgba(10,13,18,0.82)';
+    ctx.fillRect(box.x, box.y, box.w, box.h);
+    ctx.fillStyle = players[owner]?.color || '#888';
+    ctx.fillRect(box.x + pad, Math.round(box.y + (box.h - dot) / 2), dot, dot);
+    ctx.fillStyle = String(owner) === String(me) ? '#f7c948' : '#ffffff';
+    ctx.fillText(name, box.x + pad * 2 + dot, box.y + box.h / 2 + dpr);
   }
 
   // Blocks the tutorial points at (coach.js): a thick yellow outline with a dark edge.
@@ -214,7 +228,27 @@ function render() {
     ctx.lineWidth = 2 * dpr;
     ctx.strokeRect(X(x) + dpr, Y(y) + dpr, X(x + 1) - X(x) - 2 * dpr, Y(y + 1) - Y(y) - 2 * dpr);
   }
+
+  // New squares rising off the block that earned them (the mockup: claude.ai/artifact/PXtXotyzsRZayFM6m3pBXh).
+  const now = performance.now();
+  squarePops = squarePops.filter(p => now - p.t0 < SQUARE_POP.ms);
+  for (const p of squarePops) {
+    const e = 1 - Math.pow(1 - (now - p.t0) / SQUARE_POP.ms, SQUARE_POP.power);   // fast, then slow
+    const s = SQUARE_POP.size * scale * dpr;
+    const bottom = Y(p.y) + (SQUARE_POP.centered ? s / 2 : 0) - e * SQUARE_POP.rise * scale * dpr;
+    ctx.globalAlpha = 1 - e;   // fades on the same curve
+    if (squareIcon.complete) ctx.drawImage(squareIcon, (ox + (p.x + 0.5) * scale) * dpr - s / 2, bottom - s, s, s);
+    ctx.globalAlpha = 1;
+  }
+  if (squarePops.length) draw();   // keep animating
 }
+
+// The square that pops off a block when it earns a new whole square.
+// ms: how long it lasts; rise: blocks it travels up; power: how fast-then-slow (1 = steady); size: share of a block;
+// centered: starts centered on the block's top grid line instead of sitting on it.
+const SQUARE_POP = { ms: 1350, rise: 1.15, power: 4.5, size: 0.28, centered: false };   // Xoren's picks
+const squareIcon = Object.assign(new Image(), { src: 'icons/square.svg' });
+let squarePops = [], lastClaim = null;
 
 // Where a block's centre is on screen, for placing other players' sounds.
 const screenAt = (x, y) => ({ sx: ox + (x + 0.5) * scale, sy: oy + (y + 0.5) * scale });
@@ -328,6 +362,7 @@ function updateUI() {
     return li;
   }));
   if (!top.length) $('board-list').innerHTML = '<li class="empty">No blocks claimed yet</li>';
+  window.welcomeScreen?.refresh();
 }
 
 // ---------- Networking ----------
@@ -361,7 +396,8 @@ socket.on('welcome', data => {
   bounds = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
   for (const [x, y, owner] of data.cells) addCell(x, y, owner);
   hits = new Map(data.hits.map(([x, y, p]) => [key(x, y), p]));
-  if (first) initialView(); else clampView();
+  if (window.welcomeScreen?.isOpen()) welcomeScreen.onWelcome(first);
+  else if (first) initialView(); else clampView();
   updateUI();
   loadProgress(data.me.tutorial);   // coach.js
   afterWelcome();   // menu.js: the setup screen if this map's look isn't chosen yet
@@ -393,7 +429,7 @@ socket.on('claim', ({ x, y, pid }) => {
   cells.set(key(x, y), pid);
   hits.delete(key(x, y));
   myTaps.delete(key(x, y));
-  if (pid === me) { gameAudio.play('claim'); tell('claimed', { x, y, from: before }); }
+  if (pid === me) { gameAudio.play('claim'); tell('claimed', { x, y, from: before }); lastClaim = { x, y }; }
   else if (me && before === me) { gameAudio.play('taken'); tell('taken', { x, y }); }
   else gameAudio.play('claim', screenAt(x, y));
   updateUI();
@@ -417,6 +453,7 @@ socket.on('rename', ({ pid, name }) => {
   updateUI();
 });
 socket.on('squares', n => {
+  if (n > squares && lastClaim) { squarePops.push({ ...lastClaim, t0: performance.now() }); draw(); }
   squares = n;
   updateUI();
   if (n > 0) tell('squares', n);

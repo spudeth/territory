@@ -61,7 +61,7 @@ function replayTutorial() {
 
 // After a welcome, once this map's look is chosen: resume a tutorial left part-way.
 function resumeTutorial() {
-  if (!active && !progress.done && progress.step && stepAt(progress.step) >= 0 && view !== 'setup') begin(progress.step);
+  if (!active && !progress.done && progress.step && stepAt(progress.step) >= 0 && view !== 'setup' && !welcomeScreen.isOpen()) begin(progress.step);
 }
 
 // ---------- What the game reports ----------
@@ -89,7 +89,7 @@ function tell(trigger, data) {
 
 // A tip counts as seen once it shows, so one waiting behind the tutorial isn't lost if the page reloads.
 function showTip() {
-  if (tip || active?.started || !tipQueue.length || view === 'setup') return;
+  if (tip || active?.started || !tipQueue.length || view === 'setup' || welcomeScreen.isOpen()) return;
   tip = tipQueue.shift();
   progress.tips.push(tip.id);
   saveProgress();
@@ -153,3 +153,9 @@ $('coach-next').addEventListener('click', () => {
 });
 $('coach-skip').addEventListener('click', finish);
 $('how-to-play').addEventListener('click', replayTutorial);
+// Settings > How to play: back into the game, then from the start.
+$('how-to-play-2').addEventListener('click', () => {
+  closeMenu();
+  if (welcomeScreen.isOpen()) welcomeScreen.play(() => { if (locked) replayTutorial(); });
+  else replayTutorial();
+});

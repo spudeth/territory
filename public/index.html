@@ -26,7 +26,49 @@
     <symbol id="i-check" viewBox="0 0 8 8"><path d="M6 1h2v2H7v1H6v1H5v1H4v1H3V6H2V5H1V4H0V3h2v1h1v1h1V4h1V3h1z" fill="currentColor"/></symbol>
   </svg>
 
-  <canvas id="map"></canvas>
+  <!-- The map. On the welcome screen it is the blurred, dimmed background: #stage zooms out slowly on load,
+       #drift moves it gently forever (welcome.js). -->
+  <div id="stage"><div id="drift"><canvas id="map"></canvas></div></div>
+  <div id="dim"></div>
+
+  <!-- Welcome screen: every visit opens here; PLAY goes into the game, MENU comes back (welcome.js) -->
+  <div id="welcome">
+    <button class="btn icon-btn" type="button" id="w-sound" aria-label="Sound off"><svg class="pix" width="18" height="18" aria-hidden="true"><use href="#i-sound"/></svg></button>
+    <div class="w-center">
+      <!-- The logo: a placeholder. To swap it, replace what's inside #logo (an <img src="..."> works). -->
+      <div id="logo">
+        <svg class="w-mark" viewBox="0 0 8 8" shape-rendering="crispEdges" aria-hidden="true"><rect width="8" height="8" fill="#0a0d12"/><rect x="1" y="1" width="3" height="3" fill="#29adff"/><rect x="4" y="1" width="3" height="3" fill="#ff77a8"/><rect x="1" y="4" width="3" height="3" fill="#ffa300"/><rect x="4" y="4" width="3" height="3" fill="#f2f4f8"/></svg>
+        <h1>TERRITORY</h1>
+      </div>
+      <div class="card w-card">
+        <div class="w-who">
+          <div class="w-name"><span class="swatch" id="w-color"></span><span id="w-name">Connecting…</span></div>
+          <div class="w-line"><span class="tag" id="w-tag">GUEST</span><span class="w-sq"><img class="sq-icon" src="icons/square.svg" width="12" height="12" alt="Squares"><span id="w-squares">0</span></span></div>
+        </div>
+        <div class="w-picker" id="w-picker">
+          <button class="btn w-arrow" type="button" id="w-prev" aria-label="Previous map"><svg class="pix" width="16" height="16" viewBox="0 0 8 8" aria-hidden="true"><path d="M5 0h2v8H5V7H4V6H3V5H2V3h1V2h1V1h1z" fill="currentColor"/></svg></button>
+          <div class="w-map">
+            <div class="w-thumb" id="w-thumb"><canvas id="w-thumb-canvas"></canvas><div class="w-soon" id="w-soon" hidden><span class="tag">COMING SOON</span></div></div>
+            <span class="w-map-name" id="w-map-name"></span>
+            <span class="w-stat" id="w-stat-1"></span>
+            <span class="w-stat" id="w-stat-2"></span>
+          </div>
+          <button class="btn w-arrow" type="button" id="w-next" aria-label="Next map"><svg class="pix" width="16" height="16" viewBox="0 0 8 8" aria-hidden="true"><path d="M1 0h2v1h1v1h1v1h1v2H5v1H4v1H3v1H1z" fill="currentColor"/></svg></button>
+        </div>
+        <div class="w-dots" id="w-dots" aria-hidden="true"></div>
+        <button class="btn w-play" type="button" id="w-play" disabled><svg class="pix" width="22" height="22" viewBox="0 0 8 8" aria-hidden="true"><path d="M1 0h2v1h1v1h1v1h1v2H5v1H4v1H3v1H1z" fill="currentColor"/></svg>PLAY</button>
+        <button class="btn w-play soon" type="button" id="w-soon-btn" disabled hidden>COMING SOON</button>
+        <div class="w-minis">
+          <button class="w-mini" type="button" data-go="skins"><span class="b" style="background: var(--pink)"><svg class="pix" width="22" height="22" viewBox="0 0 8 8" aria-hidden="true"><path d="M0 0h4v4H0zM4 4h4v4H4z" fill="#0f131a"/></svg></span>Skins</button>
+          <button class="w-mini" type="button" data-go="achievements"><span class="b" style="background: var(--yellow); color: #0f131a"><svg class="pix" width="22" height="22" aria-hidden="true"><use href="#i-trophy"/></svg></span>Awards</button>
+          <button class="w-mini" type="button" data-go="upgrades"><span class="b" style="background: var(--orange)"><svg class="pix" width="22" height="22" viewBox="0 0 8 8" aria-hidden="true"><path d="M3 0h2v1h1v1h1v1h1v1H6v4H2V4H0V3h1V2h1V1h1z" fill="#0f131a"/></svg></span>Upgrades</button>
+          <button class="w-mini" type="button" data-go="settings"><span class="b" style="background: #2a3446; color: #f2f4f8"><svg class="pix" width="22" height="22" aria-hidden="true"><use href="#i-cog"/></svg></span>Settings</button>
+        </div>
+        <button class="btn w-login" type="button" id="w-login" data-go="signup" hidden>Log in / Sign up to keep your blocks</button>
+      </div>
+    </div>
+    <p class="links w-foot"><a href="/privacy" target="_blank">Privacy</a><span aria-hidden="true">·</span><a href="/terms" target="_blank">Terms</a></p>
+  </div>
 
   <div class="hud card" id="me">
     <span class="swatch" id="me-color"></span>
@@ -243,6 +285,7 @@
             <button class="btn icon-btn mute" type="button" data-mute="music" aria-pressed="false"></button></div>
           <div class="split" style="align-items: center"><p class="note">Saved on this device.</p><button class="text-btn" type="button" id="change-station">Change station</button></div>
         </div>
+        <button class="btn" type="button" id="how-to-play-2"><svg class="pix" width="18" height="18" viewBox="0 0 8 8" aria-hidden="true"><path d="M2 0h4v1h1v3H6v1H5v1H3V4h1V3h1V1H3v1H1V1h1zM3 7h2v1H3z" fill="currentColor"/></svg>How to play</button>
         <button class="btn" type="button" id="menu-logout" style="margin-top: 4px">
           <svg class="pix" width="18" height="18" viewBox="0 0 8 8" aria-hidden="true"><path d="M0 0h5v2H4V1H1v6h3V6h1v2H0zM5 3V2h1v1h1v1h1v1H7v1H6v1H5V5H2V3z" fill="#f2f4f8"/></svg>Log out</button>
         <p class="links foot"><a href="/privacy" target="_blank">Privacy</a><span aria-hidden="true">·</span><a href="/terms" target="_blank">Terms</a></p>
@@ -407,5 +450,6 @@
   <script src="tutorial.js"></script>
   <script src="coach.js"></script>
   <script src="chat.js"></script>
+  <script src="welcome.js"></script>
 </body>
 </html>

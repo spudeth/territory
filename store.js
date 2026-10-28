@@ -288,7 +288,22 @@ async function createMap(pool, { name, style, width, height }) {
   });
 }
 
-Object.assign(module.exports, { STYLES, listMaps, createMap });
+// The maps for the welcome screen's picker, with this player's place on each:
+// [{ id, name, style, blocks: the map's size, mine: their blocks, rank: 1 = most blocks (null with none), played }].
+async function mapsFor(pool, playerId) {
+  const { rows } = await pool.query(`
+    WITH owned AS (SELECT map_id, owner_id, count(*)::int AS n FROM map_cells WHERE owner_id IS NOT NULL GROUP BY 1, 2)
+    SELECT m.id, m.name, m.style,
+      (SELECT count(*)::int FROM map_cells c WHERE c.map_id = m.id) AS blocks,
+      coalesce(o.n, 0) AS mine,
+      CASE WHEN o.n IS NULL THEN NULL ELSE 1 + (SELECT count(*)::int FROM owned b WHERE b.map_id = m.id AND b.n > o.n) END AS rank,
+      (o.n IS NOT NULL OR EXISTS (SELECT 1 FROM player_map_settings s WHERE s.map_id = m.id AND s.player_id = $1)) AS played
+    FROM maps m LEFT JOIN owned o ON o.map_id = m.id AND o.owner_id = $1
+    WHERE m.type = 'official' ORDER BY m.id`, [playerId]);
+  return rows;
+}
+
+Object.assign(module.exports, { STYLES, listMaps, createMap, mapsFor });
 
 // The skin catalog, with whether this player owns each (free skins count as owned by everyone).
 async function skinsFor(pool, playerId) {
@@ -497,11 +512,14 @@ function deleteAccount(pool, playerId) {
 
 // A player's own fresh start: their blocks on every map go empty, and their squares, upgrades, stats,
 // achievements, skins and look on every map are reset, as for a new player. Kept: name, login, tutorial,
-// and skins bought with money. Returns { maps: ids of maps where they had blocks }.
+// and skins bought with money. Returns { maps: ids of every map they had played }.
 function resetProgress(pool, playerId) {
   return tx(pool, async c => {
     const { rows: [p] } = await c.query('SELECT squares FROM players WHERE id = $1 FOR UPDATE', [playerId]);
-    const { rows: maps } = await c.query('SELECT DISTINCT map_id FROM map_cells WHERE owner_id = $1', [playerId]);
+    // Every map they've played, with blocks or not: the game reloads them all, so none keeps their old look,
+    // wipe floor or stats in memory (a stale one would stop them earning squares there).
+    const { rows: maps } = await c.query(`SELECT map_id FROM map_cells WHERE owner_id = $1
+      UNION SELECT map_id FROM player_map_settings WHERE player_id = $1 UNION SELECT map_id FROM player_map_stats WHERE player_id = $1`, [playerId]);
     await c.query('UPDATE map_cells SET owner_id = NULL, claimed_at = NULL WHERE owner_id = $1', [playerId]);
     for (const t of ['player_map_settings', 'player_map_stats', 'player_achievements', 'level_remaps']) {
       await c.query(`DELETE FROM ${t} WHERE player_id = $1`, [playerId]);

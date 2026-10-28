@@ -116,7 +116,7 @@ The largest square and the longest line are **records**. Losing blocks never low
 
 ## Name labels
 
-- An owner's name shows on their territory once it covers at least 25% of the **whole screen**. When you're zoomed far out, names disappear. (Game Rules: `nameLabelShare`; Q4: answered A)
+- Every territory on screen shows its owner's name on a small dark tag with their color, on the territory's deepest visible block (never on grass or other land). Yours is gold and always shows; where tags would overlap, the bigger territory's shows and the rest appear as you zoom in. (Xoren, 2026-10-28; replaces Q4's 25% rule. The Game Rules row `nameLabelShare` is no longer used.)
 - Names are drawn in the middle of the territory's part of the screen, in white pixel letters with a dark shadow.
 
 ## Admin actions
