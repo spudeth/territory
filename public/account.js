@@ -79,6 +79,8 @@ for (const k of ['sfx', 'music']) {
   menu.querySelector(`[data-mute="${k}"]`).addEventListener('click', () => { gameAudio.set(k, { muted: !gameAudio.settings[k].muted }); drawVolumes(); });
 }
 
+$('change-station').addEventListener('click', () => gameAudio.changeStation());
+
 fills.signup = () => { $('signup-keep').hidden = !me; };
 
 function loggedIn() {

@@ -240,6 +240,8 @@ a:hover { color: var(--gold-light); }
 .or::before, .or::after { content: ''; flex: 1; height: 3px; background: var(--ink); }
 #menu form { display: flex; flex-direction: column; gap: 14px; }
 .split { display: flex; justify-content: space-between; gap: 12px; font-size: 15px; }
+.text-btn { background: none; border: 0; padding: 0; min-height: 32px; font: inherit; font-size: 14px; color: var(--gold); text-decoration: underline; cursor: pointer; white-space: nowrap; }
+.text-btn:hover { color: var(--gold-light); }
 
 /* Settings */
 .box { background: var(--card); padding: 12px; display: flex; flex-direction: column; gap: 10px; }
