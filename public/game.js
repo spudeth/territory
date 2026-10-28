@@ -69,6 +69,13 @@ function zoomAt(x, y, factor) {
   clampView();
 }
 
+// Centres the view on a block (the tutorial uses this to show the block it points at).
+function lookAt(x, y) {
+  ox = innerWidth / 2 - (x + 0.5) * scale;
+  oy = innerHeight / 2 - (y + 0.5) * scale;
+  clampView();
+}
+
 // Show the whole map, or zoom in on our territory if we have one.
 function initialView() {
   const mine = [...cells].filter(([, o]) => me && o === me).map(([k]) => k.split(',').map(Number));
@@ -188,6 +195,17 @@ function render() {
     ctx.fillText(name, sx, sy);
   }
 
+  // Blocks the tutorial points at (coach.js): a thick yellow outline with a dark edge.
+  const cw = Math.max(3, Math.round(3 * dpr));
+  for (const { x, y } of coachBlocks) {
+    const bx = X(x), by = Y(y), bw = X(x + 1) - bx, bh = Y(y + 1) - by;
+    ctx.lineWidth = cw;
+    ctx.strokeStyle = '#0a0d12';
+    ctx.strokeRect(bx - cw / 2, by - cw / 2, bw + cw, bh + cw);
+    ctx.strokeStyle = '#ffec27';
+    ctx.strokeRect(bx + cw / 2, by + cw / 2, bw - cw, bh - cw);
+  }
+
   // Mouse hover outline (desktop only).
   if (hover) {
     const { x, y } = hover;
@@ -196,6 +214,10 @@ function render() {
     ctx.strokeRect(X(x) + dpr, Y(y) + dpr, X(x + 1) - X(x) - 2 * dpr, Y(y + 1) - Y(y) - 2 * dpr);
   }
 }
+
+// Where a block's centre is on screen, for placing other players' sounds.
+const screenAt = (x, y) => ({ sx: ox + (x + 0.5) * scale, sy: oy + (y + 0.5) * scale });
+const myTaps = new Map();   // "x,y" -> when we last tapped it, so our own taps aren't played twice
 
 // ---------- Input: tap vs. drag vs. pinch ----------
 const TAP_SLOP = 10;              // px a finger may wiggle and still count as a tap
@@ -245,7 +267,11 @@ function pointerEnd(e) {
   if (!pointers.delete(e.pointerId)) return;
   if (e.type === 'pointerup' && tap && pointers.size === 0) {
     const c = cellAt(e.clientX, e.clientY);
-    if (c && !(me && cells.get(key(c.x, c.y)) === me)) socket.emit('hit', c);
+    if (c && !(me && cells.get(key(c.x, c.y)) === me)) {
+      socket.emit('hit', c);
+      gameAudio.play('tap');
+      myTaps.set(key(c.x, c.y), Date.now());
+    }
   }
   tap = null;
 }
@@ -333,7 +359,9 @@ socket.on('welcome', data => {
   hits = new Map(data.hits.map(([x, y, p]) => [key(x, y), p]));
   if (first) initialView(); else clampView();
   updateUI();
+  loadProgress(data.me.tutorial);   // coach.js
   afterWelcome();   // menu.js: the setup screen if this map's look isn't chosen yet
+  resumeTutorial(); // coach.js: carry on where they left off
 });
 
 // After a visitor's first claim the server creates their player and hands over the secret token.
@@ -342,6 +370,7 @@ socket.on('you', ({ token, pid, name }) => {
   me = pid;
   myName = name;
   updateUI();
+  tell('you');   // coach.js: the visitor's tutorial progress moves to their new player
 });
 
 socket.on('player', ({ pid, name, color, skin, coverage }) => {
@@ -349,34 +378,48 @@ socket.on('player', ({ pid, name, color, skin, coverage }) => {
   if (pid === me) { myColor = color; mySkin = skin; myCoverage = coverage; locked = true; updateUI(); }
 });
 socket.on('hit', ({ x, y, p }) => {
-  if (p) hits.set(key(x, y), p); else hits.delete(key(x, y));
+  const k = key(x, y), mine = Date.now() - (myTaps.get(k) ?? 0) < 1500;
+  if (gameAudio.isTap(hits.get(k), p) && !mine) gameAudio.play('tap', screenAt(x, y));
+  if (mine) tell('hit', { x, y, p });   // tutorial: the tap counter
+  if (p) hits.set(k, p); else hits.delete(k);
   draw();
 });
 socket.on('claim', ({ x, y, pid }) => {
+  const before = cells.get(key(x, y));
   cells.set(key(x, y), pid);
   hits.delete(key(x, y));
+  myTaps.delete(key(x, y));
+  if (pid === me) { gameAudio.play('claim'); tell('claimed', { x, y, from: before }); }
+  else if (me && before === me) { gameAudio.play('taken'); tell('taken', { x, y }); }
+  else gameAudio.play('claim', screenAt(x, y));
   updateUI();
   draw();
 });
 socket.on('grow', ({ x, y }) => {
   addCell(x, y, null);
+  gameAudio.play('grow', screenAt(x, y));
+  tell('grew', { x, y });
   draw();
 });
 socket.on('wipe', ({ pid, cells: wiped, floor }) => {
   for (const [x, y] of wiped) cells.set(key(x, y), null);
   updateUI();
   draw();
-  if (pid === me) { locked = false; wipeFloor = floor; afterWipe(); }   // menu.js: pick a new look
+  if (pid === me) { locked = false; wipeFloor = floor; gameAudio.play('wipe'); afterWipe(); }   // menu.js: pick a new look
 });
 socket.on('rename', ({ pid, name }) => {
   if (players[pid]) players[pid].name = name;
   if (pid === me) myName = name;
   updateUI();
 });
-socket.on('squares', n => { squares = n; updateUI(); });
+socket.on('squares', n => { squares = n; updateUI(); if (n > 0) tell('squares', n); });
 socket.on('stat', d => onStat(d));                  // menu.js
 socket.on('achievement', a => onAchievement(a));    // menu.js
-socket.on('denied', msg => toast(msg));
+socket.on('denied', msg => {
+  toast(msg);
+  gameAudio.play('denied');
+  if (/next to your territory/.test(msg)) tell('denied:range');
+});
 socket.on('disconnect', reason => {
   if (reason !== 'io client disconnect') toast('Connection lost, reconnecting…');   // not when we reconnect on purpose
 });

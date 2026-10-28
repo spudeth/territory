@@ -8,6 +8,7 @@ const fills = {};     // view name -> function that fills the view in just befor
 let view = null;      // the view showing, or null when the menu is closed
 
 function show(name) {
+  if (menu.hidden) gameAudio.play('menuOpen');
   for (const v of menu.querySelectorAll('[data-view]')) v.hidden = v.dataset.view !== name;
   const section = menu.querySelector(`[data-view="${name}"]`);
   section.querySelector('.head').after($('menu-error'));   // errors show under the view's title
@@ -18,11 +19,14 @@ function show(name) {
   view = name;
   fills[name]?.();
   menu.querySelector('.panel').scrollTop = 0;
+  tell('menu:' + name);   // tutorial: the menu tour
 }
 function closeMenu() {
   if (view === 'setup') return;   // the setup screen closes with Spawn
+  if (!menu.hidden) gameAudio.play('menuClose');
   menu.hidden = true;
   view = null;
+  tell('menu:closed');
 }
 const fail = msg => { $('menu-error').textContent = msg; };
 
@@ -57,6 +61,7 @@ for (const b of menu.querySelectorAll('[data-soon]')) b.addEventListener('click'
 
 $('menu-button').addEventListener('click', () => show('main'));
 menu.addEventListener('click', e => {
+  if (e.target.closest('button, a') && !e.target.closest('.close, #spawn')) gameAudio.play('button');
   const go = e.target.closest('[data-go]');
   if (go) { e.preventDefault(); show(go.dataset.go); }
   else if (e.target.closest('.close') || e.target === menu) closeMenu();
@@ -207,8 +212,10 @@ $('spawn').addEventListener('click', async () => {
   chosen.set(mapInfo.id, r);
   pick = null;
   view = null;   // lets the menu close
-  closeMenu();
+  menu.hidden = true;
+  gameAudio.play('spawn');
   updateUI();
+  tell('spawned');   // tutorial: brand-new players start here
 });
 
 // ---------- Skins ----------
@@ -342,6 +349,8 @@ for (const b of $('ach-filter').children) b.addEventListener('click', () => { ac
 // The yellow pop-up when one is earned.
 let popupTimer, achTimer;
 function onAchievement(a) {
+  gameAudio.play('achievement');
+  tell('achievement', a);
   $('popup-what').textContent = a.stat && a.threshold ? `${a.name} · ${describe(a)}` : a.name;
   $('popup').hidden = false;
   clearTimeout(popupTimer);

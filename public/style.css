@@ -374,3 +374,43 @@ a:hover { color: var(--gold-light); }
 .pair .btn { font-size: 17px; padding: 0 8px; }
 .big-tiles .btn { padding-top: 16px; }
 @media (min-width: 700px) and (min-height: 560px) { .hub-row .login-btn { font-size: 16px; padding: 0 8px; } }
+
+/* Sound settings: label, slider, mute */
+.volume { display: grid; grid-template-columns: 110px minmax(0, 1fr) 44px; align-items: center; gap: 10px; font-size: 15px; color: var(--soft); }
+.volume input { width: 100%; min-height: 44px; accent-color: var(--gold); }
+.mute[aria-pressed="true"] { background: var(--red); color: #fff; }
+
+/* Tutorial card and the ring around what it points at */
+#coach {
+  position: fixed;
+  left: 50%;
+  bottom: calc(84px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  width: min(420px, calc(100% - 32px));
+  background: var(--panel);
+  border-color: var(--yellow);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 50;
+}
+#coach.top { bottom: auto; top: calc(16px + env(safe-area-inset-top)); }
+#coach .kicker { font: 8px var(--title); color: var(--yellow); }
+#coach .t { font: 12px/1.5 var(--title); }
+#coach p { margin: 0; font-size: 17px; line-height: 1.35; color: #e1e6ee; }
+#coach .count { font: 16px var(--title); color: var(--yellow); }
+#coach .row { display: flex; gap: 10px; justify-content: flex-end; }
+#coach .row .btn { min-width: 96px; }
+#coach .go { background: var(--yellow); color: var(--well); }
+#coach-ring {
+  position: fixed;
+  z-index: 45;
+  border: 4px solid var(--yellow);
+  box-shadow: 0 0 0 3px var(--ink), inset 0 0 0 3px var(--ink);
+  pointer-events: none;
+  animation: coach-blink 1s steps(2, jump-none) infinite;
+}
+@keyframes coach-blink { 50% { border-color: var(--gold-light); } }
+@media (prefers-reduced-motion: reduce) { #coach-ring { animation: none; } }
+@media (max-width: 520px) { #coach { bottom: calc(136px + env(safe-area-inset-bottom)); } }

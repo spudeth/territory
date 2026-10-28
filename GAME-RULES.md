@@ -100,6 +100,21 @@ The largest square and the longest line are **records**. Losing blocks never low
 - An owner's name shows on their territory once it covers at least 25% of the **whole screen**. When you're zoomed far out, names disappear. (`public/labels.js`, `NAME_LABEL_SHARE = 0.25`; Q4: answered A)
 - Names are drawn in the middle of the territory's part of the screen, in white pixel letters with a dark shadow.
 
+## Sound and music
+
+- Every sound effect is made in code (`public/sfx.js`); Xoren picked one option per sound on the sound test page (`public/audio.js`, `PICKS`).
+- Your own sounds always play at full volume. Another player's taps, claims and new blocks play only when they're near what you're looking at: quieter further from the middle of the screen, silent past about one screen away, and coming from the left or right speaker by where they are. (`public/audio.js`, `HEARING` and `OTHERS_VOLUME`)
+- At most 6 sounds play at once; other players' sounds are skipped past that, your own never are. (`public/audio.js`, `MAX_VOICES`)
+- Music: "Keep your dream alive!" (CC0, see CREDITS.md) loops quietly once you first tap or click; browsers don't allow sound before that. Default volumes: sound effects 70%, music 25%. (`public/audio.js`, `DEFAULTS`)
+- Menu > Settings > Sound has a slider and a mute button for each, saved on that device.
+
+## Tutorial and tips
+
+- Brand-new players get a short guided first game right after the setup screen: the goal, claiming (with a tap counter), growth, range, taking, and a quick tour of the menu. Skip ends it; Menu > How to play starts it again.
+- Steps and tips are listed in `public/tutorial.js`; adding a step is adding one entry there.
+- Progress is saved for each player (the database, `players.tutorial`), and on the device for visitors who haven't claimed yet. It picks up where you left off, and moves to your account if you sign up from your guest profile. Players from before the tutorial count as having finished it.
+- Four tips show once each, ever: the first time one of your blocks is taken, a tap out of range, your first square, and your first achievement.
+
 ## Controls
 
 - Tap or click a block to hit it. Drag to move around. Pinch or use the mouse wheel to zoom.

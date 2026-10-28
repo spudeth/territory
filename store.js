@@ -5,7 +5,7 @@ const rules = require('./rules');
 const { accountNames } = require('./names');
 
 const hashToken = token => crypto.createHash('sha256').update(token).digest();
-const PLAYER = 'p.id, p.name, p.last_map_id, p.auth_user_id, p.name_changed_at, p.click_power, p.defense, p.earnings, p.squares';
+const PLAYER = 'p.id, p.name, p.last_map_id, p.auth_user_id, p.name_changed_at, p.click_power, p.defense, p.earnings, p.squares, p.tutorial';
 
 // Only a real string can be a token, so values like {} or "__proto__" never match a player.
 async function findPlayerByToken(pool, token) {
@@ -309,4 +309,9 @@ async function achievementProgress(pool, playerId) {
   return { best: Object.fromEntries(Object.entries(best.rows[0]).map(([k, v]) => [k, v ?? 0])), earned: earned.rows };
 }
 
-Object.assign(module.exports, { skinsFor, achievementProgress });
+// Saves a player's tutorial progress ({ step, done, tips }; checked by the caller).
+async function saveTutorial(pool, playerId, progress) {
+  await pool.query('UPDATE players SET tutorial = $2 WHERE id = $1', [playerId, JSON.stringify(progress)]);
+}
+
+Object.assign(module.exports, { skinsFor, achievementProgress, saveTutorial });

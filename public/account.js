@@ -62,7 +62,23 @@ fills.settings = () => {
   $('wipe-note').textContent = blocks ? 'Clears your territory here so you can start fresh with a new color, skin and coverage.'
     : 'You have no blocks here to wipe.';
   $('menu-logout').hidden = !myAccount;
+  drawVolumes();
 };
+// Sound: two sliders with mutes, saved on this device (audio.js).
+function drawVolumes() {
+  for (const k of ['sfx', 'music']) {
+    const s = gameAudio.settings[k], b = menu.querySelector(`[data-mute="${k}"]`);
+    $('vol-' + k).value = s.volume;
+    b.setAttribute('aria-pressed', s.muted);
+    b.setAttribute('aria-label', `${s.muted ? 'Unmute' : 'Mute'} ${k === 'sfx' ? 'sound effects' : 'music'}`);
+    b.innerHTML = `<svg class="pix" width="18" height="18" aria-hidden="true"><use href="#i-${s.muted ? 'muted' : 'sound'}"/></svg>`;
+  }
+}
+for (const k of ['sfx', 'music']) {
+  $('vol-' + k).addEventListener('input', e => gameAudio.set(k, { volume: +e.target.value, muted: false }) || drawVolumes());
+  menu.querySelector(`[data-mute="${k}"]`).addEventListener('click', () => { gameAudio.set(k, { muted: !gameAudio.settings[k].muted }); drawVolumes(); });
+}
+
 fills.signup = () => { $('signup-keep').hidden = !me; };
 
 function loggedIn() {

@@ -109,3 +109,72 @@ Before you start: the whole screen look changes (new HUD, menu, setup screen). P
 
 ## Summary (loop order 3 done, stopping)
 Wipe now unlocks a map's color, skin and coverage (migration 008, trigger updated, GAME-RULES.md updated). Built the HUD and every menu screen from the approved design, wired to the real login, rename, wipe, maps, stats and achievements; prices show as SOON; the 8 placeholder achievements stay until Q5 is answered. Checked every screen in Chrome at phone and desktop sizes. Full suite 67/67. Open: Q5 (achievement list), Q6 (what Spawn does). Ready to merge with the steps above.
+
+## Loop order 4: sounds, music and the tutorial
+
+#29 | 2026-10-28 | Part 1: sound test page for Xoren: https://claude.ai/artifact/ArEFRCP9bmyiDKH5QQt6EL (private to Xoren's account; opens on a phone). 11 events, 31 options generated in code (public/sfx.js, also used by the game), Tap repeats at the same pitch with a "10 taps" button; 3 CC0 music loops with play, stop and loop; a "your picks" line to copy and send. CREDITS.md lists each track's source, author and license. All three tracks are CC0: no credit line is needed in the game | tests: every option rendered once in Node; page published
+
+QUESTION Q7: which sounds and which music? | open the page above, tick one option per sound and one track, press "Copy my picks" and send the line (e.g. "Tap A, Claim B, …, Music C") | until then the game uses option A of each and Music A | ANSWERED: Tap B, Claim B, Taken A, Grow A, Achievement B, Menu open B, Menu close B, Not allowed B, Wipe A, Spawn C, Music A (Button not picked: stays A)
+#30 | 2026-10-28 | Part 2: sounds in the game with Xoren's picks (Q7); own sounds full volume; other players' taps, claims and new blocks only near the view, quieter with distance, panned left/right; at most 6 at once; music loops after the first tap at 25%; Settings > Sound: effects and music sliders with mute, saved on the device | tests: in-memory placement tests pass; checked in Chrome (sliders, mute remembered)
+#31 | 2026-10-28 | Part 3: tutorial engine (coach.js) runs steps and tips from tutorial.js (data only: id, text, highlight, start, done); 10 steps (goal, claiming with a 3/10 counter, growth with the new block outlined and centred, range, taking, menu tour); Skip; Menu > How to play replays; 4 one-time tips | tests: data checks pass; walked through in Chrome on phone and desktop
+#32 | 2026-10-28 | tutorial progress saved per player (migration 009: players.tutorial; existing players marked done), on the device for visitors, moved to the player on their first claim (the same row becomes their account); saves applied in order (a race lost the latest step in testing); a tip counts as seen only once shown; fixed a clash that stopped the map drawing (two scripts both had a global render) | tests: server 24/24 plus a save-order test; reload mid-tutorial resumes at the same step in Chrome
+
+QUESTION Q8: the tutorial and tip wording, for Xoren to edit (send back any line you want changed). {hits} shows as 10.
+  Steps:
+  1 THE GOAL: Own the most blocks on this map. The leaderboard shows who is winning.
+  2 CLAIMING: Tap an empty block {hits} times to claim it. Keep tapping the same block. (shows 3/10 as you tap)
+  3 GROWTH: Every brand-new block you claim makes the map grow. This block just appeared on the edge.
+  4 RANGE: You can only claim blocks touching your land. Those are lit up.
+  5 TAKING: You can take other players' blocks the same way, and they can take yours.
+  6 THE MENU: Open the menu.
+  7 MAPS: Switch to other maps here.
+  8 SKINS: Skins change how your land looks.
+  9 ACHIEVEMENTS: Your achievements and how close you are to the next ones.
+  10 SETTINGS: Your name, sound and music, and a fresh start on this map. That is everything. Have fun!
+  Tips (once each):
+  A BLOCK WAS TAKEN: Someone took one of your blocks. Take it back the same way: tap it {hits} times.
+  OUT OF RANGE: You can only claim blocks touching your land: up, down, left or right. The lit-up blocks are in range.
+  YOUR FIRST SQUARE: You earn squares for claiming brand-new blocks. Soon you can spend them on skins and more.
+  YOUR FIRST ACHIEVEMENT: See them all, and what comes next, in Menu > Achievements.
+  | A: keep as written / B: send changes | built A | OPEN
+#33 | 2026-10-28 | merge readiness: full suite run; iterate merges into main with no conflicts (main already has loop order 3) | tests: pass (72/72, 155 s)
+
+## Merge steps for Xoren (iterate -> main), loop order 4
+
+Before you start: this adds sounds, music, the sound settings and the tutorial. One database change runs: 009, which stores tutorial progress. Everyone who has already played is marked as having finished the tutorial, so only brand-new players see it. Blocks, names and squares are kept.
+
+1. Optional backup: Neon console -> project -> Branches -> production. Note the time. Restore on that page can put production back to that time.
+2. github.com/spudeth/territory -> Pull requests -> New pull request.
+3. base: main, compare: iterate. It should say "Able to merge". -> Create pull request -> Create pull request.
+4. Merge pull request -> Confirm merge. Keep the iterate branch.
+5. Render -> the territory service -> Events: wait for the new deploy to say Live.
+6. Render -> Logs: "Applied migrations: 009_tutorial.sql", then "Accounts are on." If you see "Startup failed", stop and send me that line.
+
+## Live checklist (territory.sarl): do it once on a phone and once on a computer
+
+Sound (phone: silent switch off)
+- [ ] Open the site in a private window. Nothing plays until you tap. On the first tap the music starts, quietly.
+- [ ] Tapping a block plays the tap sound (Tap B), the same pitch every time. Claiming plays Claim B.
+- [ ] Opening and closing the menu play Menu open B and Menu close B. Buttons inside it click.
+- [ ] Tapping a block that doesn't touch your land plays Not allowed B.
+- [ ] Spawn plays Spawn C. Wipe plays Wipe A. A new achievement plays Achievement B with the yellow pop-up.
+- [ ] With a second device on the same map: its taps and claims are quieter and come from the left or right depending on where they are on your screen; scroll far away and they go silent. If the second device takes one of your blocks, you hear Taken A at full volume.
+
+Sliders
+- [ ] Menu > Settings > Sound: moving each slider changes that volume; each mute button silences only its own sound, and turns red.
+- [ ] Reload the page: the sliders and mutes are as you left them.
+
+Tutorial (private window, so you're brand new)
+- [ ] After SPAWN, "HOW TO PLAY 1/10 – THE GOAL" shows, with a blinking yellow frame around the leaderboard.
+- [ ] Next -> CLAIMING: tap one empty block; the counter goes 1/10, 2/10, … and the step moves on when the block is yours.
+- [ ] GROWTH: the map moves to a new block on its edge, outlined in yellow.
+- [ ] RANGE: the blocks touching yours are outlined. TAKING: other players' blocks are outlined, if there are any.
+- [ ] THE MENU: the Menu button is framed; opening the menu moves on. MAPS, SKINS, ACHIEVEMENTS, SETTINGS each get a frame; the last button says Done.
+- [ ] Reload partway through (after claiming): it comes back at the same step.
+- [ ] Skip ends it for good. Menu > How to play starts it again from step 1.
+- [ ] Tips (once each, ever): tap a block far from your land ("OUT OF RANGE"), your first square, your first achievement, and the first time someone takes one of your blocks.
+- [ ] Sign up from a guest who is partway through: the tutorial continues where it was on the account.
+- [ ] Log in on an account that played before today: no tutorial appears.
+
+## Summary (loop order 4 done, stopping)
+Sound test page published and answered (Q7). Sounds wired with Xoren's picks; spatial sound for other players with a 6-sound cap; looping CC0 music (no credit needed; CREDITS.md); Settings > Sound sliders and mutes saved per device. Tutorial built from data (tutorial.js) with a small engine (coach.js), saved per player (migration 009), with Skip, How to play and 4 one-time tips; walked through in Chrome on phone and desktop. Full suite 72/72. Open: Q5 (achievements), Q6 (Spawn), Q8 (tutorial wording). Ready to merge with the steps above.
