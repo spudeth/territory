@@ -67,3 +67,15 @@ Built the 10-hit system (one setting; Click Power, Defense and Earnings are mult
 ## Loop order 3: the menu from the design
 
 #16 | 2026-10-28 | wipe unlocks color, skin and coverage on that map only (migration 008: unlocked column, trigger allows one change while unlocked; next claim locks again); setup event replaces coverage (8 colors in rules.COLORS, owned skins, coverage); welcome now carries squares (whole), wipe floor and the choices; GAME-RULES.md updated | tests: pass (server 22/22)
+#17 | 2026-10-28 | HUD restyle from the design: fonts, palette, 3px borders, pixel shadows and icons; player card with color, name, blocks and whole squares; leaderboard; yellow MENU button bottom-left | tests: checked in Chrome, phone and desktop
+#18 | 2026-10-28 | menu hub: account card (GUEST / ACCOUNT / VISITOR tag, map, squares), Log in / Sign up for guests, tiles (Upgrades, Get squares, VIP marked SOON), Settings, legal links; desktop shows it as a centered card with 3 columns | tests: checked in Chrome
+#19 | 2026-10-28 | account screens: Log in / Sign up tabs, Google, email and password, 6-digit code, forgot and reset password, wired to the existing login | tests: checked in Chrome (no real sign-up run, to spare Neon's login limit)
+#20 | 2026-10-28 | settings: rename with counter, rules text and cooldown message; this map's locked choices; wipe button; log out (accounts only) | tests: checked in Chrome
+#21 | 2026-10-28 | wipe dialog: real block count and floor, type WIPE to confirm, wired to the wipe; afterwards the setup screen opens | tests: checked in Chrome (wipe then setup)
+#22 | 2026-10-28 | maps: playing now (thumbnail of the real map, your blocks and rank, map size), map list with switching, Buy / Create as SOON | tests: server 23/23 (new menu data test), checked in Chrome
+#23 | 2026-10-28 | setup screen: 8 colors, Default skin plus 4 locked, Per block / Full area, the lock warning, Spawn; shown on entering a map unlocked and after a wipe; choices resent if the connection restarts | tests: checked in Chrome
+#24 | 2026-10-28 | skins: catalog with Default owned and the design's other skins locked, prices as SOON | tests: checked in Chrome
+#25 | 2026-10-28 | upgrades: each level and its effect from rules.js (one level each today), buttons say SOON | tests: checked in Chrome
+#26 | 2026-10-28 | achievements: the 8 placeholders with real progress (best on any map) and the map each was earned on, All / Earned / Locked filter, yellow pop-up with the description; name labels drawn on the map (white pixel letters, dark shadow) | tests: checked in Chrome
+
+QUESTION Q6: what should SPAWN do on the setup screen? | A: save the choices and close, then you tap your own first block (built) / B: also claim a random empty block for you straight away | built A: it changes no game rule; B would be a new rule (where, how many hits) | OPEN

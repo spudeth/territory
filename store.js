@@ -296,4 +296,17 @@ async function skinsFor(pool, playerId) {
   return rows;
 }
 
-Object.assign(module.exports, { skinsFor });
+// For the Achievements screen: a player's best value of each stat on any map (the progress shown), and the
+// achievements they have earned with the map each was earned on.
+async function achievementProgress(pool, playerId) {
+  const [best, earned] = await Promise.all([
+    pool.query(`SELECT max(owned_max) AS "owned", max(first_claims) AS "firstClaims", max(retakes) AS "retakes",
+      max(blocks_lost) AS "blocksLost", max(best_square) AS "bestSquare", max(best_line) AS "bestLine"
+      FROM player_map_stats WHERE player_id = $1`, [playerId]),
+    pool.query(`SELECT a.achievement_id AS id, m.name AS map FROM player_achievements a LEFT JOIN maps m ON m.id = a.map_id
+      WHERE a.player_id = $1`, [playerId]),
+  ]);
+  return { best: Object.fromEntries(Object.entries(best.rows[0]).map(([k, v]) => [k, v ?? 0])), earned: earned.rows };
+}
+
+Object.assign(module.exports, { skinsFor, achievementProgress });

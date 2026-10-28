@@ -6,105 +6,319 @@
   <meta name="theme-color" content="#14181f">
   <title>Territory</title>
   <link rel="icon" href="tiles/tile_0002.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&amp;family=Pixelify+Sans:wght@400;600;700&amp;display=swap">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <!-- Pixel icons from the design, drawn on an 8x8 grid. -->
+  <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+    <symbol id="i-close" viewBox="0 0 8 8"><path d="M0 0h2v1h1v1h2V1h1V0h2v2H7v1H6v2h1v1h1v2H6V7H5V6H3v1H2v1H0V6h1V5h1V3H1V2H0z" fill="currentColor"/></symbol>
+    <symbol id="i-back" viewBox="0 0 8 8"><path d="M3 1h2v1H4v1h4v2H4v1h1v1H3V6H2V5H1V3h1V2h1z" fill="currentColor"/></symbol>
+    <symbol id="i-square" viewBox="0 0 8 8"><rect width="8" height="8" fill="#0a0d12"/><rect x="1" y="1" width="6" height="6" fill="#ffffff"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 8 8"><path d="M2 0h4v1h1v2h1v5H0V3h1V1h1zM3 2v1h2V2z" fill="currentColor"/></symbol>
+    <symbol id="i-menu" viewBox="0 0 8 8"><path d="M0 1h8v2H0zM0 5h8v2H0z" fill="currentColor"/></symbol>
+    <symbol id="i-user" viewBox="0 0 8 8"><path d="M3 0h2v1h1v3H5v1H3V4H2V1h1zM1 6h6v2H1z" fill="currentColor"/></symbol>
+    <symbol id="i-cog" viewBox="0 0 8 8"><path d="M3 0h2v1h1v1h1v1h1v2H7v1H6v1H5v1H3V7H2V6H1V5H0V3h1V2h1V1h1z" fill="currentColor"/><rect x="3" y="3" width="2" height="2" fill="#2a3446"/></symbol>
+    <symbol id="i-trophy" viewBox="0 0 8 8"><path d="M1 0h6v1h1v2H7v1H6v1H5v1h1v2H2V6h1V5H2V4H1V3H0V1h1z" fill="currentColor"/></symbol>
+    <symbol id="i-check" viewBox="0 0 8 8"><path d="M6 1h2v2H7v1H6v1H5v1H4v1H3V6H2V5H1V4H0V3h2v1h1v1h1V4h1V3h1z" fill="currentColor"/></symbol>
+  </svg>
+
   <canvas id="map"></canvas>
 
-  <div class="card" id="me">
+  <div class="hud card" id="me">
     <span class="swatch" id="me-color"></span>
     <div>
       <div id="me-name">Connecting…</div>
-      <div class="sub"><b id="me-count">0</b> blocks</div>
+      <div class="sub" id="me-count">0 blocks</div>
     </div>
+    <div class="chip" aria-label="Squares"><svg class="pix" width="14" height="14" aria-hidden="true"><use href="#i-square"/></svg><span id="me-squares">0</span></div>
   </div>
 
-  <div class="card" id="board">
-    <div class="title">Leaderboard</div>
+  <div class="hud card" id="board">
+    <div class="sec">LEADERBOARD</div>
     <ol id="board-list"></ol>
   </div>
 
-  <div id="hint">Tap any empty block 3× to claim your first block</div>
-  <div id="toast"></div>
+  <div class="card" id="hint"></div>
+  <div class="card" id="toast" role="status"></div>
+  <div class="card" id="popup" role="status" hidden>
+    <svg class="pix" width="24" height="24" aria-hidden="true"><use href="#i-trophy"/></svg>
+    <div><div class="kicker">ACHIEVEMENT!</div><div class="what" id="popup-what"></div></div>
+  </div>
 
-  <button id="menu-button" type="button" aria-label="Menu">☰ Menu</button>
+  <button class="btn" id="menu-button" type="button"><svg class="pix" width="16" height="16" aria-hidden="true"><use href="#i-menu"/></svg>MENU</button>
 
   <div id="menu" hidden>
-    <div class="panel" role="dialog" aria-modal="true" aria-label="Menu">
-      <button class="close" type="button" aria-label="Close">×</button>
+    <div class="panel card" role="dialog" aria-modal="true" aria-label="Menu">
 
+      <!-- Menu hub -->
       <section data-view="main">
-        <h2>Menu</h2>
-        <p id="menu-who"></p>
-        <p class="sub" id="menu-email"></p>
-        <button type="button" id="menu-login" data-go="login">Log in / Sign up</button>
-        <p class="sub" id="menu-off" hidden>Accounts aren't available on this server yet.</p>
-        <button type="button" data-go="settings">Settings</button>
-        <button type="button" id="menu-logout" class="quiet">Log out</button>
-        <p class="links"><a href="/privacy" target="_blank">Privacy Policy</a> · <a href="/terms" target="_blank">Terms</a></p>
+        <div class="head">
+          <h1>MENU</h1>
+          <button class="btn icon-btn close" type="button" aria-label="Close menu" style="margin-left: auto"><svg class="pix" width="16" height="16" aria-hidden="true"><use href="#i-close"/></svg></button>
+        </div>
+        <div class="hub-row">
+          <div class="card who">
+            <span class="swatch" id="hub-color"></span>
+            <div class="info">
+              <div class="nm" id="hub-name"></div>
+              <div class="line"><span class="tag" id="hub-tag">GUEST</span><span id="hub-map"></span></div>
+            </div>
+            <div class="chip" aria-label="Squares"><svg class="pix" width="16" height="16" aria-hidden="true"><use href="#i-square"/></svg><span id="hub-squares">0</span></div>
+          </div>
+          <button class="btn login-btn" type="button" id="hub-login" data-go="signup"><svg class="pix" width="18" height="18" aria-hidden="true"><use href="#i-user"/></svg>Log in / Sign up</button>
+          <p class="note" id="hub-login-note" style="margin-top: -6px; text-align: center">Keep your blocks and pick your own name</p>
+          <p class="note" id="hub-off" hidden>Accounts aren't available on this server yet.</p>
+        </div>
+        <div class="tiles">
+          <button class="btn" type="button" data-go="maps" style="background: var(--blue)">
+            <svg class="pix" width="24" height="24" viewBox="0 0 8 8" aria-hidden="true"><path d="M0 1h3v6H0zM3 0h2v6H3zM5 1h3v6H5z" fill="#0f131a"/><path d="M1 2h1v4H1zM6 2h1v4H6z" fill="#29adff"/></svg>Maps</button>
+          <button class="btn" type="button" data-go="skins" style="background: var(--pink)">
+            <svg class="pix" width="24" height="24" viewBox="0 0 8 8" aria-hidden="true"><path d="M0 0h4v4H0zM4 4h4v4H4z" fill="#0f131a"/><path d="M4 0h4v4H4zM0 4h4v4H0z" fill="#ffffff"/></svg>Skins</button>
+          <button class="btn" type="button" data-go="achievements" style="background: var(--yellow)">
+            <svg class="pix" width="24" height="24" aria-hidden="true"><use href="#i-trophy"/></svg>Achievements</button>
+          <button class="btn" type="button" data-go="upgrades" style="background: var(--orange)"><span class="tag">SOON</span>
+            <svg class="pix" width="24" height="24" viewBox="0 0 8 8" aria-hidden="true"><path d="M3 0h2v1h1v1h1v1h1v1H6v4H2V4H0V3h1V2h1V1h1z" fill="#0f131a"/></svg>Upgrades</button>
+          <button class="btn soon" type="button" data-soon="Getting squares" style="background: var(--teal)"><span class="tag">SOON</span>
+            <svg class="pix" width="24" height="24" aria-hidden="true"><use href="#i-square"/></svg>Get squares</button>
+          <button class="btn soon" type="button" data-soon="VIP" style="background: var(--purple)"><span class="tag">SOON</span>
+            <svg class="pix" width="24" height="24" viewBox="0 0 8 8" aria-hidden="true"><path d="M0 1h1v1h1v1h1V1h2v2h1V2h1V1h1v6H0z" fill="#0f131a"/></svg>VIP</button>
+        </div>
+        <div class="settings-row foot">
+          <button class="btn" type="button" data-go="settings"><svg class="pix" width="18" height="18" aria-hidden="true"><use href="#i-cog"/></svg>Settings</button>
+          <p class="links"><a href="/privacy" target="_blank">Privacy</a><span aria-hidden="true">·</span><a href="/terms" target="_blank">Terms</a></p>
+        </div>
       </section>
 
+      <!-- Account: log in / sign up, the email code, forgot and reset password -->
       <section data-view="login" hidden>
-        <h2>Log in</h2>
-        <button type="button" class="google">Continue with Google</button>
-        <p class="or">or with email</p>
+        <div class="head">
+          <button class="btn icon-btn" type="button" data-go="main" aria-label="Back to menu"><svg class="pix" width="16" height="16" aria-hidden="true"><use href="#i-back"/></svg></button>
+          <h1>ACCOUNT</h1>
+        </div>
+        <div class="tabs" role="tablist" aria-label="Account">
+          <button type="button" role="tab" aria-selected="true">Log in</button>
+          <button type="button" role="tab" aria-selected="false" data-go="signup">Sign up</button>
+        </div>
+        <button class="btn google" type="button" style="background: #fff; color: var(--well)">
+          <svg class="pix" width="18" height="18" viewBox="0 0 8 8" aria-hidden="true"><path d="M2 0h4v1h1v1H5V1H3v1H2v4h1v1h2V6H4V4h4v3H7v1H2V7H1V6H0V2h1V1h1z" fill="#0f131a"/></svg>Continue with Google</button>
+        <div class="or">or</div>
         <form id="form-login">
-          <input name="email" type="email" placeholder="Email" autocomplete="email" required>
-          <input name="password" type="password" placeholder="Password" autocomplete="current-password" required>
-          <button type="submit">Log in</button>
+          <label class="lbl">Email<input class="field" name="email" type="email" placeholder="you@email.com" autocomplete="email" required></label>
+          <label class="lbl">Password<input class="field" name="password" type="password" placeholder="••••••••" autocomplete="current-password" required></label>
+          <button class="btn" type="submit" style="background: var(--green); color: var(--well)">Log in</button>
         </form>
-        <p class="links"><a href="#" data-go="forgot">Forgot password?</a> · <a href="#" data-go="signup">Create an account</a></p>
+        <div class="split foot"><a href="#" data-go="forgot">Forgot password?</a><a href="#" class="close">Keep playing as guest</a></div>
       </section>
 
       <section data-view="signup" hidden>
-        <h2>Create an account</h2>
-        <p class="sub">Your blocks and squares come with you.</p>
-        <button type="button" class="google">Continue with Google</button>
-        <p class="or">or with email</p>
+        <div class="head">
+          <button class="btn icon-btn" type="button" data-go="main" aria-label="Back to menu"><svg class="pix" width="16" height="16" aria-hidden="true"><use href="#i-back"/></svg></button>
+          <h1>ACCOUNT</h1>
+        </div>
+        <div class="tabs" role="tablist" aria-label="Account">
+          <button type="button" role="tab" aria-selected="false" data-go="login">Log in</button>
+          <button type="button" role="tab" aria-selected="true">Sign up</button>
+        </div>
+        <div class="card info-card" id="signup-keep">
+          <svg class="pix" width="20" height="20" viewBox="0 0 8 8" aria-hidden="true" style="margin-top: 2px"><rect width="8" height="8" fill="#0a0d12"/><rect x="1" y="1" width="6" height="6" fill="#00e436"/></svg>
+          <p>Signing up keeps all your blocks. You'll be named <b>NewUser</b> until you pick your own name.</p>
+        </div>
+        <button class="btn google" type="button" style="background: #fff; color: var(--well)">
+          <svg class="pix" width="18" height="18" viewBox="0 0 8 8" aria-hidden="true"><path d="M2 0h4v1h1v1H5V1H3v1H2v4h1v1h2V6H4V4h4v3H7v1H2V7H1V6H0V2h1V1h1z" fill="#0f131a"/></svg>Continue with Google</button>
+        <div class="or">or</div>
         <form id="form-signup">
-          <input name="email" type="email" placeholder="Email" autocomplete="email" required>
-          <input name="password" type="password" placeholder="Password (8+ characters)" autocomplete="new-password" minlength="8" required>
-          <button type="submit">Sign up</button>
+          <label class="lbl">Email<input class="field" name="email" type="email" placeholder="you@email.com" autocomplete="email" required></label>
+          <label class="lbl">Password<input class="field" name="password" type="password" placeholder="8+ characters" autocomplete="new-password" minlength="8" required></label>
+          <button class="btn" type="submit" style="background: var(--green); color: var(--well)">Create account</button>
         </form>
-        <p class="links"><a href="#" data-go="login">I already have an account</a></p>
+        <p class="note" style="text-align: center">We'll email you a 6-digit code to confirm.</p>
+        <div class="split foot"><a href="#" data-go="forgot">Forgot password?</a><a href="#" class="close">Keep playing as guest</a></div>
       </section>
 
       <section data-view="verify" hidden>
-        <h2>Check your email</h2>
-        <p class="sub">We sent you a 6-digit code. It works for 15 minutes.</p>
+        <div class="head">
+          <button class="btn icon-btn" type="button" data-go="signup" aria-label="Back"><svg class="pix" width="16" height="16" aria-hidden="true"><use href="#i-back"/></svg></button>
+          <h1>CHECK YOUR EMAIL</h1>
+        </div>
+        <p class="note" style="font-size: 15px">We sent you a 6-digit code. It works for 15 minutes.</p>
         <form id="form-verify">
-          <input name="code" inputmode="numeric" autocomplete="one-time-code" placeholder="Code" maxlength="6" required>
-          <button type="submit">Verify</button>
+          <label class="lbl">Code<input class="field" name="code" inputmode="numeric" autocomplete="one-time-code" placeholder="123456" maxlength="6" required style="font: 18px var(--title); letter-spacing: 6px"></label>
+          <button class="btn" type="submit" style="background: var(--green); color: var(--well)">Verify</button>
         </form>
         <p class="links"><a href="#" id="verify-resend">Send a new code</a></p>
       </section>
 
       <section data-view="forgot" hidden>
-        <h2>Reset your password</h2>
+        <div class="head">
+          <button class="btn icon-btn" type="button" data-go="login" aria-label="Back to log in"><svg class="pix" width="16" height="16" aria-hidden="true"><use href="#i-back"/></svg></button>
+          <h1>RESET PASSWORD</h1>
+        </div>
+        <p class="note" style="font-size: 15px">We'll email you a link to choose a new password.</p>
         <form id="form-forgot">
-          <input name="email" type="email" placeholder="Email" autocomplete="email" required>
-          <button type="submit">Send reset link</button>
+          <label class="lbl">Email<input class="field" name="email" type="email" placeholder="you@email.com" autocomplete="email" required></label>
+          <button class="btn" type="submit" style="background: var(--gold); color: var(--well)">Send reset link</button>
         </form>
-        <p class="links"><a href="#" data-go="login">Back to log in</a></p>
       </section>
 
       <section data-view="reset" hidden>
-        <h2>Choose a new password</h2>
+        <div class="head">
+          <button class="btn icon-btn close" type="button" aria-label="Close"><svg class="pix" width="16" height="16" aria-hidden="true"><use href="#i-close"/></svg></button>
+          <h1>NEW PASSWORD</h1>
+        </div>
         <form id="form-reset">
-          <input name="password" type="password" placeholder="New password (8+ characters)" autocomplete="new-password" minlength="8" required>
-          <button type="submit">Save password</button>
+          <label class="lbl">New password<input class="field" name="password" type="password" placeholder="8+ characters" autocomplete="new-password" minlength="8" required></label>
+          <button class="btn" type="submit" style="background: var(--green); color: var(--well)">Save password</button>
         </form>
       </section>
 
+      <!-- Settings -->
       <section data-view="settings" hidden>
-        <h2>Settings</h2>
-        <form id="form-name">
-          <label for="name-input">Name</label>
-          <input id="name-input" name="name" maxlength="15" autocomplete="off" required>
-          <button type="submit" id="name-save">Save name</button>
+        <div class="head">
+          <button class="btn icon-btn" type="button" data-go="main" aria-label="Back to menu"><svg class="pix" width="16" height="16" aria-hidden="true"><use href="#i-back"/></svg></button>
+          <h1>SETTINGS</h1>
+        </div>
+        <h2 class="sec">YOUR NAME</h2>
+        <form class="card box" id="form-name">
+          <label class="lbl">
+            <span class="split" style="font-size: 15px">Name <span class="count" id="name-count">0 / 15</span></span>
+            <input class="field" id="name-input" name="name" maxlength="15" autocomplete="off" required>
+          </label>
+          <button class="btn" type="submit" id="name-save" style="background: var(--green); color: var(--well)">Save name</button>
+          <p class="note" id="name-note"></p>
         </form>
-        <p class="sub" id="name-note"></p>
-        <p class="links"><a href="#" data-go="main">Back</a></p>
+        <h2 class="sec" id="look-title">THIS MAP</h2>
+        <div class="card box">
+          <div class="look"><span class="swatch" id="look-color"></span><span id="look-text"></span><svg class="pix" id="look-lock" width="14" height="14" role="img" aria-label="Locked" style="color: var(--muted)"><use href="#i-lock"/></svg></div>
+          <button class="btn danger" type="button" id="wipe-open">Wipe and restart this map</button>
+          <p class="note" id="wipe-note">Clears your territory here so you can start fresh with a new color, skin and coverage.</p>
+        </div>
+        <button class="btn" type="button" id="menu-logout" style="margin-top: 4px">
+          <svg class="pix" width="18" height="18" viewBox="0 0 8 8" aria-hidden="true"><path d="M0 0h5v2H4V1H1v6h3V6h1v2H0zM5 3V2h1v1h1v1h1v1H7v1H6v1H5V5H2V3z" fill="#f2f4f8"/></svg>Log out</button>
+        <p class="links foot"><a href="/privacy" target="_blank">Privacy</a><span aria-hidden="true">·</span><a href="/terms" target="_blank">Terms</a></p>
+      </section>
+
+      <!-- Wipe confirmation -->
+      <section data-view="wipe" hidden>
+        <div class="dialog card" role="alertdialog" aria-labelledby="wipe-title">
+          <div class="hazard"></div>
+          <div class="head">
+            <svg class="pix" width="28" height="28" viewBox="0 0 8 8" aria-hidden="true"><path d="M3 0h2v1h1v2h1v2h1v3H0V5h1V3h1V1h1z" fill="#f7c948"/><path d="M3 2h2v3H3zM3 6h2v1H3z" fill="#0f131a"/></svg>
+            <h1 id="wipe-title"></h1>
+          </div>
+          <ul>
+            <li>All <b id="wipe-count"></b> you own here become empty.</li>
+            <li>You'll pick a new color, skin and coverage.</li>
+            <li>No squares here until you own <b id="wipe-floor"></b> again.</li>
+            <li>Your squares, skins and other maps are not touched.</li>
+          </ul>
+          <label class="lbl">Type WIPE to confirm<input class="field" id="wipe-word" type="text" placeholder="WIPE" autocomplete="off" autocapitalize="characters"></label>
+          <div class="pair">
+            <button class="btn" type="button" data-go="settings">Cancel</button>
+            <button class="btn danger" type="button" id="wipe-go" disabled>Wipe forever</button>
+          </div>
+          <p class="note" style="text-align: center">This can't be undone.</p>
+        </div>
+      </section>
+
+      <!-- Maps -->
+      <section data-view="maps" hidden>
+        <div class="head">
+          <button class="btn icon-btn" type="button" data-go="main" aria-label="Back to menu"><svg class="pix" width="16" height="16" aria-hidden="true"><use href="#i-back"/></svg></button>
+          <h1>MAPS</h1>
+        </div>
+        <h2 class="sec">PLAYING NOW</h2>
+        <div class="card now">
+          <div class="thumb big" id="now-thumb"><canvas id="now-canvas"></canvas></div>
+          <div class="info">
+            <div style="font-size: 20px; font-weight: 700" id="now-name"></div>
+            <div style="font-size: 15px; color: var(--soft)" id="now-mine"></div>
+            <div style="font-size: 14px; color: var(--muted)" id="now-size"></div>
+          </div>
+        </div>
+        <h2 class="sec">ALL MAPS</h2>
+        <div class="map-list" id="map-list"></div>
+        <h2 class="sec">MAKE YOUR OWN</h2>
+        <div class="pair big-tiles">
+          <button class="btn soon" type="button" data-soon="Buying a map" style="background: var(--teal)"><span class="tag">SOON</span>Buy a map
+            <span style="display: flex; align-items: center; gap: 4px; font-size: 14px"><svg class="pix" width="12" height="12" aria-hidden="true"><use href="#i-square"/></svg>SOON</span></button>
+          <button class="btn soon" type="button" data-soon="Creating a map" style="background: var(--purple)"><span class="tag">SOON</span>Create a map
+            <span style="font-size: 14px">VIP only</span></button>
+        </div>
+      </section>
+
+      <!-- First entry on a map (and after a wipe): color, skin, coverage -->
+      <section data-view="setup" hidden>
+        <div class="head" style="flex-direction: column; align-items: flex-start; gap: 6px">
+          <div style="font: 9px var(--title); color: var(--green)">WELCOME TO</div>
+          <h1 id="setup-map" style="font-size: 16px"></h1>
+          <p class="note" style="font-size: 15px">Choose how your territory looks here.</p>
+        </div>
+        <h2 class="sec">1 · COLOR</h2>
+        <div class="colors" role="radiogroup" aria-label="Color" id="setup-colors"></div>
+        <h2 class="sec">2 · SKIN</h2>
+        <div class="skins" role="radiogroup" aria-label="Skin" id="setup-skins"></div>
+        <h2 class="sec">3 · COVERAGE</h2>
+        <div class="coverages" role="radiogroup" aria-label="Coverage">
+          <button class="card" type="button" role="radio" data-coverage="tile">
+            <span style="display: grid; grid-template-columns: repeat(3, 12px); gap: 2px" aria-hidden="true">
+              <span class="pat-stripes cov-mini"></span><span class="pat-stripes cov-mini"></span><span class="pat-stripes cov-mini"></span>
+              <span class="pat-stripes cov-mini"></span><span class="pat-stripes cov-mini"></span><span class="pat-stripes cov-mini"></span>
+            </span>
+            <span class="t">Per block</span><span class="d">Skin repeats on each block</span>
+          </button>
+          <button class="card" type="button" role="radio" data-coverage="stretch">
+            <span class="pat-stripes cov-full" aria-hidden="true"></span>
+            <span class="t">Full area</span><span class="d">One big image over it all</span>
+          </button>
+        </div>
+        <div class="warn">
+          <svg class="pix" width="16" height="16" aria-hidden="true" style="margin-top: 2px; color: var(--gold)"><use href="#i-lock"/></svg>
+          <p>These are locked for this map. To change them later, wipe and restart.</p>
+        </div>
+        <button class="btn spawn foot" type="button" id="spawn">SPAWN</button>
+      </section>
+
+      <!-- Skins -->
+      <section data-view="skins" hidden>
+        <div class="head">
+          <button class="btn icon-btn" type="button" data-go="main" aria-label="Back to menu"><svg class="pix" width="16" height="16" aria-hidden="true"><use href="#i-back"/></svg></button>
+          <h1>SKINS</h1>
+          <span class="right" id="skins-owned"></span>
+        </div>
+        <p style="margin: 0; font-size: 15px; line-height: 1.35; color: var(--soft)">You choose a skin when you first enter a map. Buying unlocks it for every new map.</p>
+        <div class="catalog" id="catalog"></div>
+        <button class="btn soon foot" type="button" data-soon="Buying skins" style="background: var(--gold); color: var(--well)">Buy skins with squares <span class="tag" style="position: static">SOON</span></button>
+      </section>
+
+      <!-- Upgrades -->
+      <section data-view="upgrades" hidden>
+        <div class="head">
+          <button class="btn icon-btn" type="button" data-go="main" aria-label="Back to menu"><svg class="pix" width="16" height="16" aria-hidden="true"><use href="#i-back"/></svg></button>
+          <h1>UPGRADES</h1>
+          <span class="tag" style="margin-left: auto">SOON</span>
+        </div>
+        <div id="upgrade-list" style="display: flex; flex-direction: column; gap: 14px"></div>
+      </section>
+
+      <!-- Achievements -->
+      <section data-view="achievements" hidden>
+        <div class="head">
+          <button class="btn icon-btn" type="button" data-go="main" aria-label="Back to menu"><svg class="pix" width="16" height="16" aria-hidden="true"><use href="#i-back"/></svg></button>
+          <h1 style="font-size: 13px">ACHIEVEMENTS</h1>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 6px">
+          <div class="split"><span>Earned</span><span style="font: 11px var(--title); color: var(--yellow)" id="ach-total"></span></div>
+          <div class="bar total"><div id="ach-total-bar"></div></div>
+        </div>
+        <div class="tabs yellow" role="tablist" aria-label="Filter" id="ach-filter">
+          <button type="button" role="tab" aria-selected="true" data-filter="all">All</button>
+          <button type="button" role="tab" aria-selected="false" data-filter="earned">Earned</button>
+          <button type="button" role="tab" aria-selected="false" data-filter="locked">Locked</button>
+        </div>
+        <div class="ach-list" id="ach-list"></div>
       </section>
 
       <p id="menu-error" role="alert"></p>
@@ -112,7 +326,9 @@
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
+  <script src="labels.js"></script>
   <script src="game.js"></script>
+  <script src="menu.js"></script>
   <script src="account.js"></script>
 </body>
 </html>

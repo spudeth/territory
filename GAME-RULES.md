@@ -93,14 +93,15 @@ The largest square and the longest line are **records**. Losing blocks never low
 
 - Each achievement is earned once per player, on whichever map they first reach it. (Q3: answered A)
 - They're checked on every stat change. The current 8 are placeholders until the real list is approved (see Q5 in `CODY-LOG.md`): First Block (1 first claim), 100 Blocks, 1,000 Blocks (owned at once), 10 by 10, 50 by 50 (largest square), Line of 10, Line of 100, Raider (10 retakes). (`achievements.js`, `DEFINITIONS`)
-- They're not shown on screen yet.
+- Menu → Achievements lists them, with progress toward each (your best on any map), and an All / Earned / Locked filter. A yellow pop-up shows when you earn one.
 
 ## Name labels
 
 - An owner's name shows on their territory once it covers at least 25% of the **whole screen**. When you're zoomed far out, names disappear. (`public/labels.js`, `NAME_LABEL_SHARE = 0.25`; Q4: answered A)
-- The logic is built, but the names aren't drawn yet.
+- Names are drawn in the middle of the territory's part of the screen, in white pixel letters with a dark shadow.
 
 ## Controls
 
 - Tap or click a block to hit it. Drag to move around. Pinch or use the mouse wheel to zoom.
+- The Menu button (bottom left) opens the menu: your account, Maps, Skins, Achievements, Upgrades, Settings. Get squares, VIP, buying skins, buying or creating maps, and buying upgrades show as SOON.
 - A touch that moves more than 10 pixels counts as a drag, not a tap. (`public/game.js`)

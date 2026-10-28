@@ -122,7 +122,7 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       for (const d of hits) {
         have.add(d.id);
         if (!fresh.has(d.id)) continue;
-        const a = { id: d.id, name: d.name, mapId };
+        const a = { id: d.id, name: d.name, stat: d.stat, threshold: d.threshold, mapId };
         events.emit('achievement', { pid, ...a });
         io.to('player:' + pid).emit('achievement', a);
       }
@@ -229,6 +229,7 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
         // locked: color, skin and coverage are set here; wipeFloor: see the wipe rule; squares: whole squares
         me: { ...me, color, skin, coverage, locked: lockedHere(), wipeFloor: mine?.wipeFloor ?? 0, squares: rules.shownSquares(me.squares) },
         choices: { colors: rules.COLORS, coverages: rules.COVERAGES },
+        hitsPerBlock: rules.HITS_PER_BLOCK,
         accounts: !!auth,                         // false when logins aren't set up on this server
         upgraded: false, loginFailed: false,      // see `flags`
         ...flags,
@@ -379,8 +380,26 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       reply({ color, skin, coverage });
     });
 
+    // The Achievements screen: { list: [{ id, name, stat, threshold }], earned: [{ id, map }], best: { stat: value } }.
+    socket.on('achievements', async (...args) => {
+      const reply = args.at(-1);   // with or without an argument before it
+      if (typeof reply !== 'function') return;
+      const list = achievementList.map(({ id, name, stat, threshold }) => ({ id, name, stat, threshold }));
+      if (!me.pid) return reply({ list, earned: [], best: {} });
+      try { reply({ list, ...await store.achievementProgress(pool, me.pid) }); } catch { reply({ error: 'Could not load achievements. Try again.' }); }
+    });
+
+    // The Upgrades screen: this player's levels and what each level does, from rules.js.
+    socket.on('upgrades', (...args) => {
+      const reply = args.at(-1);   // with or without an argument before it
+      if (typeof reply !== 'function') return;
+      reply({ levels: upgrades, hitsPerBlock: rules.HITS_PER_BLOCK, squaresPerClaim: rules.SQUARES_PER_FIRST_CLAIM,
+        tables: { clickPower: rules.CLICK_POWER_MULTIPLIER, defense: rules.DEFENSE_MULTIPLIER, earnings: rules.EARNINGS_MULTIPLIER } });
+    });
+
     // The skin catalog for the Skins screen: [{ id, name, owned }].
-    socket.on('skins', async reply => {
+    socket.on('skins', async (...args) => {
+      const reply = args.at(-1);   // with or without an argument before it
       if (typeof reply !== 'function') return;
       try { reply(await store.skinsFor(pool, me.pid)); } catch { reply([]); }
     });

@@ -293,6 +293,26 @@ test("upgrades: Click Power and Defense multiply hits (Bob's example: 17 clicks)
   await c.next('claim', d => d.x === 17 && d.y === 25 && d.pid !== you.pid);
 });
 
+test('menu screens: skins, upgrades and achievement progress come from the real data', async () => {
+  const a = player();
+  await a.welcome;
+  assert.deepEqual(await a.ask('skins'), [{ id: 'default', name: 'Default', owned: true }]);
+  assert.deepEqual(await a.ask('upgrades'), { levels: rules.NO_UPGRADES, hitsPerBlock: 10, squaresPerClaim: 1,
+    tables: { clickPower: [1], defense: [1], earnings: [1] } });
+  const none = await a.ask('achievements');
+  assert.equal(none.list.length, 8);
+  assert.deepEqual([none.earned, none.best], [[], {}], 'a visitor has nothing yet');
+  a.take(10, 28);
+  await a.next('achievement');
+  a.take(11, 28);
+  await a.next('claim', at(11, 28));
+  const got = await a.ask('achievements');
+  assert.deepEqual(got.earned, [{ id: 'first-block', map: 'Grass' }]);
+  assert.equal(got.best.firstClaims, 2);
+  assert.equal(got.best.bestLine, 2);
+  assert.equal(got.best.owned, 2);
+});
+
 test('stats: counted per claim, saved, announced to the player and on the server, lost blocks counted too', async () => {
   const seen = [];
   game.events.on('stat', e => seen.push(e));
@@ -320,7 +340,7 @@ test('achievements: earned once on the stat event, saved, and announced', async 
   await a.welcome;
   a.take(26, 25);
   const you = await a.next('you');
-  assert.deepEqual(await a.next('achievement'), { id: 'first-block', name: 'First Block', mapId });
+  assert.deepEqual(await a.next('achievement'), { id: 'first-block', name: 'First Block', stat: 'firstClaims', threshold: 1, mapId });
   a.take(27, 25);
   await a.next('claim', d => d.x === 27);
   await new Promise(r => setTimeout(r, 300));
