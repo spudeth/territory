@@ -44,7 +44,4 @@ function checkName(raw) {
   return { name };
 }
 
-// Any hue except grass green (75-165).
-const randomColor = () => `hsl(${(165 + Math.floor(Math.random() * 270)) % 360}, 75%, 55%)`;
-
-module.exports = { guestName, guestNames, accountNames, checkName, randomColor };
+module.exports = { guestName, guestNames, accountNames, checkName };

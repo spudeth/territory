@@ -33,7 +33,8 @@ Every rule in the game, in plain English. Each number says where it lives, so yo
 
 ## The wipe rule (anti-farming)
 
-- A player can wipe (clear) all their blocks on a map. There's no button for it yet.
+- A player can wipe (clear) all their blocks on a map (Menu → Settings → Wipe and restart this map, then type WIPE).
+- A wipe also unlocks their color, skin and coverage on that map (see below).
 - After a wipe, claiming empty blocks on that map earns squares only once the player owns **more** blocks there than they had when they wiped. Before that, the map still grows, but no squares are earned.
 - If a player wipes more than once, the highest count from any wipe is the one that counts. Wiping again never lowers it. (`rules.js`, `earnsSquares` and `wipeFloorAfterWipe`)
 
@@ -50,9 +51,13 @@ Each player has a level for three upgrades. Everyone starts at level 0. Each upg
 
 ## Your look on each map
 
-- On your first claim on a map you get a random color (any color except grass green), the default skin, and a coverage: `tile` (the default) or `stretch`. Coverage is how a skin covers your territory. (`rules.js`, `COVERAGES`; colors in `names.js`, `randomColor`)
-- **Once set, color, skin and coverage are locked forever on that map.** The database refuses any change.
-- You can have a different look on each map.
+- Before your first claim on a map, the setup screen asks for:
+  - a **color**, from 8 free colors: Blue, Pink, Orange, Yellow, Teal, Purple, Red, White. One is picked at random until you choose. (`rules.js`, `COLORS`)
+  - a **skin**. Only Default exists so far; the others show as locked.
+  - a **coverage**: Per block (`tile`, the default: the skin repeats on each block) or Full area (`stretch`: one big image over the whole territory). (`rules.js`, `COVERAGES`)
+- **Your first claim locks them on that map.** The database refuses any change while they're locked.
+- **A wipe unlocks them**, on that map only. Your next claim there shows the setup screen again, and the new choices lock until your next wipe. (`db/migrations/008_unlock_after_wipe.sql`)
+- You can have a different look on each map. Players who joined before the 8 colors keep their old color until they wipe.
 
 ## Players, guests and accounts
 

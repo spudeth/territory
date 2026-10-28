@@ -130,7 +130,7 @@ test('reset a forgotten password with the emailed link', async () => {
 test('a guest who signs up from their own profile keeps their blocks, squares and settings, and becomes a NewUser', async () => {
   const guest = player();
   await guest.welcome;
-  assert.deepEqual(await guest.ask('coverage', 'stretch'), { coverage: 'stretch' });
+  assert.equal((await guest.ask('setup', { coverage: 'stretch' })).coverage, 'stretch');
   guest.take(0, 1);
   const you = await guest.next('you');
   guest.take(1, 1);

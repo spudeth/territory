@@ -5,7 +5,7 @@ const rules = require('./rules');
 const { accountNames } = require('./names');
 
 const hashToken = token => crypto.createHash('sha256').update(token).digest();
-const PLAYER = 'p.id, p.name, p.last_map_id, p.auth_user_id, p.name_changed_at, p.click_power, p.defense, p.earnings';
+const PLAYER = 'p.id, p.name, p.last_map_id, p.auth_user_id, p.name_changed_at, p.click_power, p.defense, p.earnings, p.squares';
 
 // Only a real string can be a token, so values like {} or "__proto__" never match a player.
 async function findPlayerByToken(pool, token) {
@@ -88,7 +88,7 @@ async function loadMap(pool, mapId) {
   if (!map) return null;
   const [cells, players, stats] = await Promise.all([
     pool.query('SELECT x, y, owner_id FROM map_cells WHERE map_id = $1', [mapId]),
-    pool.query('SELECT s.player_id, p.name, s.color, s.coverage, p.click_power, p.defense, p.earnings FROM player_map_settings s JOIN players p ON p.id = s.player_id WHERE s.map_id = $1', [mapId]),
+    pool.query('SELECT s.player_id, p.name, s.color, s.skin_id, s.coverage, s.unlocked, s.wipe_floor, p.click_power, p.defense, p.earnings FROM player_map_settings s JOIN players p ON p.id = s.player_id WHERE s.map_id = $1', [mapId]),
     pool.query('SELECT * FROM player_map_stats WHERE map_id = $1', [mapId]),
   ]);
   return { ...map, cells: cells.rows, players: players.rows, stats: stats.rows };
@@ -156,13 +156,13 @@ class Conflict extends Error {}
 // Claims block (x, y) for a player, if it still has the owner the caller expects (`from`, null for empty).
 // A first claim (from = null) also grows the map and may earn a square, all in the same transaction.
 //   playerId: an existing player, or null to create a guest from `newGuest` = { names, tokenHash }
-//   color:    stored if this is the player's first claim on this map; null if they have already joined it
+//   color:    stored if this is the player's first claim on this map (or since a wipe); null if their choices are locked
 //   earn:     squares for a first claim (rules.squaresForFirstClaim with the player's upgrades; may be a fraction)
-//   coverage: stored with the color ('tile' or 'stretch'); like color and skin it can never change afterwards
+//   coverage, skin: stored with the color; locked with it until the player wipes this map
 //   stats:    the claimer's stats after this claim (stats.afterClaim); `from` loses a block
 // Returns { conflict: true } if the block changed hands first, otherwise
 //   { playerId, name, joinedMap, grown: {x, y} | null, squares: new exact balance | null }.
-async function claimBlock(pool, { mapId, x, y, from, playerId, newGuest, color, coverage = 'tile', earn = rules.squaresForFirstClaim(),
+async function claimBlock(pool, { mapId, x, y, from, playerId, newGuest, color, coverage = 'tile', skin = 'default', earn = rules.squaresForFirstClaim(),
   stats = null }) {
   try {
     return await tx(pool, async c => {
@@ -185,11 +185,15 @@ async function claimBlock(pool, { mapId, x, y, from, playerId, newGuest, color, 
         : await c.query('UPDATE map_cells SET owner_id = $4, claimed_at = now() WHERE map_id = $1 AND x = $2 AND y = $3 AND owner_id = $5', [mapId, x, y, playerId, from]);
       if (!taken.rowCount) throw new Conflict();
 
+      // First claim on this map, or the first since a wipe unlocked the choices: store them, locked.
       let joinedMap = false;
       if (color !== null) {
         const r = await c.query(
-          "INSERT INTO player_map_settings (player_id, map_id, color, skin_id, coverage) VALUES ($1, $2, $3, 'default', $4) ON CONFLICT DO NOTHING",
-          [playerId, mapId, color, coverage]);
+          `INSERT INTO player_map_settings (player_id, map_id, color, skin_id, coverage) VALUES ($1, $2, $3, $5, $4)
+           ON CONFLICT (player_id, map_id) DO UPDATE SET color = EXCLUDED.color, skin_id = EXCLUDED.skin_id,
+             coverage = EXCLUDED.coverage, unlocked = false
+           WHERE player_map_settings.unlocked`,
+          [playerId, mapId, color, coverage, skin]);
         joinedMap = r.rowCount === 1;
       }
 
@@ -225,7 +229,8 @@ function saveStats(c, mapId, playerId, s) {
 }
 
 // Clears all of a player's blocks on one map and records the wipe. Their wipe_floor becomes the higher of
-// its old value and the number of blocks just cleared, so wiping again can never lower it.
+// its old value and the number of blocks just cleared, so wiping again can never lower it. Their color, skin
+// and coverage on this map are unlocked until their next claim here.
 // Returns { cells: [[x, y], …], floor }, or null if they had no blocks there.
 function wipeTerritory(pool, mapId, playerId) {
   return tx(pool, async c => {
@@ -235,7 +240,7 @@ function wipeTerritory(pool, mapId, playerId) {
     if (!rows.length) return null;
     await c.query('INSERT INTO map_wipes (map_id, player_id, blocks_owned) VALUES ($1, $2, $3)', [mapId, playerId, rows.length]);
     const { rows: [s] } = await c.query(
-      'UPDATE player_map_settings SET wipe_floor = GREATEST(wipe_floor, $3) WHERE map_id = $1 AND player_id = $2 RETURNING wipe_floor',
+      'UPDATE player_map_settings SET wipe_floor = GREATEST(wipe_floor, $3), unlocked = true WHERE map_id = $1 AND player_id = $2 RETURNING wipe_floor',
       [mapId, playerId, rows.length]);
     return { cells: rows.map(r => [r.x, r.y]), floor: s.wipe_floor };
   });
@@ -282,3 +287,13 @@ async function createMap(pool, { name, style, width, height }) {
 }
 
 Object.assign(module.exports, { STYLES, listMaps, createMap });
+
+// The skin catalog, with whether this player owns each (free skins count as owned by everyone).
+async function skinsFor(pool, playerId) {
+  const { rows } = await pool.query(
+    `SELECT s.id, s.name, s.is_free OR ps.skin_id IS NOT NULL AS owned FROM skins s
+     LEFT JOIN player_skins ps ON ps.skin_id = s.id AND ps.player_id = $1 ORDER BY s.is_free DESC, s.id`, [playerId]);
+  return rows;
+}
+
+Object.assign(module.exports, { skinsFor });
