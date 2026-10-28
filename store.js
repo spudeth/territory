@@ -157,11 +157,11 @@ class Conflict extends Error {}
 // A first claim (from = null) also grows the map and may earn a square, all in the same transaction.
 //   playerId: an existing player, or null to create a guest from `newGuest` = { names, tokenHash }
 //   color:    stored if this is the player's first claim on this map; null if they have already joined it
-//   earn:     squares for a first claim (rules.squaresForFirstClaim with the player's upgrades)
+//   earn:     squares for a first claim (rules.squaresForFirstClaim with the player's upgrades; may be a fraction)
 //   coverage: stored with the color ('tile' or 'stretch'); like color and skin it can never change afterwards
 //   stats:    the claimer's stats after this claim (stats.afterClaim); `from` loses a block
 // Returns { conflict: true } if the block changed hands first, otherwise
-//   { playerId, name, joinedMap, grown: {x, y} | null, squares: new balance | null }.
+//   { playerId, name, joinedMap, grown: {x, y} | null, squares: new exact balance | null }.
 async function claimBlock(pool, { mapId, x, y, from, playerId, newGuest, color, coverage = 'tile', earn = rules.squaresForFirstClaim(),
   stats = null }) {
   try {
@@ -202,7 +202,7 @@ async function claimBlock(pool, { mapId, x, y, from, playerId, newGuest, color, 
       let grown = null, squares = null;
       if (from === null) {
         grown = await growMap(c, mapId);
-        squares = (await c.query(EARN, [mapId, playerId, x, y, earn])).rows[0]?.balance_after ?? null;
+        if (earn > 0) squares = (await c.query(EARN, [mapId, playerId, x, y, earn])).rows[0]?.balance_after ?? null;
       }
       return { playerId, name, joinedMap, grown, squares: squares === null ? null : Number(squares) };
     });

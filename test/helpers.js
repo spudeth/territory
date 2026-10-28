@@ -4,6 +4,7 @@ const path = require('path');
 const { io: connect } = require('socket.io-client');
 const { createPool, migrate } = require('../db');
 const store = require('../store');
+const rules = require('../rules');
 const { guestName, guestNames } = require('../names');
 
 for (const f of ['.env.local', '.env']) {
@@ -65,7 +66,8 @@ function connectPlayer(url, { ip = `10.0.${nextIp >> 8}.${nextIp++ & 255}`, ...a
     s.onAny(on);
   });
   s.welcome = s.next('welcome');
-  s.hit3 = (x, y) => { for (let i = 0; i < 3; i++) s.emit('hit', { x, y }); };
+  // Enough hits to take a block, with no upgrades.
+  s.take = (x, y) => { for (let i = 0; i < rules.HITS_PER_BLOCK; i++) s.emit('hit', { x, y }); };
   s.ask = (event, data) => s.timeout(15000).emitWithAck(event, data);
   return s;
 }

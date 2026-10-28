@@ -5,11 +5,13 @@
 
 const settings = {
   // Claiming
-  HITS_TO_CLAIM: 3,               // taps needed to take a block, before upgrades
-  CRACK_DECAY_SECONDS: 60,        // a cracked block loses one crack level for every this many seconds without a hit
+  HITS_PER_BLOCK: 10,             // hits needed to take any block, empty or owned, before upgrades
+  CRACK_DECAY_SECONDS: 60,        // crack progress fades by CRACK_DECAY_HITS for every this many seconds…
+  CRACK_DECAY_HITS: 1,            // …since the block was last hit
 
   // Squares (the currency)
   SQUARES_PER_FIRST_CLAIM: 1,     // squares for claiming an empty block, before upgrades (and only beyond the wipe floor)
+  SQUARE_DECIMALS: 6,             // balances keep fractions to this many places (the database column matches); players see whole squares
 
   // Players
   GUESTS_PER_IP: 5,               // new guest players one network may create…
@@ -18,10 +20,9 @@ const settings = {
 
   // Upgrades. Each player has a level for each (0 = none). These tables give the effect at each level,
   // starting at level 0; a level past the end of a table uses its last entry. Defaults have no effect.
-  CLICK_POWER_HITS_REMOVED: [0],  // Click Power: hits taken off what the attacker needs
+  CLICK_POWER_MULTIPLIER: [1],    // Click Power: how many hits one click counts as (1.2 = +20%)
   DEFENSE_MULTIPLIER: [1],        // Defense: multiplies the hits others need to take your blocks
-  EARNINGS_MULTIPLIER: [1],       // Earnings: multiplies squares per first claim
-  MIN_HITS: 1,                    // no block ever takes fewer hits than this
+  EARNINGS_MULTIPLIER: [1],       // Earnings: multiplies squares per first claim, fractions kept
 
   // Name labels: an owner's name shows on their territory once it covers this share of the screen.
   // Set in public/labels.js, which the browser loads too.
@@ -53,25 +54,31 @@ function hitError(map, pid, x, y) {
 const NO_UPGRADES = Object.freeze({ clickPower: 0, defense: 0, earnings: 0 });
 const effect = (table, level) => table[Math.min(Math.max(0, level | 0), table.length - 1)];
 
-// Hits needed for `attacker` to take a block owned by `owner` (null for an empty block); both are upgrade
-// levels like NO_UPGRADES. The attacker's Click Power comes off first, then the owner's Defense multiplies
-// what is left, rounded up, and the result is at least MIN_HITS.
-function hitsToTake(attacker, owner) {
-  const base = settings.HITS_TO_CLAIM - effect(settings.CLICK_POWER_HITS_REMOVED, attacker?.clickPower);
-  const defended = owner ? base * effect(settings.DEFENSE_MULTIPLIER, owner.defense) : base;
-  return Math.max(settings.MIN_HITS, Math.ceil(defended - 1e-9));
-}
+// Hits needed to take a block owned by `owner` (upgrade levels like NO_UPGRADES; null for an empty block):
+// HITS_PER_BLOCK, times the owner's Defense.
+const hitsNeeded = owner => settings.HITS_PER_BLOCK * (owner ? effect(settings.DEFENSE_MULTIPLIER, owner.defense) : 1);
+
+// How many hits one click by `attacker` counts as: their Click Power. Progress is kept as a fraction.
+const hitPower = attacker => effect(settings.CLICK_POWER_MULTIPLIER, attacker?.clickPower);
+
+// Whether `progress` hits are enough to take a block needing `needed` (allowing for rounding, so 10 x 0.1 is 1).
+const isTaken = (progress, needed) => progress >= needed - 1e-9;
 
 // Squares a player with these upgrade levels earns for one first claim, if the wipe rule allows it
-// (earnsSquares). Rounded down.
+// (earnsSquares). Fractions are kept, to SQUARE_DECIMALS places.
+const roundSquares = n => Math.round(n * 10 ** settings.SQUARE_DECIMALS) / 10 ** settings.SQUARE_DECIMALS;
 const squaresForFirstClaim = upgrades =>
-  Math.floor(settings.SQUARES_PER_FIRST_CLAIM * effect(settings.EARNINGS_MULTIPLIER, upgrades?.earnings) + 1e-9);
+  roundSquares(settings.SQUARES_PER_FIRST_CLAIM * effect(settings.EARNINGS_MULTIPLIER, upgrades?.earnings));
 
-// Crack fading. `crack` is { n: level, at: when the level last changed (ms) }. Returns the crack `now`:
-// one level lower per `decayMs` passed, never below 0, with `at` moved on by the whole periods used.
+// The balance players see: whole squares only, rounded down.
+const shownSquares = balance => Math.floor(Number(balance) + 1e-9);
+
+// Crack fading. `crack` is { n: hits so far (may be a fraction), at: when it last changed (ms) }. Returns the
+// crack `now`: CRACK_DECAY_HITS fewer per `decayMs` passed, never below 0, with `at` moved on by the whole
+// periods used.
 function decayCrack(crack, now, decayMs) {
   const lost = Math.max(0, Math.floor((now - crack.at) / decayMs));
-  return { n: Math.max(0, crack.n - lost), at: crack.at + lost * decayMs, lost };
+  return { n: Math.max(0, crack.n - lost * settings.CRACK_DECAY_HITS), at: crack.at + lost * decayMs, lost };
 }
 
 // The wipe rule (anti-farm): a first claim earns squares only if the player now owns more blocks on this map
@@ -80,5 +87,5 @@ const earnsSquares = (ownedAfterClaim, wipeFloor) => ownedAfterClaim > wipeFloor
 const wipeFloorAfterWipe = (wipeFloor, ownedAtWipe) => Math.max(wipeFloor, ownedAtWipe);
 
 // The rules read the numbers from this same object, so tests can try other dial values.
-module.exports = Object.assign(settings, { key, NEIGHBORS, NO_UPGRADES, hitError, hitsToTake, squaresForFirstClaim,
-  decayCrack, earnsSquares, wipeFloorAfterWipe });
+module.exports = Object.assign(settings, { key, NEIGHBORS, NO_UPGRADES, hitError, hitsNeeded, hitPower, isTaken,
+  squaresForFirstClaim, shownSquares, decayCrack, earnsSquares, wipeFloorAfterWipe });

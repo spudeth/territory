@@ -58,7 +58,7 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
 
   // In-memory copy of each loaded map:
   //   cells:   "x,y" -> owner id or null    players: id -> { name, color, coverage }
-  //   counts:  owner id -> blocks owned      hits:    "x,y" -> { by, n, at } (crack progress, never saved)
+  //   counts:  owner id -> blocks owned      hits:    "x,y" -> { by, n, need, at } (crack progress in hits, never saved)
   const maps = new Map();     // id -> Promise of the map
   const loaded = new Set();   // the maps that have finished loading
   function getMap(id) {
@@ -142,7 +142,10 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
     map.cells.set(k, pid);
   }
 
-  // Cracks fade (rules.decayCrack). Tells everyone when a level is lost.
+  // Browsers see crack progress as a share of the hits needed (p, from 0 to 1), not the hits themselves.
+  const share = h => Math.round(Math.min(1, h.n / h.need) * 1000) / 1000;
+
+  // Cracks fade (rules.decayCrack). Tells everyone when progress is lost.
   function decay(map, k, h, now) {
     const d = rules.decayCrack(h, now, crackDecayMs);
     if (!d.lost) return;
@@ -150,7 +153,7 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
     h.at = d.at;
     if (!h.n) map.hits.delete(k);
     const [x, y] = k.split(',').map(Number);
-    io.to(map.room).emit('hit', { x, y, n: h.n });
+    io.to(map.room).emit('hit', { x, y, p: share(h) });
   }
   const sweep = setInterval(() => {
     const now = Date.now();
@@ -226,7 +229,7 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
         map: { id: map.id, name: map.name, style: map.style },
         cells: [...map.cells].map(([k, owner]) => [...k.split(',').map(Number), owner]),
         players: Object.fromEntries([...map.players].map(([pid, { upgrades, ...shown }]) => [pid, shown])),
-        hits: [...map.hits].map(([k, h]) => [...k.split(',').map(Number), h.n]),
+        hits: [...map.hits].map(([k, h]) => [...k.split(',').map(Number), share(h)]),
       });
     }
     // upgraded: the guest profile just became an account; the browser can forget its guest token
@@ -235,7 +238,7 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
     map = null;
     enter(first, { upgraded, loginFailed });
 
-    const clearCrack = (x, y) => io.to(map.room).emit('hit', { x, y, n: 0 });
+    const clearCrack = (x, y) => io.to(map.room).emit('hit', { x, y, p: 0 });
 
     // Runs in the map's queue after the last hit. Checks the rules again, since the map may have changed.
     // `here` is the map the last hit was on; if the player has switched maps since, the claim is dropped.
@@ -297,7 +300,7 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
         map.cells.set(key(r.grown.x, r.grown.y), null);
         io.to(map.room).emit('grow', r.grown);
       }
-      if (r.squares !== null) io.to('player:' + me.pid).emit('squares', r.squares);
+      if (r.squares !== null) io.to('player:' + me.pid).emit('squares', rules.shownSquares(r.squares));
     }
 
     socket.on('hit', p => {
@@ -307,14 +310,18 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       if (error) return socket.emit('denied', error);
 
       // Progress only counts while the same player keeps hitting the block, and fades when they stop.
+      // Each click adds the player's Click Power; the owner's Defense sets the hits needed.
       const by = me.pid ?? 'visitor:' + socket.id, now = Date.now();
       let h = map.hits.get(k);
       if (h) decay(map, k, h, now);
       h = map.hits.get(k);
+      const owner = map.cells.get(k);
+      const need = rules.hitsNeeded(owner ? map.players.get(owner)?.upgrades ?? rules.NO_UPGRADES : null);
       if (h?.by !== by) map.hits.set(k, h = { by, n: 0 });
       h.at = now;
-      const owner = map.cells.get(k);
-      if (++h.n < rules.hitsToTake(upgrades, owner ? map.players.get(owner)?.upgrades ?? rules.NO_UPGRADES : null)) return io.to(map.room).emit('hit', { x, y, n: h.n });
+      h.need = need;
+      h.n += rules.hitPower(upgrades);
+      if (!rules.isTaken(h.n, need)) return io.to(map.room).emit('hit', { x, y, p: share(h) });
 
       map.hits.delete(k);
       const here = map;
