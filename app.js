@@ -197,8 +197,9 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
           loginFailed = true;
         }
       }
-      me = player ? { pid: player.id, name: player.name, account: !!player.auth_user_id, renameAt: renameAt(player.name_changed_at), squares: player.squares }
-        : { pid: null, name: guestName(), account: false, renameAt: null, squares: 0 };
+      me = player ? { pid: player.id, name: player.name, account: !!player.auth_user_id, renameAt: renameAt(player.name_changed_at), squares: player.squares,
+          tutorial: player.tutorial }
+        : { pid: null, name: guestName(), account: false, renameAt: null, squares: 0, tutorial: null };
       upgrades = player ? upgradesOf(player) : rules.NO_UPGRADES;
       if (upgraded) renamed(me.pid, me.name);   // the guest's old name was showing to everyone
       map = (player?.last_map_id && await getMap(player.last_map_id)) || await getMap(await getDefaultMapId());
@@ -212,6 +213,7 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
     // Color, skin and coverage are fixed on the first claim on a map (or the first since a wipe there). Until
     // then they are only proposals, which the player picks on the setup screen (the 'setup' event).
     let color, skin, coverage;
+    let tutorialSaves = Promise.resolve();
     const lockedHere = () => map.players.has(me.pid) && !map.players.get(me.pid).unlocked;
     if (me.pid) socket.join('player:' + me.pid);
 
@@ -395,6 +397,23 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       if (typeof reply !== 'function') return;
       reply({ levels: upgrades, hitsPerBlock: rules.HITS_PER_BLOCK, squaresPerClaim: rules.SQUARES_PER_FIRST_CLAIM,
         tables: { clickPower: rules.CLICK_POWER_MULTIPLIER, defense: rules.DEFENSE_MULTIPLIER, earnings: rules.EARNINGS_MULTIPLIER } });
+    });
+
+    // Saves this player's tutorial progress: { step: id or null, done, tips: [ids] }. Visitors keep theirs in
+    // the browser until their first claim, which sends it here.
+    socket.on('tutorial', (p, ...args) => {
+      const reply = typeof args.at(-1) === 'function' ? args.at(-1) : () => {};
+      const ok = p && typeof p === 'object' && (p.step === null || (typeof p.step === 'string' && p.step.length <= 40))
+        && typeof p.done === 'boolean' && Array.isArray(p.tips) && p.tips.length <= 50
+        && p.tips.every(t => typeof t === 'string' && t.length <= 40);
+      if (!me.pid || !ok) return reply({ error: 'Not saved' });
+      const progress = { step: p.step, done: p.done, tips: [...new Set(p.tips)] };
+      me.tutorial = progress;
+      // One save at a time, in the order sent, so an older save can never land last.
+      tutorialSaves = tutorialSaves.then(() => store.saveTutorial(pool, me.pid, progress)).then(() => reply({ ok: true }), err => {
+        console.error(`TUTORIAL SAVE FAILED (player ${me.pid}): ${err.message}`);
+        reply({ error: 'Not saved' });
+      });
     });
 
     // The skin catalog for the Skins screen: [{ id, name, owned }].

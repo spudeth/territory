@@ -313,6 +313,30 @@ test('menu screens: skins, upgrades and achievement progress come from the real 
   assert.equal(got.best.owned, 2);
 });
 
+test('tutorial progress: new players start fresh, saved on the server, back on reconnecting; bad data refused', async () => {
+  const a = player();
+  const w = await a.welcome;
+  assert.equal(w.me.tutorial, null, 'a visitor keeps progress in the browser');
+  assert.deepEqual(await a.ask('tutorial', { step: 'claim', done: false, tips: [] }), { error: 'Not saved' });
+  a.take(12, 28);
+  const you = await a.next('you');
+  const progress = { step: 'growth', done: false, tips: ['range', 'range'] };
+  assert.deepEqual(await a.ask('tutorial', progress), { ok: true });
+  for (const bad of [null, { step: 5, done: false, tips: [] }, { step: null, done: 'yes', tips: [] }, { step: null, done: true, tips: 'x' }]) {
+    assert.deepEqual(await a.ask('tutorial', bad), { error: 'Not saved' });
+  }
+  // Several saves at once (the page sends one per change) land in the order sent.
+  for (const step of ['range', 'taking', 'menu']) a.emit('tutorial', { step, done: false, tips: ['range'] });
+  assert.deepEqual(await a.ask('tutorial', progress), { ok: true });
+  const back = player({ token: you.token });
+  assert.deepEqual((await back.welcome).me.tutorial, { step: 'growth', done: false, tips: ['range'] }, 'the last one, duplicates dropped');
+  const fresh = player();
+  await fresh.welcome;
+  fresh.take(14, 28);
+  const them = await fresh.next('you');
+  assert.deepEqual((await player({ token: them.token }).welcome).me.tutorial, {}, 'a brand-new player has no progress yet');
+});
+
 test('stats: counted per claim, saved, announced to the player and on the server, lost blocks counted too', async () => {
   const seen = [];
   game.events.on('stat', e => seen.push(e));

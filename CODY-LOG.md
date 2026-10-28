@@ -114,4 +114,26 @@ Wipe now unlocks a map's color, skin and coverage (migration 008, trigger update
 
 #29 | 2026-10-28 | Part 1: sound test page for Xoren: https://claude.ai/artifact/ArEFRCP9bmyiDKH5QQt6EL (private to Xoren's account; opens on a phone). 11 events, 31 options generated in code (public/sfx.js, also used by the game), Tap repeats at the same pitch with a "10 taps" button; 3 CC0 music loops with play, stop and loop; a "your picks" line to copy and send. CREDITS.md lists each track's source, author and license. All three tracks are CC0: no credit line is needed in the game | tests: every option rendered once in Node; page published
 
-QUESTION Q7: which sounds and which music? | open the page above, tick one option per sound and one track, press "Copy my picks" and send the line (e.g. "Tap A, Claim B, …, Music C") | until then the game uses option A of each and Music A | OPEN
+QUESTION Q7: which sounds and which music? | open the page above, tick one option per sound and one track, press "Copy my picks" and send the line (e.g. "Tap A, Claim B, …, Music C") | until then the game uses option A of each and Music A | ANSWERED: Tap B, Claim B, Taken A, Grow A, Achievement B, Menu open B, Menu close B, Not allowed B, Wipe A, Spawn C, Music A (Button not picked: stays A)
+#30 | 2026-10-28 | Part 2: sounds in the game with Xoren's picks (Q7); own sounds full volume; other players' taps, claims and new blocks only near the view, quieter with distance, panned left/right; at most 6 at once; music loops after the first tap at 25%; Settings > Sound: effects and music sliders with mute, saved on the device | tests: in-memory placement tests pass; checked in Chrome (sliders, mute remembered)
+#31 | 2026-10-28 | Part 3: tutorial engine (coach.js) runs steps and tips from tutorial.js (data only: id, text, highlight, start, done); 10 steps (goal, claiming with a 3/10 counter, growth with the new block outlined and centred, range, taking, menu tour); Skip; Menu > How to play replays; 4 one-time tips | tests: data checks pass; walked through in Chrome on phone and desktop
+#32 | 2026-10-28 | tutorial progress saved per player (migration 009: players.tutorial; existing players marked done), on the device for visitors, moved to the player on their first claim (the same row becomes their account); saves applied in order (a race lost the latest step in testing); a tip counts as seen only once shown; fixed a clash that stopped the map drawing (two scripts both had a global render) | tests: server 24/24 plus a save-order test; reload mid-tutorial resumes at the same step in Chrome
+
+QUESTION Q8: the tutorial and tip wording, for Xoren to edit (send back any line you want changed). {hits} shows as 10.
+  Steps:
+  1 THE GOAL: Own the most blocks on this map. The leaderboard shows who is winning.
+  2 CLAIMING: Tap an empty block {hits} times to claim it. Keep tapping the same block. (shows 3/10 as you tap)
+  3 GROWTH: Every brand-new block you claim makes the map grow. This block just appeared on the edge.
+  4 RANGE: You can only claim blocks touching your land. Those are lit up.
+  5 TAKING: You can take other players' blocks the same way, and they can take yours.
+  6 THE MENU: Open the menu.
+  7 MAPS: Switch to other maps here.
+  8 SKINS: Skins change how your land looks.
+  9 ACHIEVEMENTS: Your achievements and how close you are to the next ones.
+  10 SETTINGS: Your name, sound and music, and a fresh start on this map. That is everything. Have fun!
+  Tips (once each):
+  A BLOCK WAS TAKEN: Someone took one of your blocks. Take it back the same way: tap it {hits} times.
+  OUT OF RANGE: You can only claim blocks touching your land: up, down, left or right. The lit-up blocks are in range.
+  YOUR FIRST SQUARE: You earn squares for claiming brand-new blocks. Soon you can spend them on skins and more.
+  YOUR FIRST ACHIEVEMENT: See them all, and what comes next, in Menu > Achievements.
+  | A: keep as written / B: send changes | built A | OPEN
