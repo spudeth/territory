@@ -120,7 +120,7 @@ fills.maps = async () => {
     const row = document.createElement(here ? 'div' : 'button');
     row.className = 'card map-row';
     if (!here) row.type = 'button';
-    row.innerHTML = '<div class="thumb"></div><div class="info"><span style="font-size: 18px; font-weight: 700"></span>'
+    row.innerHTML = '<div class="thumb"></div><div class="info"><span style="font-size: 18px; font-weight: 600"></span>'
       + '<span style="font-size: 14px; color: var(--muted)"></span></div>';
     row.querySelector('.thumb').classList.add(m.style === 'white' ? 'white' : 'grass');
     row.querySelector('.info').children[0].textContent = m.name;

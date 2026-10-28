@@ -105,5 +105,7 @@ Before you start: the whole screen look changes (new HUD, menu, setup screen). P
 - [ ] An existing player who joined before today keeps their old color until they wipe.
 - [ ] Zoomed in on a big territory: the owner's name shows on it.
 
+#28 | 2026-10-28 | readability: bold text (buttons, names, titles in Pixelify Sans) from weight 700 to 600; 700 closes up the letters at 14-18px | tests: n/a (style only; checked in Chrome)
+
 ## Summary (loop order 3 done, stopping)
 Wipe now unlocks a map's color, skin and coverage (migration 008, trigger updated, GAME-RULES.md updated). Built the HUD and every menu screen from the approved design, wired to the real login, rename, wipe, maps, stats and achievements; prices show as SOON; the 8 placeholder achievements stay until Q5 is answered. Checked every screen in Chrome at phone and desktop sizes. Full suite 67/67. Open: Q5 (achievement list), Q6 (what Spawn does). Ready to merge with the steps above.
