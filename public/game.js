@@ -214,7 +214,27 @@ function render() {
     ctx.lineWidth = 2 * dpr;
     ctx.strokeRect(X(x) + dpr, Y(y) + dpr, X(x + 1) - X(x) - 2 * dpr, Y(y + 1) - Y(y) - 2 * dpr);
   }
+
+  // New squares rising off the block that earned them (the mockup: claude.ai/artifact/PXtXotyzsRZayFM6m3pBXh).
+  const now = performance.now();
+  squarePops = squarePops.filter(p => now - p.t0 < SQUARE_POP.ms);
+  for (const p of squarePops) {
+    const e = 1 - Math.pow(1 - (now - p.t0) / SQUARE_POP.ms, SQUARE_POP.power);   // fast, then slow
+    const s = SQUARE_POP.size * scale * dpr;
+    const bottom = Y(p.y) + (SQUARE_POP.centered ? s / 2 : 0) - e * SQUARE_POP.rise * scale * dpr;
+    ctx.globalAlpha = 1 - e;   // fades on the same curve
+    if (squareIcon.complete) ctx.drawImage(squareIcon, (ox + (p.x + 0.5) * scale) * dpr - s / 2, bottom - s, s, s);
+    ctx.globalAlpha = 1;
+  }
+  if (squarePops.length) draw();   // keep animating
 }
+
+// The square that pops off a block when it earns a new whole square.
+// ms: how long it lasts; rise: blocks it travels up; power: how fast-then-slow (1 = steady); size: share of a block;
+// centered: starts centered on the block's top grid line instead of sitting on it.
+const SQUARE_POP = { ms: 900, rise: 1, power: 3, size: 0.35, centered: false };
+const squareIcon = Object.assign(new Image(), { src: 'icons/square.svg' });
+let squarePops = [], lastClaim = null;
 
 // Where a block's centre is on screen, for placing other players' sounds.
 const screenAt = (x, y) => ({ sx: ox + (x + 0.5) * scale, sy: oy + (y + 0.5) * scale });
@@ -393,7 +413,7 @@ socket.on('claim', ({ x, y, pid }) => {
   cells.set(key(x, y), pid);
   hits.delete(key(x, y));
   myTaps.delete(key(x, y));
-  if (pid === me) { gameAudio.play('claim'); tell('claimed', { x, y, from: before }); }
+  if (pid === me) { gameAudio.play('claim'); tell('claimed', { x, y, from: before }); lastClaim = { x, y }; }
   else if (me && before === me) { gameAudio.play('taken'); tell('taken', { x, y }); }
   else gameAudio.play('claim', screenAt(x, y));
   updateUI();
@@ -417,6 +437,7 @@ socket.on('rename', ({ pid, name }) => {
   updateUI();
 });
 socket.on('squares', n => {
+  if (n > squares && lastClaim) { squarePops.push({ ...lastClaim, t0: performance.now() }); draw(); }
   squares = n;
   updateUI();
   if (n > 0) tell('squares', n);
