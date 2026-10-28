@@ -5,6 +5,7 @@ let myAccount = false, accountsOn = false, renameAt = null;   // logged in?  log
 // This map: its { id, name, style }, my skin and coverage here, whether they're locked, my wipe floor here, and
 // the colors and coverages the setup screen offers.
 let hitsPerBlock = 10;   // hits to take a block with no upgrades (the server sends the real number)
+let gameSettings = { nameLabelShare: 0.25, nameMaxLength: 15, sound: {} };   // replaced by the server's on welcome
 let mapInfo = null, mySkin = 'default', myCoverage = 'tile', locked = false, wipeFloor = 0, choices = { colors: [], coverages: [] };
 let bounds = { x0: 0, y0: 0, x1: 1, y1: 1 };   // smallest box around every block; x1 and y1 are exclusive
 const key = (x, y) => x + ',' + y;
@@ -185,7 +186,7 @@ function render() {
   ctx.font = `${14 * dpr}px 'Press Start 2P', monospace`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  for (const l of labels.namesToShow(cells, shown)) {
+  for (const l of labels.namesToShow(cells, shown, gameSettings.nameLabelShare)) {
     const name = players[l.owner]?.name;
     if (!name) continue;
     const sx = (ox + l.cx * scale) * dpr, sy = (oy + l.cy * scale) * dpr;
@@ -346,6 +347,9 @@ socket.on('welcome', data => {
   mapInfo = data.map;
   choices = data.choices;
   hitsPerBlock = data.hitsPerBlock;
+  gameSettings = data.settings;   // numbers from the sheet the browser needs
+  gameAudio.configure(gameSettings.sound);
+  $('name-input').maxLength = gameSettings.nameMaxLength;
   sessionStorage.removeItem('territory-upgrade');
   if (data.upgraded) {
     localStorage.removeItem('territory-token');   // the guest is now this account; logging out starts afresh
@@ -412,7 +416,12 @@ socket.on('rename', ({ pid, name }) => {
   if (pid === me) myName = name;
   updateUI();
 });
-socket.on('squares', n => { squares = n; updateUI(); if (n > 0) tell('squares', n); });
+socket.on('squares', n => {
+  squares = n;
+  updateUI();
+  if (n > 0) tell('squares', n);
+  if (view === 'upgrades') fills.upgrades();   // menu.js: what can be afforded now
+});
 socket.on('stat', d => onStat(d));                  // menu.js
 socket.on('achievement', a => onAchievement(a));    // menu.js
 socket.on('denied', msg => {
@@ -421,5 +430,16 @@ socket.on('denied', msg => {
   if (/next to your territory/.test(msg)) tell('denied:range');
 });
 socket.on('disconnect', reason => {
-  if (reason !== 'io client disconnect') toast('Connection lost, reconnecting…');   // not when we reconnect on purpose
+  // Not when we reconnect on purpose, nor when the server ended the game for now with a notice.
+  if (reason !== 'io client disconnect' && reason !== 'io server disconnect') toast('Connection lost, reconnecting…');
 });
+// The server is about to disconnect us for good: banned, kicked by an admin, account deleted, or restored.
+const NOTICE_TITLES = { banned: "YOU'VE BEEN BANNED", kicked: 'DISCONNECTED', deleted: 'ACCOUNT DELETED', restored: 'GAME RESTORED' };
+socket.on('notice', ({ kind, message }) => {
+  $('notice-title').textContent = NOTICE_TITLES[kind] ?? 'DISCONNECTED';
+  $('notice-text').textContent = message;
+  $('notice-reload').hidden = kind === 'banned';
+  $('notice').hidden = false;
+  if (kind === 'deleted') localStorage.removeItem('territory-token');
+});
+$('notice-reload').addEventListener('click', () => location.reload());

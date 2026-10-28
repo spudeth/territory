@@ -1,0 +1,45 @@
+// The admin commands (npm run admin -- <command>), described once for the command line and the server.
+//   kind: 'read'        looks only
+//         'change'      changes something small: a preview and a yes/no, then logged
+//         'destructive' a preview, typing the map or player name to confirm, a backup first, then logged
+//   args: the words after the command; options: the --flags it takes (true: a flag on its own; 'value': takes one)
+const COMMANDS = {
+  help: { kind: 'read', args: [], about: 'List every command.', example: 'help' },
+  player: { kind: 'read', args: ['player'], options: {},
+    about: 'Everything about one player: account or guest, linked profiles, squares, upgrades, blocks per map, achievements, ban.',
+    example: 'player "Sly Wolf"' },
+  map: { kind: 'read', args: ['map'], options: {},
+    about: 'One map: size, blocks claimed, how many players, the top players.', example: 'map Grass' },
+  kick: { kind: 'change', args: ['player'], options: {},
+    about: 'Disconnects a player right now. Not a ban: they can come straight back.', example: 'kick "Sly Wolf"' },
+  'give-squares': { kind: 'change', args: ['player', 'amount'], options: { reason: 'value' },
+    about: 'Adds squares to a player (written to the ledger).', example: 'give-squares "Sly Wolf" 50 --reason "contest prize"' },
+  'take-squares': { kind: 'destructive', args: ['player', 'amount'], options: { reason: 'value' },
+    about: 'Removes squares from a player (written to the ledger). Never below 0.', example: 'take-squares "Sly Wolf" 20' },
+  'wipe-player': { kind: 'destructive', args: ['player', 'map'], options: {},
+    about: "Clears one player's blocks on one map, like their own wipe. Their wipe floor updates the normal way.",
+    example: 'wipe-player "Sly Wolf" Grass' },
+  'wipe-map': { kind: 'destructive', args: ['map'], options: { 'reset-size': true },
+    about: "Empties every block on a map, resets everyone's wipe floor there and unlocks their color, skin and coverage. --reset-size also makes it a fresh rectangle (newMapWidth x newMapHeight from the Game Rules tab). Squares, upgrades, achievements and accounts stay.",
+    example: 'wipe-map Grass --reset-size' },
+  'wipe-all-maps': { kind: 'destructive', args: [], options: { 'reset-size': true },
+    about: 'The same as wipe-map, for every map.', example: 'wipe-all-maps' },
+  ban: { kind: 'destructive', args: ['player'], options: { reason: 'value', days: 'value', 'wipe-blocks': true },
+    about: "Blocks a player and every profile linked to them (the guest they signed up from and guests seen on their devices). They're disconnected at once and see \"You've been banned\" with the reason. Permanent unless --days is given. Their blocks stay unless --wipe-blocks.",
+    example: 'ban "Sly Wolf" --reason "using a bot" --days 7' },
+  unban: { kind: 'change', args: ['player'], options: {},
+    about: 'Lifts the bans on a player and their linked profiles.', example: 'unban "Sly Wolf"' },
+  'delete-account': { kind: 'destructive', args: ['player'], options: {},
+    about: 'Deletes a player for good: their blocks on every map go empty, their login, email and personal data are erased (Neon Auth included) and their name is freed. Only an anonymous row is kept for the squares ledger.',
+    example: 'delete-account "Sly Wolf"' },
+  'create-map': { kind: 'change', args: [], options: { name: 'value', style: 'value', width: 'value', height: 'value' },
+    about: 'Makes a new official map of empty blocks (style grass or white; size from the Game Rules tab unless given).',
+    example: 'create-map --name Snowfield --style white' },
+  backup: { kind: 'read', args: [], options: {},
+    about: 'Saves every table to backups/<dev|prod>-<time>.json on this computer.', example: 'backup' },
+  restore: { kind: 'destructive', args: ['file'], options: {},
+    about: 'Puts the whole game back to a backup file from this computer. Everyone is disconnected and reconnects to the restored game. A fresh backup is taken first.',
+    example: 'restore backups/prod-2026-10-28T19-41-41-657Z.json' },
+};
+
+module.exports = { COMMANDS };

@@ -40,7 +40,7 @@ let email = '';   // the address being signed up / verified
 
 // ---------- Settings ----------
 const clock = t => new Date(t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-const nameCount = () => { $('name-count').textContent = `${$('name-input').value.length} / 15`; };
+const nameCount = () => { $('name-count').textContent = `${$('name-input').value.length} / ${gameSettings.nameMaxLength}`; };
 $('name-input').addEventListener('input', nameCount);
 
 fills.settings = () => {

@@ -4,13 +4,14 @@ const crypto = require('crypto');
 const { EventEmitter } = require('events');
 const { Server } = require('socket.io');
 const store = require('./store');
+const { adminRouter, bannedMessage } = require('./admin');
 const rules = require('./rules');
 const stats = require('./stats');
 const achievements = require('./achievements');
 const { guestName, guestNames, checkName } = require('./names');
 
 const { key } = rules;
-const upgradesOf = row => ({ clickPower: row.click_power, defense: row.defense, earnings: row.earnings });
+const upgradesOf = row => ({ clickPower: row.click_power, defense: row.defense, earnings: row.earnings, growth: row.growth });
 
 // Behind Render the socket address is a proxy's. Cloudflare (in front of every public Render service) sets
 // CF-Connecting-IP and overwrites any value the visitor sends, so prefer it. X-Forwarded-For is only a fallback:
@@ -35,7 +36,10 @@ function guestLimiter(limit, windowMs) {
 //   publicUrl: the site's address (https://territory.sarl); requests for any other host, such as www or
 //              the onrender.com address, are sent there. Unset locally.
 function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPerIp = rules.GUESTS_PER_IP, crackDecayMs = rules.CRACK_DECAY_SECONDS * 1000,
-  auth = null, publicUrl = null } = {}) {
+  auth = null, publicUrl = null, tapsPerSecond = null, tapLogMs = 60 * 1000, adminKey = null } = {}) {
+  // adminKey: the secret npm run admin must send (ADMIN_KEY); without it, admin commands are off.
+  // The server counts as production when it has a publicUrl; admin commands then need --prod.
+  // tapsPerSecond: the tap-rate limit, or null for rules.MAX_TAPS_PER_SECOND (tests that tap like a bot raise it)
   const app = express();
   app.set('trust proxy', true);   // so req.protocol is https behind Render
   if (publicUrl) {
@@ -48,6 +52,7 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
   // The IP address the server sees for you, to check the per-IP guest limit works behind the custom domain.
   app.get('/api/ip', (req, res) => res.json({ ip: clientIp(req.headers, req.socket.remoteAddress) }));
   if (auth) app.use(auth.router);
+  app.use('/admin', adminRouter({ pool, key: adminKey, production: !!publicUrl, hooks: adminHooks() }));
   app.use(express.static(__dirname + '/public', { extensions: ['html'] }));   // also serves /privacy and /terms
 
   const server = http.createServer(app);
@@ -55,6 +60,19 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
   // a fifth. Small ones (hits, claims) are sent as they are.
   const io = new Server(server, { perMessageDeflate: { threshold: 4096, zlibDeflateOptions: { level: 1 } } });
   const limiter = guestLimiter(guestsPerIp, rules.GUEST_WINDOW_MINUTES * 60 * 1000);
+
+  // The tap-rate limit (anti-bot): taps over the rate are ignored (rules.tapAllowed). Each minute, players who
+  // went over are written to tap_limit_log and the server log, so bots can be spotted later. No bans yet.
+  const taps = new Map();      // player id (or 'visitor:<socket>') -> token bucket
+  const ignoredTaps = new Map();
+  const tapLog = setInterval(() => {
+    const over = [...ignoredTaps].filter(([who]) => !String(who).startsWith('visitor:'));
+    for (const [who, n] of ignoredTaps) console.log(`TAP LIMIT: ${who} had ${n} tap${n === 1 ? '' : 's'} ignored`);
+    ignoredTaps.clear();
+    for (const [who, b] of taps) if (Date.now() - b.at > 60 * 1000) taps.delete(who);
+    if (over.length) store.logTapLimits(pool, over).catch(err => console.error(`TAP LOG FAILED: ${err.message}`));
+  }, tapLogMs);
+  tapLog.unref();
 
   // In-memory copy of each loaded map:
   //   cells:   "x,y" -> owner id or null    players: id -> { name, color, skin, coverage, unlocked, wipeFloor, upgrades }
@@ -161,7 +179,7 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
     for (const map of loaded) for (const [k, h] of map.hits) decay(map, k, h, now);
   }, Math.min(1000, crackDecayMs / 4));
   sweep.unref();
-  server.on('close', () => clearInterval(sweep));
+  server.on('close', () => { clearInterval(sweep); clearInterval(tapLog); });
 
   const checkHit = rules.hitError;
 
@@ -170,6 +188,75 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
     const t = changedAt && new Date(changedAt).getTime() + rules.RENAME_COOLDOWN_MINUTES * 60 * 1000;
     return t > Date.now() ? t : null;
   };
+
+  // Clears one player's territory on a loaded map (their own wipe, or an admin's), in the map's queue.
+  // Returns store.wipeTerritory's { cells, floor }, or null if they had no blocks there.
+  async function wipeOn(map, pid) {
+    const r = await store.wipeTerritory(pool, map.id, pid);
+    if (!r) return null;
+    for (const [x, y] of r.cells) setOwner(map, key(x, y), null);
+    Object.assign(map.players.get(pid), { unlocked: true, wipeFloor: r.floor });
+    io.to(map.room).emit('wipe', { pid, cells: r.cells, floor: r.floor });
+    statChanged(map, pid, 'owned', 0);
+    return r;
+  }
+
+  // What admin commands (admin.js) do to the live game, so players see the change at once.
+  function adminHooks() {
+    const socketsOf = ids => [...io.sockets.sockets.values()].filter(s => ids.some(id => String(id) === String(s.data.me?.pid)));
+    // Loads a map again from the database and sends it to everyone on it.
+    async function reloadMap(id) {
+      const old = [...loaded].find(m => String(m.id) === String(id));
+      if (old) loaded.delete(old);
+      maps.delete(old?.id ?? id);
+      const fresh = await getMap(old?.id ?? id);
+      for (const s of io.sockets.sockets.values()) if (s.data.mapId !== undefined && String(s.data.mapId) === String(id)) s.data.reenter(fresh);
+    }
+    return {
+      // Disconnects these players' connections with a message (kind: kicked, banned, deleted). Returns how many.
+      kick(ids, kind, message) {
+        const list = socketsOf(ids);
+        for (const s of list) { s.emit('notice', { kind, message }); s.disconnect(true); }
+        return list.length;
+      },
+      async wipePlayer(mapId, pid) {
+        const m = await getMap(mapId);
+        return serial(m, () => wipeOn(m, pid));
+      },
+      async wipeMap(mapId, size) {
+        const m = await getMap(mapId);
+        const r = await serial(m, () => store.wipeMap(pool, mapId, size));
+        await reloadMap(mapId);
+        return r;
+      },
+      async reloadMaps(ids) { for (const id of ids) await reloadMap(id); },
+      squaresChanged(pid, balance) {
+        for (const s of socketsOf([pid])) s.data.me.squares = balance;
+        io.to('player:' + pid).emit('squares', rules.shownSquares(balance));
+      },
+      // After a restore: forget every loaded map and disconnect everyone, who reconnect to the restored game.
+      reloadAll() {
+        maps.clear();
+        loaded.clear();
+        for (const s of io.sockets.sockets.values()) {
+          s.emit('notice', { kind: 'restored', message: 'The game was restored from a backup. Reload the page to keep playing.' });
+          s.disconnect(true);
+        }
+      },
+    };
+  }
+
+  // A purchase: new upgrade levels and balance for every connection of the player and every loaded map (where
+  // Defense is read from), so the new level counts from the next tap.
+  function upgradesChanged(pid, levels, balance) {
+    for (const s of io.sockets.sockets.values()) {
+      if (s.data.me?.pid !== pid) continue;
+      s.data.setUpgrades(levels);
+      s.data.me.squares = balance;
+    }
+    for (const map of loaded) { const p = map.players.get(pid); if (p) p.upgrades = levels; }
+    io.to('player:' + pid).emit('squares', rules.shownSquares(balance));
+  }
 
   // A new name shows to everyone at once: every loaded map, every connection of that player, every browser.
   function renamed(pid, name) {
@@ -188,6 +275,7 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       // Returning guests are recognised by their secret token. Visitors get a name and color to show,
       // but no database row until their first claim.
       let player = await store.findPlayerByToken(pool, token);
+      const tokenPlayer = player;   // the guest this browser holds, if any
       if (jwt && auth) {
         const authUserId = await auth.verify(jwt);
         if (authUserId) {
@@ -196,6 +284,13 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
         } else {
           loginFailed = true;
         }
+      }
+      // A logged-in account and a different guest on one device belong to the same person (bans cover both).
+      if (player && tokenPlayer && player.id !== tokenPlayer.id) await store.linkPlayers(pool, player.id, tokenPlayer.id);
+      const ban = await store.activeBan(pool, [player?.id, tokenPlayer?.id]);
+      if (ban) {
+        socket.emit('notice', { kind: 'banned', message: bannedMessage(ban) });
+        return socket.disconnect(true);
       }
       me = player ? { pid: player.id, name: player.name, account: !!player.auth_user_id, renameAt: renameAt(player.name_changed_at), squares: player.squares,
           tutorial: player.tutorial }
@@ -210,6 +305,8 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       return socket.disconnect();
     }
     socket.data.me = me;
+    socket.data.setUpgrades = u => { upgrades = u; };   // a purchase on any device changes them at once
+    socket.data.reenter = fresh => enter(fresh);         // an admin reloaded this map: send it again
     // Color, skin and coverage are fixed on the first claim on a map (or the first since a wipe there). Until
     // then they are only proposals, which the player picks on the setup screen (the 'setup' event).
     let color, skin, coverage;
@@ -222,6 +319,7 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
     function enter(next, flags = {}) {
       if (map) socket.leave(map.room);
       map = next;
+      socket.data.mapId = map.id;
       socket.join(map.room);
       const mine = map.players.get(me.pid);
       color = mine?.color ?? rules.COLORS[Math.floor(Math.random() * rules.COLORS.length)].hex;
@@ -232,6 +330,7 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
         me: { ...me, color, skin, coverage, locked: lockedHere(), wipeFloor: mine?.wipeFloor ?? 0, squares: rules.shownSquares(me.squares) },
         choices: { colors: rules.COLORS, coverages: rules.COVERAGES },
         hitsPerBlock: rules.HITS_PER_BLOCK,
+        settings: { nameLabelShare: rules.NAME_LABEL_SHARE, nameMaxLength: rules.NAME_MAX_LENGTH, sound: rules.SOUND },
         accounts: !!auth,                         // false when logins aren't set up on this server
         upgraded: false, loginFailed: false,      // see `flags`
         ...flags,
@@ -275,7 +374,7 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       const st = stats.afterClaim(me.pid ? statsOf(map, me.pid) : stats.empty(),
         { owns, x, y, owned: (map.counts.get(me.pid) || 0) + 1, from });
       const r = await store.claimBlock(pool, { mapId: map.id, x, y, from, playerId: me.pid, newGuest,
-        color: joining ? color : null, coverage, skin, earn: rules.squaresForFirstClaim(upgrades),
+        color: joining ? color : null, coverage, skin, earn: rules.squaresForFirstClaim(upgrades), grow: rules.growthBlocks(upgrades),
         stats: st.stats });
       if (r.conflict) {
         // Another server got there first (e.g. during a deploy). Resync this block for everyone.
@@ -306,9 +405,9 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
         statChanged(map, from, 'owned', map.counts.get(from));
         statChanged(map, from, 'blocksLost', ++statsOf(map, from).blocksLost);
       }
-      if (r.grown) {
-        map.cells.set(key(r.grown.x, r.grown.y), null);
-        io.to(map.room).emit('grow', r.grown);
+      for (const g of r.grown) {   // one new block, or more with Growth
+        map.cells.set(key(g.x, g.y), null);
+        io.to(map.room).emit('grow', g);
       }
       if (r.squares !== null) {
         me.squares = r.squares;
@@ -318,6 +417,10 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
 
     socket.on('hit', p => {
       if (!p || !Number.isInteger(p.x) || !Number.isInteger(p.y)) return;
+      const who = me.pid ?? 'visitor:' + socket.id;
+      const t = rules.tapAllowed(taps.get(who), Date.now(), tapsPerSecond ?? rules.MAX_TAPS_PER_SECOND);
+      taps.set(who, t.bucket);
+      if (!t.allowed) return ignoredTaps.set(who, (ignoredTaps.get(who) || 0) + 1);
       const { x, y } = p, k = key(x, y);
       const error = checkHit(map, me.pid, x, y);
       if (error) return socket.emit('denied', error);
@@ -350,12 +453,7 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       if (!me.pid) return;
       const here = map;
       serial(here, async () => {
-        const r = await store.wipeTerritory(pool, here.id, me.pid);
-        if (!r) return socket.emit('denied', 'You have no blocks to wipe');
-        for (const [x, y] of r.cells) setOwner(here, key(x, y), null);
-        Object.assign(here.players.get(me.pid), { unlocked: true, wipeFloor: r.floor });
-        io.to(here.room).emit('wipe', { pid: me.pid, cells: r.cells, floor: r.floor });
-        statChanged(here, me.pid, 'owned', 0);
+        if (!await wipeOn(here, me.pid)) socket.emit('denied', 'You have no blocks to wipe');
       }).catch(err => {
         console.error(`WIPE FAILED (map ${here.id}, player ${me.pid}): ${err.message}`);
         socket.emit('denied', 'Could not wipe your territory. Try again.');
@@ -396,7 +494,8 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       const reply = args.at(-1);   // with or without an argument before it
       if (typeof reply !== 'function') return;
       reply({ levels: upgrades, hitsPerBlock: rules.HITS_PER_BLOCK, squaresPerClaim: rules.SQUARES_PER_FIRST_CLAIM,
-        tables: { clickPower: rules.CLICK_POWER_MULTIPLIER, defense: rules.DEFENSE_MULTIPLIER, earnings: rules.EARNINGS_MULTIPLIER } });
+        upgrades: rules.UPGRADES,       // { clickPower: [{ level, value, cost }, …], … } from the sheet
+        balance: Number(me.squares) }); // the exact balance, so "Need X more" is right with fractions
     });
 
     // Saves this player's tutorial progress: { step: id or null, done, tips: [ids] }. Visitors keep theirs in
@@ -414,6 +513,29 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
         console.error(`TUTORIAL SAVE FAILED (player ${me.pid}): ${err.message}`);
         reply({ error: 'Not saved' });
       });
+    });
+
+    // Buys the next level of an upgrade with squares: { upgrade, level } where level is the one the player
+    // sees (so a double tap can't buy twice). Guests may buy. Answers with { levels, squares, balance } or
+    // { error, need }. The new level works straight away on every device and map.
+    let buying = false;
+    socket.on('buyUpgrade', async (p, reply) => {
+      if (typeof reply !== 'function') return;
+      if (!me.pid) return reply({ error: 'Claim a block first' });
+      if (!p || !(p.upgrade in rules.UPGRADES) || !Number.isInteger(p.level)) return reply({ error: 'Unknown upgrade' });
+      if (buying) return reply({ error: 'One purchase at a time' });
+      buying = true;
+      try {
+        const r = await store.buyUpgrade(pool, me.pid, p.upgrade, p.level, rules.UPGRADES[p.upgrade]);
+        if (r.error) return reply({ error: r.error, need: r.need });
+        upgradesChanged(me.pid, { ...upgrades, [p.upgrade]: r.level }, r.squares);
+        reply({ levels: upgrades, squares: rules.shownSquares(r.squares), balance: r.squares });
+      } catch (err) {
+        console.error(`PURCHASE FAILED (player ${me.pid}, ${p.upgrade}): ${err.message}`);
+        reply({ error: 'Could not buy that. Try again.' });
+      } finally {
+        buying = false;
+      }
     });
 
     // The skin catalog for the Skins screen: [{ id, name, owned }].

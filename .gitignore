@@ -5,3 +5,4 @@ state.json
 .env
 backups/
 .claude/settings.local.json
+.env.admin

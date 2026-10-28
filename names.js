@@ -1,5 +1,6 @@
 // Random guest names like "Sly Wolf". Names are unique, so the lists give 900 pairs before a number is added.
 // Adjectives are at most 6 letters and animals at most 5, so "Mighty Robin 99" is the longest (15, the limit).
+const rules = require('./rules');
 const ADJ = ['Swift', 'Brave', 'Lucky', 'Quiet', 'Bold', 'Sly', 'Happy', 'Wild', 'Tiny', 'Grand',
   'Calm', 'Eager', 'Fuzzy', 'Jolly', 'Keen', 'Merry', 'Noble', 'Proud', 'Rapid', 'Sunny',
   'Witty', 'Zesty', 'Brisk', 'Clever', 'Daring', 'Gentle', 'Mighty', 'Plucky', 'Rusty', 'Snowy'];
@@ -37,7 +38,7 @@ const RESERVED = /^(admin|administrator|moderator|mod|staff|system|support|offic
 function checkName(raw) {
   const name = String(raw ?? '').trim().replace(/\s+/g, ' ');
   if (!name) return { error: 'Type a name' };
-  if (name.length > 15) return { error: 'Names can be at most 15 characters' };
+  if (name.length > rules.NAME_MAX_LENGTH) return { error: `Names can be at most ${rules.NAME_MAX_LENGTH} characters` };
   if (!/^[A-Za-z0-9][A-Za-z0-9 _.-]*$/.test(name)) return { error: 'Use letters, numbers, spaces, - _ and . only, starting with a letter or number' };
   if (RESERVED.test(name.replace(/[ _.-]/g, ''))) return { error: 'That name is reserved' };
   if (isProfane(name)) return { error: "That name isn't allowed" };

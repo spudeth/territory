@@ -16,7 +16,6 @@
   <svg width="0" height="0" style="position: absolute" aria-hidden="true">
     <symbol id="i-close" viewBox="0 0 8 8"><path d="M0 0h2v1h1v1h2V1h1V0h2v2H7v1H6v2h1v1h1v2H6V7H5V6H3v1H2v1H0V6h1V5h1V3H1V2H0z" fill="currentColor"/></symbol>
     <symbol id="i-back" viewBox="0 0 8 8"><path d="M3 1h2v1H4v1h4v2H4v1h1v1H3V6H2V5H1V3h1V2h1z" fill="currentColor"/></symbol>
-    <symbol id="i-square" viewBox="0 0 8 8"><rect width="8" height="8" fill="#0a0d12"/><rect x="1" y="1" width="6" height="6" fill="#ffffff"/></symbol>
     <symbol id="i-lock" viewBox="0 0 8 8"><path d="M2 0h4v1h1v2h1v5H0V3h1V1h1zM3 2v1h2V2z" fill="currentColor"/></symbol>
     <symbol id="i-menu" viewBox="0 0 8 8"><path d="M0 1h8v2H0zM0 5h8v2H0z" fill="currentColor"/></symbol>
     <symbol id="i-user" viewBox="0 0 8 8"><path d="M3 0h2v1h1v3H5v1H3V4H2V1h1zM1 6h6v2H1z" fill="currentColor"/></symbol>
@@ -35,7 +34,7 @@
       <div id="me-name">Connecting…</div>
       <div class="sub" id="me-count">0 blocks</div>
     </div>
-    <div class="chip" aria-label="Squares"><svg class="pix" width="14" height="14" aria-hidden="true"><use href="#i-square"/></svg><span id="me-squares">0</span></div>
+    <div class="chip" aria-label="Squares"><img class="sq-icon" src="icons/square.svg" width="14" height="14" alt=""><span id="me-squares">0</span></div>
   </div>
 
   <div class="hud card" id="board">
@@ -48,6 +47,15 @@
   <div class="card" id="popup" role="status" hidden>
     <svg class="pix" width="24" height="24" aria-hidden="true"><use href="#i-trophy"/></svg>
     <div><div class="kicker">ACHIEVEMENT!</div><div class="what" id="popup-what"></div></div>
+  </div>
+
+  <!-- A message from the server that ends the game for now: banned, kicked, account deleted, restored -->
+  <div id="notice" hidden>
+    <div class="card" role="alertdialog" aria-labelledby="notice-title">
+      <h1 id="notice-title"></h1>
+      <p id="notice-text"></p>
+      <button class="btn" type="button" id="notice-reload" style="background: var(--gold); color: var(--well)">Reload</button>
+    </div>
   </div>
 
   <!-- Tutorial and tips (coach.js) -->
@@ -81,7 +89,7 @@
               <div class="nm" id="hub-name"></div>
               <div class="line"><span class="tag" id="hub-tag">GUEST</span><span id="hub-map"></span></div>
             </div>
-            <div class="chip" aria-label="Squares"><svg class="pix" width="16" height="16" aria-hidden="true"><use href="#i-square"/></svg><span id="hub-squares">0</span></div>
+            <div class="chip" aria-label="Squares"><img class="sq-icon" src="icons/square.svg" width="16" height="16" alt=""><span id="hub-squares">0</span></div>
           </div>
           <button class="btn login-btn" type="button" id="hub-login" data-go="signup"><svg class="pix" width="18" height="18" aria-hidden="true"><use href="#i-user"/></svg>Log in / Sign up</button>
           <p class="note" id="hub-login-note" style="margin-top: -6px; text-align: center">Keep your blocks and pick your own name</p>
@@ -94,10 +102,10 @@
             <svg class="pix" width="24" height="24" viewBox="0 0 8 8" aria-hidden="true"><path d="M0 0h4v4H0zM4 4h4v4H4z" fill="#0f131a"/><path d="M4 0h4v4H4zM0 4h4v4H0z" fill="#ffffff"/></svg>Skins</button>
           <button class="btn" type="button" data-go="achievements" style="background: var(--yellow)">
             <svg class="pix" width="24" height="24" aria-hidden="true"><use href="#i-trophy"/></svg>Achievements</button>
-          <button class="btn" type="button" data-go="upgrades" style="background: var(--orange)"><span class="tag">SOON</span>
+          <button class="btn" type="button" data-go="upgrades" style="background: var(--orange)">
             <svg class="pix" width="24" height="24" viewBox="0 0 8 8" aria-hidden="true"><path d="M3 0h2v1h1v1h1v1h1v1H6v4H2V4H0V3h1V2h1V1h1z" fill="#0f131a"/></svg>Upgrades</button>
           <button class="btn soon" type="button" data-soon="Getting squares" style="background: var(--teal)"><span class="tag">SOON</span>
-            <svg class="pix" width="24" height="24" aria-hidden="true"><use href="#i-square"/></svg>Get squares</button>
+            <img class="sq-icon" src="icons/square.svg" width="24" height="24" alt="">Get squares</button>
           <button class="btn soon" type="button" data-soon="VIP" style="background: var(--purple)"><span class="tag">SOON</span>
             <svg class="pix" width="24" height="24" viewBox="0 0 8 8" aria-hidden="true"><path d="M0 1h1v1h1v1h1V1h2v2h1V2h1V1h1v6H0z" fill="#0f131a"/></svg>VIP</button>
         </div>
@@ -267,7 +275,7 @@
         <h2 class="sec">MAKE YOUR OWN</h2>
         <div class="pair big-tiles">
           <button class="btn soon" type="button" data-soon="Buying a map" style="background: var(--teal)"><span class="tag">SOON</span>Buy a map
-            <span style="display: flex; align-items: center; gap: 4px; font-size: 14px"><svg class="pix" width="12" height="12" aria-hidden="true"><use href="#i-square"/></svg>SOON</span></button>
+            <span style="display: flex; align-items: center; gap: 4px; font-size: 14px"><img class="sq-icon" src="icons/square.svg" width="12" height="12" alt="">SOON</span></button>
           <button class="btn soon" type="button" data-soon="Creating a map" style="background: var(--purple)"><span class="tag">SOON</span>Create a map
             <span style="font-size: 14px">VIP only</span></button>
         </div>
@@ -322,7 +330,7 @@
         <div class="head">
           <button class="btn icon-btn" type="button" data-go="main" aria-label="Back to menu"><svg class="pix" width="16" height="16" aria-hidden="true"><use href="#i-back"/></svg></button>
           <h1>UPGRADES</h1>
-          <span class="tag" style="margin-left: auto">SOON</span>
+          <span class="right chip"><img class="sq-icon" src="icons/square.svg" width="16" height="16" alt="Squares"><span id="upg-squares">0</span></span>
         </div>
         <div id="upgrade-list" style="display: flex; flex-direction: column; gap: 14px"></div>
       </section>

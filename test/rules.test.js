@@ -73,10 +73,17 @@ test('upgrades: Click Power multiplies each click, Defense multiplies hits neede
   t.after(() => { for (const [k, v] of saved) rules[k] = v; });
   const none = rules.NO_UPGRADES, lv = (clickPower, defense, earnings) => ({ clickPower, defense, earnings });
 
-  // Defaults: no effect at any level.
+  // With the synced tables, level 0 is no upgrade.
+  assert.equal(clicks(none, none), 10);
+  assert.equal(rules.squaresForFirstClaim(none), 1);
+  assert.equal(clicks(null, null), 10, 'a visitor with no levels');
+
+  // Tables that do nothing: levels make no difference.
+  rules.CLICK_POWER_MULTIPLIER = [1];
+  rules.DEFENSE_MULTIPLIER = [1];
+  rules.EARNINGS_MULTIPLIER = [1];
   assert.equal(clicks(lv(5, 5, 5), lv(5, 5, 5)), 10);
   assert.equal(rules.squaresForFirstClaim(lv(5, 5, 5)), 1);
-  assert.equal(clicks(null, null), 10, 'a visitor with no levels');
 
   rules.CLICK_POWER_MULTIPLIER = [1, 1.2, 2];
   rules.DEFENSE_MULTIPLIER = [1, 1.5, 2];
@@ -101,4 +108,15 @@ test('players see whole squares, rounded down', () => {
   assert.equal(rules.shownSquares(2.999999), 2);
   assert.equal(rules.shownSquares('3.000000'), 3, 'as the database returns it');
   assert.equal(rules.shownSquares(3.3), 3);
+});
+
+test('tap-rate limit: a burst up to the rate, then the rate per second', () => {
+  let b = null, allowed = 0;
+  for (let i = 0; i < 20; i++) { const r = rules.tapAllowed(b, 1000, 12); b = r.bucket; allowed += r.allowed; }
+  assert.equal(allowed, 12, 'a burst of 12, the rest ignored');
+  assert.equal(rules.tapAllowed(b, 1000 + 1000 / 12 - 1, 12).allowed, false, 'not refilled yet');
+  assert.equal(rules.tapAllowed(b, 1000 + 1000 / 12 + 1, 12).allowed, true, 'one tap per 1/12 second');
+  let steady = 0;
+  for (let t = 0; t < 10000; t += 20) { const r = rules.tapAllowed(b, 2000 + t, 12); b = r.bucket; steady += r.allowed; }
+  assert.ok(steady >= 118 && steady <= 132, `about 12 a second over 10 s: ${steady}`);
 });

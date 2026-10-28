@@ -178,3 +178,184 @@ Tutorial (private window, so you're brand new)
 
 ## Summary (loop order 4 done, stopping)
 Sound test page published and answered (Q7). Sounds wired with Xoren's picks; spatial sound for other players with a 6-sound cap; looping CC0 music (no credit needed; CREDITS.md); Settings > Sound sliders and mutes saved per device. Tutorial built from data (tutorial.js) with a small engine (coach.js), saved per player (migration 009), with Skip, How to play and 4 one-time tips; walked through in Chrome on phone and desktop. Full suite 72/72. Open: Q5 (achievements), Q6 (Spawn), Q8 (tutorial wording). Ready to merge with the steps above.
+
+## Loop order 5: game rules from Xoren's Google Sheet
+
+#34 | 2026-10-28 | read the sheet (public CSV): Inputs, Summary, Click Power (70 levels), Defense (50), Earnings (100), Growth (5) exist; Game Rules doesn't yet. Note: for a missing tab, Google's export quietly returns the first tab instead, so the sync checks each tab's header row. Game Rules list below for Bob | tests: n/a
+
+### The Game Rules tab (for Bob to add)
+
+Three columns, header row exactly: Key | Value | What it means. Keys must match exactly; the order doesn't matter. Values are plain numbers (commas like 1,000 are fine).
+
+| Key | Value | What it means |
+| --- | --- | --- |
+| hitsPerBlock | 10 | Hits needed to take any block, empty or owned, before upgrades |
+| crackFadeSeconds | 60 | A cracked block fades every this many seconds since it was last hit… |
+| crackFadeHits | 1 | …by this many hits |
+| squaresPerFirstClaim | 1 | Squares for claiming a brand-new block, before Earnings (and only beyond the wipe floor) |
+| guestsPerIp | 5 | New guest players one network can create… |
+| guestWindowMinutes | 60 | …in this many minutes |
+| renameWaitMinutes | 10 | Minutes to wait between name changes |
+| nameMaxLength | 15 | Longest name, in characters (1 to 15; above 15 needs a database change) |
+| nameLabelShare | 0.25 | A territory shows its owner's name once it covers this share of the screen (0.25 = a quarter) |
+| newMapWidth | 32 | Width in blocks of a new map made with the admin script |
+| newMapHeight | 32 | Height in blocks of a new map made with the admin script |
+| soundMaxAtOnce | 6 | Most sound effects playing at once |
+| soundHearingDistance | 1.2 | How far away other players are heard, in half-screens from the middle |
+| soundOthersVolume | 0.6 | Other players' sounds at the middle of the screen, compared with your own (1) |
+| defaultEffectsVolume | 0.7 | Sound effects volume for a new device (0 to 1) |
+| defaultMusicVolume | 0.25 | Music volume for a new device (0 to 1) |
+| achievement.first-block | 1 | First Block: empty blocks claimed |
+| achievement.owned-100 | 100 | 100 Blocks: blocks owned at once |
+| achievement.owned-1000 | 1000 | 1,000 Blocks: blocks owned at once |
+| achievement.square-10 | 10 | 10 by 10: side of the largest solid square |
+| achievement.square-50 | 50 | 50 by 50: side of the largest solid square |
+| achievement.line-10 | 10 | Line of 10: longest straight line |
+| achievement.line-100 | 100 | Line of 100: longest straight line |
+| achievement.retakes-10 | 10 | Raider: blocks taken from other players |
+
+The achievement rows are the 8 placeholders; when Q5 is approved the keys change to the new list.
+Upgrades are not in this tab: they come from the Click Power, Defense, Earnings and Growth tabs (Level, Value after, Cost (squares)). Level 0 is always "no upgrade" (value 1, free).
+Not in the sheet, on purpose (code, not game numbers): the 8 colors, coverages, the 6 decimal places of a squares balance (tied to the database column), tap-vs-drag slop and zoom limits.
+
+Same rows ready to paste into cell A1 of the new tab (comma-separated):
+Key,Value,What it means
+hitsPerBlock,10,"Hits needed to take any block, empty or owned, before upgrades"
+crackFadeSeconds,60,A cracked block fades every this many seconds since it was last hit…
+crackFadeHits,1,…by this many hits
+squaresPerFirstClaim,1,"Squares for claiming a brand-new block, before Earnings (and only beyond the wipe floor)"
+guestsPerIp,5,New guest players one network can create…
+guestWindowMinutes,60,…in this many minutes
+renameWaitMinutes,10,Minutes to wait between name changes
+nameMaxLength,15,"Longest name, in characters (1 to 15; above 15 needs a database change)"
+nameLabelShare,0.25,A territory shows its owner's name once it covers this share of the screen (0.25 = a quarter)
+newMapWidth,32,Width in blocks of a new map made with the admin script
+newMapHeight,32,Height in blocks of a new map made with the admin script
+soundMaxAtOnce,6,Most sound effects playing at once
+soundHearingDistance,1.2,"How far away other players are heard, in half-screens from the middle"
+soundOthersVolume,0.6,"Other players' sounds at the middle of the screen, compared with your own (1)"
+defaultEffectsVolume,0.7,Sound effects volume for a new device (0 to 1)
+defaultMusicVolume,0.25,Music volume for a new device (0 to 1)
+achievement.first-block,1,First Block: empty blocks claimed
+achievement.owned-100,100,100 Blocks: blocks owned at once
+achievement.owned-1000,1000,"1,000 Blocks: blocks owned at once"
+achievement.square-10,10,10 by 10: side of the largest solid square
+achievement.square-50,50,50 by 50: side of the largest solid square
+achievement.line-10,10,Line of 10: longest straight line
+achievement.line-100,100,Line of 100: longest straight line
+achievement.retakes-10,10,Raider: blocks taken from other players
+
+QUESTION Q9: the Growth tab doesn't match the order. The sheet has 5 levels with values 1.80, 2.60, 3.40, 4.20, 5.00 (max 5, marked as placeholders); the order says whole numbers 2, 3, 4, 5, 6. | A: change the sheet to 2, 3, 4, 5, 6 (set Growth's max to 6, whole numbers) / B: keep fractions and treat them as chances (1.8 = 1 block plus an 80% chance of a second) / C: something else | built A: the sync accepts only whole Growth values, so it refuses the sheet as it is now and says which cells | ANSWERED: A, whole numbers, Growth 2, 3, 4, 5, 6 over 5 levels (the sheet now has these)
+#35 | 2026-10-28 | npm run sync-rules: downloads the 5 tabs (public CSV), checks them (tabs and columns by header, so a missing tab is caught; numbers with commas; no blanks; levels 1, 2, 3…; values and costs only go up; Growth whole numbers; every Game Rules key known, present once and in range) and writes data/economy.json only if everything passes, naming each bad cell; reports changes in plain English and how stored levels will move; --check and --from <saved folder> | tests: economy 9/9, offline from a saved copy in test/fixtures/sheet
+#36 | 2026-10-28 | rules.js reads data/economy.json: every game number (hits, fade, squares, guest limit, rename wait, name length, label share, new-map size, sound tuning, achievement thresholds) and the upgrade tables with costs; nothing hard-coded except code constants (6 square decimals, colors, coverages, tap slop, zoom). The browser gets the numbers it needs in the welcome. The first economy.json holds today's values with no upgrade levels, so the game plays the same until the first real sync | tests: pass
+#37 | 2026-10-28 | Growth upgrade: players.growth (migration 010); a brand-new claim creates rules.growthBlocks blocks (1 at level 0), each at a random edge spot like the normal one; a Growth card on the Upgrades screen; long level tables show a bar and an "All N levels" list | tests: Growth test (3 new blocks per claim)
+#38 | 2026-10-28 | option B remapping: economy_applied records the tables stored levels refer to; at startup, if a merged sync changed them, every stored level moves to the lowest new level at least as strong (top level if none is), in one statement per upgrade so nobody moves twice; each move recorded in level_remaps and printed in the server log; the sync report lists how levels will move | tests: economy 9/9 (remap rules over the real tables), store remap test; affected files 69/70 on one run (the "wipe unlocks" test failed once, not reproduced in 4 runs since; not touched by this loop; watching it)
+#39 | 2026-10-28 | real sync attempted (--check): blocked. The sheet has no Game Rules tab yet, and Growth now has 6 levels with fractions (1.83, 2.67, 3.5, 4.33, 5.17, …): Q9. Nothing written. Starting loop order 6 meanwhile; the real sync, change summary and loop 5 merge steps follow once the tab exists and Q9 is answered | tests: n/a
+
+## Loop order 6: squares and buying upgrades
+
+#40 | 2026-10-28 | squares icon saved exactly as public/icons/square.svg and used everywhere squares appear (HUD, menu, shop, prices); the old inline icon removed | tests: checked in Chrome
+#41 | 2026-10-28 | buying upgrades: Upgrades screen shows level, "now → next" effect (e.g. 9 → 8 clicks per block), the next cost with the icon, "Need X more" when short, MAX at the top; all four upgrades. Server: one transaction (row lock, exact balance check in SQL, cost taken, ledger row "upgrade:<name>:<level>", level raised); the tapped level must match (double taps refused), one purchase at a time per connection; new levels pushed to every connection and loaded map at once. Guests may buy; their row becomes their account | tests: shop 6/6; checked in Chrome with the saved sheet (30.5 squares, bought Click Power 1 for 22, 8.5 left)
+#42 | 2026-10-28 | Purchase sound: 3 options added to the sound test page (same link), option A used until picked | tests: rendered
+#43 | 2026-10-28 | tap-rate limit: token bucket per player (rules.tapAllowed), 12 taps a second suggested (people manage about 6-10 a second; bursts allowed up to 12), extra taps ignored; per-minute log of players who went over (tap_limit_log, migration 011, plus the server log); Game Rules key maxTapsPerSecond | tests: limiter unit test; shop test: 10 taps at once with a limit of 5 counts 5, logs 5 ignored, works again a second later
+
+New Game Rules row for Bob (add under renameWaitMinutes):
+maxTapsPerSecond,12,"Taps per player per second the server accepts; faster taps are ignored (anti-bot)"
+
+QUESTION Q10: which Purchase sound? | Purchase A / B / C on the sound test page (https://claude.ai/artifact/ArEFRCP9bmyiDKH5QQt6EL) | using A until picked | OPEN
+#44 | 2026-10-28 | merge readiness: full suite run. Found and fixed the cause of the occasional "wipe unlocks" failure (#38): a test bug, not the game: the claim on the second map announces the player in a random color, red one time in eight, and the test could read that old announcement instead of the new one; it now clears old events first (3/3 alone, then the full suite) | tests: pass (90/90, 119 s)
+
+## Merge steps for Xoren (iterate -> main), loops 5 and 6
+
+What this merge does: game numbers come from data/economy.json (today's values, so play is the same); the Growth upgrade; buying upgrades; the squares icon; the tap-rate limit (12 taps a second). Two database changes run: 010 (Growth, level-move records) and 011 (tap-limit log). Blocks, names, squares and settings are kept.
+Important: the upgrade levels and prices aren't in economy.json yet (the sheet needs the Game Rules tab and whole-number Growth values, Q9). Until a real sync is merged, the Upgrades screen says "No levels yet" and nothing can be bought. You can merge now (everything else works), or wait and merge once the sync is in, so buying launches with it.
+
+1. Optional backup: Neon console -> project -> Branches -> production. Note the time. Restore on that page can put production back to that time.
+2. github.com/spudeth/territory -> Pull requests -> New pull request. base: main, compare: iterate. "Able to merge" -> Create pull request -> Create pull request.
+3. Merge pull request -> Confirm merge. Keep the iterate branch.
+4. Render -> the territory service -> Events: wait for Live.
+5. Render -> Logs: "Applied migrations: 010_growth_and_remaps.sql, 011_tap_limit_log.sql", then "Accounts are on." No "Upgrade levels moved" lines are expected this time. If you see "Startup failed", stop and send me that line.
+
+## Live checklist (territory.sarl), phone and computer
+
+- [ ] The HUD, the menu card and the Upgrades screen show the new square icon (a white square with a dark pixel outline).
+- [ ] Play as before: 10 taps take a block, the map grows by one block per brand-new block.
+- [ ] Tap one block as fast as you can: it still works at a normal fast pace. (Only more than 12 taps a second are ignored.)
+- [ ] Menu > Upgrades: four cards (Click Power, Defense, Earnings, Growth). Until the sync is merged they say "No levels yet".
+After a real sync is merged (I'll post its own steps):
+- [ ] Each card shows Level 0 of N, "now → next" (e.g. 10 → 9 clicks per block) and the cost with the icon; short of squares it says "Need X more".
+- [ ] Buy one you can afford: the purchase sound plays, the squares in the top-left drop by the cost, the level goes up, and the next tap on a block uses it.
+- [ ] Tap Upgrade twice very fast: only one level is bought.
+- [ ] As a guest: buy something, then sign up from that guest: the level is still there.
+
+## Summary (loop order 6 done)
+Squares icon in place; buying all four upgrades with squares (one transaction, exact fractions, double taps and two devices can't spend twice, instant effect everywhere, guests included and kept on sign-up); Purchase sound (Q10 open); tap-rate limit with a per-minute log. Full suite 90/90. Still open: Q5, Q6, Q8, Q9, Q10; the real sync (loop 5's last step) waits for the Game Rules tab and Q9. Next: loop order 7 (admin commands).
+#45 | 2026-10-28 | real sync after Bob's update: Growth now passes (2, 3, 4, 5, 6) and the Game Rules tab's 24 rows all pass, but one row is missing: maxTapsPerSecond, added in loop 6 (#43), so the sync refused and wrote nothing. Bob: please add the row below, then I sync. Preview with that row added locally (nothing written): Click Power 0 → 70 levels (level 1 costs 22, top value 10); Defense 0 → 50 levels (124; ×3); Earnings 0 → 100 levels (9; ×10); Growth 0 → 5 levels (1,161; 6 blocks). All 24 rule values match today's game, so play doesn't change apart from upgrades becoming buyable. No stored levels move (everyone is at level 0) | tests: n/a
+
+Row to add to the Game Rules tab (anywhere):
+maxTapsPerSecond | 12 | Taps per player per second the server accepts; faster taps are ignored (anti-bot)
+#46 | 2026-10-28 | real sync done (Bob added maxTapsPerSecond): data/economy.json written from the sheet. Change summary: Click Power 0 → 70 levels (level 1 costs 22, top value 10); Defense 0 → 50 levels (124; top ×3); Earnings 0 → 100 levels (9; top ×10); Growth 0 → 5 levels (1,161; top 6 blocks); every Game Rules value unchanged; no stored levels move (everyone is at level 0). Also: one test assumed upgrades did nothing at any level (updated), and the "database unreachable" startup test once saw Node itself crash on exit (0xC0000409): the server now closes its database pool before exiting | tests: pass (90/90, 118 s)
+
+## Merge steps for Xoren (iterate -> main): the first real sync (with loops 5 and 6)
+
+This merge turns on buying upgrades, with the levels and prices from your sheet. It also includes everything in loops 5 and 6 (#44 above). Database changes 010 and 011 run on start. Blocks, names and squares are kept.
+
+1. Optional backup: Neon console -> project -> Branches -> production. Note the time. Restore on that page can put production back to that time.
+2. github.com/spudeth/territory -> Pull requests -> New pull request. base: main, compare: iterate. "Able to merge" -> Create pull request -> Create pull request.
+3. Merge pull request -> Confirm merge. Keep the iterate branch.
+4. Render -> the territory service -> Events: wait for Live.
+5. Render -> Logs: "Applied migrations: 010_growth_and_remaps.sql, 011_tap_limit_log.sql", then "Accounts are on." There should be no "Upgrade levels moved" lines (nobody has levels yet). If you see "Startup failed", stop and send me that line.
+
+## Live checklist (territory.sarl), phone and computer
+
+- [ ] Menu > Upgrades shows four cards: Click Power "Level 0 of 70", Defense "of 50", Earnings "of 100", Growth "of 5".
+- [ ] Click Power says "10 → 9 clicks per block"; its button shows the square icon and 22.
+- [ ] With fewer squares than a price, that button is greyed out and says "Need X more".
+- [ ] Earn 22 squares (claim 22 brand-new blocks), then buy Click Power: the purchase sound plays, your squares drop by 22, the card says Level 1 of 70 and "9 → 8 clicks per block", and an empty block now takes 9 taps.
+- [ ] Tap the Upgrade button twice very fast: only one level is bought.
+- [ ] Open the game on a second device as the same player: after buying on one, the other shows the new squares straight away.
+- [ ] Do the same as a guest, then sign up from that guest: the upgrade is still there.
+- [ ] "All 70 levels" opens the full list with each level's effect and cost.
+
+
+## Loop order 7: admin commands
+
+#47 | 2026-10-28 | database for admin (migration 012): admin_log, bans, player_links (an account and a guest seen in one browser), players.deleted_at; the backup's table dump moved into db/index.js and a matching restore added (all tables in one transaction, ids kept, id counters continue, refuses a backup from a different database version) | tests: covered below
+#48 | 2026-10-28 | server side (admin.js at /admin): ADMIN_KEY checked on every request (wrong or missing: refused, logged, slowed); production only with --prod and --prod only on production; preview, then run; destructive commands refused without a backup taken through the server in the last 10 minutes; every change logged. Commands: player, map, kick, give-squares, take-squares, wipe-player, wipe-map [--reset-size], wipe-all-maps, ban [--reason --days --wipe-blocks], unban, delete-account (Neon Auth user, sessions and email codes erased too), create-map, backup, restore. Changes reach players at once (maps reloaded and resent, players disconnected with a message). Connecting checks bans for the account and the browser's guest, and records the link | tests: admin 10/10
+#49 | 2026-10-28 | npm run admin (scripts/admin.js): help in plain English; dev by default, --prod for the live game; shows the preview, asks for the name (or ALL MAPS / RESTORE) to be typed, saves the backup on this computer (backups/<dev|prod>-<time>-before-<command>.json), then runs; --yes skips only the typing. Players see "You've been banned" (with the reason), "Disconnected", "Account deleted" or "Game restored" instead of "reconnecting" | tests: admin 10/10
+#50 | 2026-10-28 | ADMIN.md for Xoren: one-time setup (making the key, .env.admin, Render), opening a terminal, every command with an example and what it shows, what to do when something goes wrong, restoring (from a backup file, or Neon's restore); README and GAME-RULES.md updated. npm run create-map and npm run backup still work; the same things are now admin commands too | tests: pass (100/100, 149 s)
+
+## Xoren's one-time setup for admin commands (details in ADMIN.md, section 1)
+
+1. Open a terminal in the game folder (VS Code: Terminal -> New Terminal).
+2. Make a key: node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))" -> copy what it prints. Don't paste it anywhere else.
+3. Make the file .env.admin in the game folder with one line: ADMIN_KEY=<the key>. Save. (Git ignores it.)
+4. Render -> territory -> Environment -> Add Environment Variable: ADMIN_KEY = the same key -> Save Changes.
+5. After the merge below, check: npm run admin -- map Grass --prod prints the Grass map.
+
+## Merge steps for Xoren (iterate -> main): loops 5, 6 and 7 with the first real sync
+
+This merge brings: game numbers from your sheet with buyable upgrades (#46), Growth, the squares icon, the tap-rate limit, and the admin commands. Database changes 010, 011 and 012 run on start. Blocks, names, squares and settings are kept.
+
+1. Do the one-time setup above first (at least step 4, so Render has ADMIN_KEY).
+2. Optional backup: Neon console -> project -> Branches -> production. Note the time.
+3. github.com/spudeth/territory -> Pull requests -> New pull request. base: main, compare: iterate. "Able to merge" -> Create pull request -> Create pull request.
+4. Merge pull request -> Confirm merge. Keep the iterate branch.
+5. Render -> territory -> Events: wait for Live.
+6. Render -> Logs: "Applied migrations: 010_growth_and_remaps.sql, 011_tap_limit_log.sql, 012_admin.sql", "Accounts are on." and "Admin commands are on." If you see "Startup failed", stop and send me that line.
+
+## Live checklist (territory.sarl)
+
+Upgrades: the checklist under #46 above.
+Admin (on your computer, with the setup done):
+- [ ] npm run admin -- help lists the commands.
+- [ ] npm run admin -- map Grass --prod shows Grass's size, claimed blocks and top players.
+- [ ] npm run admin -- player "<your own name>" --prod shows you, with your squares and blocks.
+- [ ] npm run admin -- backup --prod saves a file in the backups folder.
+- [ ] npm run admin -- map Grass (without --prod, the dev server not running) says it can't reach the dev server: nothing went to the live game by accident.
+- [ ] With a second browser as a throwaway guest: npm run admin -- kick "<that guest's name>" --prod -> that browser shows "DISCONNECTED"; Reload gets them back in.
+- [ ] npm run admin -- ban "<that guest>" --reason test --days 1 --prod -> type the name -> a backup is saved, the browser shows "YOU'VE BEEN BANNED … Reason: test", and reloading doesn't let them in. Then unban "<that guest>" --prod -> they can play again.
+- [ ] npm run admin -- give-squares "<that guest>" 5 --prod -> the squares in their top-left corner go up straight away.
+
+## Summary (loop order 7 done, stopping)
+Admin commands through the live server with a secret key, dev by default and --prod for the live game; previews, typed confirmation, a backup before every destructive command, and a log of everything; bans covering linked guests; account deletion that erases Neon Auth data; ADMIN.md for Xoren. Full suite 100/100. Open: Q5 (achievements), Q6 (Spawn), Q8 (tutorial wording), Q10 (Purchase sound).

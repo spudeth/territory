@@ -67,4 +67,63 @@ function migrate(pool) {
   });
 }
 
-module.exports = { createPool, waitForDb, tx, migrate };
+// Every table in the current schema, read in one consistent snapshot: { table: [rows] }. Used by npm run backup
+// and the admin backup taken before every destructive admin command.
+function dumpTables(pool) {
+  return tx(pool, async c => {
+    await c.query('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY');
+    const { rows } = await c.query(
+      "SELECT table_name FROM information_schema.tables WHERE table_schema = current_schema() AND table_type = 'BASE TABLE' ORDER BY table_name");
+    const out = {};
+    for (const { table_name: t } of rows) out[t] = (await c.query(`SELECT * FROM "${t}"`)).rows;
+    return out;
+  });
+}
+
+// Puts every table back exactly as in `tables` (from dumpTables), in one transaction: all rows are replaced,
+// ids included, and id counters continue after the restored rows. Refuses a backup taken with a different set
+// of migrations, since its tables wouldn't fit. Returns { table: rows restored }.
+function restoreTables(pool, tables) {
+  return tx(pool, async c => {
+    const have = (await c.query('SELECT name FROM schema_migrations ORDER BY name')).rows.map(r => r.name);
+    const had = (tables.schema_migrations ?? []).map(r => r.name).sort();
+    if (have.join() !== had.join()) throw new Error(`the backup is from a different version of the game (its last database change: ${had.at(-1) ?? 'none'}; now: ${have.at(-1)})`);
+    const { rows: names } = await c.query(
+      "SELECT table_name FROM information_schema.tables WHERE table_schema = current_schema() AND table_type = 'BASE TABLE'");
+    const all = names.map(r => r.table_name).filter(t => t !== 'schema_migrations');
+    // Parents before children, from the foreign keys.
+    const { rows: fks } = await c.query(`SELECT cl.relname AS child, pa.relname AS parent FROM pg_constraint k
+      JOIN pg_class cl ON cl.oid = k.conrelid JOIN pg_class pa ON pa.oid = k.confrelid
+      JOIN pg_namespace n ON n.oid = cl.relnamespace WHERE k.contype = 'f' AND n.nspname = current_schema()`);
+    const order = [], seen = new Set();
+    const visit = t => {
+      if (seen.has(t)) return;
+      seen.add(t);
+      for (const f of fks) if (f.child === t && f.parent !== t) visit(f.parent);
+      order.push(t);
+    };
+    all.forEach(visit);
+    await c.query(`TRUNCATE ${all.map(t => `"${t}"`).join(', ')} RESTART IDENTITY`);
+    const counts = {};
+    for (const t of order) {
+      // Binary columns (token hashes) come back from JSON as { type: 'Buffer', data }; Postgres reads '\x…'.
+      const rows = (tables[t] ?? []).map(r => Object.fromEntries(Object.entries(r).map(([k, v]) =>
+        [k, v && v.type === 'Buffer' && Array.isArray(v.data) ? '\\x' + Buffer.from(v.data).toString('hex') : v])));
+      if (rows.length) {
+        await c.query(`INSERT INTO "${t}" OVERRIDING SYSTEM VALUE SELECT * FROM jsonb_populate_recordset(NULL::"${t}", $1::jsonb)`,
+          [JSON.stringify(rows)]);
+      }
+      counts[t] = rows.length;
+    }
+    // Identity columns carry on after the highest restored id.
+    const { rows: ids } = await c.query(`SELECT table_name, column_name FROM information_schema.columns
+      WHERE table_schema = current_schema() AND is_identity = 'YES'`);
+    for (const { table_name: t, column_name: col } of ids) {
+      await c.query(`SELECT setval(pg_get_serial_sequence('"${t}"', '${col}'), GREATEST(1, (SELECT COALESCE(max("${col}"), 0) FROM "${t}")),
+        (SELECT count(*) > 0 FROM "${t}"))`);
+    }
+    return counts;
+  });
+}
+
+module.exports = { createPool, waitForDb, tx, migrate, dumpTables, restoreTables };

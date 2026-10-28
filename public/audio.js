@@ -7,37 +7,56 @@
 (function (exports) {
   // The options Xoren picked on the sound test page (Q7). Button wasn't picked, so it stays on A.
   const PICKS = { tap: 'B', claim: 'B', taken: 'A', grow: 'A', achievement: 'B', menuOpen: 'B', menuClose: 'B',
-    button: 'A', denied: 'B', wipe: 'A', spawn: 'C' };
+    button: 'A', denied: 'B', wipe: 'A', spawn: 'C',
+    purchase: 'A' };   // purchase: option A until Xoren picks (Q10)
   const MUSIC = 'music/keep-your-dream-alive.mp3';   // Music A (CREDITS.md)
 
-  const MAX_VOICES = 6;          // sounds playing at once; other players' sounds are dropped past this
-  const HEARING = 1.2;           // how far away others are heard, in half-screen-diagonals from the centre
-  const OTHERS_VOLUME = 0.6;     // other players' sounds at the centre of the screen, compared with your own
-  const DEFAULTS = { sfx: { volume: 0.7, muted: false }, music: { volume: 0.25, muted: false } };
+  // From the sheet (Game Rules tab); the server sends them in the welcome, and configure() takes them.
+  const tuning = {
+    maxAtOnce: 6,          // sounds playing at once; other players' sounds are dropped past this
+    hearing: 1.2,          // how far away others are heard, in half-screen-diagonals from the centre
+    othersVolume: 0.6,     // other players' sounds at the centre of the screen, compared with your own
+    effectsVolume: 0.7,    // volumes on a device that hasn't set its own
+    musicVolume: 0.25,
+  };
 
   // Where another player's sound sits: { gain, pan } for a point (sx, sy) on a w-by-h screen, or null when it's
   // too far to hear. Gain falls off with distance from the centre; pan follows the left-right position.
   function placement(sx, sy, w, h) {
     const half = Math.hypot(w, h) / 2;
     const d = Math.hypot(sx - w / 2, sy - h / 2) / half;
-    if (!(d < HEARING)) return null;
-    const near = 1 - d / HEARING;
-    return { gain: OTHERS_VOLUME * near * near, pan: Math.max(-1, Math.min(1, (sx - w / 2) / (w / 2))) * 0.8 };
+    if (!(d < tuning.hearing)) return null;
+    const near = 1 - d / tuning.hearing;
+    return { gain: tuning.othersVolume * near * near, pan: Math.max(-1, Math.min(1, (sx - w / 2) / (w / 2))) * 0.8 };
   }
 
   // A 'hit' event is a new tap when crack progress went up; when it went down, the crack is only fading.
   const isTap = (before, after) => after > (before ?? 0);
 
   exports.PICKS = PICKS;
+  exports.tuning = tuning;
   exports.placement = placement;
   exports.isTap = isTap;
   if (typeof window === 'undefined') return;
 
   // ---------- Browser only ----------
+  // This device's choices; a volume it hasn't set follows the sheet's default (see configure).
   const load = key => {
-    try { return { ...DEFAULTS[key], ...JSON.parse(localStorage.getItem('territory-' + key) || '{}') }; } catch { return { ...DEFAULTS[key] }; }
+    try { return { muted: false, ...JSON.parse(localStorage.getItem('territory-' + key) || '{}') }; } catch { return { muted: false }; }
   };
   const settings = { sfx: load('sfx'), music: load('music') };
+  const fillDefaults = () => {
+    settings.sfx.volume ??= tuning.effectsVolume;
+    settings.music.volume ??= tuning.musicVolume;
+  };
+  fillDefaults();
+  function configure(values) {
+    const own = { sfx: 'volume' in load('sfx'), music: 'volume' in load('music') };
+    Object.assign(tuning, values);
+    if (!own.sfx) settings.sfx.volume = tuning.effectsVolume;
+    if (!own.music) settings.music.volume = tuning.musicVolume;
+    applyLevels();
+  }
   let ctx = null, sfxBus, musicBus, musicStarted = false;
   const buffers = {}, playing = new Set();
 
@@ -90,9 +109,9 @@
     let gain = 1, pan = 0;
     if (at) {
       const p = placement(at.sx, at.sy, innerWidth, innerHeight);
-      if (!p || playing.size >= MAX_VOICES) return;
+      if (!p || playing.size >= tuning.maxAtOnce) return;
       ({ gain, pan } = p);
-    } else if (playing.size >= MAX_VOICES) {
+    } else if (playing.size >= tuning.maxAtOnce) {
       const oldest = playing.values().next().value;   // your own sounds always play: make room
       try { oldest.stop(); } catch {}
       playing.delete(oldest);
@@ -114,5 +133,5 @@
     applyLevels();
   }
 
-  Object.assign(exports, { play, set, settings });
+  Object.assign(exports, { play, set, settings, configure });
 })(typeof module === 'object' ? module.exports : (window.gameAudio = {}));
