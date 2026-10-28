@@ -9,7 +9,9 @@
   const PICKS = { tap: 'B', claim: 'B', taken: 'A', grow: 'A', achievement: 'B', menuOpen: 'B', menuClose: 'B',
     button: 'A', denied: 'B', wipe: 'A', spawn: 'C',
     purchase: 'A' };   // purchase: option A until Xoren picks (Q10)
-  const MUSIC = 'music/keep-your-dream-alive.mp3';   // Music A (CREDITS.md)
+  // The music stations (CREDITS.md). The first plays at the start; Change station picks another at random.
+  const MUSIC = ['music/keep-your-dream-alive.mp3', 'music/heavenly-loop.mp3', 'music/calm-ambient-1.mp3',
+    'music/outer-space-loop.mp3'];
 
   // From the sheet (Game Rules tab); the server sends them in the welcome, and configure() takes them.
   const tuning = {
@@ -82,15 +84,33 @@
   addEventListener('pointerdown', unlock, true);
   addEventListener('keydown', unlock, true);
 
+  // The station playing, and its source with its own fade, so a station change can fade it out.
+  let station = 0, track = null, loads = 0;
   async function startMusic() {
+    const mine = ++loads;   // a newer change of station wins over a slower load
     try {
-      const buf = await ctx.decodeAudioData(await (await fetch(MUSIC)).arrayBuffer());
-      const src = ctx.createBufferSource();
+      const buf = await ctx.decodeAudioData(await (await fetch(MUSIC[station])).arrayBuffer());
+      if (mine !== loads) return;
+      const src = ctx.createBufferSource(), fade = ctx.createGain();
       src.buffer = buf;
       src.loop = true;
-      src.connect(musicBus);
+      src.connect(fade).connect(musicBus);
       src.start();
-    } catch { musicStarted = false; }   // try again on the next tap
+      track = { src, fade };
+    } catch { if (mine === loads) musicStarted = false; }   // try again on the next tap
+  }
+
+  // Change station: another track at random, never the same one. Before the music starts, it only picks.
+  function changeStation() {
+    station = (station + 1 + Math.floor(Math.random() * (MUSIC.length - 1))) % MUSIC.length;
+    if (track) {
+      const { src, fade } = track, t = ctx.currentTime;
+      fade.gain.setValueAtTime(1, t);
+      fade.gain.linearRampToValueAtTime(0, t + 0.4);
+      src.stop(t + 0.4);
+      track = null;
+    }
+    if (musicStarted) startMusic();
   }
 
   function buffer(event) {
@@ -133,5 +153,5 @@
     applyLevels();
   }
 
-  Object.assign(exports, { play, set, settings, configure });
+  Object.assign(exports, { play, set, settings, configure, changeStation });
 })(typeof module === 'object' ? module.exports : (window.gameAudio = {}));

@@ -436,6 +436,7 @@ socket.on('disconnect', reason => {
 // The server is about to disconnect us for good: banned, kicked by an admin, account deleted, or restored.
 const NOTICE_TITLES = { banned: "YOU'VE BEEN BANNED", kicked: 'DISCONNECTED', deleted: 'ACCOUNT DELETED', restored: 'GAME RESTORED' };
 socket.on('notice', ({ kind, message }) => {
+  if (kind === 'reset') return location.reload();   // this player started over: load the fresh start
   $('notice-title').textContent = NOTICE_TITLES[kind] ?? 'DISCONNECTED';
   $('notice-text').textContent = message;
   $('notice-reload').hidden = kind === 'banned';

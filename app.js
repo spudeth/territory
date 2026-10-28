@@ -6,6 +6,7 @@ const { Server } = require('socket.io');
 const store = require('./store');
 const { adminRouter, bannedMessage } = require('./admin');
 const rules = require('./rules');
+const chat = require('./chat');
 const stats = require('./stats');
 const achievements = require('./achievements');
 const { guestName, guestNames, checkName } = require('./names');
@@ -79,6 +80,8 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
   //   counts:  owner id -> blocks owned      hits:    "x,y" -> { by, n, need, at } (crack progress in hits, never saved)
   const maps = new Map();     // id -> Promise of the map
   const loaded = new Set();   // the maps that have finished loading
+  const chats = new Map();    // map id -> its last chat.HISTORY messages (memory only; kept when a map reloads)
+  const lastChat = new Map(); // player id -> when they last sent a message (chat.MIN_GAP_MS)
   function getMap(id) {
     if (!maps.has(id)) {
       maps.set(id, store.loadMap(pool, id).then(m => {
@@ -338,6 +341,7 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
         cells: [...map.cells].map(([k, owner]) => [...k.split(',').map(Number), owner]),
         players: Object.fromEntries([...map.players].map(([pid, { upgrades, ...shown }]) => [pid, shown])),
         hits: [...map.hits].map(([k, h]) => [...k.split(',').map(Number), share(h)]),
+        chat: chats.get(map.id) ?? [],
       });
     }
     // upgraded: the guest profile just became an account; the browser can forget its guest token
@@ -458,6 +462,43 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
         console.error(`WIPE FAILED (map ${here.id}, player ${me.pid}): ${err.message}`);
         socket.emit('denied', 'Could not wipe your territory. Try again.');
       });
+    });
+
+    // Starts this player over everywhere (store.resetProgress). Answers { ok } or { error }; then every
+    // connection of theirs, this one too, is closed and reloads into the fresh start.
+    // A chat message to everyone on this map: { pid, name, text, at }. Answers {} or { error }.
+    socket.on('chat', (raw, reply) => {
+      if (typeof reply !== 'function') reply = () => {};
+      if (!me.pid) return reply({ error: 'Claim a block first to chat' });
+      const now = Date.now();
+      if (now - (lastChat.get(me.pid) ?? 0) < chat.MIN_GAP_MS) return reply({ error: 'Slow down: one message every 2 seconds' });
+      const text = chat.cleanMessage(raw);
+      if (!text) return reply({ error: 'Type a message first' });
+      lastChat.set(me.pid, now);
+      const msg = { pid: me.pid, name: me.name, text, at: now };
+      const list = chats.get(map.id) ?? [];
+      list.push(msg);
+      if (list.length > chat.HISTORY) list.shift();
+      chats.set(map.id, list);
+      io.to(map.room).emit('chat', msg);
+      reply({});
+    });
+
+    socket.on('resetProgress', async (...args) => {
+      const reply = args.at(-1);   // the answer callback, with or without data before it
+      if (typeof reply !== 'function') return;
+      if (!me.pid) return reply({ error: 'You have no progress to reset' });
+      const pid = me.pid;
+      try {
+        const hooks = adminHooks();
+        const r = await store.resetProgress(pool, pid);
+        reply({ ok: true });
+        hooks.kick([pid], 'reset', 'Your progress was reset. Reload the page to start again.');
+        await hooks.reloadMaps(r.maps);
+      } catch (err) {
+        console.error(`RESET FAILED (player ${pid}): ${err.message}`);
+        reply({ error: 'Could not reset your progress. Try again.' });
+      }
     });
 
     // The setup screen: picks this player's color, skin and coverage on this map, which lock on their next

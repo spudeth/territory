@@ -42,6 +42,17 @@
     <ol id="board-list"></ol>
   </div>
 
+  <!-- Chat with everyone on this map (chat.js) -->
+  <div id="chat">
+    <ul id="chat-log" aria-live="polite" aria-label="Chat"></ul>
+    <div class="card" id="chat-muted" hidden><span id="chat-muted-n"></span><button class="text-btn" type="button" id="chat-unmute">Unmute all</button></div>
+    <form class="card" id="chat-form" hidden>
+      <input class="field" id="chat-input" maxlength="120" placeholder="Say something" autocomplete="off" enterkeyhint="send" aria-label="Chat message">
+      <button class="btn" type="submit" id="chat-send">Send</button>
+    </form>
+    <button class="btn" type="button" id="chat-button" aria-expanded="false">CHAT</button>
+  </div>
+
   <div class="card" id="hint"></div>
   <div class="card" id="toast" role="status"></div>
   <div class="card" id="popup" role="status" hidden>
@@ -219,13 +230,18 @@
           <button class="btn danger" type="button" id="wipe-open">Wipe and restart this map</button>
           <p class="note" id="wipe-note">Clears your territory here so you can start fresh with a new color, skin and coverage.</p>
         </div>
+        <h2 class="sec" id="reset-title">ALL PROGRESS</h2>
+        <div class="card box" id="reset-box">
+          <button class="btn danger" type="button" id="reset-open">Reset all progress</button>
+          <p class="note">Start over as a new player, on every map. Your name and login stay.</p>
+        </div>
         <h2 class="sec">SOUND</h2>
         <div class="card box">
           <div class="volume"><label for="vol-sfx">Sound effects</label><input id="vol-sfx" type="range" min="0" max="1" step="0.05">
             <button class="btn icon-btn mute" type="button" data-mute="sfx" aria-pressed="false"></button></div>
           <div class="volume"><label for="vol-music">Music</label><input id="vol-music" type="range" min="0" max="1" step="0.05">
             <button class="btn icon-btn mute" type="button" data-mute="music" aria-pressed="false"></button></div>
-          <p class="note">Saved on this device.</p>
+          <div class="split" style="align-items: center"><p class="note">Saved on this device.</p><button class="text-btn" type="button" id="change-station">Change station</button></div>
         </div>
         <button class="btn" type="button" id="menu-logout" style="margin-top: 4px">
           <svg class="pix" width="18" height="18" viewBox="0 0 8 8" aria-hidden="true"><path d="M0 0h5v2H4V1H1v6h3V6h1v2H0zM5 3V2h1v1h1v1h1v1H7v1H6v1H5V5H2V3z" fill="#f2f4f8"/></svg>Log out</button>
@@ -250,6 +266,30 @@
           <div class="pair">
             <button class="btn" type="button" data-go="settings">Cancel</button>
             <button class="btn danger" type="button" id="wipe-go" disabled>Wipe forever</button>
+          </div>
+          <p class="note" style="text-align: center">This can't be undone.</p>
+        </div>
+      </section>
+
+      <!-- Reset all progress confirmation -->
+      <section data-view="reset" hidden>
+        <div class="dialog card" role="alertdialog" aria-labelledby="reset-heading">
+          <div class="hazard"></div>
+          <div class="head">
+            <svg class="pix" width="28" height="28" viewBox="0 0 8 8" aria-hidden="true"><path d="M3 0h2v1h1v2h1v2h1v3H0V5h1V3h1V1h1z" fill="#f7c948"/><path d="M3 2h2v3H3zM3 6h2v1H3z" fill="#0f131a"/></svg>
+            <h1 id="reset-heading">RESET ALL PROGRESS?</h1>
+          </div>
+          <ul>
+            <li>Your blocks on every map become empty.</li>
+            <li>Your <b id="reset-squares"></b> and all upgrades go back to 0.</li>
+            <li>Achievements, stats and unlocked skins are cleared.</li>
+            <li>You'll pick a new color, skin and coverage on each map.</li>
+            <li>Your name and login stay.</li>
+          </ul>
+          <label class="lbl">Type RESET to confirm<input class="field" id="reset-word" type="text" placeholder="RESET" autocomplete="off" autocapitalize="characters"></label>
+          <div class="pair">
+            <button class="btn" type="button" data-go="settings">Cancel</button>
+            <button class="btn danger" type="button" id="reset-go" disabled>Reset forever</button>
           </div>
           <p class="note" style="text-align: center">This can't be undone.</p>
         </div>
@@ -366,5 +406,6 @@
   <script src="account.js"></script>
   <script src="tutorial.js"></script>
   <script src="coach.js"></script>
+  <script src="chat.js"></script>
 </body>
 </html>
