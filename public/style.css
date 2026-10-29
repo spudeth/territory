@@ -601,13 +601,12 @@ body:not(.welcome) #welcome * { pointer-events: none; }
 /* ---------- The floating island's sky ---------- */
 body { background: #070b18; }
 #space { position: fixed; inset: 0; background: radial-gradient(ellipse at 50% 120%, #1b1f4a 0%, #0a0e22 55%, #05070f 100%); overflow: hidden; }
-#space .stars { position: absolute; inset: 0; image-rendering: pixelated;
-  background-image: radial-gradient(#fff 1px, transparent 1.5px), radial-gradient(#cfe0ff 1px, transparent 1.5px); }
-#space .stars.a { background-size: 137px 113px, 211px 173px; background-position: 13px 29px, 71px 5px; animation: twinkle 3.2s steps(2) infinite alternate; }
-#space .stars.b { background-size: 97px 151px, 179px 89px; background-position: 41px 67px, 5px 43px; animation: twinkle 4.6s steps(2) infinite alternate-reverse; }
+#space canvas { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; }
+#twinkle-a { animation: twinkle 3.2s steps(2) infinite alternate; }
+#twinkle-b { animation: twinkle 4.6s steps(2) infinite alternate-reverse; }
 @keyframes twinkle { from { opacity: 1; } to { opacity: .35; } }
 .clouds { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
 .clouds img { position: absolute; left: 0; top: 0; image-rendering: pixelated; will-change: transform; }
 #clouds-back { opacity: .22; }
 #clouds-front { opacity: .14; }
-@media (prefers-reduced-motion: reduce) { #space .stars { animation: none; } }
+@media (prefers-reduced-motion: reduce) { #space .twinkle { animation: none; } }
