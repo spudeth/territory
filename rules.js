@@ -17,7 +17,7 @@ function earningsCosts(levels) {
   let prev = 0;
   return levels.map(l => l.level === 0 ? l : { ...l, cost: (prev = Math.max(prev + 1, Math.round(first * (l.cost / first) ** k))) });
 }
-const DEFENSE_TOP = 2;
+const DEFENSE_TOP = 6;   // Xoren: twice as hard as the sheet's x3
 const defenseTop = economy.upgrades.defense.at(-1).value;
 const defenseScaled = v => (defenseTop > 1 ? 1 + (v - 1) * (DEFENSE_TOP - 1) / (defenseTop - 1) : v);
 
@@ -42,7 +42,7 @@ const settings = {
   // at level 0; a level past the end of a table uses its last entry. UPGRADES has the costs too.
   UPGRADES: { ...economy.upgrades, earnings: earningsCosts(economy.upgrades.earnings) },   // { clickPower: [{ level, value, cost }, …], … }
   CLICK_POWER_MULTIPLIER: values('clickPower'), // Click Power: how many hits one click counts as (1.2 = +20%)
-  // Defense: multiplies the hits others need to take your blocks. Xoren: the top level is twice as hard (x2),
+  // Defense: multiplies the hits others need to take your blocks. Xoren: the top level is x6 (twice the sheet's x3),
   // whatever the sheet's top value; every level is scaled the same way, so stored levels never move.
   DEFENSE_MULTIPLIER: values('defense').map(defenseScaled),
   EARNINGS_MULTIPLIER: values('earnings'),      // Earnings: multiplies squares per first claim, fractions kept
