@@ -975,3 +975,11 @@ flag-gl,Greenland,art,Rare,1000,Flags,yes
 - Wipe a map (or start a new one): the setup screen shows owned skins first; pick a flag with "Full area", claim a few blocks: one big flag over the territory, owner's color as the border. "Per block": a flag on every block.
 
 Loop order 11 done. Open: Q6, Q8, Q10, Q11, Q12, Q13, Q14, Q15. Stopping.
+
+#79 | 2026-10-29 | Loop 12 (partial, out of budget): sync keeps the current skins while the sheet has no Skins tab; nameLabelShare dropped from the code (Bob removed the row); ran the real sync: 300 achievements, 205 skins kept, 30 rules | tests: economy, achievements pass
+
+Map commands for Xoren (production; the server must be on loop 9 or later):
+  npm run admin -- create-map "White Plains" --style white --width 32 --height 32 --prod
+  npm run admin -- create-map Pangea --seed Pangea --prod
+(White Plains: a plain white rectangle with no terrain, since --width/--height give an unseeded rectangle. Pangea: a 10,240-block island with terrain.)
+NOT DONE from loop 12, still to do: 1 Awards filter tabs, 2 floating island background, 3 white-style check, 4 setup-before-welcome flow fix, 5 Click Power percentages and carry-over, 6 online dot, 7 the 205 new skins. OPEN Q16: loop 12 continues next session.

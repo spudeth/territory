@@ -1,6 +1,6 @@
 {
   "source": "https://docs.google.com/spreadsheets/d/1YIivEUXUWMkdw3w3hlmRn7PkTzH6Xry7EJTr8SuFKiM",
-  "syncedAt": "2026-10-28T19:47:41.381Z",
+  "syncedAt": "2026-10-29T06:06:34.619Z",
   "rules": {
     "hitsPerBlock": 10,
     "crackFadeSeconds": 60,
@@ -10,12 +10,17 @@
     "guestWindowMinutes": 60,
     "renameWaitMinutes": 10,
     "nameMaxLength": 15,
-    "nameLabelShare": 0.25,
     "newMapWidth": 32,
     "newMapHeight": 32,
-    "newMapBlocks": 10240,
+    "soundMaxAtOnce": 6,
+    "soundHearingDistance": 1.2,
+    "soundOthersVolume": 0.6,
+    "defaultEffectsVolume": 0.7,
+    "defaultMusicVolume": 0.25,
+    "maxTapsPerSecond": 12,
     "rankMinPlayers": 10,
     "rankMinBlocks": 100,
+    "newMapBlocks": 10240,
     "terrainScale": 28,
     "waterShare": 0.12,
     "sandShare": 0.07,
@@ -26,13 +31,7 @@
     "forestHits": 1.5,
     "stoneHits": 3,
     "goldHits": 1,
-    "goldBonusSquares": 5,
-    "soundMaxAtOnce": 6,
-    "soundHearingDistance": 1.2,
-    "soundOthersVolume": 0.6,
-    "defaultEffectsVolume": 0.7,
-    "defaultMusicVolume": 0.25,
-    "maxTapsPerSecond": 12
+    "goldBonusSquares": 5
   },
   "upgrades": {
     "clickPower": [
