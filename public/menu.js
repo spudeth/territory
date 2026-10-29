@@ -305,7 +305,7 @@ function drawSkins() {
       drawSkinPreview(t.querySelector('canvas'), s, myColor);
       t.querySelector('.nm').textContent = s.name;
       t.querySelector('.rar').textContent = s.rarity.toUpperCase();
-      t.querySelector('.rar').classList.add(s.rarity);
+      t.querySelector('.rar').classList.add(s.rarity.replace(/ /g, '-'));   // 'Ultra Rare' has a space
       if (s.owned) {
         t.insertAdjacentHTML('beforeend', '<span class="pr" style="color: var(--green)">Owned</span>');
       } else {

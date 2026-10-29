@@ -311,6 +311,7 @@ a:hover { color: var(--gold-light); }
 .catalog .rar { font: 7px var(--title); color: var(--muted); }
 .catalog .rar.Rare { color: var(--blue); }
 .catalog .rar.Legendary { color: var(--orange); }
+.catalog .rar.Ultra-Rare { color: var(--purple); }
 .catalog .tile { display: flex; flex-direction: column; gap: 6px; }
 .catalog .prev { height: 96px; border: 3px solid var(--ink); position: relative; }
 .catalog .prev .tag { position: absolute; top: 4px; right: 4px; font-size: 7px; padding: 3px 4px; }
