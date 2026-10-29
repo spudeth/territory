@@ -254,13 +254,19 @@ function drawSkinPreview(canvas, skin, color) {
   g.fillStyle = color;
   g.fillRect(0, 0, 16, 16);
   if (skin.kind === 'default') return;
-  const img = new Image();
+  const anim = gameSettings.skinAnimated?.includes(skin.id), img = new Image();
   img.onload = () => {
     g.clearRect(0, 0, 16, 16);
+    if (anim) {   // Legendary: play its 4 frames while the preview is on screen
+      let f = 0;
+      const tick = () => { if (!canvas.isConnected) return clearInterval(t); g.drawImage(img, (f++ % 4) * 16, 0, 16, 16, 0, 0, 16, 16); };
+      const t = setInterval(tick, 220);
+      return tick();
+    }
     g.drawImage(img, 0, 0);
     if (skin.kind === 'pattern') { g.globalCompositeOperation = 'color'; g.fillStyle = color; g.fillRect(0, 0, 16, 16); g.globalCompositeOperation = 'source-over'; }
   };
-  img.src = `skins/${skin.id}.png`;
+  img.src = `skins/${skin.id}${anim ? '-anim' : ''}.png`;
 }
 
 let skinsBack = 'main';   // where the back button goes: the welcome screen, or the setup screen
