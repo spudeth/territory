@@ -11,6 +11,17 @@ test('the filter catches swear words through misspellings, letter swaps, stretch
   }
 });
 
+test('slurs are caught through vowel and letter swaps, doubled letters, -a / -er endings and plurals', () => {
+  for (const name of ['Nibba', 'N1bba', 'Nibbaz', 'Nibber', 'Nibbers', 'Niqqa', 'Nygga', 'Negga', 'Nigguh', 'Niggah', 'xXnibbaXx',
+    'n i b b a', 'Niglet', 'Nigs', 'Fagget', 'F4gg1t', 'Fags', 'Trannie', 'Kyke', 'Spics', 'Chinks', 'Pakis', 'Tard']) {
+    assert.ok(isProfane(name), `"${name}" should be blocked`);
+  }
+  for (const name of ['Nigel', 'Nigeria', 'Nigerian', 'Nibble', 'Nibs', 'Niblet', 'Snibs', 'Spice', 'Cocoon', 'Beanie',
+    'Bonner', 'Pakistan', 'Tardis', 'Chinook', 'Fagan', 'Unibody', 'Nebula', 'Sniper', 'Tiger', 'Nugget', 'Begin']) {
+    assert.equal(isProfane(name), false, `"${name}" should be allowed`);
+  }
+});
+
 test('the filter allows ordinary names, including ones that contain a blocked word inside another word', () => {
   for (const name of ['Bob', 'Classic', 'Assassin', 'Peacock', 'Hancock', 'Dickens', 'Grape', 'Analyst', 'Sussex',
     'Nigeria', 'Cocktail', 'Titan', 'Hello', 'Shoe', 'Pass the Ball', 'Sly As Fox', 'Scrap Metal', 'Kitty']) {
