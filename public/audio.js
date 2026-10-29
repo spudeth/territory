@@ -11,8 +11,8 @@
     purchase: 'A',     // purchase: option A until Xoren picks (Q10)
     steal: 'A' };      // steal: option A until Xoren picks (Q14)
   // The music stations (CREDITS.md). The first plays at the start; Change station picks another at random.
-  const MUSIC = ['music/keep-your-dream-alive.mp3', 'music/heavenly-loop.mp3', 'music/calm-ambient-1.mp3',
-    'music/outer-space-loop.mp3'];
+  const MUSIC = ['music/calm-ambient-1.mp3', 'music/keep-your-dream-alive.mp3', 'music/heavenly-loop.mp3',
+    'music/outer-space-loop.mp3'];   // the first is the default station (Xoren: Calm Ambient)
 
   // From the sheet (Game Rules tab); the server sends them in the welcome, and configure() takes them.
   const tuning = {
