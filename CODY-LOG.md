@@ -429,19 +429,19 @@ Secrets (fun, fair, each cheap to spot): Castaway (a block with water on all 4 s
 ```csv
 Key,Name,Category,Stat,Threshold,Secret,Description,Reward
 first-block,First Block,Claiming,claims,1,,Claim 1 empty block,1
-claims-5,Homesteader,Claiming,claims,5,,Claim 5 empty blocks,1
-claims-10,Settler,Claiming,claims,10,,Claim 10 empty blocks,1
-claims-25,Pioneer,Claiming,claims,25,,Claim 25 empty blocks,1
-claims-50,Trailblazer,Claiming,claims,50,,Claim 50 empty blocks,1
-claims-100,Centurion,Claiming,claims,100,,Claim 100 empty blocks,2
-claims-250,Land Baron,Claiming,claims,250,,Claim 250 empty blocks,3
-claims-500,Frontier Lord,Claiming,claims,500,,Claim 500 empty blocks,8
-claims-1k,Kilo Claimer,Claiming,claims,1000,,"Claim 1,000 empty blocks",15
-claims-2500,Map Maker,Claiming,claims,2500,,"Claim 2,500 empty blocks",30
-claims-5k,Empire Builder,Claiming,claims,5000,,"Claim 5,000 empty blocks",75
-claims-10k,Ten Thousand Flags,Claiming,claims,10000,,"Claim 10,000 empty blocks",150
-claims-25k,Continental,Claiming,claims,25000,,"Claim 25,000 empty blocks",300
-claims-50k,Worldshaper,Claiming,claims,50000,,"Claim 50,000 empty blocks",750
+claims-5,Homesteader,Claiming,claims,10,,Claim 10 empty blocks,1
+claims-10,Settler,Claiming,claims,25,,Claim 25 empty blocks,1
+claims-25,Pioneer,Claiming,claims,50,,Claim 50 empty blocks,1
+claims-50,Trailblazer,Claiming,claims,100,,Claim 100 empty blocks,2
+claims-100,Centurion,Claiming,claims,250,,Claim 250 empty blocks,3
+claims-250,Land Baron,Claiming,claims,500,,Claim 500 empty blocks,8
+claims-500,Frontier Lord,Claiming,claims,1000,,"Claim 1,000 empty blocks",15
+claims-1k,Kilo Claimer,Claiming,claims,2500,,"Claim 2,500 empty blocks",30
+claims-2500,Map Maker,Claiming,claims,5000,,"Claim 5,000 empty blocks",75
+claims-5k,Empire Builder,Claiming,claims,10000,,"Claim 10,000 empty blocks",150
+claims-10k,Ten Thousand Flags,Claiming,claims,25000,,"Claim 25,000 empty blocks",300
+claims-25k,Continental,Claiming,claims,50000,,"Claim 50,000 empty blocks",750
+claims-50k,Worldshaper,Claiming,claims,75000,,"Claim 75,000 empty blocks",1000
 claims-100k,The Endless Frontier,Claiming,claims,100000,,"Claim 100,000 empty blocks",1500
 owned-10,Plot Holder,Holding,owned,10,,Own 10 blocks at once on one map,1
 owned-25,Small Holding,Holding,owned,25,,Own 25 blocks at once on one map,1
@@ -453,10 +453,10 @@ owned-1000,Kingdom of 1K,Holding,owned,1000,,"Own 1,000 blocks at once on one ma
 owned-2500,Superpower,Holding,owned,2500,,"Own 2,500 blocks at once on one map",300
 owned-5000,Hegemon,Holding,owned,5000,,"Own 5,000 blocks at once on one map",800
 owned-10k,Ten Thousand Strong,Holding,owned,10000,,"Own 10,000 blocks at once on one map",2000
-square-2,Two by Two,Squares,bestSquare,2,,Own a solid 2 by 2 square of blocks,1
-square-3,Tic-Tac-Toe,Squares,bestSquare,3,,Own a solid 3 by 3 square of blocks,2
-square-4,Four Square,Squares,bestSquare,4,,Own a solid 4 by 4 square of blocks,4
-square-5,High Five,Squares,bestSquare,5,,Own a solid 5 by 5 square of blocks,6
+square-2,Two by Two,Squares,bestSquare,3,,Own a solid 3 by 3 square of blocks,2
+square-3,Tic-Tac-Toe,Squares,bestSquare,4,,Own a solid 4 by 4 square of blocks,4
+square-4,Four Square,Squares,bestSquare,5,,Own a solid 5 by 5 square of blocks,6
+square-5,High Five,Squares,bestSquare,7,,Own a solid 7 by 7 square of blocks,15
 square-10,Perfect Ten,Squares,bestSquare,10,,Own a solid 10 by 10 square of blocks,40
 square-15,Fifteen Square,Squares,bestSquare,15,,Own a solid 15 by 15 square of blocks,100
 square-20,Scoreboard,Squares,bestSquare,20,,Own a solid 20 by 20 square of blocks,200
@@ -464,8 +464,8 @@ square-25,Quarter Century,Squares,bestSquare,25,,Own a solid 25 by 25 square of 
 square-30,Thirty by Thirty,Squares,bestSquare,30,,Own a solid 30 by 30 square of blocks,600
 square-40,Forty Fort,Squares,bestSquare,40,,Own a solid 40 by 40 square of blocks,1000
 square-50,Half Century,Squares,bestSquare,50,,Own a solid 50 by 50 square of blocks,2000
-line-3,Three in a Row,Lines,bestLine,3,,Own a straight line of 3 blocks,1
-line-5,Five Alive,Lines,bestLine,5,,Own a straight line of 5 blocks,2
+line-3,Three in a Row,Lines,bestLine,5,,Own a straight line of 5 blocks,2
+line-5,Five Alive,Lines,bestLine,8,,Own a straight line of 8 blocks,6
 line-10,Ruler,Lines,bestLine,10,,Own a straight line of 10 blocks,8
 line-15,Long Jump,Lines,bestLine,15,,Own a straight line of 15 blocks,20
 line-20,Road Trip,Lines,bestLine,20,,Own a straight line of 20 blocks,40
@@ -498,23 +498,23 @@ lost-1k,Unbothered,Losing,lost,1000,,"Lose 1,000 blocks to other players",80
 lost-5k,Phoenix,Losing,lost,5000,,"Lose 5,000 blocks to other players",400
 lost-10k,Unbreakable Spirit,Losing,lost,10000,,"Lose 10,000 blocks to other players",800
 lost-25k,Eternal Optimist,Losing,lost,25000,,"Lose 25,000 blocks to other players",2000
-taps-10,Tap Tap,Tapping,taps,10,,Tap blocks 10 times,1
-taps-25,Double Digits,Tapping,taps,25,,Tap blocks 25 times,1
-taps-100,Button Masher,Tapping,taps,100,,Tap blocks 100 times,1
-taps-500,Clicker,Tapping,taps,500,,Tap blocks 500 times,1
-taps-1k,Finger Workout,Tapping,taps,1000,,"Tap blocks 1,000 times",1
-taps-5k,Rapid Fire,Tapping,taps,5000,,"Tap blocks 5,000 times",5
-taps-10k,Turbo Button,Tapping,taps,10000,,"Tap blocks 10,000 times",10
-taps-50k,Tap Dancer,Tapping,taps,50000,,"Tap blocks 50,000 times",50
-taps-100k,Machine Gun Finger,Tapping,taps,100000,,"Tap blocks 100,000 times",100
-taps-250k,Quarter Million,Tapping,taps,250000,,"Tap blocks 250,000 times",250
-taps-500k,Half Million Hits,Tapping,taps,500000,,"Tap blocks 500,000 times",500
-taps-1m,Million Tap Club,Tapping,taps,1000000,,"Tap blocks 1,000,000 times",1000
+taps-10,Tap Tap,Tapping,taps,1000,,"Tap blocks 1,000 times",1
+taps-25,Double Digits,Tapping,taps,2500,,"Tap blocks 2,500 times",3
+taps-100,Button Masher,Tapping,taps,5000,,"Tap blocks 5,000 times",5
+taps-500,Clicker,Tapping,taps,10000,,"Tap blocks 10,000 times",10
+taps-1k,Finger Workout,Tapping,taps,25000,,"Tap blocks 25,000 times",25
+taps-5k,Rapid Fire,Tapping,taps,50000,,"Tap blocks 50,000 times",50
+taps-10k,Turbo Button,Tapping,taps,100000,,"Tap blocks 100,000 times",100
+taps-50k,Tap Dancer,Tapping,taps,250000,,"Tap blocks 250,000 times",250
+taps-100k,Machine Gun Finger,Tapping,taps,500000,,"Tap blocks 500,000 times",500
+taps-250k,Quarter Million,Tapping,taps,750000,,"Tap blocks 750,000 times",750
+taps-500k,Half Million Hits,Tapping,taps,1000000,,"Tap blocks 1,000,000 times",1000
+taps-1m,Million Tap Club,Tapping,taps,1500000,,"Tap blocks 1,500,000 times",1500
 taps-2m,Tapocalypse,Tapping,taps,2000000,,"Tap blocks 2,000,000 times",2000
-earned-1,Pocket Change,Earning,squaresEarned,1,,Earn 1 square by claiming blocks,1
-earned-10,Piggy Bank,Earning,squaresEarned,10,,Earn 10 squares by claiming blocks,1
-earned-50,Coin Purse,Earning,squaresEarned,50,,Earn 50 squares by claiming blocks,1
-earned-100,Savings Jar,Earning,squaresEarned,100,,Earn 100 squares by claiming blocks,1
+earned-1,Pocket Change,Earning,squaresEarned,25,,Earn 25 squares by claiming blocks,1
+earned-10,Piggy Bank,Earning,squaresEarned,50,,Earn 50 squares by claiming blocks,1
+earned-50,Coin Purse,Earning,squaresEarned,100,,Earn 100 squares by claiming blocks,1
+earned-100,Savings Jar,Earning,squaresEarned,250,,Earn 250 squares by claiming blocks,1
 earned-500,Treasure Chest,Earning,squaresEarned,500,,Earn 500 squares by claiming blocks,2
 earned-1k,Vault Keeper,Earning,squaresEarned,1000,,"Earn 1,000 squares by claiming blocks",4
 earned-5k,Gold Reserve,Earning,squaresEarned,5000,,"Earn 5,000 squares by claiming blocks",20
@@ -610,12 +610,12 @@ gold-100,Mother Lode,Terrain,terrain:gold,100,,Claim 100 gold blocks,150
 gold-250,El Dorado,Terrain,terrain:gold,250,,Claim 250 gold blocks,300
 gold-500,Golden Age,Terrain,terrain:gold,500,,Claim 500 gold blocks,750
 gold-1000,Gold Standard,Terrain,terrain:gold,1000,,"Claim 1,000 gold blocks",1500
-maps-1,Tourist,Exploring,mapsPlayed,1,,Play on 1 map,6
-maps-2,Traveler,Exploring,mapsPlayed,2,,Play on 2 maps,10
-maps-3,Globetrotter,Exploring,mapsPlayed,3,,Play on 3 maps,20
-maps-5,Explorer,Exploring,mapsPlayed,5,,Play on 5 maps,30
-maps-10,Cartographer,Exploring,mapsPlayed,10,,Play on 10 maps,60
-days-1,Day One,Days,daysPlayed,1,,Play on 1 different day,4
+maps-1,Tourist,Exploring,mapsPlayed,2,,Play on 2 maps,10
+maps-2,Traveler,Exploring,mapsPlayed,3,,Play on 3 maps,20
+maps-3,Globetrotter,Exploring,mapsPlayed,5,,Play on 5 maps,30
+maps-5,Explorer,Exploring,mapsPlayed,10,,Play on 10 maps,60
+maps-10,Cartographer,Exploring,mapsPlayed,20,,Play on 20 maps,100
+days-1,Day One,Days,daysPlayed,2,,Play on 2 different days,8
 days-5,Regular,Days,daysPlayed,5,,Play on 5 different days,20
 days-10,Ten Day Trek,Days,daysPlayed,10,,Play on 10 different days,40
 days-25,Familiar Face,Days,daysPlayed,25,,Play on 25 different days,100
@@ -662,9 +662,9 @@ hours-100,Hundred Hours,Time,hoursPlayed,100,,Play actively for 100 hours,200
 hours-250,Marathoner,Time,hoursPlayed,250,,Play actively for 250 hours,500
 hours-500,Five Hundred Club,Time,hoursPlayed,500,,Play actively for 500 hours,1000
 hours-1000,Thousand Hour Legend,Time,hoursPlayed,1000,,"Play actively for 1,000 hours",2000
-session-10,Quick Run,Sessions,sessionClaims,10,,Claim 10 empty blocks in one visit,1
-session-25,Session Grinder,Sessions,sessionClaims,25,,Claim 25 empty blocks in one visit,1
-session-50,Binge,Sessions,sessionClaims,50,,Claim 50 empty blocks in one visit,1
+session-10,Quick Run,Sessions,sessionClaims,25,,Claim 25 empty blocks in one visit,1
+session-25,Session Grinder,Sessions,sessionClaims,50,,Claim 50 empty blocks in one visit,1
+session-50,Binge,Sessions,sessionClaims,75,,Claim 75 empty blocks in one visit,2
 session-100,Lost Track of Time,Sessions,sessionClaims,100,,Claim 100 empty blocks in one visit,2
 session-250,All-Nighter,Sessions,sessionClaims,250,,Claim 250 empty blocks in one visit,5
 session-500,Iron Will,Sessions,sessionClaims,500,,Claim 500 empty blocks in one visit,10
@@ -682,11 +682,11 @@ chat-100,Social Butterfly,Chat,chatMessages,100,,Send 100 chat messages,3
 chat-500,Town Crier,Chat,chatMessages,500,,Send 500 chat messages,15
 chat-1000,Radio Host,Chat,chatMessages,1000,,"Send 1,000 chat messages",30
 chat-5000,Voice of the Map,Chat,chatMessages,5000,,"Send 5,000 chat messages",150
-held-10,Saver,Saving,squaresHeld,10,,Have 10 squares at once,1
-held-50,Stash,Saving,squaresHeld,50,,Have 50 squares at once,1
-held-100,Nest Egg,Saving,squaresHeld,100,,Have 100 squares at once,1
-held-500,Hoarder,Saving,squaresHeld,500,,Have 500 squares at once,3
-held-1000,Dragon Hoard,Saving,squaresHeld,1000,,"Have 1,000 squares at once",6
+held-10,Saver,Saving,squaresHeld,100,,Have 100 squares at once,1
+held-50,Stash,Saving,squaresHeld,250,,Have 250 squares at once,2
+held-100,Nest Egg,Saving,squaresHeld,500,,Have 500 squares at once,3
+held-500,Hoarder,Saving,squaresHeld,1000,,"Have 1,000 squares at once",6
+held-1000,Dragon Hoard,Saving,squaresHeld,2500,,"Have 2,500 squares at once",15
 held-5000,Bank Vault,Saving,squaresHeld,5000,,"Have 5,000 squares at once",30
 held-10k,Money Bin,Saving,squaresHeld,10000,,"Have 10,000 squares at once",60
 held-50k,Sea of Squares,Saving,squaresHeld,50000,,"Have 50,000 squares at once",300
@@ -707,7 +707,7 @@ grown-250k,Universe Builder,Map growth,mapGrown,250000,,"Make the map grow by 25
 renamed,New Me,Firsts,renames,1,,Choose your own name,1
 account,Made It Official,Firsts,account,1,,Make an account,1
 graduate,Graduate,Firsts,tutorialDone,1,,Finish the tutorial,1
-meta-10,Collector,Collector,achievements,10,,Earn 10 achievements,10
+meta-10,Collector,Collector,achievements,20,,Earn 20 achievements,50
 meta-25,Badge Hunter,Collector,achievements,25,,Earn 25 achievements,75
 meta-50,Trophy Case,Collector,achievements,50,,Earn 50 achievements,300
 meta-100,Hall of Fame,Collector,achievements,100,,Earn 100 achievements,1000
@@ -989,3 +989,4 @@ NOT DONE from loop 12, still to do: (1 Awards filter tabs: done, #80) 2 floating
 #83 | 2026-10-29 | Loop 12 (6): online dots. Browsers report when their tab is shown or hidden; the server sends each map who has it open and visible ("online"), at once on hide, show, close, switch or a new guest. A small green dot sits at the corner of their name tag and after their leaderboard name | tests: online dots (show, hide, show, close). Still to do: 2 background, 3 white style, 4 flow fix, 7 the 205 new skins
 #84 | 2026-10-29 | Loop 12 (3): the white style draws clean white blocks (#f7f8fa) with the soft grey grid; owned blocks are filled with the owner color (the grass recolor would leave white white). Map commands for Xoren are in #79. "???" stays COMING SOON (welcome.js PLACEHOLDER_MAPS). Not yet checked in a browser
 #85 | 2026-10-29 | Fix (Xoren): create-map --style white came out textured: with no --seed, the admin command asked for a random seed even for a rectangle, and the seed gave it terrain. Now no --seed on a rectangle means no seed, white maps never get a seed, and server and browser ignore any seed on a white map, so the live White Plains (made with a random seed) becomes a plain white map after the next deploy, with nothing to recreate | tests: white maps never have terrain
+#86 | 2026-10-29 | Xoren: far fewer achievements early (3 blocks had earned 11). The first tiers of claiming, taps, squares earned and held, lines, squares, maps, days, visits and Collector start much higher (e.g. taps 1,000, squares earned 25, held 100, maps 2, days 2, a line of 5, a 3 x 3 square); keys unchanged, so earned ones still count; still 300. OPEN for Xoren/Bob: the sheet's Achievements tab must get the updated CSV (Q13 block above), or the next sync puts the old thresholds back

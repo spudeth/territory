@@ -1204,24 +1204,14 @@
       "name": "Homesteader",
       "category": "Claiming",
       "stat": "claims",
-      "threshold": 5,
-      "secret": false,
-      "description": "Claim 5 empty blocks",
-      "reward": 1
-    },
-    {
-      "id": "claims-10",
-      "name": "Settler",
-      "category": "Claiming",
-      "stat": "claims",
       "threshold": 10,
       "secret": false,
       "description": "Claim 10 empty blocks",
       "reward": 1
     },
     {
-      "id": "claims-25",
-      "name": "Pioneer",
+      "id": "claims-10",
+      "name": "Settler",
       "category": "Claiming",
       "stat": "claims",
       "threshold": 25,
@@ -1230,8 +1220,8 @@
       "reward": 1
     },
     {
-      "id": "claims-50",
-      "name": "Trailblazer",
+      "id": "claims-25",
+      "name": "Pioneer",
       "category": "Claiming",
       "stat": "claims",
       "threshold": 50,
@@ -1240,8 +1230,8 @@
       "reward": 1
     },
     {
-      "id": "claims-100",
-      "name": "Centurion",
+      "id": "claims-50",
+      "name": "Trailblazer",
       "category": "Claiming",
       "stat": "claims",
       "threshold": 100,
@@ -1250,8 +1240,8 @@
       "reward": 2
     },
     {
-      "id": "claims-250",
-      "name": "Land Baron",
+      "id": "claims-100",
+      "name": "Centurion",
       "category": "Claiming",
       "stat": "claims",
       "threshold": 250,
@@ -1260,8 +1250,8 @@
       "reward": 3
     },
     {
-      "id": "claims-500",
-      "name": "Frontier Lord",
+      "id": "claims-250",
+      "name": "Land Baron",
       "category": "Claiming",
       "stat": "claims",
       "threshold": 500,
@@ -1270,8 +1260,8 @@
       "reward": 8
     },
     {
-      "id": "claims-1k",
-      "name": "Kilo Claimer",
+      "id": "claims-500",
+      "name": "Frontier Lord",
       "category": "Claiming",
       "stat": "claims",
       "threshold": 1000,
@@ -1280,8 +1270,8 @@
       "reward": 15
     },
     {
-      "id": "claims-2500",
-      "name": "Map Maker",
+      "id": "claims-1k",
+      "name": "Kilo Claimer",
       "category": "Claiming",
       "stat": "claims",
       "threshold": 2500,
@@ -1290,8 +1280,8 @@
       "reward": 30
     },
     {
-      "id": "claims-5k",
-      "name": "Empire Builder",
+      "id": "claims-2500",
+      "name": "Map Maker",
       "category": "Claiming",
       "stat": "claims",
       "threshold": 5000,
@@ -1300,8 +1290,8 @@
       "reward": 75
     },
     {
-      "id": "claims-10k",
-      "name": "Ten Thousand Flags",
+      "id": "claims-5k",
+      "name": "Empire Builder",
       "category": "Claiming",
       "stat": "claims",
       "threshold": 10000,
@@ -1310,8 +1300,8 @@
       "reward": 150
     },
     {
-      "id": "claims-25k",
-      "name": "Continental",
+      "id": "claims-10k",
+      "name": "Ten Thousand Flags",
       "category": "Claiming",
       "stat": "claims",
       "threshold": 25000,
@@ -1320,14 +1310,24 @@
       "reward": 300
     },
     {
-      "id": "claims-50k",
-      "name": "Worldshaper",
+      "id": "claims-25k",
+      "name": "Continental",
       "category": "Claiming",
       "stat": "claims",
       "threshold": 50000,
       "secret": false,
       "description": "Claim 50,000 empty blocks",
       "reward": 750
+    },
+    {
+      "id": "claims-50k",
+      "name": "Worldshaper",
+      "category": "Claiming",
+      "stat": "claims",
+      "threshold": 75000,
+      "secret": false,
+      "description": "Claim 75,000 empty blocks",
+      "reward": 1000
     },
     {
       "id": "claims-100k",
@@ -1444,24 +1444,14 @@
       "name": "Two by Two",
       "category": "Squares",
       "stat": "bestSquare",
-      "threshold": 2,
-      "secret": false,
-      "description": "Own a solid 2 by 2 square of blocks",
-      "reward": 1
-    },
-    {
-      "id": "square-3",
-      "name": "Tic-Tac-Toe",
-      "category": "Squares",
-      "stat": "bestSquare",
       "threshold": 3,
       "secret": false,
       "description": "Own a solid 3 by 3 square of blocks",
       "reward": 2
     },
     {
-      "id": "square-4",
-      "name": "Four Square",
+      "id": "square-3",
+      "name": "Tic-Tac-Toe",
       "category": "Squares",
       "stat": "bestSquare",
       "threshold": 4,
@@ -1470,14 +1460,24 @@
       "reward": 4
     },
     {
-      "id": "square-5",
-      "name": "High Five",
+      "id": "square-4",
+      "name": "Four Square",
       "category": "Squares",
       "stat": "bestSquare",
       "threshold": 5,
       "secret": false,
       "description": "Own a solid 5 by 5 square of blocks",
       "reward": 6
+    },
+    {
+      "id": "square-5",
+      "name": "High Five",
+      "category": "Squares",
+      "stat": "bestSquare",
+      "threshold": 7,
+      "secret": false,
+      "description": "Own a solid 7 by 7 square of blocks",
+      "reward": 15
     },
     {
       "id": "square-10",
@@ -1554,20 +1554,20 @@
       "name": "Three in a Row",
       "category": "Lines",
       "stat": "bestLine",
-      "threshold": 3,
+      "threshold": 5,
       "secret": false,
-      "description": "Own a straight line of 3 blocks",
-      "reward": 1
+      "description": "Own a straight line of 5 blocks",
+      "reward": 2
     },
     {
       "id": "line-5",
       "name": "Five Alive",
       "category": "Lines",
       "stat": "bestLine",
-      "threshold": 5,
+      "threshold": 8,
       "secret": false,
-      "description": "Own a straight line of 5 blocks",
-      "reward": 2
+      "description": "Own a straight line of 8 blocks",
+      "reward": 6
     },
     {
       "id": "line-10",
@@ -1894,9 +1894,9 @@
       "name": "Tap Tap",
       "category": "Tapping",
       "stat": "taps",
-      "threshold": 10,
+      "threshold": 1000,
       "secret": false,
-      "description": "Tap blocks 10 times",
+      "description": "Tap blocks 1,000 times",
       "reward": 1
     },
     {
@@ -1904,44 +1904,14 @@
       "name": "Double Digits",
       "category": "Tapping",
       "stat": "taps",
-      "threshold": 25,
+      "threshold": 2500,
       "secret": false,
-      "description": "Tap blocks 25 times",
-      "reward": 1
+      "description": "Tap blocks 2,500 times",
+      "reward": 3
     },
     {
       "id": "taps-100",
       "name": "Button Masher",
-      "category": "Tapping",
-      "stat": "taps",
-      "threshold": 100,
-      "secret": false,
-      "description": "Tap blocks 100 times",
-      "reward": 1
-    },
-    {
-      "id": "taps-500",
-      "name": "Clicker",
-      "category": "Tapping",
-      "stat": "taps",
-      "threshold": 500,
-      "secret": false,
-      "description": "Tap blocks 500 times",
-      "reward": 1
-    },
-    {
-      "id": "taps-1k",
-      "name": "Finger Workout",
-      "category": "Tapping",
-      "stat": "taps",
-      "threshold": 1000,
-      "secret": false,
-      "description": "Tap blocks 1,000 times",
-      "reward": 1
-    },
-    {
-      "id": "taps-5k",
-      "name": "Rapid Fire",
       "category": "Tapping",
       "stat": "taps",
       "threshold": 5000,
@@ -1950,8 +1920,8 @@
       "reward": 5
     },
     {
-      "id": "taps-10k",
-      "name": "Turbo Button",
+      "id": "taps-500",
+      "name": "Clicker",
       "category": "Tapping",
       "stat": "taps",
       "threshold": 10000,
@@ -1960,8 +1930,18 @@
       "reward": 10
     },
     {
-      "id": "taps-50k",
-      "name": "Tap Dancer",
+      "id": "taps-1k",
+      "name": "Finger Workout",
+      "category": "Tapping",
+      "stat": "taps",
+      "threshold": 25000,
+      "secret": false,
+      "description": "Tap blocks 25,000 times",
+      "reward": 25
+    },
+    {
+      "id": "taps-5k",
+      "name": "Rapid Fire",
       "category": "Tapping",
       "stat": "taps",
       "threshold": 50000,
@@ -1970,8 +1950,8 @@
       "reward": 50
     },
     {
-      "id": "taps-100k",
-      "name": "Machine Gun Finger",
+      "id": "taps-10k",
+      "name": "Turbo Button",
       "category": "Tapping",
       "stat": "taps",
       "threshold": 100000,
@@ -1980,8 +1960,8 @@
       "reward": 100
     },
     {
-      "id": "taps-250k",
-      "name": "Quarter Million",
+      "id": "taps-50k",
+      "name": "Tap Dancer",
       "category": "Tapping",
       "stat": "taps",
       "threshold": 250000,
@@ -1990,8 +1970,8 @@
       "reward": 250
     },
     {
-      "id": "taps-500k",
-      "name": "Half Million Hits",
+      "id": "taps-100k",
+      "name": "Machine Gun Finger",
       "category": "Tapping",
       "stat": "taps",
       "threshold": 500000,
@@ -2000,14 +1980,34 @@
       "reward": 500
     },
     {
-      "id": "taps-1m",
-      "name": "Million Tap Club",
+      "id": "taps-250k",
+      "name": "Quarter Million",
+      "category": "Tapping",
+      "stat": "taps",
+      "threshold": 750000,
+      "secret": false,
+      "description": "Tap blocks 750,000 times",
+      "reward": 750
+    },
+    {
+      "id": "taps-500k",
+      "name": "Half Million Hits",
       "category": "Tapping",
       "stat": "taps",
       "threshold": 1000000,
       "secret": false,
       "description": "Tap blocks 1,000,000 times",
       "reward": 1000
+    },
+    {
+      "id": "taps-1m",
+      "name": "Million Tap Club",
+      "category": "Tapping",
+      "stat": "taps",
+      "threshold": 1500000,
+      "secret": false,
+      "description": "Tap blocks 1,500,000 times",
+      "reward": 1500
     },
     {
       "id": "taps-2m",
@@ -2024,24 +2024,14 @@
       "name": "Pocket Change",
       "category": "Earning",
       "stat": "squaresEarned",
-      "threshold": 1,
+      "threshold": 25,
       "secret": false,
-      "description": "Earn 1 square by claiming blocks",
+      "description": "Earn 25 squares by claiming blocks",
       "reward": 1
     },
     {
       "id": "earned-10",
       "name": "Piggy Bank",
-      "category": "Earning",
-      "stat": "squaresEarned",
-      "threshold": 10,
-      "secret": false,
-      "description": "Earn 10 squares by claiming blocks",
-      "reward": 1
-    },
-    {
-      "id": "earned-50",
-      "name": "Coin Purse",
       "category": "Earning",
       "stat": "squaresEarned",
       "threshold": 50,
@@ -2050,13 +2040,23 @@
       "reward": 1
     },
     {
-      "id": "earned-100",
-      "name": "Savings Jar",
+      "id": "earned-50",
+      "name": "Coin Purse",
       "category": "Earning",
       "stat": "squaresEarned",
       "threshold": 100,
       "secret": false,
       "description": "Earn 100 squares by claiming blocks",
+      "reward": 1
+    },
+    {
+      "id": "earned-100",
+      "name": "Savings Jar",
+      "category": "Earning",
+      "stat": "squaresEarned",
+      "threshold": 250,
+      "secret": false,
+      "description": "Earn 250 squares by claiming blocks",
       "reward": 1
     },
     {
@@ -3014,24 +3014,14 @@
       "name": "Tourist",
       "category": "Exploring",
       "stat": "mapsPlayed",
-      "threshold": 1,
-      "secret": false,
-      "description": "Play on 1 map",
-      "reward": 6
-    },
-    {
-      "id": "maps-2",
-      "name": "Traveler",
-      "category": "Exploring",
-      "stat": "mapsPlayed",
       "threshold": 2,
       "secret": false,
       "description": "Play on 2 maps",
       "reward": 10
     },
     {
-      "id": "maps-3",
-      "name": "Globetrotter",
+      "id": "maps-2",
+      "name": "Traveler",
       "category": "Exploring",
       "stat": "mapsPlayed",
       "threshold": 3,
@@ -3040,8 +3030,8 @@
       "reward": 20
     },
     {
-      "id": "maps-5",
-      "name": "Explorer",
+      "id": "maps-3",
+      "name": "Globetrotter",
       "category": "Exploring",
       "stat": "mapsPlayed",
       "threshold": 5,
@@ -3050,8 +3040,8 @@
       "reward": 30
     },
     {
-      "id": "maps-10",
-      "name": "Cartographer",
+      "id": "maps-5",
+      "name": "Explorer",
       "category": "Exploring",
       "stat": "mapsPlayed",
       "threshold": 10,
@@ -3060,14 +3050,24 @@
       "reward": 60
     },
     {
+      "id": "maps-10",
+      "name": "Cartographer",
+      "category": "Exploring",
+      "stat": "mapsPlayed",
+      "threshold": 20,
+      "secret": false,
+      "description": "Play on 20 maps",
+      "reward": 100
+    },
+    {
       "id": "days-1",
       "name": "Day One",
       "category": "Days",
       "stat": "daysPlayed",
-      "threshold": 1,
+      "threshold": 2,
       "secret": false,
-      "description": "Play on 1 different day",
-      "reward": 4
+      "description": "Play on 2 different days",
+      "reward": 8
     },
     {
       "id": "days-5",
@@ -3534,9 +3534,9 @@
       "name": "Quick Run",
       "category": "Sessions",
       "stat": "sessionClaims",
-      "threshold": 10,
+      "threshold": 25,
       "secret": false,
-      "description": "Claim 10 empty blocks in one visit",
+      "description": "Claim 25 empty blocks in one visit",
       "reward": 1
     },
     {
@@ -3544,9 +3544,9 @@
       "name": "Session Grinder",
       "category": "Sessions",
       "stat": "sessionClaims",
-      "threshold": 25,
+      "threshold": 50,
       "secret": false,
-      "description": "Claim 25 empty blocks in one visit",
+      "description": "Claim 50 empty blocks in one visit",
       "reward": 1
     },
     {
@@ -3554,10 +3554,10 @@
       "name": "Binge",
       "category": "Sessions",
       "stat": "sessionClaims",
-      "threshold": 50,
+      "threshold": 75,
       "secret": false,
-      "description": "Claim 50 empty blocks in one visit",
-      "reward": 1
+      "description": "Claim 75 empty blocks in one visit",
+      "reward": 2
     },
     {
       "id": "session-100",
@@ -3734,9 +3734,9 @@
       "name": "Saver",
       "category": "Saving",
       "stat": "squaresHeld",
-      "threshold": 10,
+      "threshold": 100,
       "secret": false,
-      "description": "Have 10 squares at once",
+      "description": "Have 100 squares at once",
       "reward": 1
     },
     {
@@ -3744,24 +3744,14 @@
       "name": "Stash",
       "category": "Saving",
       "stat": "squaresHeld",
-      "threshold": 50,
+      "threshold": 250,
       "secret": false,
-      "description": "Have 50 squares at once",
-      "reward": 1
+      "description": "Have 250 squares at once",
+      "reward": 2
     },
     {
       "id": "held-100",
       "name": "Nest Egg",
-      "category": "Saving",
-      "stat": "squaresHeld",
-      "threshold": 100,
-      "secret": false,
-      "description": "Have 100 squares at once",
-      "reward": 1
-    },
-    {
-      "id": "held-500",
-      "name": "Hoarder",
       "category": "Saving",
       "stat": "squaresHeld",
       "threshold": 500,
@@ -3770,14 +3760,24 @@
       "reward": 3
     },
     {
-      "id": "held-1000",
-      "name": "Dragon Hoard",
+      "id": "held-500",
+      "name": "Hoarder",
       "category": "Saving",
       "stat": "squaresHeld",
       "threshold": 1000,
       "secret": false,
       "description": "Have 1,000 squares at once",
       "reward": 6
+    },
+    {
+      "id": "held-1000",
+      "name": "Dragon Hoard",
+      "category": "Saving",
+      "stat": "squaresHeld",
+      "threshold": 2500,
+      "secret": false,
+      "description": "Have 2,500 squares at once",
+      "reward": 15
     },
     {
       "id": "held-5000",
@@ -3984,10 +3984,10 @@
       "name": "Collector",
       "category": "Collector",
       "stat": "achievements",
-      "threshold": 10,
+      "threshold": 20,
       "secret": false,
-      "description": "Earn 10 achievements",
-      "reward": 10
+      "description": "Earn 20 achievements",
+      "reward": 50
     },
     {
       "id": "meta-25",

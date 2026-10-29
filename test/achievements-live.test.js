@@ -73,7 +73,7 @@ test('progress from before (lifetime totals) is caught up on connecting, with it
   game.totals.forget(pid);   // as after a restart: the server reads the totals again
   const back = player({ token });
   await back.welcome;
-  await back.next('achievement', d => d.id === 'claims-1k');
+  await back.next('achievement', d => d.id === 'claims-500');   // now the 1,000-block tier
   for (const id of ['claims-5', 'claims-100', 'claims-500']) assert.equal(await ledger(pid, 'achievement:' + id), 1, id);
   const v = (await back.ask('achievements')).values;
   assert.ok(v.claims >= 1000 && v.achievements >= 9, JSON.stringify(v).slice(0, 200));
