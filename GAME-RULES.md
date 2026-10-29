@@ -127,7 +127,7 @@ The largest square and the longest line are **records**. Losing blocks never low
 ## Achievements
 
 - 300 achievements, from the sheet's **Achievements** tab (Key, Name, Category, Stat, Threshold, Secret, Description, Reward; `npm run sync-rules` checks and imports it). Each is earned once per player, and pays its **Reward** in squares (ledger reason `achievement:<key>`).
-- Categories climb nice-number ladders (1, 5, 10, 25, 50, 100, 250…). A category's top tier is about 1,000 hours of dedicated play (144 new blocks an hour); earning all 300 is about 30,000 hours. Rewards are about 10 squares per hour of effort, at least 5.
+- Categories climb nice-number ladders (1, 5, 10, 25, 50, 100, 250…). A category's top tier is about 1,000 hours of dedicated play (144 new blocks an hour); earning all 300 is about 30,000 hours. Rewards are about 2 squares per hour of effort, at least 1 (Xoren, 2026-10-29).
 - Stats (`economy.js`, `STATS`): lifetime totals kept per player (`player_totals`: blocks claimed, taken, lost, taps, squares earned by claiming and spent on upgrades, upgrades bought, terrain claimed, days played and the longest daily streak (UTC days), active hours (minutes with a tap), wipes, chat messages, Growth's extra blocks, map growth, most claimed in one visit and in one day, minutes at #1), plus records on any map (most owned at once, largest square, longest line), upgrade levels, maps played, best rank, the balance at its highest, and achievements and secrets found.
 - Rank and reign count only on maps where at least `rankMinPlayers` (10) players own blocks, for players with at least `rankMinBlocks` (100) blocks there; ties count against you.
 - 10 secret achievements show as "???" until earned.

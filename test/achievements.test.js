@@ -3,16 +3,16 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const achievements = require('../achievements');
 
-test('the list from the sheet: exactly 300, about 10 secret, every one with a reward of at least 5 squares', () => {
+test('the list from the sheet: exactly 300, about 10 secret, every one with a reward of at least 1 square', () => {
   const list = achievements.DEFINITIONS;
   assert.equal(list.length, 300);
   assert.ok(achievements.index(list).size > 30);
   const secrets = list.filter(d => d.secret);
   assert.ok(secrets.length >= 8 && secrets.length <= 12, `${secrets.length} secrets`);
-  for (const d of list) assert.ok(d.reward >= 5, `${d.id} pays ${d.reward}`);
-  // Top tiers (about 1,000 hours) pay at least 10,000 squares.
+  for (const d of list) assert.ok(d.reward >= 1, `${d.id} pays ${d.reward}`);
+  // Top tiers (about 1,000 hours) pay about 2,000 squares (2 an hour).
   for (const id of ['claims-100k', 'owned-10k', 'square-50', 'line-150', 'taken-25k', 'taps-2m', 'hours-1000']) {
-    assert.ok(list.find(d => d.id === id).reward >= 7500, id);
+    assert.ok(list.find(d => d.id === id).reward >= 1500, id);
   }
   // The ids the placeholder list used are kept, so achievements earned before still count.
   for (const id of ['first-block', 'owned-100', 'owned-1000', 'square-10', 'square-50', 'line-10', 'line-100', 'retakes-10']) {

@@ -32,8 +32,8 @@ test('an achievement fires once and pays its reward once, even after reconnectin
   s.take(0, y);
   const { pid, token } = await s.next('you');
   const a = await s.next('achievement', d => d.id === 'first-block');
-  assert.deepEqual([a.name, a.reward, a.category], ['First Block', 5, 'Claiming']);
-  await s.next('squares', n => n >= 6);   // 1 for the block, 5 for the achievement
+  assert.deepEqual([a.name, a.reward, a.category], ['First Block', 1, 'Claiming']);
+  await s.next('squares', n => n >= 2);   // 1 for the block, 1 for the achievement
   assert.equal(await ledger(pid, 'achievement:first-block'), 1);
 
   const again = player({ token });   // connecting checks everything again
