@@ -22,6 +22,16 @@ const terrainTile = name => Object.assign(new Image(), { src: `tiles/terrain-${n
 const TERRAIN_TILES = { sand: terrainTile('sand'), forest: terrainTile('forest'), stone: terrainTile('stone'), gold: terrainTile('gold'),
   water: [terrainTile('water-0'), terrainTile('water-1')] };
 const WATER_FRAME_MS = 700;
+// Pixel clouds for the sky layers: two puffy clouds on a transparent tile, repeated.
+(() => {
+  const c = Object.assign(document.createElement('canvas'), { width: 96, height: 48 }), g = c.getContext('2d');
+  const puff = (x, y, s) => { g.fillStyle = '#ffffff'; g.fillRect(x + 2 * s, y, 6 * s, 2 * s); g.fillRect(x, y + 2 * s, 10 * s, 2 * s);
+    g.fillStyle = '#d7deea'; g.fillRect(x, y + 4 * s, 10 * s, s); };
+  puff(6, 8, 1); puff(54, 26, 2);
+  const url = `url(${c.toDataURL()})`;
+  for (const id of ['clouds-back', 'clouds-front']) document.getElementById(id).style.backgroundImage = url;
+})();
+
 // Skin images (public/skins/<id>.png, and -large.png for Full area), loaded the first time they're needed.
 const skinImages = new Map();
 function skinImage(id, large) {
@@ -128,8 +138,10 @@ function render() {
   const w = Math.round(innerWidth * dpr), h = Math.round(innerHeight * dpr);
   if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
   ctx.imageSmoothingEnabled = false;   // keep pixel art crisp
-  ctx.fillStyle = '#14181f';
-  ctx.fillRect(0, 0, w, h);
+  ctx.clearRect(0, 0, w, h);   // space shows through (index.html #space)
+  // Clouds: the far layer moves slower than the map, the near one faster (parallax).
+  $('clouds-back').style.backgroundPosition = `${Math.round(ox * 0.35)}px ${Math.round(oy * 0.35)}px`;
+  $('clouds-front').style.backgroundPosition = `${Math.round(ox * 1.6)}px ${Math.round(oy * 1.6)}px`;
   if (!cells) return;
 
   // Block edges in device pixels, rounded so neighbouring blocks never leave gaps.
@@ -155,6 +167,17 @@ function render() {
       if (ground === 'water') { waterShown = true; ctx.drawImage(TERRAIN_TILES.water[waterFrame], x0, y0, bw, bh); }
       else if (white) { ctx.fillStyle = '#f7f8fa'; ctx.fillRect(x0, y0, bw, bh); }   // the white style: clean white blocks
       else ctx.drawImage(ground === 'grass' ? tiles[variant(x, y)] : TERRAIN_TILES[ground], x0, y0, bw, bh);
+
+      // The floating island's underside: where no block is below, a cliff of dirt and rock hangs down, with a
+      // soft shadow under it.
+      if (ownerAt(x, y + 1) === undefined) {
+        const t = bh / 16, h = (n, m) => (Math.imul(x * 73856093 ^ (y + n) * 19349663, 83492791) >>> 0) % m;
+        ctx.fillStyle = '#7a4e2a'; ctx.fillRect(x0, y0 + bh, bw, Math.round(5 * t));
+        ctx.fillStyle = '#5a5e6b'; ctx.fillRect(x0, y0 + bh + Math.round(5 * t), bw, Math.round((4 + h(1, 4)) * t));
+        ctx.fillStyle = '#5c3a1e'; ctx.fillRect(x0 + h(2, 12) * t, y0 + bh + 2 * t, 2 * t, t);
+        ctx.fillStyle = '#41444f'; ctx.fillRect(x0 + h(3, 12) * t, y0 + bh + 7 * t, 3 * t, (2 + h(4, 3)) * t);
+        ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.fillRect(x0, y0 + bh + Math.round((9 + h(1, 4)) * t), bw, Math.round(6 * t));
+      }
 
       if (o) {
         // The owner's skin. Default: the ground recolored to their hue (keeping its shading). A pattern: its grey

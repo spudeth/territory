@@ -597,3 +597,16 @@ body:not(.welcome) #welcome * { pointer-events: none; }
 
 /* Online: a small green dot after the name (the player has the game open right now). */
 #board-list .name.online::after { content: ''; display: inline-block; width: 7px; height: 7px; margin-left: 6px; border-radius: 50%; background: #2fd35b; box-shadow: 0 0 0 2px var(--ink); vertical-align: middle; }
+
+/* ---------- The floating island's sky ---------- */
+body { background: #070b18; }
+#space { position: fixed; inset: 0; background: radial-gradient(ellipse at 50% 120%, #1b1f4a 0%, #0a0e22 55%, #05070f 100%); overflow: hidden; }
+#space .stars { position: absolute; inset: 0; image-rendering: pixelated;
+  background-image: radial-gradient(#fff 1px, transparent 1.5px), radial-gradient(#cfe0ff 1px, transparent 1.5px); }
+#space .stars.a { background-size: 137px 113px, 211px 173px; background-position: 13px 29px, 71px 5px; animation: twinkle 3.2s steps(2) infinite alternate; }
+#space .stars.b { background-size: 97px 151px, 179px 89px; background-position: 41px 67px, 5px 43px; animation: twinkle 4.6s steps(2) infinite alternate-reverse; }
+@keyframes twinkle { from { opacity: 1; } to { opacity: .35; } }
+.clouds { position: fixed; inset: 0; pointer-events: none; image-rendering: pixelated; background-repeat: repeat; }
+#clouds-back { background-size: 384px 192px; opacity: .22; }
+#clouds-front { background-size: 768px 384px; opacity: .14; }
+@media (prefers-reduced-motion: reduce) { #space .stars { animation: none; } }

@@ -30,7 +30,12 @@
 
   <!-- The map. On the welcome screen it is the blurred, dimmed background: #stage zooms out slowly on load,
        #drift moves it gently forever (welcome.js). -->
+  <!-- Behind the floating island: deep space with twinkling stars, and clouds below and above it (game.js moves the
+       clouds with the map, slower or faster, for depth). -->
+  <div id="space"><div class="stars a"></div><div class="stars b"></div></div>
+  <div class="clouds" id="clouds-back"></div>
   <div id="stage"><div id="drift"><canvas id="map"></canvas></div></div>
+  <div class="clouds" id="clouds-front"></div>
   <div id="dim"></div>
 
   <!-- Welcome screen: every visit opens here; PLAY goes into the game, MENU comes back (welcome.js) -->
