@@ -7,6 +7,7 @@ const store = require('./store');
 const { adminRouter, bannedMessage } = require('./admin');
 const rules = require('./rules');
 const chat = require('./chat');
+const terrain = require('./public/terrain');
 const stats = require('./stats');
 const achievements = require('./achievements');
 const { guestName, guestNames, checkName } = require('./names');
@@ -86,7 +87,10 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
     if (!maps.has(id)) {
       maps.set(id, store.loadMap(pool, id).then(m => {
         if (!m) return null;
-        const map = { id: m.id, name: m.name, style: m.style, room: 'map:' + m.id, cells: new Map(), counts: new Map(),
+        // terrainAt(x, y): a seeded map's terrain (public/terrain.js); maps without a seed are all grass.
+        const world = m.seed ? terrain.makeWorld(m.seed, rules.TERRAIN) : null;
+        const map = { id: m.id, name: m.name, style: m.style, seed: m.seed, terrainAt: world ? world.at : () => 'grass',
+          room: 'map:' + m.id, cells: new Map(), counts: new Map(),
           players: new Map(m.players.map(p => [p.player_id, { name: p.name, color: p.color, skin: p.skin_id, coverage: p.coverage,
             unlocked: p.unlocked, wipeFloor: p.wipe_floor, upgrades: upgradesOf(p) }])),
           hits: new Map(), queue: Promise.resolve() };
@@ -333,11 +337,11 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
         me: { ...me, color, skin, coverage, locked: lockedHere(), wipeFloor: mine?.wipeFloor ?? 0, squares: rules.shownSquares(me.squares) },
         choices: { colors: rules.COLORS, coverages: rules.COVERAGES },
         hitsPerBlock: rules.HITS_PER_BLOCK,
-        settings: { nameLabelShare: rules.NAME_LABEL_SHARE, nameMaxLength: rules.NAME_MAX_LENGTH, sound: rules.SOUND },
+        settings: { nameLabelShare: rules.NAME_LABEL_SHARE, nameMaxLength: rules.NAME_MAX_LENGTH, sound: rules.SOUND, terrain: rules.TERRAIN },
         accounts: !!auth,                         // false when logins aren't set up on this server
         upgraded: false, loginFailed: false,      // see `flags`
         ...flags,
-        map: { id: map.id, name: map.name, style: map.style },
+        map: { id: map.id, name: map.name, style: map.style, seed: map.seed },
         cells: [...map.cells].map(([k, owner]) => [...k.split(',').map(Number), owner]),
         players: Object.fromEntries([...map.players].map(([pid, { upgrades, ...shown }]) => [pid, shown])),
         hits: [...map.hits].map(([k, h]) => [...k.split(',').map(Number), share(h)]),
@@ -378,7 +382,7 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       const st = stats.afterClaim(me.pid ? statsOf(map, me.pid) : stats.empty(),
         { owns, x, y, owned: (map.counts.get(me.pid) || 0) + 1, from });
       const r = await store.claimBlock(pool, { mapId: map.id, x, y, from, playerId: me.pid, newGuest,
-        color: joining ? color : null, coverage, skin, earn: rules.squaresForFirstClaim(upgrades), grow: rules.growthBlocks(upgrades),
+        color: joining ? color : null, coverage, skin, earn: rules.squaresForFirstClaim(upgrades) + (map.terrainAt(x, y) === 'gold' ? rules.GOLD_BONUS_SQUARES : 0), grow: rules.growthBlocks(upgrades),
         stats: st.stats });
       if (r.conflict) {
         // Another server got there first (e.g. during a deploy). Resync this block for everyone.
@@ -436,7 +440,7 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       if (h) decay(map, k, h, now);
       h = map.hits.get(k);
       const owner = map.cells.get(k);
-      const need = rules.hitsNeeded(owner ? map.players.get(owner)?.upgrades ?? rules.NO_UPGRADES : null);
+      const need = rules.hitsNeeded(owner ? map.players.get(owner)?.upgrades ?? rules.NO_UPGRADES : null, map.terrainAt(x, y));
       if (h?.by !== by) map.hits.set(k, h = { by, n: 0 });
       h.at = now;
       h.need = need;

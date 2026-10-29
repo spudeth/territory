@@ -2,6 +2,7 @@
 const crypto = require('crypto');
 const { tx } = require('./db');
 const rules = require('./rules');
+const terrain = require('./public/terrain');
 const { accountNames } = require('./names');
 
 const hashToken = token => crypto.createHash('sha256').update(token).digest();
@@ -84,7 +85,7 @@ async function defaultMapId(pool) {
 
 // One map with its blocks and the players who have joined it. Null if there is no such map.
 async function loadMap(pool, mapId) {
-  const { rows: [map] } = await pool.query('SELECT id, name, style FROM maps WHERE id = $1', [mapId]);
+  const { rows: [map] } = await pool.query('SELECT id, name, style, seed FROM maps WHERE id = $1', [mapId]);
   if (!map) return null;
   const [cells, players, stats] = await Promise.all([
     pool.query('SELECT x, y, owner_id FROM map_cells WHERE map_id = $1', [mapId]),
@@ -130,9 +131,22 @@ async function rebuildEdges(client, mapId) {
     WHERE c.map_id = $1 AND NOT EXISTS (SELECT 1 FROM map_cells e WHERE e.map_id = $1 AND e.x = n.x AND e.y = n.y)`, [mapId]);
 }
 
+// A seeded map's n-th growth takes the spot terrain.growthPick chooses from its open spots, sorted, so the
+// same seed and the same claims always grow the same map.
+const GROW_AT = GROW.replace(
+  '(SELECT map_id, x, y FROM map_edges WHERE map_id = $1 ORDER BY random() LIMIT 1)', '($1::bigint, $2::integer, $3::integer)');
+
 async function growMap(client, mapId) {
-  await client.query('SELECT 1 FROM maps WHERE id = $1 FOR UPDATE', [mapId]);   // one growth at a time per map
-  const grown = (await client.query(GROW, [mapId])).rows[0];
+  // One growth at a time per map.
+  const { rows: [m] } = await client.query('SELECT seed, grown FROM maps WHERE id = $1 FOR UPDATE', [mapId]);
+  let grown;
+  if (m.seed === null) grown = (await client.query(GROW, [mapId])).rows[0];
+  else {
+    const { rows: spots } = await client.query('SELECT x, y FROM map_edges WHERE map_id = $1 ORDER BY x, y', [mapId]);
+    const spot = spots[terrain.growthPick(m.seed, m.grown, spots.length)];
+    grown = spot && (await client.query(GROW_AT, [mapId, spot.x, spot.y])).rows[0];
+    await client.query('UPDATE maps SET grown = grown + 1 WHERE id = $1', [mapId]);
+  }
   if (!grown) throw new Error('map growth found no free spot');
   return grown;
 }
@@ -275,17 +289,42 @@ async function listMaps(pool) {
 
 // Makes a new official map: a width-by-height rectangle of empty blocks. Admin script only (scripts/create-map.js).
 const STYLES = ['grass', 'white'];
-async function createMap(pool, { name, style, width, height }) {
+// A random seed for a map made without one: 8 letters and digits.
+const randomSeed = () => Array.from({ length: 8 }, () => 'abcdefghijkmnpqrstuvwxyz23456789'[crypto.randomInt(32)]).join('');
+
+// Makes a new official map and returns its id. Its seed decides its terrain and growth (see the migration
+// 013_seeds.sql); its starting shape is the seed's island of `blocks` blocks (rules.NEW_MAP_BLOCKS), or a
+// width-by-height rectangle when those are given. seed '' means a random one. A rectangle without a seed is
+// all grass and grows at random, like the maps from before seeds (tests use these).
+async function createMap(pool, { name, style = 'grass', seed, blocks = rules.NEW_MAP_BLOCKS, width = null, height = null }) {
   if (!name || typeof name !== 'string') throw new Error('a map needs a name');
   if (!STYLES.includes(style)) throw new Error(`style must be one of: ${STYLES.join(', ')}`);
-  for (const n of [width, height]) if (!Number.isInteger(n) || n < 1 || n > 1000) throw new Error('width and height must be 1-1000');
+  const rectangle = width !== null || height !== null;
+  if (seed === undefined || seed === null) seed = rectangle ? null : '';
+  if (seed !== null) seed = String(seed).trim() || randomSeed();
+  if (seed?.length > 100) throw new Error('the seed must be at most 100 characters');
+  if (rectangle) {
+    for (const n of [width, height]) if (!Number.isInteger(n) || n < 1 || n > 1000) throw new Error('width and height must be 1-1000');
+  } else if (!Number.isInteger(blocks) || blocks < 1 || blocks > 1000000) throw new Error('blocks must be 1-1000000');
   return tx(pool, async c => {
-    const { rows: [m] } = await c.query("INSERT INTO maps (name, style, type) VALUES ($1, $2, 'official') RETURNING id", [name, style]);
-    await c.query(`INSERT INTO map_cells (map_id, x, y)
-      SELECT $1, x, y FROM generate_series(0, $2 - 1) AS x, generate_series(0, $3 - 1) AS y`, [m.id, width, height]);
-    await rebuildEdges(c, m.id);
+    const { rows: [m] } = await c.query("INSERT INTO maps (name, style, type, seed) VALUES ($1, $2, 'official', $3) RETURNING id", [name, style, seed]);
+    await fillShape(c, m.id, seed, rectangle ? { width, height } : { blocks });
     return m.id;
   });
+}
+
+// Puts a map's starting blocks in place (the map must have none): a width-by-height rectangle, or the seed's
+// island of `blocks` blocks. Then its edge spots, for growth.
+async function fillShape(c, mapId, seed, { width, height, blocks }) {
+  if (width) {
+    await c.query(`INSERT INTO map_cells (map_id, x, y)
+      SELECT $1, x, y FROM generate_series(0, $2 - 1) AS x, generate_series(0, $3 - 1) AS y`, [mapId, width, height]);
+  } else {
+    const shape = terrain.startingShape(seed, blocks);
+    await c.query('INSERT INTO map_cells (map_id, x, y) SELECT $1, * FROM unnest($2::integer[], $3::integer[])',
+      [mapId, shape.map(p => p[0]), shape.map(p => p[1])]);
+  }
+  await rebuildEdges(c, mapId);
 }
 
 // The maps for the welcome screen's picker, with this player's place on each:
@@ -413,7 +452,7 @@ async function findPlayer(pool, ref) {
 async function findMap(pool, ref) {
   const id = /^#\d+$/.test(ref) ? ref.slice(1) : null;
   const { rows } = await pool.query(
-    `SELECT id, name, style, type FROM maps WHERE ${id ? 'id = $1' : 'lower(name) = lower($1)'} ORDER BY id LIMIT 1`, [id ?? ref]);
+    `SELECT id, name, style, type, seed FROM maps WHERE ${id ? 'id = $1' : 'lower(name) = lower($1)'} ORDER BY id LIMIT 1`, [id ?? ref]);
   return rows[0] ?? null;
 }
 
@@ -465,10 +504,12 @@ function wipeMap(pool, mapId, size = null) {
     const { rows: [n] } = await c.query(
       'SELECT count(owner_id)::int AS cleared, count(DISTINCT owner_id)::int AS players FROM map_cells WHERE map_id = $1', [mapId]);
     if (size) {
+      // A fresh start: a seeded map gets its seed's starting island again and grows from its first growth again;
+      // one without a seed becomes a width-by-height rectangle.
+      const { rows: [m] } = await c.query('SELECT seed FROM maps WHERE id = $1', [mapId]);
       await c.query('DELETE FROM map_cells WHERE map_id = $1', [mapId]);
-      await c.query(`INSERT INTO map_cells (map_id, x, y)
-        SELECT $1, x, y FROM generate_series(0, $2 - 1) AS x, generate_series(0, $3 - 1) AS y`, [mapId, size.width, size.height]);
-      await rebuildEdges(c, mapId);
+      await c.query('UPDATE maps SET grown = 0 WHERE id = $1', [mapId]);
+      await fillShape(c, mapId, m.seed, m.seed ? { blocks: size.blocks ?? rules.NEW_MAP_BLOCKS } : size);
     } else {
       await c.query('UPDATE map_cells SET owner_id = NULL, claimed_at = NULL WHERE map_id = $1 AND owner_id IS NOT NULL', [mapId]);
     }

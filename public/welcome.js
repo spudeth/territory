@@ -31,9 +31,9 @@
     for (const [k, o] of cells) {
       const [x, y] = k.split(',').map(Number);
       if (me && o === me) { mine.push([x, y]); continue; }
-      if (o !== null) continue;
+      if (o !== null || world?.at(x, y) === 'water') continue;   // water can't be claimed
       empty.push([x, y]);
-      const free = (dx, dy) => cells.get(key(x + dx, y + dy)) === null;
+      const free = (dx, dy) => cells.get(key(x + dx, y + dy)) === null && world?.at(x + dx, y + dy) !== 'water';
       if (free(1, 0) && free(-1, 0) && free(0, 1) && free(0, -1)) {
         open4.push([x, y]);
         if (free(1, 1) && free(-1, -1) && free(1, -1) && free(-1, 1)) open8.push([x, y]);

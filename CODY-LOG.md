@@ -393,3 +393,25 @@ Admin commands through the live server with a secret key, dev by default and --p
 - Try renaming an account to "Nibba" or "Niqqa": "That name isn't allowed".
 
 Loop order 8 done. Open: Q5 (achievements), Q6 (Spawn), Q8 (tutorial wording), Q10 (Purchase sound), Q11 (nameLabelShare row). Stopping.
+
+#63 | 2026-10-28 | Loop 9: public/terrain.js, one seeded algorithm shared by server and browser (integer hashing and plain arithmetic, so all engines agree): value-noise terrain for an endless world, a seeded connected starting island, and growthPick for the n-th growth. maps.seed and maps.grown (migration 013). Maps without a seed (today's Grass) stay all grass and grow at random | tests: terrain (same seed, same map; shares; connected 10,240-block island)
+#64 | 2026-10-28 | Loop 9: terrain rules: water refused ("Water can't be claimed"), hits × sandHits / forestHits / stoneHits / goldHits (multiplies with Defense), gold pays goldBonusSquares on a first claim. 12 new Game Rules keys (below). wipe-map --reset-size gives a seeded map its starting island back and restarts its growth | tests: each terrain on a real map over sockets
+#65 | 2026-10-28 | Loop 9: art. Kenney's site refused the download from here (403, bot check), so the terrain tiles are drawn for this game in the Tiny Town grass style (scratchpad script, colors from the grass tiles): sand, water in two frames (redrawn every 0.7 s only while water is on screen), forest tree, stone, gold nuggets on stone. Owned blocks keep the color tint. If Xoren downloads the Tiny Town pack, any tile can be swapped by replacing public/tiles/terrain-*.png | checked in headless Chrome
+#66 | 2026-10-28 | Loop 9: `npm run admin -- create-map <name> [--seed <text>]` (random 8-character seed if none; --width/--height for a rectangle); `map <name>` shows the seed. Made "Seed Test" (seed "loop nine") on dev with it: 10,240 blocks, water 16%, sand 11%, grass 38%, forest 22%, stone 12%, gold 0.8%. Screenshots: docs/screenshots/loop9-overview.png (the whole island), loop9-closeup.png (a claimed patch by a lake, gold on the right), loop9-welcome.png (the welcome screen on it) | full suite 115/115
+
+OPEN Q12 (Xoren): add these rows to the Game Rules tab, or `npm run sync-rules` will refuse (it checks every row is there):
+newMapBlocks 10240 · terrainScale 28 · waterShare 0.12 · sandShare 0.07 · forestShare 0.18 · stoneShare 0.08 · goldShare 0.01 · sandHits 0.5 · forestHits 1.5 · stoneHits 3 · goldHits 1 · goldBonusSquares 5
+(The values are my starting points: Bob's order set the rules, not the numbers.)
+
+## Merge steps (loop 9)
+1. Add the 12 Game Rules rows above to the sheet (not needed for the merge itself; the game uses data/economy.json).
+2. On GitHub: pull request from `iterate` into `main`, merge. Render deploys.
+3. Logs should show `Applied migrations: 013_seeds.sql`. The live Grass map is unchanged (no seed: all grass).
+
+## Live checklist (loop 9)
+- `npm run admin -- create-map "<name>" --seed "<text>" --prod` makes the first seeded map; `map "<name>" --prod` shows its seed.
+- On the welcome screen, ▶ to the new map: the background shows lakes, sand, forest and stone; PLAY.
+- Tap water: "Water can't be claimed". Sand takes 5 taps, forest 15, stone 30; a gold block pays 6 squares (1 + 5).
+- Water ripples gently; claimed blocks show your color over the terrain.
+
+Loop order 9 done. Open: Q5, Q6, Q8, Q10, Q11, Q12. Stopping.

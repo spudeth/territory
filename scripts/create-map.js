@@ -20,8 +20,11 @@ async function main() {
   if (!url) throw new Error('DATABASE_URL is not set');
   const pool = createPool(url, { max: 1 });
   try {
+    // A seeded island (newMapBlocks), or a rectangle with --width/--height. The seed is random unless given.
+    const rectangle = arg('width') !== undefined || arg('height') !== undefined;
     const id = await store.createMap(pool, {
-      name: arg('name'), style: arg('style'), width: Number(arg('width') ?? rules.NEW_MAP_WIDTH), height: Number(arg('height') ?? rules.NEW_MAP_HEIGHT),
+      name: arg('name'), style: arg('style') ?? 'grass', seed: arg('seed') ?? '',
+      ...(rectangle ? { width: Number(arg('width') ?? rules.NEW_MAP_WIDTH), height: Number(arg('height') ?? rules.NEW_MAP_HEIGHT) } : {}),
     });
     console.log(`Created map ${id}. Players can switch to it now; no restart needed.`);
   } finally {

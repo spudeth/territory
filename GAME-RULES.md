@@ -6,10 +6,26 @@ Every rule in the game, in plain English. This file is updated whenever a rule c
 
 ## The map
 
-- Everyone on a map plays on the same board. A new map starts as a rectangle, 32 × 32 blocks unless chosen otherwise (`scripts/create-map.js`, `--width` and `--height`).
-- Maps grow. Every time an empty block is claimed, one new empty block appears at a random spot touching the edge of the map. So maps slowly take any shape. (`store.js`, `growMap`)
+- Every map has a **seed** (any text; random if none is given). The seed decides everything about the map: the terrain at every block of an endless world, its starting shape, and where each new block appears as it grows. The same seed and the same claims always give the same map. (`public/terrain.js`)
+- A new map starts as an island of 10,240 blocks, about 101 across (Game Rules: `newMapBlocks`). `npm run admin -- create-map <name> --seed <text>`; `map <name>` shows the seed. `--width` and `--height` make a rectangle instead.
+- Maps grow. Every time an empty block is claimed, one new block (more with Growth) appears touching the edge of the map. On a seeded map the n-th growth's spot comes from the seed. Water counts as map, so growth can reveal it. (`store.js`, `growMap`)
 - Taking a block from another player does not grow the map.
-- There can be many maps. A player can switch between them, and the game remembers the last map they were on, on every device. Only an admin can make a new map (`npm run create-map`). Map looks: `grass` or `white` (`store.js`, `STYLES`).
+- Maps made before seeds have none: they stay all grass and grow at random.
+- There can be many maps. A player can switch between them, and the game remembers the last map they were on, on every device. Only an admin can make a new map. Map looks: `grass` or `white` (`store.js`, `STYLES`).
+
+## Terrain
+
+| Terrain | Rule (Game Rules tab) |
+|---|---|
+| Grass | normal |
+| Sand | `sandHits` × the normal hits (0.5: fewer) |
+| Forest | `forestHits` × (1.5) |
+| Stone | `stoneHits` × (3) |
+| Water | can't be claimed; a natural border |
+| Gold | rare; `goldHits` × (1), and `goldBonusSquares` (5) extra squares when first claimed (beyond the wipe floor, like any square) |
+
+- How much of the world each covers: `waterShare`, `sandShare`, `forestShare`, `stoneShare`, `goldShare`; how big features are: `terrainScale` (blocks across a typical lake or hill). These are shares of the endless world; any one map varies a little.
+- Terrain multiplies with the owner's Defense. Owned blocks keep the owner's color over the terrain.
 
 ## Taking blocks
 

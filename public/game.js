@@ -17,6 +17,13 @@ const $ = id => document.getElementById(id);
 // Kenney "Tiny Town" grass tiles (16x16). Most blocks use plain grass, some get a variant.
 const tiles = [0, 1, 2].map(n => Object.assign(new Image(), { src: `tiles/tile_000${n}.png`, onload: draw }));
 const VARIANTS = [0, 0, 0, 0, 0, 1, 1, 2];
+// Terrain tiles for seeded maps (terrain.js), drawn for this game in the same style. Water has two frames.
+const terrainTile = name => Object.assign(new Image(), { src: `tiles/terrain-${name}.png`, onload: draw });
+const TERRAIN_TILES = { sand: terrainTile('sand'), forest: terrainTile('forest'), stone: terrainTile('stone'), gold: terrainTile('gold'),
+  water: [terrainTile('water-0'), terrainTile('water-1')] };
+const WATER_FRAME_MS = 700;
+let world = null;   // this map's terrain (terrain.makeWorld), or null for a map without a seed (all grass)
+let waterTimer = null;
 function variant(x, y) {
   let h = Math.imul(x ^ 0x9e3779b9, 0x85ebca6b) ^ Math.imul(y ^ 0x7f4a7c15, 0xc2b2ae35);   // integer hash, so the variants look random
   h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
@@ -122,12 +129,16 @@ function render() {
   const c0 = Math.max(bounds.x0, Math.floor(-ox / scale)), c1 = Math.min(bounds.x1, Math.ceil((innerWidth - ox) / scale));
   const r0 = Math.max(bounds.y0, Math.floor(-oy / scale)), r1 = Math.min(bounds.y1, Math.ceil((innerHeight - oy) / scale));
 
+  const waterFrame = Math.floor(performance.now() / WATER_FRAME_MS) % 2;
+  let waterShown = false;
   for (let y = r0; y < r1; y++) {
     for (let x = c0; x < c1; x++) {
       const o = ownerAt(x, y);
       if (o === undefined) continue;
       const x0 = X(x), y0 = Y(y), bw = X(x + 1) - x0, bh = Y(y + 1) - y0;
-      ctx.drawImage(tiles[variant(x, y)], x0, y0, bw, bh);
+      const ground = world ? world.at(x, y) : 'grass';
+      if (ground === 'water') { waterShown = true; ctx.drawImage(TERRAIN_TILES.water[waterFrame], x0, y0, bw, bh); }
+      else ctx.drawImage(ground === 'grass' ? tiles[variant(x, y)] : TERRAIN_TILES[ground], x0, y0, bw, bh);
 
       if (o) {
         // Recolor the grass to the owner's hue (keeping its shading); solid border marks the territory edge.
@@ -166,6 +177,11 @@ function render() {
         }
       }
     }
+  }
+
+  // Water ripples: draw again for the next frame while water is on screen (not while the tab is hidden).
+  if (waterShown && !waterTimer && !document.hidden) {
+    waterTimer = setTimeout(() => { waterTimer = null; draw(); }, WATER_FRAME_MS - performance.now() % WATER_FRAME_MS);
   }
 
   // Faint grid so individual blocks are readable on seamless grass: each block's top and left edge,
@@ -321,6 +337,7 @@ canvas.addEventListener('wheel', e => {
 
 document.addEventListener('gesturestart', e => e.preventDefault());   // stop iOS page zoom
 addEventListener('resize', clampView);
+addEventListener('visibilitychange', () => { if (!document.hidden) draw(); });   // water starts moving again
 document.fonts?.ready.then(draw);   // the label font arrives after the first frames
 
 // ---------- UI ----------
@@ -392,6 +409,7 @@ socket.on('welcome', data => {
   }
   if (data.loginFailed) toast('Your login has expired. Log in again from the menu.');
   players = data.players;
+  world = data.map.seed ? terrain.makeWorld(data.map.seed, data.settings.terrain) : null;
   cells = new Map();
   bounds = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
   for (const [x, y, owner] of data.cells) addCell(x, y, owner);
