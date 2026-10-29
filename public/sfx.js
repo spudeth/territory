@@ -36,6 +36,15 @@
           { wave: 'square', freq: 196, duty: 0.3, attack: 0, hold: 0.05, decay: 0.12, vol: 0.25 }],
       C: { wave: 'square', freq: 392, duty: 0.5, attack: 0, hold: 0.1, decay: 0.15, vol: 0.35, steps: [[0.1, 0.84]] },
     },
+    steal: {
+      label: "You take another player's block", note: 'Different from claiming an empty block.',
+      A: [{ wave: 'noise', freq: 3000, slide: -2, attack: 0, hold: 0.03, decay: 0.08, vol: 0.35 },
+          { wave: 'square', freq: 330, slide: 4, duty: 0.25, attack: 0, hold: 0.08, decay: 0.08, vol: 0.3, at: 0.03 }],
+      B: [{ wave: 'square', freq: 392, duty: 0.5, attack: 0, hold: 0.1, decay: 0.12, vol: 0.25, steps: [[0.06, 1.335]] },
+          { wave: 'square', freq: 587, duty: 0.25, attack: 0, hold: 0.1, decay: 0.12, vol: 0.2, steps: [[0.06, 1.335]] }],
+      C: [{ wave: 'saw', freq: 1200, slide: -4, attack: 0, hold: 0.06, decay: 0.1, vol: 0.3 },
+          { wave: 'square', freq: 784, duty: 0.5, attack: 0, hold: 0.08, decay: 0.1, vol: 0.3, at: 0.07 }],
+    },
     grow: {
       label: 'The map grows',
       A: { wave: 'sine', freq: 400, slide: 2.5, attack: 0.01, hold: 0.05, decay: 0.12, vol: 0.45 },

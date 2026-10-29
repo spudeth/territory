@@ -147,6 +147,7 @@ function adminRouter({ pool, key, production, hooks }) {
         const i = await store.mapInfo(pool, m.id);
         return [
           `${m.name} (#${m.id}), ${m.style}, ${m.type}`,
+          `Seed: ${m.seed === null ? 'none (all grass, made before seeds)' : `"${m.seed}"`}`,
           `Size: ${i.blocks.toLocaleString()} blocks, spanning ${i.x1 - i.x0 + 1} x ${i.y1 - i.y0 + 1}`,
           `Claimed: ${i.claimed.toLocaleString()} blocks by ${plural(i.players, 'player')}`,
           `Top: ${i.top.length ? i.top.map((t, n) => `${n + 1}. ${t.name} ${t.blocks}`).join(', ') : 'nobody yet'}`,
@@ -300,17 +301,23 @@ function adminRouter({ pool, key, production, hooks }) {
     },
 
     'create-map': {
-      async prepare({ options }) {
-        const spec = { name: options.name, style: options.style ?? 'grass',
-          width: Number(options.width ?? rules.NEW_MAP_WIDTH), height: Number(options.height ?? rules.NEW_MAP_HEIGHT) };
-        if (!spec.name || spec.name === true) throw new Refusal('Give the map a name: --name Snowfield');
+      async prepare({ args, options }) {
+        const name = args[0] ?? options.name;
+        const rectangle = options.width !== undefined || options.height !== undefined;
+        const spec = { name, style: options.style ?? 'grass', seed: options.seed ?? '',   // '' = a random seed
+          ...(rectangle ? { width: Number(options.width ?? rules.NEW_MAP_WIDTH), height: Number(options.height ?? rules.NEW_MAP_HEIGHT) } : {}) };
+        if (!spec.name || spec.name === true) throw new Refusal('Give the map a name: create-map Snowfield');
+        if (spec.seed === true) throw new Refusal('Give --seed some text, e.g. --seed "frosty hills", or leave it out for a random one.');
         if (await store.findMap(pool, spec.name)) throw new Refusal(`There's already a map called "${spec.name}".`);
-        return { spec, target: `map ${spec.name}`, preview: [`Make a new ${spec.style} map "${spec.name}", ${spec.width} x ${spec.height} blocks. Players can switch to it straight away.`] };
+        const size = rectangle ? `${spec.width} x ${spec.height} blocks` : `${rules.NEW_MAP_BLOCKS.toLocaleString()} blocks`;
+        return { spec, target: `map ${spec.name}`, preview: [
+          `Make a new ${spec.style} map "${spec.name}", ${size}, seed ${spec.seed ? `"${spec.seed}"` : 'random'}. Players can switch to it straight away.`] };
       },
       async run({ spec }) {
         try {
           const id = await store.createMap(pool, spec);
-          return [`Made map "${spec.name}" (#${id}).`];
+          const { seed } = await store.findMap(pool, '#' + id);
+          return [`Made map "${spec.name}" (#${id}) with seed "${seed}".`];
         } catch (err) {
           throw /must|needs/.test(err.message) ? new Refusal(err.message) : err;
         }

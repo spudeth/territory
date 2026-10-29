@@ -89,6 +89,7 @@ npm run admin -- map Grass --prod
 ```
 ```
 Grass (#1), grass, official
+Seed: none (all grass, made before seeds)
 Size: 1,184 blocks, spanning 36 x 35
 Claimed: 412 blocks by 23 players
 Top: 1. Bold Hare 112, 2. Sly Wolf 60, 3. Zesty Deer 48
@@ -134,10 +135,10 @@ Sly Wolf now has 91.5 squares.
 npm run admin -- unban "Sly Wolf" --prod
 ```
 
-**create-map**: makes a new map. Style is `grass` or `white`. The size comes from the Game Rules tab unless you give one.
+**create-map**: makes a new map. Its **seed** (any text) decides its terrain (water, sand, forest, stone, gold), its starting island (newMapBlocks from the Game Rules tab) and how it grows: the same seed always makes the same map. Leave `--seed` out for a random one. `--width` and `--height` make a rectangle instead.
 ```
-npm run admin -- create-map --name Snowfield --style white --prod
-npm run admin -- create-map --name "Tiny Isle" --width 16 --height 16 --prod
+npm run admin -- create-map Snowfield --seed "frosty hills" --prod
+npm run admin -- create-map "Tiny Isle" --prod
 ```
 
 ### Big changes (you type the name, and a backup is saved first)

@@ -27,7 +27,8 @@ test('the saved sheet passes and reads every level and rule as shown', () => {
   assert.deepEqual(e.upgrades.clickPower[70], { level: 70, value: 10, cost: 15590 }, '"15,590" read as 15590');
   assert.deepEqual(e.upgrades.growth.map(l => l.value), [1, 2, 3, 4, 5, 6]);
   assert.equal(e.rules.hitsPerBlock, 10);
-  assert.equal(e.rules['achievement.owned-1000'], 1000, '"1000" and "1,000" both work');
+  assert.equal(e.achievements.length, 300);
+  assert.deepEqual(e.achievements[0], { id: 'first-block', name: 'First Block', category: 'Claiming', stat: 'claims', threshold: 1, secret: false, description: 'Claim 1 empty block', reward: 1 });
   assert.equal(Object.keys(e.rules).length, Object.keys(economy.RULE_KEYS).length);
 });
 
@@ -136,4 +137,25 @@ test('npm run sync-rules: writes the file from a saved copy, and refuses to writ
   const before = fs.readFileSync(out, 'utf8');
   assert.throws(() => run('--from', bad, '--out', out), e => /4 problems; nothing was written/.test(e.stderr) && /cell B2/.test(e.stderr));
   assert.equal(fs.readFileSync(out, 'utf8'), before, 'the file was not touched');
+});
+
+test('the Achievements tab: bad rows are named by cell; a missing tab is refused', () => {
+  const tabs = saved();
+  const lines = tabs['Achievements'].split('\n');
+  lines[1] = lines[2].replace(/^claims-5,/, 'claims-5,');                // a duplicate key
+  lines[3] = 'Bad Key,Name,Claiming,claims,1,,Desc,5';
+  lines[4] = 'ok-key,Name,Claiming,flying,1,,Desc,5';
+  lines[5] = 'ok-key-2,Name,Claiming,claims,0,maybe,,-1';
+  tabs['Achievements'] = lines.join('\n');
+  const errors = errorsWith(tabs);
+  assert.ok(errors.some(e => /Achievements, cell A\d+ \("Key"\): "claims-5" appears twice/.test(e)), errors.join('\n'));
+  assert.ok(errors.some(e => /"Bad Key" must be lower-case/.test(e)));
+  assert.ok(errors.some(e => /unknown stat "flying"/.test(e)));
+  assert.ok(errors.some(e => /"0" must be a number above 0/.test(e)));
+  assert.ok(errors.some(e => /"maybe" must be yes, no or blank/.test(e)));
+  assert.ok(errors.some(e => /\("Description"\): blank/.test(e)));
+  assert.ok(errors.some(e => /"-1" must be a number of squares/.test(e)));
+  const missing = saved();
+  delete missing['Achievements'];
+  assert.deepEqual(errorsWith(missing), ['Achievements: the tab is missing']);
 });

@@ -17,6 +17,13 @@ const $ = id => document.getElementById(id);
 // Kenney "Tiny Town" grass tiles (16x16). Most blocks use plain grass, some get a variant.
 const tiles = [0, 1, 2].map(n => Object.assign(new Image(), { src: `tiles/tile_000${n}.png`, onload: draw }));
 const VARIANTS = [0, 0, 0, 0, 0, 1, 1, 2];
+// Terrain tiles for seeded maps (terrain.js), drawn for this game in the same style. Water has two frames.
+const terrainTile = name => Object.assign(new Image(), { src: `tiles/terrain-${name}.png`, onload: draw });
+const TERRAIN_TILES = { sand: terrainTile('sand'), forest: terrainTile('forest'), stone: terrainTile('stone'), gold: terrainTile('gold'),
+  water: [terrainTile('water-0'), terrainTile('water-1')] };
+const WATER_FRAME_MS = 700;
+let world = null;   // this map's terrain (terrain.makeWorld), or null for a map without a seed (all grass)
+let waterTimer = null;
 function variant(x, y) {
   let h = Math.imul(x ^ 0x9e3779b9, 0x85ebca6b) ^ Math.imul(y ^ 0x7f4a7c15, 0xc2b2ae35);   // integer hash, so the variants look random
   h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
@@ -122,12 +129,16 @@ function render() {
   const c0 = Math.max(bounds.x0, Math.floor(-ox / scale)), c1 = Math.min(bounds.x1, Math.ceil((innerWidth - ox) / scale));
   const r0 = Math.max(bounds.y0, Math.floor(-oy / scale)), r1 = Math.min(bounds.y1, Math.ceil((innerHeight - oy) / scale));
 
+  const waterFrame = Math.floor(performance.now() / WATER_FRAME_MS) % 2;
+  let waterShown = false;
   for (let y = r0; y < r1; y++) {
     for (let x = c0; x < c1; x++) {
       const o = ownerAt(x, y);
       if (o === undefined) continue;
       const x0 = X(x), y0 = Y(y), bw = X(x + 1) - x0, bh = Y(y + 1) - y0;
-      ctx.drawImage(tiles[variant(x, y)], x0, y0, bw, bh);
+      const ground = world ? world.at(x, y) : 'grass';
+      if (ground === 'water') { waterShown = true; ctx.drawImage(TERRAIN_TILES.water[waterFrame], x0, y0, bw, bh); }
+      else ctx.drawImage(ground === 'grass' ? tiles[variant(x, y)] : TERRAIN_TILES[ground], x0, y0, bw, bh);
 
       if (o) {
         // Recolor the grass to the owner's hue (keeping its shading); solid border marks the territory edge.
@@ -166,6 +177,11 @@ function render() {
         }
       }
     }
+  }
+
+  // Water ripples: draw again for the next frame while water is on screen (not while the tab is hidden).
+  if (waterShown && !waterTimer && !document.hidden) {
+    waterTimer = setTimeout(() => { waterTimer = null; draw(); }, WATER_FRAME_MS - performance.now() % WATER_FRAME_MS);
   }
 
   // Faint grid so individual blocks are readable on seamless grass: each block's top and left edge,
@@ -233,6 +249,7 @@ function render() {
   const now = performance.now();
   squarePops = squarePops.filter(p => now - p.t0 < SQUARE_POP.ms);
   for (const p of squarePops) {
+    if (now < p.t0) continue;   // a later square of the same claim, not started yet
     const e = 1 - Math.pow(1 - (now - p.t0) / SQUARE_POP.ms, SQUARE_POP.power);   // fast, then slow
     const s = SQUARE_POP.size * scale * dpr;
     const bottom = Y(p.y) + (SQUARE_POP.centered ? s / 2 : 0) - e * SQUARE_POP.rise * scale * dpr;
@@ -248,7 +265,7 @@ function render() {
 // centered: starts centered on the block's top grid line instead of sitting on it.
 const SQUARE_POP = { ms: 1350, rise: 1.15, power: 4.5, size: 0.28, centered: false };   // Xoren's picks
 const squareIcon = Object.assign(new Image(), { src: 'icons/square.svg' });
-let squarePops = [], lastClaim = null;
+let squarePops = [];
 
 // Where a block's centre is on screen, for placing other players' sounds.
 const screenAt = (x, y) => ({ sx: ox + (x + 0.5) * scale, sy: oy + (y + 0.5) * scale });
@@ -321,6 +338,7 @@ canvas.addEventListener('wheel', e => {
 
 document.addEventListener('gesturestart', e => e.preventDefault());   // stop iOS page zoom
 addEventListener('resize', clampView);
+addEventListener('visibilitychange', () => { if (!document.hidden) draw(); });   // water starts moving again
 document.fonts?.ready.then(draw);   // the label font arrives after the first frames
 
 // ---------- UI ----------
@@ -392,6 +410,7 @@ socket.on('welcome', data => {
   }
   if (data.loginFailed) toast('Your login has expired. Log in again from the menu.');
   players = data.players;
+  world = data.map.seed ? terrain.makeWorld(data.map.seed, data.settings.terrain) : null;
   cells = new Map();
   bounds = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
   for (const [x, y, owner] of data.cells) addCell(x, y, owner);
@@ -429,7 +448,7 @@ socket.on('claim', ({ x, y, pid }) => {
   cells.set(key(x, y), pid);
   hits.delete(key(x, y));
   myTaps.delete(key(x, y));
-  if (pid === me) { gameAudio.play('claim'); tell('claimed', { x, y, from: before }); lastClaim = { x, y }; }
+  if (pid === me) { gameAudio.play(before ? 'steal' : 'claim'); tell('claimed', { x, y, from: before }); }
   else if (me && before === me) { gameAudio.play('taken'); tell('taken', { x, y }); }
   else gameAudio.play('claim', screenAt(x, y));
   updateUI();
@@ -452,8 +471,13 @@ socket.on('rename', ({ pid, name }) => {
   if (pid === me) myName = name;
   updateUI();
 });
+// One rising square per square a claim mined: they come fast, then slower (the gaps grow), over at most 1.5 s.
+socket.on('mined', ({ x, y, count }) => {
+  const t = performance.now(), n = Math.min(count, 50), span = Math.min(1500, 150 * (n - 1));
+  for (let i = 0; i < n; i++) squarePops.push({ x, y, t0: t + span * (n > 1 ? (i / (n - 1)) ** 2 : 0) });
+  draw();
+});
 socket.on('squares', n => {
-  if (n > squares && lastClaim) { squarePops.push({ ...lastClaim, t0: performance.now() }); draw(); }
   squares = n;
   updateUI();
   if (n > 0) tell('squares', n);

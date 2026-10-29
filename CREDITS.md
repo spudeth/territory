@@ -2,7 +2,8 @@
 
 ## Art
 
-- Grass tiles (`public/tiles/`): [Tiny Town](https://kenney.nl/assets/tiny-town) by Kenney. License: CC0 1.0 (license file included). No attribution required.
+- Grass tiles (`public/tiles/tile_000*.png`): [Tiny Town](https://kenney.nl/assets/tiny-town) by Kenney. License: CC0 1.0 (license file included). No attribution required.
+- Terrain tiles (`public/tiles/terrain-*.png`: sand, water (two frames), forest, stone, gold): drawn for this game in the same style, with the grass tiles' colors. Made for this game; there is no outside license.
 
 ## Sound effects
 

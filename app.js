@@ -7,8 +7,10 @@ const store = require('./store');
 const { adminRouter, bannedMessage } = require('./admin');
 const rules = require('./rules');
 const chat = require('./chat');
+const terrain = require('./public/terrain');
 const stats = require('./stats');
 const achievements = require('./achievements');
+const { createTotals } = require('./totals');
 const { guestName, guestNames, checkName } = require('./names');
 
 const { key } = rules;
@@ -54,7 +56,9 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
   app.get('/api/ip', (req, res) => res.json({ ip: clientIp(req.headers, req.socket.remoteAddress) }));
   if (auth) app.use(auth.router);
   app.use('/admin', adminRouter({ pool, key: adminKey, production: !!publicUrl, hooks: adminHooks() }));
-  app.use(express.static(__dirname + '/public', { extensions: ['html'] }));   // also serves /privacy and /terms
+  // Browsers check every file for a newer version (a quick "not modified" when unchanged), so after an update
+  // nobody keeps running old game code from their cache. Also serves /privacy and /terms.
+  app.use(express.static(__dirname + '/public', { extensions: ['html'], setHeaders: res => res.setHeader('Cache-Control', 'no-cache') }));
 
   const server = http.createServer(app);
   // Large messages (the whole map on joining: 1.4 MB at 100,000 blocks) are compressed, fast setting, to about
@@ -86,10 +90,13 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
     if (!maps.has(id)) {
       maps.set(id, store.loadMap(pool, id).then(m => {
         if (!m) return null;
-        const map = { id: m.id, name: m.name, style: m.style, room: 'map:' + m.id, cells: new Map(), counts: new Map(),
+        // terrainAt(x, y): a seeded map's terrain (public/terrain.js); maps without a seed are all grass.
+        const world = m.seed ? terrain.makeWorld(m.seed, rules.TERRAIN) : null;
+        const map = { id: m.id, name: m.name, style: m.style, seed: m.seed, terrainAt: world ? world.at : () => 'grass',
+          room: 'map:' + m.id, cells: new Map(), counts: new Map(),
           players: new Map(m.players.map(p => [p.player_id, { name: p.name, color: p.color, skin: p.skin_id, coverage: p.coverage,
             unlocked: p.unlocked, wipeFloor: p.wipe_floor, upgrades: upgradesOf(p) }])),
-          hits: new Map(), queue: Promise.resolve() };
+          hits: new Map(), claiming: new Set(), queue: Promise.resolve() };
         for (const c of m.cells) {
           map.cells.set(key(c.x, c.y), c.owner_id);
           if (c.owner_id) map.counts.set(c.owner_id, (map.counts.get(c.owner_id) || 0) + 1);
@@ -132,23 +139,86 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
     }
     return earned.get(pid);
   };
-  let checks = Promise.resolve();   // one player's checks never overlap another's save
-  events.on('stat', ({ mapId, pid, name, value }) => {
-    if (!byStat.has(name)) return;
-    checks = checks.then(async () => {
+  const checks = new Map();   // pid -> the player's queue of checks: one at a time per player, players in parallel
+  // Each one earned pays its reward in squares; earning also counts toward the Collector achievements.
+  const knownIds = new Set(achievementList.map(d => d.id));
+  events.on('stat', ({ mapId = null, pid, name, value }) => {
+    if (!pid || !byStat.has(name)) return;
+    const queued = (checks.get(pid) ?? Promise.resolve()).then(async () => {
       const have = await earnedBy(pid);
       const hits = achievements.reached(byStat, name, value, have);
       if (!hits.length) return;
-      const fresh = new Set(await store.earnAchievements(pool, pid, mapId, hits.map(d => d.id)));
+      // A deadlock with a claim at the same moment is retried once rather than losing the achievement.
+      const earn = () => store.earnAchievements(pool, pid, mapId, hits.map(d => d.id), Object.fromEntries(hits.map(d => [d.id, d.reward])));
+      const r = await earn().catch(err => { if (err.code === '40P01') return earn(); throw err; });
+      const fresh = new Set(r.fresh);
+      let secrets = 0;
       for (const d of hits) {
         have.add(d.id);
         if (!fresh.has(d.id)) continue;
-        const a = { id: d.id, name: d.name, stat: d.stat, threshold: d.threshold, mapId };
+        if (d.secret) secrets++;
+        const a = { id: d.id, name: d.name, category: d.category, description: d.description, reward: d.reward, secret: d.secret,
+          stat: d.stat, threshold: d.threshold, mapId };
         events.emit('achievement', { pid, ...a });
         io.to('player:' + pid).emit('achievement', a);
       }
+      if (r.squares !== null) balanceChanged(pid, r.squares);
+      if (fresh.size) totals.best(pid, 'achievements', [...have].filter(id => knownIds.has(id)).length);
+      if (secrets) totals.bump(pid, 'secrets', secrets);
     }).catch(err => console.error(`ACHIEVEMENT CHECK FAILED (player ${pid}): ${err.message}`));
+    checks.set(pid, queued);
+    queued.then(() => { if (checks.get(pid) === queued) checks.delete(pid); });
   });
+
+  // Lifetime totals (totals.js), checked like any other stat.
+  const totals = createTotals(pool, { onStat: (pid, name, value) => events.emit('stat', { pid, name, value }) });
+
+  // A player's balance changed (claims, purchases, rewards, admin): every device, and the Saving achievements.
+  function balanceChanged(pid, balance) {
+    for (const s of io.sockets.sockets.values()) if (String(s.data.me?.pid) === String(pid)) s.data.me.squares = balance;
+    io.to('player:' + pid).emit('squares', rules.shownSquares(balance));
+    totals.best(pid, 'squaresHeld', rules.shownSquares(balance));
+    if (rules.shownSquares(balance) === 1337) totals.best(pid, 'secret:leet', 1);
+  }
+
+  // Every stat an achievement can use, as it stands now: lifetime totals, upgrade levels, records on any map,
+  // maps played, achievements earned. For the Achievements screen, and to catch up on connecting.
+  async function progressValues(pid, levels, account) {
+    const [values, progress, played] = await Promise.all([totals.values(pid), store.achievementProgress(pool, pid), store.mapsPlayed(pool, pid)]);
+    const out = { ...values, owned: progress.best.owned, bestSquare: progress.best.bestSquare, bestLine: progress.best.bestLine,
+      mapsPlayed: played, achievements: progress.earned.filter(e => knownIds.has(e.id)).length };
+    for (const [k, v] of Object.entries(levels)) out['level:' + k] = v;
+    if (account) out.account = 1;
+    return { values: out, earned: progress.earned };
+  }
+  // Earns anything a player has already reached (e.g. new achievements, or progress from before they existed).
+  async function catchUp(pid, levels, account) {
+    const { values } = await progressValues(pid, levels, account);
+    for (const [name, value] of Object.entries(values)) events.emit('stat', { pid, name, value });
+  }
+
+  // Rank and reign: on maps where enough players own blocks, a player's place, and a minute at #1 for the
+  // leader each minute.
+  // A tie counts against you (two players level at the top are both #2), and a rank only counts with at least
+  // RANK_MIN_BLOCKS blocks, so a single block among many beginners isn't "#1".
+  const rankOn = (map, pid) => {
+    const counts = [...map.counts.values()].filter(n => n > 0);
+    if (counts.length < rules.RANK_MIN_PLAYERS) return null;
+    const mine = map.counts.get(pid) || 0;
+    return mine >= rules.RANK_MIN_BLOCKS ? counts.filter(n => n >= mine).length : null;
+  };
+  const lostTo = new Map();     // "pid|map|x,y" -> { by, at }: who took a block from whom, for Revenge
+  const comeback = new Set();   // "pid|map": lost every block there to others (Comeback Kid)
+  const reign = setInterval(() => {
+    for (const map of loaded) {
+      const top = [...map.counts].filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]);
+      if (top.length < rules.RANK_MIN_PLAYERS || top[0][1] === top[1][1] || top[0][1] < rules.RANK_MIN_BLOCKS) continue;
+      totals.bump(top[0][0], 'reignMinutes', 1);
+    }
+    const old = Date.now() - 60000;
+    for (const [k, v] of lostTo) if (v.at < old) lostTo.delete(k);
+  }, 60000);
+  reign.unref();
 
   // Runs claims and wipes on one map in arrival order, so each sees the result of the one before.
   function serial(map, fn) {
@@ -233,10 +303,7 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
         return r;
       },
       async reloadMaps(ids) { for (const id of ids) await reloadMap(id); },
-      squaresChanged(pid, balance) {
-        for (const s of socketsOf([pid])) s.data.me.squares = balance;
-        io.to('player:' + pid).emit('squares', rules.shownSquares(balance));
-      },
+      squaresChanged: balanceChanged,
       // After a restore: forget every loaded map and disconnect everyone, who reconnect to the restored game.
       reloadAll() {
         maps.clear();
@@ -258,7 +325,7 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       s.data.me.squares = balance;
     }
     for (const map of loaded) { const p = map.players.get(pid); if (p) p.upgrades = levels; }
-    io.to('player:' + pid).emit('squares', rules.shownSquares(balance));
+    balanceChanged(pid, balance);
   }
 
   // A new name shows to everyone at once: every loaded map, every connection of that player, every browser.
@@ -316,6 +383,14 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
     let tutorialSaves = Promise.resolve();
     const lockedHere = () => map.players.has(me.pid) && !map.players.get(me.pid).unlocked;
     if (me.pid) socket.join('player:' + me.pid);
+    if (me.pid) {
+      if (me.account) totals.best(me.pid, 'account', 1);
+      if (me.tutorial?.done) totals.best(me.pid, 'tutorialDone', 1);
+      catchUp(me.pid, upgrades, me.account).catch(err => console.error(`CATCH-UP FAILED (player ${me.pid}): ${err.message}`));
+    }
+    // This visit, for the Sessions achievements and some secrets.
+    const session = { claims: 0, recent: [], forestRun: 0, pokes: 0, minute: null, visitorTaps: 0 };
+    socket.on('disconnect', () => { if (me.pid) totals.save(me.pid); });
 
     // Puts this connection on `next` and sends the whole map. Also used when switching maps, so the browser
     // handles a switch like a fresh welcome.
@@ -333,11 +408,11 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
         me: { ...me, color, skin, coverage, locked: lockedHere(), wipeFloor: mine?.wipeFloor ?? 0, squares: rules.shownSquares(me.squares) },
         choices: { colors: rules.COLORS, coverages: rules.COVERAGES },
         hitsPerBlock: rules.HITS_PER_BLOCK,
-        settings: { nameLabelShare: rules.NAME_LABEL_SHARE, nameMaxLength: rules.NAME_MAX_LENGTH, sound: rules.SOUND },
+        settings: { nameLabelShare: rules.NAME_LABEL_SHARE, nameMaxLength: rules.NAME_MAX_LENGTH, sound: rules.SOUND, terrain: rules.TERRAIN },
         accounts: !!auth,                         // false when logins aren't set up on this server
         upgraded: false, loginFailed: false,      // see `flags`
         ...flags,
-        map: { id: map.id, name: map.name, style: map.style },
+        map: { id: map.id, name: map.name, style: map.style, seed: map.seed },
         cells: [...map.cells].map(([k, owner]) => [...k.split(',').map(Number), owner]),
         players: Object.fromEntries([...map.players].map(([pid, { upgrades, ...shown }]) => [pid, shown])),
         hits: [...map.hits].map(([k, h]) => [...k.split(',').map(Number), share(h)]),
@@ -377,9 +452,10 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       const owns = (a, b) => (a === x && b === y) || (me.pid !== null && map.cells.get(key(a, b)) === me.pid);
       const st = stats.afterClaim(me.pid ? statsOf(map, me.pid) : stats.empty(),
         { owns, x, y, owned: (map.counts.get(me.pid) || 0) + 1, from });
+      const ground = map.terrainAt(x, y);
+      const earn = rules.squaresForFirstClaim(upgrades) + (ground === 'gold' ? rules.GOLD_BONUS_SQUARES : 0);
       const r = await store.claimBlock(pool, { mapId: map.id, x, y, from, playerId: me.pid, newGuest,
-        color: joining ? color : null, coverage, skin, earn: rules.squaresForFirstClaim(upgrades), grow: rules.growthBlocks(upgrades),
-        stats: st.stats });
+        color: joining ? color : null, coverage, skin, earn, grow: rules.growthBlocks(upgrades), stats: st.stats });
       if (r.conflict) {
         // Another server got there first (e.g. during a deploy). Resync this block for everyone.
         setOwner(map, k, await store.cellOwner(pool, map.id, x, y));
@@ -394,6 +470,10 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
         me.name = r.name;
         socket.join('player:' + me.pid);
         socket.emit('you', { token, pid: me.pid, name: me.name });
+        totals.bump(me.pid, 'taps', session.visitorTaps);
+        session.visitorTaps = 0;
+        session.minute = Math.floor(Date.now() / 60000);
+        totals.bump(me.pid, 'hoursPlayed', 1 / 60);
       }
       if (r.joinedMap) {
         const before = map.players.get(me.pid);
@@ -401,6 +481,7 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
         io.to(map.room).emit('player', { pid: me.pid, name: me.name, color, skin, coverage });
       }
       setOwner(map, k, me.pid);
+      map.hits.delete(k);   // no crack carries over to the new owner
       io.to(map.room).emit('claim', { x, y, pid: me.pid });
       map.stats.set(me.pid, st.stats);
       statChanged(map, me.pid, 'owned', map.counts.get(me.pid));
@@ -414,9 +495,48 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
         io.to(map.room).emit('grow', g);
       }
       if (r.squares !== null) {
-        me.squares = r.squares;
-        io.to('player:' + me.pid).emit('squares', rules.shownSquares(r.squares));
+        // Whole squares this claim mined, for the rising-square animation (rewards don't animate).
+        const mined = rules.shownSquares(r.squares) - rules.shownSquares(me.squares);
+        if (mined > 0) socket.emit('mined', { x, y, count: mined });
+        balanceChanged(me.pid, r.squares);
       }
+      claimStats({ x, y, k, from, ground, grown: r.grown.length, earned: r.squares !== null ? earn : 0, joinedMap: r.joinedMap });
+    }
+
+    // What a claim counts toward: lifetime totals, records, rank, and the secrets.
+    function claimStats({ x, y, k, from, ground, grown, earned, joinedMap }) {
+      const pid = me.pid, now = Date.now(), here = map.id + '|';
+      if (ground !== 'grass') totals.bump(pid, 'terrain:' + ground);
+      if (from === null) {
+        totals.bump(pid, 'claims');
+        totals.best(pid, 'sessionClaims', ++session.claims);
+        totals.touchDay(pid, now).then(() => totals.bump(pid, 'dayClaims')).then(n => n && totals.best(pid, 'bestDayClaims', n));
+        totals.bump(pid, 'mapGrown', grown);
+        totals.bump(pid, 'growthBlocks', Math.max(0, grown - 1));
+        totals.bump(pid, 'squaresEarned', earned);
+        session.recent = [...session.recent.filter(t => now - t < 60000), now];
+        if (session.recent.length >= 10) totals.best(pid, 'secret:speedrun', 1);
+      } else {
+        totals.bump(pid, 'taken');
+        totals.bump(from, 'lost');
+        const mine = lostTo.get(pid + '|' + here + k);
+        if (mine && String(mine.by) === String(from) && now - mine.at <= 60000) totals.best(pid, 'secret:revenge', 1);
+        lostTo.set(from + '|' + here + k, { by: pid, at: now });
+        if (!map.counts.get(from)) comeback.add(from + '|' + map.id);
+        const theirs = rankOn(map, from);
+        if (theirs) totals.best(from, 'bestRank', theirs);
+      }
+      session.forestRun = ground === 'forest' ? session.forestRun + 1 : 0;
+      if (session.forestRun >= 25) totals.best(pid, 'secret:treehugger', 1);
+      if (map.seed && rules.NEIGHBORS.every(([dx, dy]) => map.terrainAt(x + dx, y + dy) === 'water')) totals.best(pid, 'secret:castaway', 1);
+      if (new Date(now).getUTCHours() === 3) totals.best(pid, 'secret:witching', 1);
+      if (comeback.has(pid + '|' + map.id) && (map.counts.get(pid) || 0) >= 100) {
+        comeback.delete(pid + '|' + map.id);
+        totals.best(pid, 'secret:comeback', 1);
+      }
+      const rank = rankOn(map, pid);
+      if (rank) totals.best(pid, 'bestRank', rank);
+      if (joinedMap) store.mapsPlayed(pool, pid).then(n => totals.best(pid, 'mapsPlayed', n), () => {});
     }
 
     socket.on('hit', p => {
@@ -426,8 +546,22 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       taps.set(who, t.bucket);
       if (!t.allowed) return ignoredTaps.set(who, (ignoredTaps.get(who) || 0) + 1);
       const { x, y } = p, k = key(x, y);
+      if (map.claiming.has(k)) return;   // taps still arriving while the claim is being saved don't count
       const error = checkHit(map, me.pid, x, y);
-      if (error) return socket.emit('denied', error);
+      if (error) {
+        if (error === 'You already own this block' && ++session.pokes === 50) totals.best(me.pid, 'secret:poke', 1);
+        return socket.emit('denied', error);
+      }
+      if (!me.pid) session.visitorTaps++;   // counted once the first claim makes them a player
+      else {
+        totals.bump(me.pid, 'taps');
+        const minute = Math.floor(Date.now() / 60000);   // a minute with a tap is a minute played
+        if (minute !== session.minute) {
+          session.minute = minute;
+          totals.bump(me.pid, 'hoursPlayed', 1 / 60);
+          totals.touchDay(me.pid);
+        }
+      }
 
       // Progress only counts while the same player keeps hitting the block, and fades when they stop.
       // Each click adds the player's Click Power; the owner's Defense sets the hits needed.
@@ -436,7 +570,7 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       if (h) decay(map, k, h, now);
       h = map.hits.get(k);
       const owner = map.cells.get(k);
-      const need = rules.hitsNeeded(owner ? map.players.get(owner)?.upgrades ?? rules.NO_UPGRADES : null);
+      const need = rules.hitsNeeded(owner ? map.players.get(owner)?.upgrades ?? rules.NO_UPGRADES : null, map.terrainAt(x, y));
       if (h?.by !== by) map.hits.set(k, h = { by, n: 0 });
       h.at = now;
       h.need = need;
@@ -445,7 +579,8 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
 
       map.hits.delete(k);
       const here = map;
-      serial(map, () => finishClaim(here, x, y)).catch(err => {
+      here.claiming.add(k);
+      serial(map, () => finishClaim(here, x, y)).finally(() => here.claiming.delete(k)).catch(err => {
         console.error(`CLAIM FAILED (map ${map.id}, ${k}): ${err.message}`);
         socket.emit('denied', 'Could not save your claim. Try again.');
         clearCrack(x, y);
@@ -457,7 +592,11 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       if (!me.pid) return;
       const here = map;
       serial(here, async () => {
-        if (!await wipeOn(here, me.pid)) socket.emit('denied', 'You have no blocks to wipe');
+        const r = await wipeOn(here, me.pid);
+        if (!r) return socket.emit('denied', 'You have no blocks to wipe');
+        totals.bump(me.pid, 'wipes');
+        if (r.cells.length >= 1000) totals.best(me.pid, 'secret:wipedout', 1);
+        comeback.delete(me.pid + '|' + here.id);
       }).catch(err => {
         console.error(`WIPE FAILED (map ${here.id}, player ${me.pid}): ${err.message}`);
         socket.emit('denied', 'Could not wipe your territory. Try again.');
@@ -481,6 +620,8 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       if (list.length > chat.HISTORY) list.shift();
       chats.set(map.id, list);
       io.to(map.room).emit('chat', msg);
+      totals.bump(me.pid, 'chatMessages');
+      if (text.toLowerCase().replace(/[^a-z]+/g, ' ').trim() === 'hello world') totals.best(me.pid, 'secret:helloworld', 1);
       reply({});
     });
 
@@ -492,6 +633,8 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       try {
         const hooks = adminHooks();
         const r = await store.resetProgress(pool, pid);
+        totals.forget(pid);
+        earned.delete(pid);
         reply({ ok: true });
         hooks.kick([pid], 'reset', 'Your progress was reset. Reload the page to start again.');
         await hooks.reloadMaps(r.maps);
@@ -525,9 +668,15 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
     socket.on('achievements', async (...args) => {
       const reply = args.at(-1);   // with or without an argument before it
       if (typeof reply !== 'function') return;
-      const list = achievementList.map(({ id, name, stat, threshold }) => ({ id, name, stat, threshold }));
-      if (!me.pid) return reply({ list, earned: [], best: {} });
-      try { reply({ list, ...await store.achievementProgress(pool, me.pid) }); } catch { reply({ error: 'Could not load achievements. Try again.' }); }
+      // Secret ones show as "???" until earned.
+      const shown = got => achievementList.map(d => d.secret && !got.has(d.id)
+        ? { id: d.id, name: '???', category: d.category, secret: true, stat: null, threshold: 1, reward: null, description: 'A secret achievement' }
+        : { id: d.id, name: d.name, category: d.category, secret: d.secret, stat: d.stat, threshold: d.threshold, reward: d.reward, description: d.description });
+      if (!me.pid) return reply({ list: shown(new Set()), earned: [], values: {} });
+      try {
+        const { values, earned: rows } = await progressValues(me.pid, upgrades, me.account);
+        reply({ list: shown(new Set(rows.map(e => e.id))), earned: rows, values });
+      } catch { reply({ error: 'Could not load achievements. Try again.' }); }
     });
 
     // The Upgrades screen: this player's levels and what each level does, from rules.js.
@@ -549,6 +698,7 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       if (!me.pid || !ok) return reply({ error: 'Not saved' });
       const progress = { step: p.step, done: p.done, tips: [...new Set(p.tips)] };
       me.tutorial = progress;
+      if (progress.done) totals.best(me.pid, 'tutorialDone', 1);
       // One save at a time, in the order sent, so an older save can never land last.
       tutorialSaves = tutorialSaves.then(() => store.saveTutorial(pool, me.pid, progress)).then(() => reply({ ok: true }), err => {
         console.error(`TUTORIAL SAVE FAILED (player ${me.pid}): ${err.message}`);
@@ -570,6 +720,9 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
         const r = await store.buyUpgrade(pool, me.pid, p.upgrade, p.level, rules.UPGRADES[p.upgrade]);
         if (r.error) return reply({ error: r.error, need: r.need });
         upgradesChanged(me.pid, { ...upgrades, [p.upgrade]: r.level }, r.squares);
+        totals.bump(me.pid, 'purchases');
+        totals.bump(me.pid, 'squaresSpent', rules.UPGRADES[p.upgrade][r.level].cost);
+        totals.best(me.pid, 'level:' + p.upgrade, r.level);
         reply({ levels: upgrades, squares: rules.shownSquares(r.squares), balance: r.squares });
       } catch (err) {
         console.error(`PURCHASE FAILED (player ${me.pid}, ${p.upgrade}): ${err.message}`);
@@ -622,6 +775,7 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
         if (r.error) return reply(r);
         renamed(me.pid, r.name);
         me.renameAt = renameAt(r.changedAt);
+        totals.bump(me.pid, 'renames');
         reply({ name: r.name, renameAt: me.renameAt });
       } catch (err) {
         console.error(`RENAME FAILED (player ${me.pid}): ${err.message}`);
@@ -630,7 +784,7 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
     });
   });
 
-  return { server, io, events };
+  return { server, io, events, totals };
 }
 
 module.exports = { createGame };

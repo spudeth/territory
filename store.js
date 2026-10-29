@@ -2,6 +2,7 @@
 const crypto = require('crypto');
 const { tx } = require('./db');
 const rules = require('./rules');
+const terrain = require('./public/terrain');
 const { accountNames } = require('./names');
 
 const hashToken = token => crypto.createHash('sha256').update(token).digest();
@@ -84,7 +85,7 @@ async function defaultMapId(pool) {
 
 // One map with its blocks and the players who have joined it. Null if there is no such map.
 async function loadMap(pool, mapId) {
-  const { rows: [map] } = await pool.query('SELECT id, name, style FROM maps WHERE id = $1', [mapId]);
+  const { rows: [map] } = await pool.query('SELECT id, name, style, seed FROM maps WHERE id = $1', [mapId]);
   if (!map) return null;
   const [cells, players, stats] = await Promise.all([
     pool.query('SELECT x, y, owner_id FROM map_cells WHERE map_id = $1', [mapId]),
@@ -130,9 +131,22 @@ async function rebuildEdges(client, mapId) {
     WHERE c.map_id = $1 AND NOT EXISTS (SELECT 1 FROM map_cells e WHERE e.map_id = $1 AND e.x = n.x AND e.y = n.y)`, [mapId]);
 }
 
+// A seeded map's n-th growth takes the spot terrain.growthPick chooses from its open spots, sorted, so the
+// same seed and the same claims always grow the same map.
+const GROW_AT = GROW.replace(
+  '(SELECT map_id, x, y FROM map_edges WHERE map_id = $1 ORDER BY random() LIMIT 1)', '($1::bigint, $2::integer, $3::integer)');
+
 async function growMap(client, mapId) {
-  await client.query('SELECT 1 FROM maps WHERE id = $1 FOR UPDATE', [mapId]);   // one growth at a time per map
-  const grown = (await client.query(GROW, [mapId])).rows[0];
+  // One growth at a time per map.
+  const { rows: [m] } = await client.query('SELECT seed, grown FROM maps WHERE id = $1 FOR UPDATE', [mapId]);
+  let grown;
+  if (m.seed === null) grown = (await client.query(GROW, [mapId])).rows[0];
+  else {
+    const { rows: spots } = await client.query('SELECT x, y FROM map_edges WHERE map_id = $1 ORDER BY x, y', [mapId]);
+    const spot = spots[terrain.growthPick(m.seed, m.grown, spots.length)];
+    grown = spot && (await client.query(GROW_AT, [mapId, spot.x, spot.y])).rows[0];
+    await client.query('UPDATE maps SET grown = grown + 1 WHERE id = $1', [mapId]);
+  }
   if (!grown) throw new Error('map growth found no free spot');
   return grown;
 }
@@ -258,14 +272,53 @@ async function earnedAchievements(pool, playerId) {
 }
 
 // Records achievements; returns the ids that were new (not already earned).
-async function earnAchievements(pool, playerId, mapId, ids) {
-  const { rows } = await pool.query(
-    `INSERT INTO player_achievements (player_id, achievement_id, map_id) SELECT $1, unnest($2::text[]), $3
-     ON CONFLICT DO NOTHING RETURNING achievement_id`, [playerId, ids, mapId]);
-  return rows.map(r => r.achievement_id);
+// rewards: { id: squares } for the ids given. Each newly earned one pays its reward (ledger 'achievement:<id>').
+// Returns { fresh: the ids that were new, squares: the new exact balance, or null if nothing was paid }.
+function earnAchievements(pool, playerId, mapId, ids, rewards = {}) {
+  return tx(pool, async c => {
+    // Locks: only a key-share lock on the player (it waits for an account being deleted, so a deleted account
+    // earns nothing more, but never for a claim), and no map: a claim holds its map while it updates the player,
+    // so touching the map here could deadlock. mapId is not stored for that reason.
+    void mapId;
+    const { rows: [who] } = await c.query('SELECT deleted_at FROM players WHERE id = $1 FOR KEY SHARE', [playerId]);
+    if (!who || who.deleted_at) return { fresh: [], squares: null };
+    const { rows } = await c.query(
+      `INSERT INTO player_achievements (player_id, achievement_id) SELECT $1, unnest($2::text[])
+       ON CONFLICT DO NOTHING RETURNING achievement_id`, [playerId, ids]);
+    const fresh = rows.map(r => r.achievement_id);
+    let squares = null;
+    for (const id of fresh) {
+      const pay = Number(rewards[id]) || 0;
+      if (!pay) continue;
+      const { rows: [p] } = await c.query('UPDATE players SET squares = squares + $2 WHERE id = $1 AND deleted_at IS NULL RETURNING squares', [playerId, pay]);
+      if (!p) continue;
+      await c.query('INSERT INTO square_ledger (player_id, delta, balance_after, reason) VALUES ($1, $2, $3, $4)',
+        [playerId, pay, p.squares, 'achievement:' + id]);
+      squares = Number(p.squares);
+    }
+    return { fresh, squares };
+  });
 }
 
-Object.assign(module.exports, { earnedAchievements, earnAchievements });
+// A player's lifetime totals (totals.js): { stat: value }.
+async function loadTotals(pool, playerId) {
+  const { rows } = await pool.query('SELECT stat, value FROM player_totals WHERE player_id = $1', [playerId]);
+  return Object.fromEntries(rows.map(r => [r.stat, Number(r.value)]));
+}
+// Saves totals that changed: { stat: value }.
+async function saveTotals(pool, playerId, changes) {
+  const stats = Object.keys(changes);
+  if (!stats.length) return;
+  await pool.query(`INSERT INTO player_totals (player_id, stat, value) SELECT $1, * FROM unnest($2::text[], $3::float8[])
+    ON CONFLICT (player_id, stat) DO UPDATE SET value = EXCLUDED.value`, [playerId, stats, stats.map(k => changes[k])]);
+}
+// How many maps a player has played (has a look on).
+async function mapsPlayed(pool, playerId) {
+  const { rows: [r] } = await pool.query('SELECT count(*)::int AS n FROM player_map_settings WHERE player_id = $1', [playerId]);
+  return r.n;
+}
+
+Object.assign(module.exports, { earnedAchievements, earnAchievements, loadTotals, saveTotals, mapsPlayed });
 
 // The maps players can go to (official ones; purchased and VIP maps come later), oldest first.
 async function listMaps(pool) {
@@ -275,17 +328,42 @@ async function listMaps(pool) {
 
 // Makes a new official map: a width-by-height rectangle of empty blocks. Admin script only (scripts/create-map.js).
 const STYLES = ['grass', 'white'];
-async function createMap(pool, { name, style, width, height }) {
+// A random seed for a map made without one: 8 letters and digits.
+const randomSeed = () => Array.from({ length: 8 }, () => 'abcdefghijkmnpqrstuvwxyz23456789'[crypto.randomInt(32)]).join('');
+
+// Makes a new official map and returns its id. Its seed decides its terrain and growth (see the migration
+// 013_seeds.sql); its starting shape is the seed's island of `blocks` blocks (rules.NEW_MAP_BLOCKS), or a
+// width-by-height rectangle when those are given. seed '' means a random one. A rectangle without a seed is
+// all grass and grows at random, like the maps from before seeds (tests use these).
+async function createMap(pool, { name, style = 'grass', seed, blocks = rules.NEW_MAP_BLOCKS, width = null, height = null }) {
   if (!name || typeof name !== 'string') throw new Error('a map needs a name');
   if (!STYLES.includes(style)) throw new Error(`style must be one of: ${STYLES.join(', ')}`);
-  for (const n of [width, height]) if (!Number.isInteger(n) || n < 1 || n > 1000) throw new Error('width and height must be 1-1000');
+  const rectangle = width !== null || height !== null;
+  if (seed === undefined || seed === null) seed = rectangle ? null : '';
+  if (seed !== null) seed = String(seed).trim() || randomSeed();
+  if (seed?.length > 100) throw new Error('the seed must be at most 100 characters');
+  if (rectangle) {
+    for (const n of [width, height]) if (!Number.isInteger(n) || n < 1 || n > 1000) throw new Error('width and height must be 1-1000');
+  } else if (!Number.isInteger(blocks) || blocks < 1 || blocks > 1000000) throw new Error('blocks must be 1-1000000');
   return tx(pool, async c => {
-    const { rows: [m] } = await c.query("INSERT INTO maps (name, style, type) VALUES ($1, $2, 'official') RETURNING id", [name, style]);
-    await c.query(`INSERT INTO map_cells (map_id, x, y)
-      SELECT $1, x, y FROM generate_series(0, $2 - 1) AS x, generate_series(0, $3 - 1) AS y`, [m.id, width, height]);
-    await rebuildEdges(c, m.id);
+    const { rows: [m] } = await c.query("INSERT INTO maps (name, style, type, seed) VALUES ($1, $2, 'official', $3) RETURNING id", [name, style, seed]);
+    await fillShape(c, m.id, seed, rectangle ? { width, height } : { blocks });
     return m.id;
   });
+}
+
+// Puts a map's starting blocks in place (the map must have none): a width-by-height rectangle, or the seed's
+// island of `blocks` blocks. Then its edge spots, for growth.
+async function fillShape(c, mapId, seed, { width, height, blocks }) {
+  if (width) {
+    await c.query(`INSERT INTO map_cells (map_id, x, y)
+      SELECT $1, x, y FROM generate_series(0, $2 - 1) AS x, generate_series(0, $3 - 1) AS y`, [mapId, width, height]);
+  } else {
+    const shape = terrain.startingShape(seed, blocks);
+    await c.query('INSERT INTO map_cells (map_id, x, y) SELECT $1, * FROM unnest($2::integer[], $3::integer[])',
+      [mapId, shape.map(p => p[0]), shape.map(p => p[1])]);
+  }
+  await rebuildEdges(c, mapId);
 }
 
 // The maps for the welcome screen's picker, with this player's place on each:
@@ -413,7 +491,7 @@ async function findPlayer(pool, ref) {
 async function findMap(pool, ref) {
   const id = /^#\d+$/.test(ref) ? ref.slice(1) : null;
   const { rows } = await pool.query(
-    `SELECT id, name, style, type FROM maps WHERE ${id ? 'id = $1' : 'lower(name) = lower($1)'} ORDER BY id LIMIT 1`, [id ?? ref]);
+    `SELECT id, name, style, type, seed FROM maps WHERE ${id ? 'id = $1' : 'lower(name) = lower($1)'} ORDER BY id LIMIT 1`, [id ?? ref]);
   return rows[0] ?? null;
 }
 
@@ -465,10 +543,12 @@ function wipeMap(pool, mapId, size = null) {
     const { rows: [n] } = await c.query(
       'SELECT count(owner_id)::int AS cleared, count(DISTINCT owner_id)::int AS players FROM map_cells WHERE map_id = $1', [mapId]);
     if (size) {
+      // A fresh start: a seeded map gets its seed's starting island again and grows from its first growth again;
+      // one without a seed becomes a width-by-height rectangle.
+      const { rows: [m] } = await c.query('SELECT seed FROM maps WHERE id = $1', [mapId]);
       await c.query('DELETE FROM map_cells WHERE map_id = $1', [mapId]);
-      await c.query(`INSERT INTO map_cells (map_id, x, y)
-        SELECT $1, x, y FROM generate_series(0, $2 - 1) AS x, generate_series(0, $3 - 1) AS y`, [mapId, size.width, size.height]);
-      await rebuildEdges(c, mapId);
+      await c.query('UPDATE maps SET grown = 0 WHERE id = $1', [mapId]);
+      await fillShape(c, mapId, m.seed, m.seed ? { blocks: size.blocks ?? rules.NEW_MAP_BLOCKS } : size);
     } else {
       await c.query('UPDATE map_cells SET owner_id = NULL, claimed_at = NULL WHERE map_id = $1 AND owner_id IS NOT NULL', [mapId]);
     }
@@ -487,7 +567,7 @@ function deleteAccount(pool, playerId) {
     const { rows: maps } = await c.query('SELECT DISTINCT map_id FROM map_cells WHERE owner_id = $1', [playerId]);
     await c.query('UPDATE map_cells SET owner_id = NULL, claimed_at = NULL WHERE owner_id = $1', [playerId]);
     for (const t of ['player_tokens', 'player_map_settings', 'player_map_stats', 'player_achievements', 'player_skins',
-      'level_remaps', 'tap_limit_log', 'bans']) {
+      'level_remaps', 'tap_limit_log', 'bans', 'player_totals']) {
       await c.query(`DELETE FROM ${t} WHERE player_id = $1`, [playerId]);
     }
     await c.query('DELETE FROM player_links WHERE account_id = $1 OR guest_id = $1', [playerId]);
@@ -521,7 +601,7 @@ function resetProgress(pool, playerId) {
     const { rows: maps } = await c.query(`SELECT map_id FROM map_cells WHERE owner_id = $1
       UNION SELECT map_id FROM player_map_settings WHERE player_id = $1 UNION SELECT map_id FROM player_map_stats WHERE player_id = $1`, [playerId]);
     await c.query('UPDATE map_cells SET owner_id = NULL, claimed_at = NULL WHERE owner_id = $1', [playerId]);
-    for (const t of ['player_map_settings', 'player_map_stats', 'player_achievements', 'level_remaps']) {
+    for (const t of ['player_map_settings', 'player_map_stats', 'player_achievements', 'level_remaps', 'player_totals']) {
       await c.query(`DELETE FROM ${t} WHERE player_id = $1`, [playerId]);
     }
     await c.query("DELETE FROM player_skins WHERE player_id = $1 AND source <> 'purchase'", [playerId]);

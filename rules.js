@@ -39,14 +39,21 @@ const settings = {
   // New maps made with npm run create-map, unless given a size
   NEW_MAP_WIDTH: R.newMapWidth,
   NEW_MAP_HEIGHT: R.newMapHeight,
+  NEW_MAP_BLOCKS: R.newMapBlocks,
+  // Terrain (public/terrain.js): the world's shares, and hits per terrain as a multiple of the normal number.
+  TERRAIN: { scale: R.terrainScale, water: R.waterShare, sand: R.sandShare, forest: R.forestShare, stone: R.stoneShare, gold: R.goldShare },
+  TERRAIN_HITS: { grass: 1, sand: R.sandHits, forest: R.forestHits, stone: R.stoneHits, gold: R.goldHits },
+  GOLD_BONUS_SQUARES: R.goldBonusSquares,
 
   // Sound (sent to the browser): most at once, how far others are heard, their volume, defaults for a new device
   SOUND: { maxAtOnce: R.soundMaxAtOnce, hearing: R.soundHearingDistance, othersVolume: R.soundOthersVolume,
     effectsVolume: R.defaultEffectsVolume, musicVolume: R.defaultMusicVolume },
 
-  // Achievement thresholds by id ("achievement.first-block" in the sheet); names and stats are in achievements.js
-  ACHIEVEMENT_THRESHOLDS: Object.fromEntries(Object.entries(R).filter(([k]) => k.startsWith('achievement.'))
-    .map(([k, v]) => [k.slice('achievement.'.length), v])),
+  // Achievements (the sheet's Achievements tab): [{ id, name, category, stat, threshold, secret, description, reward }]
+  ACHIEVEMENTS: economy.achievements ?? [],
+  // Rank and reign achievements count only on maps where at least this many players own blocks.
+  RANK_MIN_PLAYERS: R.rankMinPlayers,
+  RANK_MIN_BLOCKS: R.rankMinBlocks,   // …and only for a player with at least this many blocks there
 
   // Per-map look, chosen on the first claim on a map and locked until a wipe (code constants, not numbers)
   COVERAGES: ['tile', 'stretch'], // how a skin covers a territory: per block, or one image over the full area (the first is the default)
@@ -68,6 +75,7 @@ const NEIGHBORS = [[-1, 0], [1, 0], [0, -1], [0, 1]];
 function hitError(map, pid, x, y) {
   const k = key(x, y);
   if (!map.cells.has(k)) return 'Invalid block';
+  if (map.terrainAt?.(x, y) === 'water') return "Water can't be claimed";
   const owner = map.cells.get(k);
   if (pid && owner === pid) return 'You already own this block';
   if (!pid || !map.counts.get(pid)) return owner ? 'Your first block must be unclaimed' : null;
@@ -81,7 +89,9 @@ const effect = (table, level) => table[Math.min(Math.max(0, level | 0), table.le
 
 // Hits needed to take a block owned by `owner` (upgrade levels like NO_UPGRADES; null for an empty block):
 // HITS_PER_BLOCK, times the owner's Defense.
-const hitsNeeded = owner => settings.HITS_PER_BLOCK * (owner ? effect(settings.DEFENSE_MULTIPLIER, owner.defense) : 1);
+// Terrain (sand, forest, stone, gold) multiplies it too: settings.TERRAIN_HITS; grass, or no terrain, is 1.
+const hitsNeeded = (owner, terrain = 'grass') => settings.HITS_PER_BLOCK * (owner ? effect(settings.DEFENSE_MULTIPLIER, owner.defense) : 1)
+  * (settings.TERRAIN_HITS[terrain] ?? 1);
 
 // How many hits one click by `attacker` counts as: their Click Power. Progress is kept as a fraction.
 const hitPower = attacker => effect(settings.CLICK_POWER_MULTIPLIER, attacker?.clickPower);
