@@ -563,3 +563,14 @@ test('the Privacy Policy and Terms pages are served, marked as placeholders', as
     assert.match(await res.text(), /PLACEHOLDER/);
   }
 });
+
+test('taps still arriving while a claim is saved leave no crack on the new owner\'s block, even after cracks fade', async () => {
+  const a = player();
+  await a.welcome;
+  for (let i = 0; i < rules.HITS_PER_BLOCK + 6; i++) a.emit('hit', { x: 20, y: 30 });   // a fast tapper overshoots
+  await a.next('claim', at(20, 30));
+  const after = a.events.length;
+  await new Promise(r => setTimeout(r, DECAY_MS * 3));   // long enough for any leftover crack to fade a step
+  const late = a.events.slice(after).filter(([n, d]) => n === 'hit' && d.x === 20 && d.y === 30 && d.p > 0);
+  assert.deepEqual(late, [], 'no crack shows up later on the claimed block');
+});

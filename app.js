@@ -96,7 +96,7 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
           room: 'map:' + m.id, cells: new Map(), counts: new Map(),
           players: new Map(m.players.map(p => [p.player_id, { name: p.name, color: p.color, skin: p.skin_id, coverage: p.coverage,
             unlocked: p.unlocked, wipeFloor: p.wipe_floor, upgrades: upgradesOf(p) }])),
-          hits: new Map(), queue: Promise.resolve() };
+          hits: new Map(), claiming: new Set(), queue: Promise.resolve() };
         for (const c of m.cells) {
           map.cells.set(key(c.x, c.y), c.owner_id);
           if (c.owner_id) map.counts.set(c.owner_id, (map.counts.get(c.owner_id) || 0) + 1);
@@ -481,6 +481,7 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
         io.to(map.room).emit('player', { pid: me.pid, name: me.name, color, skin, coverage });
       }
       setOwner(map, k, me.pid);
+      map.hits.delete(k);   // no crack carries over to the new owner
       io.to(map.room).emit('claim', { x, y, pid: me.pid });
       map.stats.set(me.pid, st.stats);
       statChanged(map, me.pid, 'owned', map.counts.get(me.pid));
@@ -540,6 +541,7 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       taps.set(who, t.bucket);
       if (!t.allowed) return ignoredTaps.set(who, (ignoredTaps.get(who) || 0) + 1);
       const { x, y } = p, k = key(x, y);
+      if (map.claiming.has(k)) return;   // taps still arriving while the claim is being saved don't count
       const error = checkHit(map, me.pid, x, y);
       if (error) {
         if (error === 'You already own this block' && ++session.pokes === 50) totals.best(me.pid, 'secret:poke', 1);
@@ -572,7 +574,8 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
 
       map.hits.delete(k);
       const here = map;
-      serial(map, () => finishClaim(here, x, y)).catch(err => {
+      here.claiming.add(k);
+      serial(map, () => finishClaim(here, x, y)).finally(() => here.claiming.delete(k)).catch(err => {
         console.error(`CLAIM FAILED (map ${map.id}, ${k}): ${err.message}`);
         socket.emit('denied', 'Could not save your claim. Try again.');
         clearCrack(x, y);
