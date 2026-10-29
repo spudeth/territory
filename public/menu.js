@@ -297,7 +297,8 @@ function drawSkins() {
   // A search looks through every skin; otherwise the tab picks them.
   const shown = skinList.filter(s => q ? s.name.toLowerCase().includes(q) : skinTab === 'Owned' ? s.owned : SKIN_TABS[skinTab].includes(s.rarity));
   const groups = new Map();
-  for (const s of shown) (groups.get(s.collection) ?? groups.set(s.collection, []).get(s.collection)).push(s);
+  if (skinTab === 'Owned' && !q && shown.some(s => s.starred)) groups.set('★ Starred', shown.filter(s => s.starred));   // only here
+  for (const s of shown) if (!(skinTab === 'Owned' && !q && s.starred)) (groups.get(s.collection) ?? groups.set(s.collection, []).get(s.collection)).push(s);
   $('catalog').replaceChildren(...[...groups].flatMap(([collection, list]) => {
     const title = document.createElement('div');
     title.className = 'cat-title';
@@ -314,6 +315,20 @@ function drawSkins() {
       t.querySelector('.rar').classList.add(s.rarity.replace(/ /g, '-'));   // 'Ultra Rare' has a space
       if (s.owned) {
         t.insertAdjacentHTML('beforeend', '<span class="pr" style="color: var(--green)">Owned</span>');
+        if (skinTab === 'Owned' && s.starrable) {   // star one pattern and one art skin (tap again to remove)
+          const star = document.createElement('button');
+          star.type = 'button';
+          star.className = 'btn star' + (s.starred ? ' on' : '');
+          star.setAttribute('aria-pressed', s.starred);
+          star.setAttribute('aria-label', (s.starred ? 'Unstar ' : 'Star ') + s.name);
+          star.textContent = '★';
+          star.addEventListener('click', async () => {
+            const r = await ask('starSkin', { skin: s.id, on: !s.starred });
+            if (r.error) return fail(r.error);
+            fills.skins();
+          });
+          t.append(star);
+        }
       } else {
         const b = document.createElement('button');
         b.type = 'button';

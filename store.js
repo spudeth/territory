@@ -390,11 +390,23 @@ Object.assign(module.exports, { STYLES, listMaps, createMap, mapsFor });
 // The skin catalog (rules.SKINS, from the sheet) with what this player owns: [{ id, name, kind, rarity, price,
 // collection, owned }], the free plain look first. Skins taken out of the shop still show for their owners.
 // Prices are what this player would pay now (skins.skinPrice: they rise with how many of a rarity they own).
+// Which star slot a skin goes in: a Common pattern, or art that is Rare or better (flags too); null for others.
+const starSlot = s => (s.kind === 'pattern' && s.rarity === 'Common' ? 'star_pattern' : s.kind === 'art' && s.rarity !== 'Common' ? 'star_art' : null);
+// Stars one owned skin in its slot (replacing the old one), or clears that slot when `on` is false.
+async function starSkin(pool, playerId, skin, on) {
+  const slot = starSlot(skin);
+  if (!slot) return { error: 'Only patterns and Rare or better art skins can be starred' };
+  if (on && !(await pool.query('SELECT 1 FROM player_skins WHERE player_id = $1 AND skin_id = $2', [playerId, skin.id])).rowCount) return { error: "You don't own that skin" };
+  await pool.query(`UPDATE players SET ${slot} = CASE WHEN $3 THEN $2 END WHERE id = $1 AND ($3 OR ${slot} = $2)`, [playerId, skin.id, on]);
+  return { ok: true };
+}
 async function skinsFor(pool, playerId) {
+  const stars = playerId ? (await pool.query('SELECT star_pattern, star_art FROM players WHERE id = $1', [playerId])).rows[0] ?? {} : {};
   const owned = new Set(playerId ? (await pool.query('SELECT skin_id FROM player_skins WHERE player_id = $1', [playerId])).rows.map(r => r.skin_id) : []);
   const count = rarity => { const ids = rules.SKINS.filter(s => s.rarity === rarity); return [ids.filter(s => owned.has(s.id)).length, ids.length]; };
   return [{ id: 'default', name: 'Default', kind: 'default', rarity: 'Common', price: 0, collection: 'Basic', owned: true },
-    ...rules.SKINS.filter(s => s.enabled || owned.has(s.id)).map(({ enabled, ...s }) => ({ ...s, price: skinPrices.skinPrice(s.rarity, ...count(s.rarity)), owned: owned.has(s.id) }))
+    ...rules.SKINS.filter(s => s.enabled || owned.has(s.id)).map(({ enabled, ...s }) => ({ ...s, price: skinPrices.skinPrice(s.rarity, ...count(s.rarity)), owned: owned.has(s.id),
+      starrable: !!starSlot(s), starred: owned.has(s.id) && (stars.star_pattern === s.id || stars.star_art === s.id) }))
       // Bob (loop 15): flags after every other skin, and within each group by price, then name.
       .sort((a, b) => (a.collection === 'Flags') - (b.collection === 'Flags') || a.price - b.price || a.name.localeCompare(b.name))];
 }
@@ -507,7 +519,7 @@ async function logTapLimits(pool, entries) {
     [entries.map(e => e[0]), entries.map(e => e[1])]);
 }
 
-Object.assign(module.exports, { skinsFor, buySkin, achievementProgress, saveTutorial, applyEconomy, buyUpgrade, logTapLimits });
+Object.assign(module.exports, { skinsFor, buySkin, starSkin, starSlot, achievementProgress, saveTutorial, applyEconomy, buyUpgrade, logTapLimits });
 
 // ---------- Admin (npm run admin; admin.js) ----------
 

@@ -645,3 +645,5 @@ body.welcome #itembar, body.zooming #itembar { opacity: 0; pointer-events: none;
   padding: 10px; display: flex; flex-direction: column; gap: 8px; align-items: center; max-width: calc(100% - 32px); }
 #terra-choices { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
 #terra-choices button { width: 48px; height: 48px; padding: 0; border: 3px solid var(--ink); image-rendering: pixelated; background-size: cover; cursor: pointer; }
+.catalog .star { min-height: 36px; font-size: 18px; color: var(--muted); background: var(--raised); }
+.catalog .star.on { color: var(--well); background: var(--gold); }

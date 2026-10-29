@@ -141,3 +141,19 @@ test('skin order: flags after the other skins; within each group by price, then 
     }
   }
 });
+
+test('stars: one pattern and one art skin, owned only; a new one replaces the old; tapping again removes it', async () => {
+  const g = await guestWith(100000);
+  for (const id of ['checker', 'stripes', 'flag-jp', 'flag-fr']) assert.ok((await g.s.ask('buySkin', { skin: id })).squares !== undefined, id);
+  const starred = async () => (await g.s.ask('skins')).filter(s => s.starred).map(s => s.id).sort();
+  assert.deepEqual(await g.s.ask('starSkin', { skin: 'checker', on: true }), { ok: true });
+  assert.deepEqual(await g.s.ask('starSkin', { skin: 'flag-jp', on: true }), { ok: true });
+  assert.deepEqual(await starred(), ['checker', 'flag-jp']);
+  await g.s.ask('starSkin', { skin: 'stripes', on: true });                      // replaces checker
+  assert.deepEqual(await starred(), ['flag-jp', 'stripes']);
+  await g.s.ask('starSkin', { skin: 'flag-jp', on: false });                     // removes it
+  assert.deepEqual(await starred(), ['stripes']);
+  assert.deepEqual(await g.s.ask('starSkin', { skin: 'flag-de', on: true }), { error: "You don't own that skin" });
+  const other = player({ token: g.token }); await other.welcome;
+  assert.deepEqual((await other.ask('skins')).filter(s => s.starred).map(s => s.id), ['stripes'], 'follows the player to other devices');
+});

@@ -1030,4 +1030,5 @@ OPEN Q22 (Bob): add the Items tab to the sheet (the two rows are in test/fixture
 
 Loop order 14 done. Stopping.
 #101 | 2026-10-29 | Loop 15 Phase 1: skin order everywhere (the server list): flags after every other skin; within each group by price, then name | tests: skin order; full suite pass. Phase 1 ready to merge
-Loop 15 corrections from Bob: Phase 6 skipped (later: push and email); Phase 5 without notifications or inbox; mailingAddress "2212 W 5th Ave, Gary, IL 61214"
+Loop 15 corrections from Bob: Phase 6 skipped (later: push and email); Phase 5 without notifications or inbox; mailingAddress "2212 W 5th Ave, Gary, IN 46404" (corrected by Bob)
+#102 | 2026-10-29 | Loop 15 Phase 2: starred skins: one Common pattern and one Rare-or-better art skin (flags included) per player (players.star_pattern / star_art, migration 017); a new star replaces the old, tapping again removes it; star buttons on the Owned tab, starred first there under "★ Starred" (no other screen re-sorts); saved on the server, so they follow the account. Common icon skins (art, but Common) cannot be starred | tests: stars; full suite pass. Phase 2 ready to merge

@@ -838,6 +838,15 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       }
     });
 
+    // Stars an owned skin ({ skin, on }): one pattern and one Rare-or-better art skin per player, saved on the server.
+    socket.on('starSkin', async (p, reply) => {
+      if (typeof reply !== 'function') return;
+      if (!me.pid) return reply({ error: 'Claim a block first' });
+      const skin = rules.SKINS.find(s => s.id === p?.skin);
+      if (!skin) return reply({ error: 'Unknown skin' });
+      try { reply(await store.starSkin(pool, me.pid, skin, !!p.on)); } catch { reply({ error: 'Could not save that. Try again.' }); }
+    });
+
     // Buys a skin with squares: { skin: id }. Answers { squares, balance } or { error, need }. Owned skins work on
     // every map; a guest's carry over when they make an account (it's the same player).
     socket.on('buySkin', async (p, reply) => {
