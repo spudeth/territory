@@ -150,6 +150,40 @@ def vortex(t): return art(lambda d, im: [im.putpixel((x, y), (lambda a: (int(120
 def storm(t): return art(lambda d, im: (grad(d, (30, 30, 50), (70, 70, 100)), d.ellipse([-2, -2, 18, 6], fill='#2b2d42'), t == 2 and d.line([(9, 4), (6, 9), (9, 9), (6, 15)], fill='#fff27a', width=1)))
 LEGEND = [('Phoenix Flame', phoenix), ('Aurora Veil', aurora), ('Prism', prism), ('Cosmic Vortex', vortex), ('Thunderhead', storm)]
 
+# King and Queen (Xoren): original chess-style pieces in gold on a royal background.
+def king(d, im):
+    grad(d, (60, 20, 110), (25, 5, 50)); d.rectangle([7, 1, 8, 4], fill='#ffd166'); d.rectangle([6, 2, 9, 3], fill='#ffd166')
+    d.polygon([(5, 6), (10, 6), (9, 11), (6, 11)], fill='#ffd166'); d.rectangle([4, 12, 11, 14], fill='#e0a800'); d.point([(7, 8), (8, 8)], fill='#e63946')
+def queen(d, im):
+    grad(d, (110, 20, 60), (50, 5, 30)); [d.ellipse([x, 2, x + 1, 3], fill='#ffd166') for x in (4, 7, 10)]
+    d.polygon([(4, 4), (11, 4), (9, 11), (6, 11)], fill='#ffd166'); d.rectangle([4, 12, 11, 14], fill='#e0a800'); d.point([(7, 7), (8, 7)], fill='#7b2cbf')
+RARES += [('King', king), ('Queen', queen)]
+
+# --export: writes the approved ones (docs/skin-approvals.txt, King and Queen too) as skins in public/skins/ and
+# prints their Skins tab rows. Patterns stay grey (the game tints them); art gets a 64x64 large version.
+if '--export' in sys.argv:
+    import os
+    root = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..')
+    approved = set(open(os.path.join(root, 'docs', 'skin-approvals.txt'), encoding='utf8').read().split(':', 1)[1].strip().split(', ')) | {'Rare King', 'Rare Queen'}
+    out, names = os.path.join(root, 'public', 'skins'), set()
+    def put(tier, name, kind, im, price, group):
+        n = name
+        while n in names: n += ' II'   # two proposals shared a name
+        names.add(n)
+        key = (('pat-' if kind == 'pattern' else 'art-') + n.lower().replace(' ', '-').replace('&', 'and'))
+        im.save(os.path.join(out, key + '.png'))
+        im.resize((64, 64), Image.NEAREST).save(os.path.join(out, key + '-large.png'))
+        print(f'{key},{n},{kind},{tier},{price},{group},yes')
+    for name, group, im, price in commons:
+        if 'Common ' + name in approved: put('Common', name, 'pattern', im, price, group)
+    for i, (name, fn) in enumerate(RARES):
+        if 'Rare ' + name in approved: put('Rare', name, 'art', art(fn), 1000 + (i % 5) * 500, 'Royals' if name in ('King', 'Queen') else name.split()[0] + ' Art')
+    for i, (name, fn) in enumerate(ULTRA):
+        if 'Ultra Rare ' + name in approved: put('Ultra Rare', name, 'art', art(fn), 4000 + (i % 5) * 1000, 'Scenes')
+    for i, (name, fn) in enumerate(LEGEND):
+        if 'Legendary ' + name in approved: put('Legendary', name, 'art', fn(0), [25000, 20000, 15000, 12500, 10000][i], 'Showpieces')
+    sys.exit()
+
 # ---------- The review page ----------
 def uri(im, gif=None):
     buf = io.BytesIO()

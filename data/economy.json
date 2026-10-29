@@ -6395,6 +6395,1797 @@
       "price": 100,
       "collection": "Snacks & Gems",
       "enabled": true
+    },
+    {
+      "id": "pat-tiny-stripes",
+      "name": "Tiny Stripes",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 300,
+      "collection": "Stripes",
+      "enabled": true
+    },
+    {
+      "id": "pat-bold-stripes",
+      "name": "Bold Stripes",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 300,
+      "collection": "Stripes",
+      "enabled": true
+    },
+    {
+      "id": "pat-soft-stripes",
+      "name": "Soft Stripes",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 200,
+      "collection": "Stripes",
+      "enabled": true
+    },
+    {
+      "id": "pat-sharp-stripes",
+      "name": "Sharp Stripes",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 200,
+      "collection": "Stripes",
+      "enabled": true
+    },
+    {
+      "id": "pat-wild-stripes",
+      "name": "Wild Stripes",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 100,
+      "collection": "Stripes",
+      "enabled": true
+    },
+    {
+      "id": "pat-calm-stripes",
+      "name": "Calm Stripes",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 100,
+      "collection": "Stripes",
+      "enabled": true
+    },
+    {
+      "id": "pat-lucky-stripes",
+      "name": "Lucky Stripes",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 100,
+      "collection": "Stripes",
+      "enabled": true
+    },
+    {
+      "id": "pat-swift-stripes",
+      "name": "Swift Stripes",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 100,
+      "collection": "Stripes",
+      "enabled": true
+    },
+    {
+      "id": "pat-royal-stripes",
+      "name": "Royal Stripes",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 300,
+      "collection": "Stripes",
+      "enabled": true
+    },
+    {
+      "id": "pat-cozy-stripes",
+      "name": "Cozy Stripes",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 300,
+      "collection": "Stripes",
+      "enabled": true
+    },
+    {
+      "id": "pat-funky-stripes",
+      "name": "Funky Stripes",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 200,
+      "collection": "Stripes",
+      "enabled": true
+    },
+    {
+      "id": "pat-neat-stripes",
+      "name": "Neat Stripes",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 200,
+      "collection": "Stripes",
+      "enabled": true
+    },
+    {
+      "id": "pat-lazy-stripes",
+      "name": "Lazy Stripes",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 300,
+      "collection": "Stripes",
+      "enabled": true
+    },
+    {
+      "id": "pat-brave-stripes",
+      "name": "Brave Stripes",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 300,
+      "collection": "Stripes",
+      "enabled": true
+    },
+    {
+      "id": "pat-fizzy-stripes",
+      "name": "Fizzy Stripes",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 200,
+      "collection": "Stripes",
+      "enabled": true
+    },
+    {
+      "id": "pat-dizzy-stripes",
+      "name": "Dizzy Stripes",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 200,
+      "collection": "Stripes",
+      "enabled": true
+    },
+    {
+      "id": "pat-tiny-stripes-ii",
+      "name": "Tiny Stripes II",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 250,
+      "collection": "Stripes",
+      "enabled": true
+    },
+    {
+      "id": "pat-bold-stripes-ii",
+      "name": "Bold Stripes II",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 250,
+      "collection": "Stripes",
+      "enabled": true
+    },
+    {
+      "id": "pat-soft-stripes-ii",
+      "name": "Soft Stripes II",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 300,
+      "collection": "Stripes",
+      "enabled": true
+    },
+    {
+      "id": "pat-sharp-stripes-ii",
+      "name": "Sharp Stripes II",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 300,
+      "collection": "Stripes",
+      "enabled": true
+    },
+    {
+      "id": "pat-wild-stripes-ii",
+      "name": "Wild Stripes II",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 300,
+      "collection": "Stripes",
+      "enabled": true
+    },
+    {
+      "id": "pat-calm-stripes-ii",
+      "name": "Calm Stripes II",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 300,
+      "collection": "Stripes",
+      "enabled": true
+    },
+    {
+      "id": "pat-lucky-stripes-ii",
+      "name": "Lucky Stripes II",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 300,
+      "collection": "Stripes",
+      "enabled": true
+    },
+    {
+      "id": "pat-swift-stripes-ii",
+      "name": "Swift Stripes II",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 300,
+      "collection": "Stripes",
+      "enabled": true
+    },
+    {
+      "id": "pat-royal-checks",
+      "name": "Royal Checks",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 300,
+      "collection": "Checks",
+      "enabled": true
+    },
+    {
+      "id": "pat-cozy-checks",
+      "name": "Cozy Checks",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 300,
+      "collection": "Checks",
+      "enabled": true
+    },
+    {
+      "id": "pat-funky-checks",
+      "name": "Funky Checks",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 200,
+      "collection": "Checks",
+      "enabled": true
+    },
+    {
+      "id": "pat-neat-checks",
+      "name": "Neat Checks",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 200,
+      "collection": "Checks",
+      "enabled": true
+    },
+    {
+      "id": "pat-lazy-checks",
+      "name": "Lazy Checks",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 150,
+      "collection": "Checks",
+      "enabled": true
+    },
+    {
+      "id": "pat-brave-checks",
+      "name": "Brave Checks",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 150,
+      "collection": "Checks",
+      "enabled": true
+    },
+    {
+      "id": "pat-fizzy-checks",
+      "name": "Fizzy Checks",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 300,
+      "collection": "Checks",
+      "enabled": true
+    },
+    {
+      "id": "pat-dizzy-checks",
+      "name": "Dizzy Checks",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 300,
+      "collection": "Checks",
+      "enabled": true
+    },
+    {
+      "id": "pat-tiny-checks",
+      "name": "Tiny Checks",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 200,
+      "collection": "Checks",
+      "enabled": true
+    },
+    {
+      "id": "pat-bold-checks",
+      "name": "Bold Checks",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 200,
+      "collection": "Checks",
+      "enabled": true
+    },
+    {
+      "id": "pat-soft-checks",
+      "name": "Soft Checks",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 150,
+      "collection": "Checks",
+      "enabled": true
+    },
+    {
+      "id": "pat-sharp-checks",
+      "name": "Sharp Checks",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 150,
+      "collection": "Checks",
+      "enabled": true
+    },
+    {
+      "id": "pat-wild-checks",
+      "name": "Wild Checks",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 200,
+      "collection": "Checks",
+      "enabled": true
+    },
+    {
+      "id": "pat-calm-checks",
+      "name": "Calm Checks",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 200,
+      "collection": "Checks",
+      "enabled": true
+    },
+    {
+      "id": "pat-lucky-dots",
+      "name": "Lucky Dots",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 150,
+      "collection": "Dots",
+      "enabled": true
+    },
+    {
+      "id": "pat-swift-dots",
+      "name": "Swift Dots",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 150,
+      "collection": "Dots",
+      "enabled": true
+    },
+    {
+      "id": "pat-royal-dots",
+      "name": "Royal Dots",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 250,
+      "collection": "Dots",
+      "enabled": true
+    },
+    {
+      "id": "pat-cozy-dots",
+      "name": "Cozy Dots",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 250,
+      "collection": "Dots",
+      "enabled": true
+    },
+    {
+      "id": "pat-funky-dots",
+      "name": "Funky Dots",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 140,
+      "collection": "Dots",
+      "enabled": true
+    },
+    {
+      "id": "pat-neat-dots",
+      "name": "Neat Dots",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 140,
+      "collection": "Dots",
+      "enabled": true
+    },
+    {
+      "id": "pat-lazy-dots",
+      "name": "Lazy Dots",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 160,
+      "collection": "Dots",
+      "enabled": true
+    },
+    {
+      "id": "pat-brave-dots",
+      "name": "Brave Dots",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 160,
+      "collection": "Dots",
+      "enabled": true
+    },
+    {
+      "id": "pat-fizzy-dots",
+      "name": "Fizzy Dots",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 190,
+      "collection": "Dots",
+      "enabled": true
+    },
+    {
+      "id": "pat-dizzy-dots",
+      "name": "Dizzy Dots",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 190,
+      "collection": "Dots",
+      "enabled": true
+    },
+    {
+      "id": "pat-tiny-dots",
+      "name": "Tiny Dots",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 130,
+      "collection": "Dots",
+      "enabled": true
+    },
+    {
+      "id": "pat-bold-dots",
+      "name": "Bold Dots",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 130,
+      "collection": "Dots",
+      "enabled": true
+    },
+    {
+      "id": "pat-soft-waves",
+      "name": "Soft Waves",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 200,
+      "collection": "Waves",
+      "enabled": true
+    },
+    {
+      "id": "pat-sharp-waves",
+      "name": "Sharp Waves",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 200,
+      "collection": "Waves",
+      "enabled": true
+    },
+    {
+      "id": "pat-wild-waves",
+      "name": "Wild Waves",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 300,
+      "collection": "Waves",
+      "enabled": true
+    },
+    {
+      "id": "pat-calm-waves",
+      "name": "Calm Waves",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 300,
+      "collection": "Waves",
+      "enabled": true
+    },
+    {
+      "id": "pat-lucky-waves",
+      "name": "Lucky Waves",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 150,
+      "collection": "Waves",
+      "enabled": true
+    },
+    {
+      "id": "pat-swift-waves",
+      "name": "Swift Waves",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 150,
+      "collection": "Waves",
+      "enabled": true
+    },
+    {
+      "id": "pat-royal-waves",
+      "name": "Royal Waves",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 180,
+      "collection": "Waves",
+      "enabled": true
+    },
+    {
+      "id": "pat-cozy-waves",
+      "name": "Cozy Waves",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 180,
+      "collection": "Waves",
+      "enabled": true
+    },
+    {
+      "id": "pat-funky-waves",
+      "name": "Funky Waves",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 300,
+      "collection": "Waves",
+      "enabled": true
+    },
+    {
+      "id": "pat-neat-waves",
+      "name": "Neat Waves",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 300,
+      "collection": "Waves",
+      "enabled": true
+    },
+    {
+      "id": "pat-lazy-waves",
+      "name": "Lazy Waves",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 200,
+      "collection": "Waves",
+      "enabled": true
+    },
+    {
+      "id": "pat-brave-waves",
+      "name": "Brave Waves",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 200,
+      "collection": "Waves",
+      "enabled": true
+    },
+    {
+      "id": "pat-fizzy-zigzag",
+      "name": "Fizzy Zigzag",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 300,
+      "collection": "Zigzag",
+      "enabled": true
+    },
+    {
+      "id": "pat-dizzy-zigzag",
+      "name": "Dizzy Zigzag",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 300,
+      "collection": "Zigzag",
+      "enabled": true
+    },
+    {
+      "id": "pat-tiny-zigzag",
+      "name": "Tiny Zigzag",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 300,
+      "collection": "Zigzag",
+      "enabled": true
+    },
+    {
+      "id": "pat-bold-zigzag",
+      "name": "Bold Zigzag",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 300,
+      "collection": "Zigzag",
+      "enabled": true
+    },
+    {
+      "id": "pat-soft-zigzag",
+      "name": "Soft Zigzag",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 200,
+      "collection": "Zigzag",
+      "enabled": true
+    },
+    {
+      "id": "pat-sharp-zigzag",
+      "name": "Sharp Zigzag",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 200,
+      "collection": "Zigzag",
+      "enabled": true
+    },
+    {
+      "id": "pat-wild-zigzag",
+      "name": "Wild Zigzag",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 300,
+      "collection": "Zigzag",
+      "enabled": true
+    },
+    {
+      "id": "pat-calm-zigzag",
+      "name": "Calm Zigzag",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 300,
+      "collection": "Zigzag",
+      "enabled": true
+    },
+    {
+      "id": "pat-lucky-zigzag",
+      "name": "Lucky Zigzag",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 200,
+      "collection": "Zigzag",
+      "enabled": true
+    },
+    {
+      "id": "pat-swift-zigzag",
+      "name": "Swift Zigzag",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 200,
+      "collection": "Zigzag",
+      "enabled": true
+    },
+    {
+      "id": "pat-royal-zigzag",
+      "name": "Royal Zigzag",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 300,
+      "collection": "Zigzag",
+      "enabled": true
+    },
+    {
+      "id": "pat-cozy-zigzag",
+      "name": "Cozy Zigzag",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 300,
+      "collection": "Zigzag",
+      "enabled": true
+    },
+    {
+      "id": "pat-funky-plaid",
+      "name": "Funky Plaid",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 250,
+      "collection": "Plaid",
+      "enabled": true
+    },
+    {
+      "id": "pat-neat-plaid",
+      "name": "Neat Plaid",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 250,
+      "collection": "Plaid",
+      "enabled": true
+    },
+    {
+      "id": "pat-lazy-plaid",
+      "name": "Lazy Plaid",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 190,
+      "collection": "Plaid",
+      "enabled": true
+    },
+    {
+      "id": "pat-brave-plaid",
+      "name": "Brave Plaid",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 190,
+      "collection": "Plaid",
+      "enabled": true
+    },
+    {
+      "id": "pat-fizzy-plaid",
+      "name": "Fizzy Plaid",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 180,
+      "collection": "Plaid",
+      "enabled": true
+    },
+    {
+      "id": "pat-dizzy-plaid",
+      "name": "Dizzy Plaid",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 180,
+      "collection": "Plaid",
+      "enabled": true
+    },
+    {
+      "id": "pat-tiny-plaid",
+      "name": "Tiny Plaid",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 160,
+      "collection": "Plaid",
+      "enabled": true
+    },
+    {
+      "id": "pat-bold-plaid",
+      "name": "Bold Plaid",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 160,
+      "collection": "Plaid",
+      "enabled": true
+    },
+    {
+      "id": "pat-soft-plaid",
+      "name": "Soft Plaid",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 140,
+      "collection": "Plaid",
+      "enabled": true
+    },
+    {
+      "id": "pat-sharp-plaid",
+      "name": "Sharp Plaid",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 140,
+      "collection": "Plaid",
+      "enabled": true
+    },
+    {
+      "id": "pat-wild-plaid",
+      "name": "Wild Plaid",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 140,
+      "collection": "Plaid",
+      "enabled": true
+    },
+    {
+      "id": "pat-calm-plaid",
+      "name": "Calm Plaid",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 140,
+      "collection": "Plaid",
+      "enabled": true
+    },
+    {
+      "id": "pat-lucky-crosshatch",
+      "name": "Lucky Crosshatch",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 300,
+      "collection": "Crosshatch",
+      "enabled": true
+    },
+    {
+      "id": "pat-swift-crosshatch",
+      "name": "Swift Crosshatch",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 300,
+      "collection": "Crosshatch",
+      "enabled": true
+    },
+    {
+      "id": "pat-royal-crosshatch",
+      "name": "Royal Crosshatch",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 300,
+      "collection": "Crosshatch",
+      "enabled": true
+    },
+    {
+      "id": "pat-cozy-crosshatch",
+      "name": "Cozy Crosshatch",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 300,
+      "collection": "Crosshatch",
+      "enabled": true
+    },
+    {
+      "id": "pat-funky-crosshatch",
+      "name": "Funky Crosshatch",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 300,
+      "collection": "Crosshatch",
+      "enabled": true
+    },
+    {
+      "id": "pat-neat-crosshatch",
+      "name": "Neat Crosshatch",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 300,
+      "collection": "Crosshatch",
+      "enabled": true
+    },
+    {
+      "id": "pat-lazy-crosshatch",
+      "name": "Lazy Crosshatch",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 280,
+      "collection": "Crosshatch",
+      "enabled": true
+    },
+    {
+      "id": "pat-brave-crosshatch",
+      "name": "Brave Crosshatch",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 280,
+      "collection": "Crosshatch",
+      "enabled": true
+    },
+    {
+      "id": "pat-fizzy-diamonds",
+      "name": "Fizzy Diamonds",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 200,
+      "collection": "Diamonds",
+      "enabled": true
+    },
+    {
+      "id": "pat-dizzy-diamonds",
+      "name": "Dizzy Diamonds",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 200,
+      "collection": "Diamonds",
+      "enabled": true
+    },
+    {
+      "id": "pat-tiny-diamonds",
+      "name": "Tiny Diamonds",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 150,
+      "collection": "Diamonds",
+      "enabled": true
+    },
+    {
+      "id": "pat-bold-diamonds",
+      "name": "Bold Diamonds",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 150,
+      "collection": "Diamonds",
+      "enabled": true
+    },
+    {
+      "id": "pat-soft-diamonds",
+      "name": "Soft Diamonds",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 180,
+      "collection": "Diamonds",
+      "enabled": true
+    },
+    {
+      "id": "pat-sharp-diamonds",
+      "name": "Sharp Diamonds",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 180,
+      "collection": "Diamonds",
+      "enabled": true
+    },
+    {
+      "id": "pat-wild-diamonds",
+      "name": "Wild Diamonds",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 130,
+      "collection": "Diamonds",
+      "enabled": true
+    },
+    {
+      "id": "pat-calm-diamonds",
+      "name": "Calm Diamonds",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 130,
+      "collection": "Diamonds",
+      "enabled": true
+    },
+    {
+      "id": "pat-lucky-diamonds",
+      "name": "Lucky Diamonds",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 140,
+      "collection": "Diamonds",
+      "enabled": true
+    },
+    {
+      "id": "pat-swift-diamonds",
+      "name": "Swift Diamonds",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 140,
+      "collection": "Diamonds",
+      "enabled": true
+    },
+    {
+      "id": "pat-royal-diamonds",
+      "name": "Royal Diamonds",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 120,
+      "collection": "Diamonds",
+      "enabled": true
+    },
+    {
+      "id": "pat-cozy-diamonds",
+      "name": "Cozy Diamonds",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 120,
+      "collection": "Diamonds",
+      "enabled": true
+    },
+    {
+      "id": "pat-funky-rings",
+      "name": "Funky Rings",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 300,
+      "collection": "Rings",
+      "enabled": true
+    },
+    {
+      "id": "pat-neat-rings",
+      "name": "Neat Rings",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 300,
+      "collection": "Rings",
+      "enabled": true
+    },
+    {
+      "id": "pat-lazy-rings",
+      "name": "Lazy Rings",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 260,
+      "collection": "Rings",
+      "enabled": true
+    },
+    {
+      "id": "pat-brave-rings",
+      "name": "Brave Rings",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 260,
+      "collection": "Rings",
+      "enabled": true
+    },
+    {
+      "id": "pat-fizzy-rings",
+      "name": "Fizzy Rings",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 300,
+      "collection": "Rings",
+      "enabled": true
+    },
+    {
+      "id": "pat-dizzy-rings",
+      "name": "Dizzy Rings",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 300,
+      "collection": "Rings",
+      "enabled": true
+    },
+    {
+      "id": "pat-tiny-rings",
+      "name": "Tiny Rings",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 210,
+      "collection": "Rings",
+      "enabled": true
+    },
+    {
+      "id": "pat-bold-rings",
+      "name": "Bold Rings",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 210,
+      "collection": "Rings",
+      "enabled": true
+    },
+    {
+      "id": "pat-royal-bricks",
+      "name": "Royal Bricks",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 140,
+      "collection": "Bricks",
+      "enabled": true
+    },
+    {
+      "id": "pat-cozy-bricks",
+      "name": "Cozy Bricks",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 140,
+      "collection": "Bricks",
+      "enabled": true
+    },
+    {
+      "id": "pat-funky-bricks",
+      "name": "Funky Bricks",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 190,
+      "collection": "Bricks",
+      "enabled": true
+    },
+    {
+      "id": "pat-neat-bricks",
+      "name": "Neat Bricks",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 190,
+      "collection": "Bricks",
+      "enabled": true
+    },
+    {
+      "id": "pat-lazy-scales",
+      "name": "Lazy Scales",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 180,
+      "collection": "Scales",
+      "enabled": true
+    },
+    {
+      "id": "pat-brave-scales",
+      "name": "Brave Scales",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 180,
+      "collection": "Scales",
+      "enabled": true
+    },
+    {
+      "id": "pat-fizzy-scales",
+      "name": "Fizzy Scales",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 130,
+      "collection": "Scales",
+      "enabled": true
+    },
+    {
+      "id": "pat-dizzy-scales",
+      "name": "Dizzy Scales",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 130,
+      "collection": "Scales",
+      "enabled": true
+    },
+    {
+      "id": "pat-tiny-scales",
+      "name": "Tiny Scales",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 120,
+      "collection": "Scales",
+      "enabled": true
+    },
+    {
+      "id": "pat-bold-scales",
+      "name": "Bold Scales",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 120,
+      "collection": "Scales",
+      "enabled": true
+    },
+    {
+      "id": "pat-soft-grid",
+      "name": "Soft Grid",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 150,
+      "collection": "Grid",
+      "enabled": true
+    },
+    {
+      "id": "pat-sharp-grid",
+      "name": "Sharp Grid",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 150,
+      "collection": "Grid",
+      "enabled": true
+    },
+    {
+      "id": "pat-wild-pluses",
+      "name": "Wild Pluses",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 160,
+      "collection": "Pluses",
+      "enabled": true
+    },
+    {
+      "id": "pat-calm-pluses",
+      "name": "Calm Pluses",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 160,
+      "collection": "Pluses",
+      "enabled": true
+    },
+    {
+      "id": "pat-lucky-pluses",
+      "name": "Lucky Pluses",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 130,
+      "collection": "Pluses",
+      "enabled": true
+    },
+    {
+      "id": "pat-swift-pluses",
+      "name": "Swift Pluses",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 130,
+      "collection": "Pluses",
+      "enabled": true
+    },
+    {
+      "id": "pat-royal-triangles",
+      "name": "Royal Triangles",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 250,
+      "collection": "Triangles",
+      "enabled": true
+    },
+    {
+      "id": "pat-cozy-triangles",
+      "name": "Cozy Triangles",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 250,
+      "collection": "Triangles",
+      "enabled": true
+    },
+    {
+      "id": "pat-funky-triangles",
+      "name": "Funky Triangles",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 190,
+      "collection": "Triangles",
+      "enabled": true
+    },
+    {
+      "id": "pat-neat-triangles",
+      "name": "Neat Triangles",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 190,
+      "collection": "Triangles",
+      "enabled": true
+    },
+    {
+      "id": "pat-lazy-triangles",
+      "name": "Lazy Triangles",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 150,
+      "collection": "Triangles",
+      "enabled": true
+    },
+    {
+      "id": "pat-brave-triangles",
+      "name": "Brave Triangles",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 150,
+      "collection": "Triangles",
+      "enabled": true
+    },
+    {
+      "id": "pat-fizzy-triangles",
+      "name": "Fizzy Triangles",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 250,
+      "collection": "Triangles",
+      "enabled": true
+    },
+    {
+      "id": "pat-dizzy-triangles",
+      "name": "Dizzy Triangles",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 250,
+      "collection": "Triangles",
+      "enabled": true
+    },
+    {
+      "id": "pat-tiny-triangles",
+      "name": "Tiny Triangles",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 190,
+      "collection": "Triangles",
+      "enabled": true
+    },
+    {
+      "id": "pat-bold-triangles",
+      "name": "Bold Triangles",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 190,
+      "collection": "Triangles",
+      "enabled": true
+    },
+    {
+      "id": "pat-soft-triangles",
+      "name": "Soft Triangles",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 150,
+      "collection": "Triangles",
+      "enabled": true
+    },
+    {
+      "id": "pat-sharp-triangles",
+      "name": "Sharp Triangles",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 150,
+      "collection": "Triangles",
+      "enabled": true
+    },
+    {
+      "id": "pat-wild-chevrons",
+      "name": "Wild Chevrons",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 300,
+      "collection": "Chevrons",
+      "enabled": true
+    },
+    {
+      "id": "pat-calm-chevrons",
+      "name": "Calm Chevrons",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 300,
+      "collection": "Chevrons",
+      "enabled": true
+    },
+    {
+      "id": "art-sunset-bands",
+      "name": "Sunset Bands",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Sunset Art",
+      "enabled": true
+    },
+    {
+      "id": "art-sunset-sun",
+      "name": "Sunset Sun",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1500,
+      "collection": "Sunset Art",
+      "enabled": true
+    },
+    {
+      "id": "art-sunset-mosaic",
+      "name": "Sunset Mosaic",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 2000,
+      "collection": "Sunset Art",
+      "enabled": true
+    },
+    {
+      "id": "art-sunset-glass",
+      "name": "Sunset Glass",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 2500,
+      "collection": "Sunset Art",
+      "enabled": true
+    },
+    {
+      "id": "art-ocean-bands",
+      "name": "Ocean Bands",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 3000,
+      "collection": "Ocean Art",
+      "enabled": true
+    },
+    {
+      "id": "art-ocean-sun",
+      "name": "Ocean Sun",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Ocean Art",
+      "enabled": true
+    },
+    {
+      "id": "art-ocean-mosaic",
+      "name": "Ocean Mosaic",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1500,
+      "collection": "Ocean Art",
+      "enabled": true
+    },
+    {
+      "id": "art-ocean-glass",
+      "name": "Ocean Glass",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 2000,
+      "collection": "Ocean Art",
+      "enabled": true
+    },
+    {
+      "id": "art-forest-bands",
+      "name": "Forest Bands",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 2500,
+      "collection": "Forest Art",
+      "enabled": true
+    },
+    {
+      "id": "art-forest-sun",
+      "name": "Forest Sun",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 3000,
+      "collection": "Forest Art",
+      "enabled": true
+    },
+    {
+      "id": "art-forest-mosaic",
+      "name": "Forest Mosaic",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Forest Art",
+      "enabled": true
+    },
+    {
+      "id": "art-forest-glass",
+      "name": "Forest Glass",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1500,
+      "collection": "Forest Art",
+      "enabled": true
+    },
+    {
+      "id": "art-candy-bands",
+      "name": "Candy Bands",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 2000,
+      "collection": "Candy Art",
+      "enabled": true
+    },
+    {
+      "id": "art-candy-sun",
+      "name": "Candy Sun",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 2500,
+      "collection": "Candy Art",
+      "enabled": true
+    },
+    {
+      "id": "art-candy-glass",
+      "name": "Candy Glass",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Candy Art",
+      "enabled": true
+    },
+    {
+      "id": "art-ember-bands",
+      "name": "Ember Bands",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1500,
+      "collection": "Ember Art",
+      "enabled": true
+    },
+    {
+      "id": "art-ember-sun",
+      "name": "Ember Sun",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 2000,
+      "collection": "Ember Art",
+      "enabled": true
+    },
+    {
+      "id": "art-ember-mosaic",
+      "name": "Ember Mosaic",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 2500,
+      "collection": "Ember Art",
+      "enabled": true
+    },
+    {
+      "id": "art-ember-glass",
+      "name": "Ember Glass",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 3000,
+      "collection": "Ember Art",
+      "enabled": true
+    },
+    {
+      "id": "art-arctic-bands",
+      "name": "Arctic Bands",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Arctic Art",
+      "enabled": true
+    },
+    {
+      "id": "art-arctic-sun",
+      "name": "Arctic Sun",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1500,
+      "collection": "Arctic Art",
+      "enabled": true
+    },
+    {
+      "id": "art-arctic-mosaic",
+      "name": "Arctic Mosaic",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 2000,
+      "collection": "Arctic Art",
+      "enabled": true
+    },
+    {
+      "id": "art-arctic-glass",
+      "name": "Arctic Glass",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 2500,
+      "collection": "Arctic Art",
+      "enabled": true
+    },
+    {
+      "id": "art-neon-bands",
+      "name": "Neon Bands",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 3000,
+      "collection": "Neon Art",
+      "enabled": true
+    },
+    {
+      "id": "art-neon-sun",
+      "name": "Neon Sun",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Neon Art",
+      "enabled": true
+    },
+    {
+      "id": "art-neon-mosaic",
+      "name": "Neon Mosaic",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1500,
+      "collection": "Neon Art",
+      "enabled": true
+    },
+    {
+      "id": "art-neon-glass",
+      "name": "Neon Glass",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 2000,
+      "collection": "Neon Art",
+      "enabled": true
+    },
+    {
+      "id": "art-desert-bands",
+      "name": "Desert Bands",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 2500,
+      "collection": "Desert Art",
+      "enabled": true
+    },
+    {
+      "id": "art-desert-sun",
+      "name": "Desert Sun",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 3000,
+      "collection": "Desert Art",
+      "enabled": true
+    },
+    {
+      "id": "art-candy-candy-cane",
+      "name": "Candy Candy Cane",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Candy Art",
+      "enabled": true
+    },
+    {
+      "id": "art-neon-candy-cane",
+      "name": "Neon Candy Cane",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1500,
+      "collection": "Neon Art",
+      "enabled": true
+    },
+    {
+      "id": "art-ember-candy-cane",
+      "name": "Ember Candy Cane",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 2000,
+      "collection": "Ember Art",
+      "enabled": true
+    },
+    {
+      "id": "art-ocean-candy-cane",
+      "name": "Ocean Candy Cane",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 2500,
+      "collection": "Ocean Art",
+      "enabled": true
+    },
+    {
+      "id": "art-grape-candy-cane",
+      "name": "Grape Candy Cane",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 3000,
+      "collection": "Grape Art",
+      "enabled": true
+    },
+    {
+      "id": "art-king",
+      "name": "King",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Royals",
+      "enabled": true
+    },
+    {
+      "id": "art-queen",
+      "name": "Queen",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1500,
+      "collection": "Royals",
+      "enabled": true
+    },
+    {
+      "id": "art-alpenglow",
+      "name": "Alpenglow",
+      "kind": "art",
+      "rarity": "Ultra Rare",
+      "price": 4000,
+      "collection": "Scenes",
+      "enabled": true
+    },
+    {
+      "id": "art-starry-hills",
+      "name": "Starry Hills",
+      "kind": "art",
+      "rarity": "Ultra Rare",
+      "price": 5000,
+      "collection": "Scenes",
+      "enabled": true
+    },
+    {
+      "id": "art-coral-reef",
+      "name": "Coral Reef",
+      "kind": "art",
+      "rarity": "Ultra Rare",
+      "price": 6000,
+      "collection": "Scenes",
+      "enabled": true
+    },
+    {
+      "id": "art-volcano",
+      "name": "Volcano",
+      "kind": "art",
+      "rarity": "Ultra Rare",
+      "price": 7000,
+      "collection": "Scenes",
+      "enabled": true
+    },
+    {
+      "id": "art-crystal-cave",
+      "name": "Crystal Cave",
+      "kind": "art",
+      "rarity": "Ultra Rare",
+      "price": 8000,
+      "collection": "Scenes",
+      "enabled": true
+    },
+    {
+      "id": "art-blossom-branch",
+      "name": "Blossom Branch",
+      "kind": "art",
+      "rarity": "Ultra Rare",
+      "price": 4000,
+      "collection": "Scenes",
+      "enabled": true
+    },
+    {
+      "id": "art-northern-lights",
+      "name": "Northern Lights",
+      "kind": "art",
+      "rarity": "Ultra Rare",
+      "price": 5000,
+      "collection": "Scenes",
+      "enabled": true
+    },
+    {
+      "id": "art-oasis",
+      "name": "Oasis",
+      "kind": "art",
+      "rarity": "Ultra Rare",
+      "price": 6000,
+      "collection": "Scenes",
+      "enabled": true
+    },
+    {
+      "id": "art-waterfall",
+      "name": "Waterfall",
+      "kind": "art",
+      "rarity": "Ultra Rare",
+      "price": 7000,
+      "collection": "Scenes",
+      "enabled": true
+    },
+    {
+      "id": "art-dusk-castle",
+      "name": "Dusk Castle",
+      "kind": "art",
+      "rarity": "Ultra Rare",
+      "price": 8000,
+      "collection": "Scenes",
+      "enabled": true
+    },
+    {
+      "id": "art-lighthouse",
+      "name": "Lighthouse",
+      "kind": "art",
+      "rarity": "Ultra Rare",
+      "price": 4000,
+      "collection": "Scenes",
+      "enabled": true
+    },
+    {
+      "id": "art-snow-village",
+      "name": "Snow Village",
+      "kind": "art",
+      "rarity": "Ultra Rare",
+      "price": 5000,
+      "collection": "Scenes",
+      "enabled": true
+    },
+    {
+      "id": "art-deep-jungle",
+      "name": "Deep Jungle",
+      "kind": "art",
+      "rarity": "Ultra Rare",
+      "price": 6000,
+      "collection": "Scenes",
+      "enabled": true
+    },
+    {
+      "id": "art-synth-horizon",
+      "name": "Synth Horizon",
+      "kind": "art",
+      "rarity": "Ultra Rare",
+      "price": 7000,
+      "collection": "Scenes",
+      "enabled": true
+    },
+    {
+      "id": "art-moonlit-sea",
+      "name": "Moonlit Sea",
+      "kind": "art",
+      "rarity": "Ultra Rare",
+      "price": 8000,
+      "collection": "Scenes",
+      "enabled": true
+    },
+    {
+      "id": "art-phoenix-flame",
+      "name": "Phoenix Flame",
+      "kind": "art",
+      "rarity": "Legendary",
+      "price": 25000,
+      "collection": "Showpieces",
+      "enabled": true
+    },
+    {
+      "id": "art-aurora-veil",
+      "name": "Aurora Veil",
+      "kind": "art",
+      "rarity": "Legendary",
+      "price": 20000,
+      "collection": "Showpieces",
+      "enabled": true
+    },
+    {
+      "id": "art-prism",
+      "name": "Prism",
+      "kind": "art",
+      "rarity": "Legendary",
+      "price": 15000,
+      "collection": "Showpieces",
+      "enabled": true
+    },
+    {
+      "id": "art-cosmic-vortex",
+      "name": "Cosmic Vortex",
+      "kind": "art",
+      "rarity": "Legendary",
+      "price": 12500,
+      "collection": "Showpieces",
+      "enabled": true
     }
   ]
 }
