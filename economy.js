@@ -15,7 +15,11 @@ const SKIN_KINDS = ['pattern', 'art'];          // pattern: drawn in the owner's
 const RARITIES = ['Common', 'Rare', 'Ultra Rare', 'Legendary'];
 // The image files every skin needs, under public/: one block, and the large one for Full area coverage.
 const skinFiles = key => [`skins/${key}.png`, `skins/${key}-large.png`];
-const TABS = [...Object.values(UPGRADE_TABS), RULES_TAB, ACHIEVEMENTS_TAB, SKINS_TAB];
+const ITEMS_TAB = 'Items';
+const ITEM_COLUMNS = ['Key', 'Name', 'Description', 'Price', 'Uses', 'Per (minutes)', 'Effect', 'Value', 'Duration (seconds)', 'Enabled'];
+// The kinds of effect the game knows (a new kind needs code; a new item of a known kind needs only a row).
+const ITEM_EFFECTS = ['clickMultiplier', 'terraform'];
+const TABS = [...Object.values(UPGRADE_TABS), RULES_TAB, ACHIEVEMENTS_TAB, SKINS_TAB, ITEMS_TAB];
 
 // The stats an achievement can use: the ones the game counts (achievements.js has what each one means).
 // bestRank counts down: a threshold of 3 means "#3 or better".
@@ -214,7 +218,31 @@ function validate(tabs, { hasFile = () => true } = {}) {
       skins.push({ id: key, name, kind, rarity, price, collection, enabled: /^yes$/i.test(enabled) });
     });
   }
-  return errors.length ? { economy: null, errors } : { economy: { rules, upgrades, achievements, ...(skinsTab ? { skins } : {}) }, errors };
+  // Items: like skins, kept from data/economy.json while the sheet has no Items tab.
+  const items = [], itemKeys = new Set();
+  const itemsTab = typeof tabs[ITEMS_TAB] === 'string' && parseCsv(tabs[ITEMS_TAB])[0]?.some(c => c.trim() === 'Effect');
+  const it = itemsTab ? table(ITEMS_TAB, ITEM_COLUMNS) : null;
+  if (it) {
+    it.rows.forEach((r, i) => {
+      const row = i + 1, cell = j => (r[it.at[j]] ?? '').trim(), at = j => where(ITEMS_TAB, it.at[j], row, ITEM_COLUMNS[j]);
+      const [key, name, description, rawPrice, rawUses, rawPer, effect, rawValue, rawDuration, enabled] = ITEM_COLUMNS.map((c, j) => cell(j));
+      const n = j => parseNumber(cell(j)), bad = [];
+      if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(key)) bad.push(`${at(0)}: "${key}" must be lower-case letters, digits and dashes`);
+      else if (itemKeys.has(key)) bad.push(`${at(0)}: "${key}" appears twice`);
+      itemKeys.add(key);
+      if (!name) bad.push(`${at(1)}: blank`);
+      if (!description) bad.push(`${at(2)}: blank`);
+      for (const [j, min, whole] of [[3, 1, true], [4, 1, true], [5, 1, false], [7, 0, false], [8, 0, false]]) {
+        const v = n(j);
+        if (v === null || v < min || (whole && !Number.isInteger(v))) bad.push(`${at(j)}: "${cell(j)}" must be ${whole ? 'a whole number' : 'a number'}, ${min} or more`);
+      }
+      if (!ITEM_EFFECTS.includes(effect)) bad.push(`${at(6)}: unknown effect "${effect}" (one of: ${ITEM_EFFECTS.join(', ')})`);
+      if (!/^(yes|no)$/i.test(enabled)) bad.push(`${at(9)}: "${enabled}" must be yes or no`);
+      if (bad.length) return errors.push(...bad);
+      items.push({ id: key, name, description, price: n(3), uses: n(4), perMinutes: n(5), effect, value: n(7), seconds: n(8), enabled: /^yes$/i.test(enabled) });
+    });
+  }
+  return errors.length ? { economy: null, errors } : { economy: { rules, upgrades, achievements, ...(skinsTab ? { skins } : {}), ...(itemsTab ? { items } : {}) }, errors };
 }
 
 // Option B: a stored level under the old table becomes the lowest new level whose value is at least the old
@@ -273,4 +301,4 @@ function describeChanges(before, after) {
   return lines.length ? lines : ['No changes.'];
 }
 
-module.exports = { UPGRADE_TABS, RULES_TAB, ACHIEVEMENTS_TAB, SKINS_TAB, SKIN_KINDS, RARITIES, skinFiles, STATS, TABS, RULE_KEYS, parseCsv, parseNumber, validate, remapLevel, remapTable, describeChanges };
+module.exports = { UPGRADE_TABS, RULES_TAB, ACHIEVEMENTS_TAB, SKINS_TAB, ITEMS_TAB, ITEM_EFFECTS, SKIN_KINDS, RARITIES, skinFiles, STATS, TABS, RULE_KEYS, parseCsv, parseNumber, validate, remapLevel, remapTable, describeChanges };

@@ -1,0 +1,3 @@
+Key,Name,Description,Price,Uses,Per (minutes),Effect,Value,Duration (seconds),Enabled
+super-click,Super Click,"Your Click Power x10 for 5 seconds, once an hour. Stacks with your Click Power upgrade.",28800,1,60,clickMultiplier,10,5,yes
+terraformer,Terraformer,"Change one block to grass, sand, forest, stone or water: your own blocks, or empty ones touching your land. Up to 5 an hour. Never gold.",28800,5,60,terraform,0,0,yes

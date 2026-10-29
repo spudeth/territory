@@ -625,3 +625,23 @@ body.dying #map { filter: grayscale(.85) brightness(.8); transition: filter .6s 
 #death dt { color: var(--muted); }
 #death dd { margin: 0; font-weight: 600; text-align: right; }
 @media (prefers-reduced-motion: reduce) { body.dying #flash { animation: none; } #death { animation: none; } }
+
+/* ---------- Items (loop 14) ---------- */
+#w-gear { position: absolute; top: max(var(--pad), env(safe-area-inset-top)); right: calc(max(var(--pad), env(safe-area-inset-right)) + 54px); z-index: 1; }
+.items-list { display: flex; flex-direction: column; gap: 10px; }
+.item-card { display: grid; grid-template-columns: 56px 1fr; gap: 10px 12px; padding: 12px; background: var(--card); border: 3px solid var(--ink); }
+.item-card .ic { width: 56px; height: 56px; display: flex; align-items: center; justify-content: center; border: 3px solid var(--ink); }
+.item-card .nm { font-size: 18px; font-weight: 600; }
+.item-card .ds { font-size: 14px; color: var(--muted); }
+.item-card .act { grid-column: 1 / -1; }
+.item-card .buy { width: 100%; min-height: 44px; background: var(--gold); color: var(--well); gap: 6px; }
+.item-card .buy:disabled { background: var(--raised); color: var(--muted); }
+#itembar { position: fixed; left: calc(16px + env(safe-area-inset-left)); bottom: calc(80px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 6px; z-index: 4; }
+#itembar .btn { min-height: 40px; padding: 0 12px; font-size: 14px; justify-content: flex-start; gap: 8px; background: var(--panel); }
+#itembar .btn.on { background: var(--gold); color: var(--well); }
+#itembar .btn:disabled { opacity: .7; }
+body.welcome #itembar, body.zooming #itembar { opacity: 0; pointer-events: none; }
+#terra-pick { position: fixed; left: 50%; bottom: calc(140px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 21; background: var(--panel);
+  padding: 10px; display: flex; flex-direction: column; gap: 8px; align-items: center; max-width: calc(100% - 32px); }
+#terra-choices { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+#terra-choices button { width: 48px; height: 48px; padding: 0; border: 3px solid var(--ink); image-rendering: pixelated; background-size: cover; cursor: pointer; }

@@ -45,6 +45,7 @@ async function main() {
   const out = arg('out') ?? OUT;
   const before = fs.existsSync(out) ? JSON.parse(fs.readFileSync(out, 'utf8')) : null;
   if (!next.skins) next.skins = before?.skins ?? [];   // no Skins tab in the sheet yet: keep the current skins
+  if (!next.items) next.items = before?.items ?? [];   // the same for Items
   console.log('Changes:');
   for (const line of economy.describeChanges(before, next)) console.log('  - ' + line);
   if (arg('check')) return console.log('Checked only (--check): nothing was written.');
