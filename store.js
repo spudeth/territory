@@ -643,6 +643,18 @@ function resetProgress(pool, playerId) {
   });
 }
 
+// Deletes a map for good (admin delete-map): its blocks, edges, and everyone's look, stats and wipes there.
+// Squares, the ledger, achievements and accounts stay (their map reference is cleared).
+function deleteMap(pool, mapId) {
+  return tx(pool, async c => {
+    for (const sql of ['UPDATE players SET last_map_id = NULL WHERE last_map_id = $1', 'UPDATE square_ledger SET map_id = NULL WHERE map_id = $1',
+      'UPDATE player_achievements SET map_id = NULL WHERE map_id = $1', 'DELETE FROM player_map_settings WHERE map_id = $1',
+      'DELETE FROM player_map_stats WHERE map_id = $1', 'DELETE FROM map_wipes WHERE map_id = $1', 'DELETE FROM map_edges WHERE map_id = $1',
+      'DELETE FROM map_cells WHERE map_id = $1', 'DELETE FROM maps WHERE id = $1']) await c.query(sql, [mapId]);
+  });
+}
+Object.assign(module.exports, { deleteMap });
+
 // An account's email, from Neon Auth (null for guests, or where Neon Auth isn't in this database).
 async function accountEmail(pool, authUserId) {
   if (!authUserId || !(await pool.query("SELECT to_regclass('neon_auth.user') AS t")).rows[0].t) return null;

@@ -188,6 +188,11 @@ npm run admin -- ban "Sly Wolf" --reason "cheating" --wipe-blocks --prod
 npm run admin -- delete-account "Sly Wolf" --prod
 ```
 
+**delete-map**: deletes a map for good: its blocks, and everyone's look, stats and wipes there. Squares, upgrades, achievements and accounts stay. Anyone on it moves to the main map. The main (first) map can't be deleted.
+```
+npm run admin -- delete-map Pangea --prod
+```
+
 **restore**: puts the whole game back to a backup file (section 5).
 
 ---
