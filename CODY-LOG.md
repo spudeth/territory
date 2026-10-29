@@ -414,4 +414,5 @@ newMapBlocks 10240 · terrainScale 28 · waterShare 0.12 · sandShare 0.07 · fo
 - Tap water: "Water can't be claimed". Sand takes 5 taps, forest 15, stone 30; a gold block pays 6 squares (1 + 5).
 - Water ripples gently; claimed blocks show your color over the terrain.
 
+#67 | 2026-10-28 | Sounds (Xoren): new "steal" sound when you take another player's block (three options on the sound test page, A until picked: OPEN Q14); PLAY on the welcome screen now plays the plain button click instead of the loud Spawn sound
 Loop order 9 done. Open: Q5, Q6, Q8, Q10, Q11, Q12. Stopping.

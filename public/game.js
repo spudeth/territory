@@ -447,7 +447,7 @@ socket.on('claim', ({ x, y, pid }) => {
   cells.set(key(x, y), pid);
   hits.delete(key(x, y));
   myTaps.delete(key(x, y));
-  if (pid === me) { gameAudio.play('claim'); tell('claimed', { x, y, from: before }); lastClaim = { x, y }; }
+  if (pid === me) { gameAudio.play(before ? 'steal' : 'claim'); tell('claimed', { x, y, from: before }); lastClaim = { x, y }; }
   else if (me && before === me) { gameAudio.play('taken'); tell('taken', { x, y }); }
   else gameAudio.play('claim', screenAt(x, y));
   updateUI();

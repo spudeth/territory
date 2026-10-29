@@ -70,7 +70,7 @@
   function play(after) {
     if (!open || moving || !cells) return;
     open = false; moving = true;
-    gameAudio.play('spawn');
+    gameAudio.play('button');   // a plain click (the Spawn fanfare was too loud here)
     const t = target ?? chooseTarget();
     const game = { s: t.s, ox: innerWidth / 2 - t.cx * t.s, oy: innerHeight / 2 - t.cy * t.s };
     const land = () => {
