@@ -306,6 +306,14 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
         return r;
       },
       async reloadMaps(ids) { for (const id of ids) await reloadMap(id); },
+      // A deleted map: forget it, and move everyone on it to the main map.
+      async mapDeleted(id) {
+        const old = [...loaded].find(m => String(m.id) === String(id));
+        if (old) loaded.delete(old);
+        maps.delete(old?.id ?? id);
+        const main = await getMap(await getDefaultMapId());
+        for (const s of io.sockets.sockets.values()) if (String(s.data.mapId) === String(id)) s.data.reenter(main);
+      },
       squaresChanged: balanceChanged,
       // After a restore: forget every loaded map and disconnect everyone, who reconnect to the restored game.
       reloadAll() {

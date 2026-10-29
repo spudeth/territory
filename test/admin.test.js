@@ -275,3 +275,16 @@ test('bad-names lists names the filter blocks now, and changes nothing', async (
   assert.ok(r.out.includes(`Nibba (#${g.pid}, guest)`), r.out);
   assert.equal((await pool.query('SELECT name FROM players WHERE id = $1', [g.pid])).rows[0].name, 'Nibba', 'not renamed');
 });
+
+test('delete-map deletes a map for good and moves its players to the main map; the main map is refused', async () => {
+  const id = await store.createMap(pool, { name: 'Doomed', width: 4, height: 4 });
+  const g = await guest();
+  await g.s.ask('switchMap', id);
+  await g.s.next('welcome');
+  const r = await admin('delete-map Doomed', { answers: ['Doomed'] });
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /Deleted the map Doomed/);
+  assert.notEqual(String((await g.s.next('welcome')).map.id), String(id), 'moved to the main map');
+  assert.equal((await pool.query('SELECT count(*)::int AS n FROM maps WHERE id = $1', [id])).rows[0].n, 0);
+  assert.match((await admin('delete-map Grass', { answers: ['Grass'] })).out, /main map/);
+});

@@ -222,6 +222,23 @@ function adminRouter({ pool, key, production, hooks }) {
       run: wipeMaps,
     },
 
+    'delete-map': {
+      async prepare({ args }) {
+        const m = await map(args[0]);
+        if (String(m.id) === String(await store.defaultMapId(pool))) throw new Refusal(`${m.name} is the main map, where new players start; it can't be deleted.`);
+        const i = await store.mapInfo(pool, m.id);
+        return { m, target: `map ${m.name}`, confirm: m.name, preview: [
+          `Delete the map ${m.name} (#${m.id}) for good: ${i.blocks.toLocaleString()} blocks, ${i.claimed.toLocaleString()} claimed by ${plural(i.players, 'player')}.`,
+          "Everyone's look, stats and wipes there go. Squares, upgrades, achievements and accounts stay.",
+          'Anyone playing on it moves to the main map.'] };
+      },
+      async run({ m }) {
+        await store.deleteMap(pool, m.id);
+        await hooks.mapDeleted(m.id);
+        return [`Deleted the map ${m.name}.`];
+      },
+    },
+
     'wipe-all-maps': {
       async prepare({ options }) {
         const { rows: maps } = await pool.query('SELECT id, name FROM maps ORDER BY id');
