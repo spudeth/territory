@@ -7,6 +7,16 @@
 const economy = require('./data/economy.json');
 const R = economy.rules;
 const values = upgrade => economy.upgrades[upgrade].map(l => l.value);   // effect at each level, from level 0
+// Xoren: the top Earnings level costs 10,000 squares (the sheet had over 100,000). The cost curve is flattened in
+// log space so level 1 keeps its price and every level still costs more than the one before.
+const EARNINGS_TOP_COST = 10000;
+function earningsCosts(levels) {
+  const first = levels[1].cost, top = levels.at(-1).cost;
+  if (top <= EARNINGS_TOP_COST) return levels;
+  const k = Math.log(EARNINGS_TOP_COST / first) / Math.log(top / first);
+  let prev = 0;
+  return levels.map(l => l.level === 0 ? l : { ...l, cost: (prev = Math.max(prev + 1, Math.round(first * (l.cost / first) ** k))) });
+}
 const DEFENSE_TOP = 2;
 const defenseTop = economy.upgrades.defense.at(-1).value;
 const defenseScaled = v => (defenseTop > 1 ? 1 + (v - 1) * (DEFENSE_TOP - 1) / (defenseTop - 1) : v);
@@ -30,7 +40,7 @@ const settings = {
 
   // Upgrades. Each player has a level for each (0 = none). These tables give the effect at each level, starting
   // at level 0; a level past the end of a table uses its last entry. UPGRADES has the costs too.
-  UPGRADES: economy.upgrades,                   // { clickPower: [{ level, value, cost }, …], … }
+  UPGRADES: { ...economy.upgrades, earnings: earningsCosts(economy.upgrades.earnings) },   // { clickPower: [{ level, value, cost }, …], … }
   CLICK_POWER_MULTIPLIER: values('clickPower'), // Click Power: how many hits one click counts as (1.2 = +20%)
   // Defense: multiplies the hits others need to take your blocks. Xoren: the top level is twice as hard (x2),
   // whatever the sheet's top value; every level is scaled the same way, so stored levels never move.
