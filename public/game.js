@@ -471,10 +471,10 @@ socket.on('rename', ({ pid, name }) => {
   if (pid === me) myName = name;
   updateUI();
 });
-// One rising square per square a claim mined, a little apart.
+// One rising square per square a claim mined: they come fast, then slower (the gaps grow), over at most 1.5 s.
 socket.on('mined', ({ x, y, count }) => {
-  const t = performance.now();
-  for (let i = 0; i < Math.min(count, 50); i++) squarePops.push({ x, y, t0: t + i * 150 });
+  const t = performance.now(), n = Math.min(count, 50), span = Math.min(1500, 150 * (n - 1));
+  for (let i = 0; i < n; i++) squarePops.push({ x, y, t0: t + span * (n > 1 ? (i / (n - 1)) ** 2 : 0) });
   draw();
 });
 socket.on('squares', n => {
