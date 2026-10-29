@@ -11,7 +11,9 @@ let db, pool, mapId, game, url;
 const sockets = [];
 before(async () => {
   ({ pool, mapId } = db = await testDb());
-  game = createGame(pool, { guestsPerIp: 2, crackDecayMs: DECAY_MS, publicUrl: 'https://territory.sarl', tapsPerSecond: 1000 });   // these tests tap like bots
+  // These tests tap like bots. Achievements pay nothing here, so balances stay exact (rewards: achievements-live.test.js).
+  game = createGame(pool, { guestsPerIp: 2, crackDecayMs: DECAY_MS, publicUrl: 'https://territory.sarl', tapsPerSecond: 1000,
+    achievementList: rules.ACHIEVEMENTS.map(d => ({ ...d, reward: 0 })) });
   await new Promise(r => game.server.listen(0, r));
   url = `http://localhost:${game.server.address().port}`;
 });
@@ -303,17 +305,18 @@ test('menu screens: skins, upgrades and achievement progress come from the real 
   assert.deepEqual(await a.ask('upgrades'), { levels: rules.NO_UPGRADES, hitsPerBlock: rules.HITS_PER_BLOCK,
     squaresPerClaim: rules.SQUARES_PER_FIRST_CLAIM, upgrades: rules.UPGRADES, balance: 0 });
   const none = await a.ask('achievements');
-  assert.equal(none.list.length, 8);
-  assert.deepEqual([none.earned, none.best], [[], {}], 'a visitor has nothing yet');
+  assert.equal(none.list.length, 300);
+  assert.deepEqual([none.earned, none.values], [[], {}], 'a visitor has nothing yet');
   a.take(10, 28);
-  await a.next('achievement');
+  await a.next('achievement', d => d.id === 'first-block');
   a.take(11, 28);
   await a.next('claim', at(11, 28));
+  await new Promise(r => setTimeout(r, 300));
   const got = await a.ask('achievements');
-  assert.deepEqual(got.earned, [{ id: 'first-block', map: 'Grass' }]);
-  assert.equal(got.best.firstClaims, 2);
-  assert.equal(got.best.bestLine, 2);
-  assert.equal(got.best.owned, 2);
+  assert.ok(got.earned.some(e => e.id === 'first-block'), JSON.stringify(got.earned));
+  assert.equal(got.values.claims, 2);
+  assert.equal(got.values.bestLine, 2);
+  assert.equal(got.values.owned, 2);
 });
 
 test('tutorial progress: new players start fresh, saved on the server, back on reconnecting; bad data refused', async () => {
@@ -392,12 +395,13 @@ test('achievements: earned once on the stat event, saved, and announced', async 
   await a.welcome;
   a.take(26, 25);
   const you = await a.next('you');
-  assert.deepEqual(await a.next('achievement'), { id: 'first-block', name: 'First Block', stat: 'firstClaims', threshold: 1, mapId });
+  const first = await a.next('achievement', d => d.id === 'first-block');
+  assert.deepEqual([first.name, first.stat, first.threshold], ['First Block', 'claims', 1]);   // rewards: achievements-live.test.js
   a.take(27, 25);
   await a.next('claim', d => d.x === 27);
   await new Promise(r => setTimeout(r, 300));
-  assert.equal(a.events.filter(([n]) => n === 'achievement').length, 0, 'not earned twice');
-  assert.equal(await db.count('SELECT count(*) FROM player_achievements WHERE player_id = $1', [you.pid]), 1);
+  assert.equal(a.events.filter(([n, d]) => n === 'achievement' && d.id === 'first-block').length, 0, 'not earned twice');
+  assert.equal(await db.count("SELECT count(*) FROM player_achievements WHERE player_id = $1 AND achievement_id = 'first-block'", [you.pid]), 1);
 });
 
 test('maps: switch, claim there with a separate look, and come back to the last map', async () => {
@@ -440,7 +444,7 @@ test('reconnecting keeps crack progress, and a restarted server remembers stats 
   await a.welcome;
   a.take(2, 27);
   const you = await a.next('you');
-  await a.next('achievement');
+  await a.next('achievement', d => d.id === 'first-block');
   a.emit('hit', { x: 3, y: 27 });
   a.emit('hit', { x: 3, y: 27 });
   await a.next('hit', d => d.x === 3 && d.p === 0.2);
@@ -462,7 +466,7 @@ test('reconnecting keeps crack progress, and a restarted server remembers stats 
   c.take(4, 27);
   await c.next('stat', d => d.name === 'firstClaims' && d.value === 3, 15000);
   await new Promise(r => setTimeout(r, 300));
-  assert.equal(c.events.filter(([n]) => n === 'achievement').length, 0, 'First Block is not earned again');
+  assert.equal(c.events.filter(([n, d]) => n === 'achievement' && d.id === 'first-block').length, 0, 'First Block is not earned again');
 });
 
 test('random play by four players: database, server and every screen agree; the map grows once per first claim', async () => {
@@ -497,7 +501,7 @@ test('random play by four players: database, server and every screen agree; the 
     const [x, y] = options[rand(options.length)].split(',').map(Number);
     const wasEmpty = view.get(x + ',' + y) === null;
     p.take(x, y);
-    const c = await p.next('claim', d => d.x === x && d.y === y, 15000);
+    const c = await p.next('claim', d => d.x === x && d.y === y, 15000).catch(e => { throw new Error(e.message + ' round ' + round + ' player ' + i + ' at ' + x + ',' + y + ' denied: ' + JSON.stringify(p.events.filter(([n]) => n === 'denied'))); });
     if (!pids[i]) pids[i] = (await p.next('you')).pid;
     assert.equal(c.pid, pids[i]);
     if (wasEmpty) { firstClaims++; await p.next('grow'); }

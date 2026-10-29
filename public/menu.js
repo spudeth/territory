@@ -367,37 +367,61 @@ async function buy(up, level, btn) {
 }
 
 // ---------- Achievements ----------
-const ACH_TEXT = {
-  firstClaims: n => `Claim ${n} empty ${plural(n, 'block')}`,
-  owned: n => `Own ${n.toLocaleString()} blocks at once`,
-  bestSquare: n => `Own a solid ${n}×${n} square`,
-  bestLine: n => `Own ${n} blocks in a straight line`,
-  retakes: n => `Take ${n} ${plural(n, 'block')} from other players`,
-  blocksLost: n => `Lose ${n} ${plural(n, 'block')} to other players`,
-};
-const describe = a => (ACH_TEXT[a.stat] ?? (n => `${a.stat} ${n}`))(a.threshold);
-const progressText = (a, v) => a.stat === 'bestSquare' ? `best ${v}×${v}` : a.stat === 'bestLine' ? `best ${v}` : `${v.toLocaleString()} so far`;
-let achFilter = 'all', achData = null;
+// Grouped by category, each with its next tier and a progress bar toward it. Secret ones show as "???".
+const fmtNum = n => Number(n).toLocaleString(undefined, { maximumFractionDigits: 1 });
+const COUNTS_DOWN = new Set(['bestRank']);   // #3 is better than #10
+let achData = null;
 
 function drawAchievements() {
-  const { list, earned, best } = achData;
-  const got = new Map(earned.map(e => [e.id, e.map]));
+  const { list, earned, values } = achData;
+  const got = new Set(earned.map(e => e.id));
   $('ach-total').textContent = `${got.size} / ${list.length}`;
   $('ach-total-bar').style.width = `${list.length ? got.size / list.length * 100 : 0}%`;
-  for (const b of $('ach-filter').children) b.setAttribute('aria-selected', b.dataset.filter === achFilter);
-  const shown = list.filter(a => achFilter === 'all' || (achFilter === 'earned') === got.has(a.id));
-  // Earned first, then the closest to being earned.
-  const near = a => Math.min(1, (best[a.stat] ?? 0) / a.threshold);
-  shown.sort((a, b) => (got.has(b.id) - got.has(a.id)) || near(b) - near(a));
-  $('ach-list').replaceChildren(...shown.map(a => {
-    const row = document.createElement('div'), v = best[a.stat] ?? 0, done = got.has(a.id);
-    row.className = 'ach' + (done ? ' got' : '');
-    row.innerHTML = `<div class="badge"><svg class="pix" width="${done ? 18 : 16}" height="${done ? 18 : 16}" aria-hidden="true" style="color: ${done ? '#0f131a' : 'var(--muted)'}"><use href="#i-${done ? 'check' : 'lock'}"/></svg></div>`
-      + '<div class="info"><span class="t"></span><span class="sub"></span></div>';
-    row.querySelector('.t').textContent = a.name;
-    row.querySelector('.sub').textContent = done ? describe(a) + (got.get(a.id) ? ` · ${got.get(a.id)}` : '') : `${describe(a)} · ${progressText(a, v)}`;
-    if (!done) row.querySelector('.info').insertAdjacentHTML('beforeend', `<div class="bar"><div style="width: ${near(a) * 100}%"></div></div>`);
-    return row;
+  const groups = new Map();
+  for (const a of list) (groups.get(a.category) ?? groups.set(a.category, []).get(a.category)).push(a);
+  $('ach-list').replaceChildren(...[...groups].map(([category, tiers]) => {
+    const card = document.createElement('div'), done = tiers.filter(a => got.has(a.id)).length;
+    card.className = 'ach-cat' + (done === tiers.length ? ' got' : '');
+    card.innerHTML = '<div class="ach-head"><span class="t"></span><span class="n"></span></div>';
+    card.querySelector('.t').textContent = category;
+    card.querySelector('.n').textContent = `${done} / ${tiers.length}`;
+    if (tiers.every(a => a.secret)) {
+      // Secrets: each on its own line.
+      for (const a of tiers) {
+        const row = document.createElement('div');
+        row.className = 'ach-secret' + (got.has(a.id) ? ' got' : '');
+        row.innerHTML = '<span class="t"></span><span class="sub"></span>';
+        row.querySelector('.t').textContent = a.name;
+        row.querySelector('.sub').textContent = got.has(a.id) ? `${a.description} · +${fmtNum(a.reward)} squares` : a.description;
+        card.append(row);
+      }
+      return card;
+    }
+    const next = tiers.find(a => !got.has(a.id));
+    const info = document.createElement('div');
+    info.className = 'ach-next';
+    if (next) {
+      const v = values[next.stat] ?? 0, down = COUNTS_DOWN.has(next.stat);
+      const share = down ? (v ? Math.min(1, next.threshold / v) : 0) : Math.min(1, v / next.threshold);
+      info.innerHTML = '<span class="t"></span><span class="sub"></span><div class="bar"><div></div></div><span class="sub p"></span>';
+      info.querySelector('.t').textContent = next.name;
+      info.querySelector('.sub').textContent = `${next.description} · +${fmtNum(next.reward)} squares`;
+      info.querySelector('.bar > div').style.width = `${share * 100}%`;
+      info.querySelector('.p').textContent = down ? (v ? `Best so far: #${v}` : 'Not ranked yet') : `${fmtNum(v)} / ${fmtNum(next.threshold)}`;
+    } else {
+      info.innerHTML = '<span class="sub">All earned. Well played!</span>';
+    }
+    card.append(info);
+    const pips = document.createElement('div');
+    pips.className = 'ach-pips';
+    for (const a of tiers) {
+      const pip = document.createElement('span');
+      if (got.has(a.id)) pip.className = 'on';
+      pip.title = `${a.name}: ${a.description}`;
+      pips.append(pip);
+    }
+    card.append(pips);
+    return card;
   }));
 }
 fills.achievements = async () => {
@@ -407,14 +431,13 @@ fills.achievements = async () => {
   achData = r;
   drawAchievements();
 };
-for (const b of $('ach-filter').children) b.addEventListener('click', () => { achFilter = b.dataset.filter; if (achData) drawAchievements(); });
 
 // The yellow pop-up when one is earned.
 let popupTimer, achTimer;
 function onAchievement(a) {
   gameAudio.play('achievement');
   tell('achievement', a);
-  $('popup-what').textContent = a.stat && a.threshold ? `${a.name} · ${describe(a)}` : a.name;
+  $('popup-what').textContent = a.reward ? `${a.name} · +${fmtNum(a.reward)} squares` : a.name;
   $('popup').hidden = false;
   clearTimeout(popupTimer);
   popupTimer = setTimeout(() => { $('popup').hidden = true; }, 4000);

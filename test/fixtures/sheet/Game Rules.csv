@@ -12,6 +12,8 @@ nameLabelShare,0.25,A territory shows its owner's name once it covers this share
 newMapWidth,32,Width in blocks of a new map made with the admin script
 newMapHeight,32,Height in blocks of a new map made with the admin script
 newMapBlocks,10240,Blocks in a new map made with create-map (its starting shape comes from its seed)
+rankMinPlayers,10,Rank and reign achievements count only on maps where at least this many players own blocks
+rankMinBlocks,100,"…and only for a player with at least this many blocks there (ties count against you)"
 terrainScale,28,"Terrain: how many blocks across a typical lake, forest or hill is"
 waterShare,0.12,Terrain: share of the world that is water (can't be claimed; natural borders)
 sandShare,0.07,Terrain: share that is sand (around water)
@@ -28,11 +30,3 @@ soundHearingDistance,1.2,"How far away other players are heard, in half-screens 
 soundOthersVolume,0.6,"Other players' sounds at the middle of the screen, compared with your own (1)"
 defaultEffectsVolume,0.7,Sound effects volume for a new device (0 to 1)
 defaultMusicVolume,0.25,Music volume for a new device (0 to 1)
-achievement.first-block,1,First Block: empty blocks claimed
-achievement.owned-100,100,100 Blocks: blocks owned at once
-achievement.owned-1000,1000,"1,000 Blocks: blocks owned at once"
-achievement.square-10,10,10 by 10: side of the largest solid square
-achievement.square-50,50,50 by 50: side of the largest solid square
-achievement.line-10,10,Line of 10: longest straight line
-achievement.line-100,100,Line of 100: longest straight line
-achievement.retakes-10,10,Raider: blocks taken from other players

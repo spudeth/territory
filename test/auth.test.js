@@ -20,7 +20,7 @@ before(async () => {
   ({ pool } = db = await testDb());
   if (!process.env.NEON_AUTH_BASE_URL) throw new Error('NEON_AUTH_BASE_URL is not set; run `neon deploy` on the dev branch');
   const auth = createAuth({ baseUrl: process.env.NEON_AUTH_BASE_URL, cookieSecret: process.env.NEON_AUTH_COOKIE_SECRET });
-  game = createGame(pool, { auth, tapsPerSecond: 1000 });   // these tests tap like bots
+  game = createGame(pool, { auth, tapsPerSecond: 1000, achievementList: [] });   // these tests tap like bots; no reward squares
   await new Promise(r => game.server.listen(0, r));
   url = `http://localhost:${game.server.address().port}`;
   authDb = createPool(process.env.DATABASE_URL_UNPOOLED || process.env.DATABASE_URL, { max: 1 });   // reaches neon_auth

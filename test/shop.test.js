@@ -13,7 +13,8 @@ const sockets = [];
 before(async () => {
   db = await testDb('shop');
   pool = db.pool;
-  game = createGame(pool, { tapsPerSecond: 1000 });   // these tests tap like bots, except the limit test
+  // These tests tap like bots, except the limit test; no achievements, so reward squares don't change balances.
+  game = createGame(pool, { tapsPerSecond: 1000, achievementList: [] });
   await new Promise(r => game.server.listen(0, r));
   url = `http://localhost:${game.server.address().port}`;
 });

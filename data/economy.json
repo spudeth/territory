@@ -14,6 +14,8 @@
     "newMapWidth": 32,
     "newMapHeight": 32,
     "newMapBlocks": 10240,
+    "rankMinPlayers": 10,
+    "rankMinBlocks": 100,
     "terrainScale": 28,
     "waterShare": 0.12,
     "sandShare": 0.07,
@@ -30,14 +32,6 @@
     "soundOthersVolume": 0.6,
     "defaultEffectsVolume": 0.7,
     "defaultMusicVolume": 0.25,
-    "achievement.first-block": 1,
-    "achievement.owned-100": 100,
-    "achievement.owned-1000": 1000,
-    "achievement.square-10": 10,
-    "achievement.square-50": 50,
-    "achievement.line-10": 10,
-    "achievement.line-100": 100,
-    "achievement.retakes-10": 10,
     "maxTapsPerSecond": 12
   },
   "upgrades": {
@@ -1194,5 +1188,3007 @@
         "cost": 18581
       }
     ]
-  }
+  },
+  "achievements": [
+    {
+      "id": "first-block",
+      "name": "First Block",
+      "category": "Claiming",
+      "stat": "claims",
+      "threshold": 1,
+      "secret": false,
+      "description": "Claim 1 empty block",
+      "reward": 5
+    },
+    {
+      "id": "claims-5",
+      "name": "Homesteader",
+      "category": "Claiming",
+      "stat": "claims",
+      "threshold": 5,
+      "secret": false,
+      "description": "Claim 5 empty blocks",
+      "reward": 5
+    },
+    {
+      "id": "claims-10",
+      "name": "Settler",
+      "category": "Claiming",
+      "stat": "claims",
+      "threshold": 10,
+      "secret": false,
+      "description": "Claim 10 empty blocks",
+      "reward": 5
+    },
+    {
+      "id": "claims-25",
+      "name": "Pioneer",
+      "category": "Claiming",
+      "stat": "claims",
+      "threshold": 25,
+      "secret": false,
+      "description": "Claim 25 empty blocks",
+      "reward": 5
+    },
+    {
+      "id": "claims-50",
+      "name": "Trailblazer",
+      "category": "Claiming",
+      "stat": "claims",
+      "threshold": 50,
+      "secret": false,
+      "description": "Claim 50 empty blocks",
+      "reward": 5
+    },
+    {
+      "id": "claims-100",
+      "name": "Centurion",
+      "category": "Claiming",
+      "stat": "claims",
+      "threshold": 100,
+      "secret": false,
+      "description": "Claim 100 empty blocks",
+      "reward": 8
+    },
+    {
+      "id": "claims-250",
+      "name": "Land Baron",
+      "category": "Claiming",
+      "stat": "claims",
+      "threshold": 250,
+      "secret": false,
+      "description": "Claim 250 empty blocks",
+      "reward": 15
+    },
+    {
+      "id": "claims-500",
+      "name": "Frontier Lord",
+      "category": "Claiming",
+      "stat": "claims",
+      "threshold": 500,
+      "secret": false,
+      "description": "Claim 500 empty blocks",
+      "reward": 30
+    },
+    {
+      "id": "claims-1k",
+      "name": "Kilo Claimer",
+      "category": "Claiming",
+      "stat": "claims",
+      "threshold": 1000,
+      "secret": false,
+      "description": "Claim 1,000 empty blocks",
+      "reward": 75
+    },
+    {
+      "id": "claims-2500",
+      "name": "Map Maker",
+      "category": "Claiming",
+      "stat": "claims",
+      "threshold": 2500,
+      "secret": false,
+      "description": "Claim 2,500 empty blocks",
+      "reward": 150
+    },
+    {
+      "id": "claims-5k",
+      "name": "Empire Builder",
+      "category": "Claiming",
+      "stat": "claims",
+      "threshold": 5000,
+      "secret": false,
+      "description": "Claim 5,000 empty blocks",
+      "reward": 300
+    },
+    {
+      "id": "claims-10k",
+      "name": "Ten Thousand Flags",
+      "category": "Claiming",
+      "stat": "claims",
+      "threshold": 10000,
+      "secret": false,
+      "description": "Claim 10,000 empty blocks",
+      "reward": 750
+    },
+    {
+      "id": "claims-25k",
+      "name": "Continental",
+      "category": "Claiming",
+      "stat": "claims",
+      "threshold": 25000,
+      "secret": false,
+      "description": "Claim 25,000 empty blocks",
+      "reward": 1500
+    },
+    {
+      "id": "claims-50k",
+      "name": "Worldshaper",
+      "category": "Claiming",
+      "stat": "claims",
+      "threshold": 50000,
+      "secret": false,
+      "description": "Claim 50,000 empty blocks",
+      "reward": 3000
+    },
+    {
+      "id": "claims-100k",
+      "name": "The Endless Frontier",
+      "category": "Claiming",
+      "stat": "claims",
+      "threshold": 100000,
+      "secret": false,
+      "description": "Claim 100,000 empty blocks",
+      "reward": 7500
+    },
+    {
+      "id": "owned-10",
+      "name": "Plot Holder",
+      "category": "Holding",
+      "stat": "owned",
+      "threshold": 10,
+      "secret": false,
+      "description": "Own 10 blocks at once on one map",
+      "reward": 5
+    },
+    {
+      "id": "owned-25",
+      "name": "Small Holding",
+      "category": "Holding",
+      "stat": "owned",
+      "threshold": 25,
+      "secret": false,
+      "description": "Own 25 blocks at once on one map",
+      "reward": 5
+    },
+    {
+      "id": "owned-50",
+      "name": "Big Backyard",
+      "category": "Holding",
+      "stat": "owned",
+      "threshold": 50,
+      "secret": false,
+      "description": "Own 50 blocks at once on one map",
+      "reward": 10
+    },
+    {
+      "id": "owned-100",
+      "name": "Hundred Acres",
+      "category": "Holding",
+      "stat": "owned",
+      "threshold": 100,
+      "secret": false,
+      "description": "Own 100 blocks at once on one map",
+      "reward": 25
+    },
+    {
+      "id": "owned-250",
+      "name": "Estate",
+      "category": "Holding",
+      "stat": "owned",
+      "threshold": 250,
+      "secret": false,
+      "description": "Own 250 blocks at once on one map",
+      "reward": 80
+    },
+    {
+      "id": "owned-500",
+      "name": "Duchy",
+      "category": "Holding",
+      "stat": "owned",
+      "threshold": 500,
+      "secret": false,
+      "description": "Own 500 blocks at once on one map",
+      "reward": 200
+    },
+    {
+      "id": "owned-1000",
+      "name": "Kingdom of 1K",
+      "category": "Holding",
+      "stat": "owned",
+      "threshold": 1000,
+      "secret": false,
+      "description": "Own 1,000 blocks at once on one map",
+      "reward": 500
+    },
+    {
+      "id": "owned-2500",
+      "name": "Superpower",
+      "category": "Holding",
+      "stat": "owned",
+      "threshold": 2500,
+      "secret": false,
+      "description": "Own 2,500 blocks at once on one map",
+      "reward": 1500
+    },
+    {
+      "id": "owned-5000",
+      "name": "Hegemon",
+      "category": "Holding",
+      "stat": "owned",
+      "threshold": 5000,
+      "secret": false,
+      "description": "Own 5,000 blocks at once on one map",
+      "reward": 4000
+    },
+    {
+      "id": "owned-10k",
+      "name": "Ten Thousand Strong",
+      "category": "Holding",
+      "stat": "owned",
+      "threshold": 10000,
+      "secret": false,
+      "description": "Own 10,000 blocks at once on one map",
+      "reward": 10000
+    },
+    {
+      "id": "square-2",
+      "name": "Two by Two",
+      "category": "Squares",
+      "stat": "bestSquare",
+      "threshold": 2,
+      "secret": false,
+      "description": "Own a solid 2 by 2 square of blocks",
+      "reward": 5
+    },
+    {
+      "id": "square-3",
+      "name": "Tic-Tac-Toe",
+      "category": "Squares",
+      "stat": "bestSquare",
+      "threshold": 3,
+      "secret": false,
+      "description": "Own a solid 3 by 3 square of blocks",
+      "reward": 8
+    },
+    {
+      "id": "square-4",
+      "name": "Four Square",
+      "category": "Squares",
+      "stat": "bestSquare",
+      "threshold": 4,
+      "secret": false,
+      "description": "Own a solid 4 by 4 square of blocks",
+      "reward": 20
+    },
+    {
+      "id": "square-5",
+      "name": "High Five",
+      "category": "Squares",
+      "stat": "bestSquare",
+      "threshold": 5,
+      "secret": false,
+      "description": "Own a solid 5 by 5 square of blocks",
+      "reward": 30
+    },
+    {
+      "id": "square-10",
+      "name": "Perfect Ten",
+      "category": "Squares",
+      "stat": "bestSquare",
+      "threshold": 10,
+      "secret": false,
+      "description": "Own a solid 10 by 10 square of blocks",
+      "reward": 200
+    },
+    {
+      "id": "square-15",
+      "name": "Fifteen Square",
+      "category": "Squares",
+      "stat": "bestSquare",
+      "threshold": 15,
+      "secret": false,
+      "description": "Own a solid 15 by 15 square of blocks",
+      "reward": 500
+    },
+    {
+      "id": "square-20",
+      "name": "Scoreboard",
+      "category": "Squares",
+      "stat": "bestSquare",
+      "threshold": 20,
+      "secret": false,
+      "description": "Own a solid 20 by 20 square of blocks",
+      "reward": 1000
+    },
+    {
+      "id": "square-25",
+      "name": "Quarter Century",
+      "category": "Squares",
+      "stat": "bestSquare",
+      "threshold": 25,
+      "secret": false,
+      "description": "Own a solid 25 by 25 square of blocks",
+      "reward": 2000
+    },
+    {
+      "id": "square-30",
+      "name": "Thirty by Thirty",
+      "category": "Squares",
+      "stat": "bestSquare",
+      "threshold": 30,
+      "secret": false,
+      "description": "Own a solid 30 by 30 square of blocks",
+      "reward": 3000
+    },
+    {
+      "id": "square-40",
+      "name": "Forty Fort",
+      "category": "Squares",
+      "stat": "bestSquare",
+      "threshold": 40,
+      "secret": false,
+      "description": "Own a solid 40 by 40 square of blocks",
+      "reward": 6000
+    },
+    {
+      "id": "square-50",
+      "name": "Half Century",
+      "category": "Squares",
+      "stat": "bestSquare",
+      "threshold": 50,
+      "secret": false,
+      "description": "Own a solid 50 by 50 square of blocks",
+      "reward": 10000
+    },
+    {
+      "id": "line-3",
+      "name": "Three in a Row",
+      "category": "Lines",
+      "stat": "bestLine",
+      "threshold": 3,
+      "secret": false,
+      "description": "Own a straight line of 3 blocks",
+      "reward": 5
+    },
+    {
+      "id": "line-5",
+      "name": "Five Alive",
+      "category": "Lines",
+      "stat": "bestLine",
+      "threshold": 5,
+      "secret": false,
+      "description": "Own a straight line of 5 blocks",
+      "reward": 10
+    },
+    {
+      "id": "line-10",
+      "name": "Ruler",
+      "category": "Lines",
+      "stat": "bestLine",
+      "threshold": 10,
+      "secret": false,
+      "description": "Own a straight line of 10 blocks",
+      "reward": 40
+    },
+    {
+      "id": "line-15",
+      "name": "Long Jump",
+      "category": "Lines",
+      "stat": "bestLine",
+      "threshold": 15,
+      "secret": false,
+      "description": "Own a straight line of 15 blocks",
+      "reward": 100
+    },
+    {
+      "id": "line-20",
+      "name": "Road Trip",
+      "category": "Lines",
+      "stat": "bestLine",
+      "threshold": 20,
+      "secret": false,
+      "description": "Own a straight line of 20 blocks",
+      "reward": 200
+    },
+    {
+      "id": "line-25",
+      "name": "Highway",
+      "category": "Lines",
+      "stat": "bestLine",
+      "threshold": 25,
+      "secret": false,
+      "description": "Own a straight line of 25 blocks",
+      "reward": 300
+    },
+    {
+      "id": "line-50",
+      "name": "Great Wall",
+      "category": "Lines",
+      "stat": "bestLine",
+      "threshold": 50,
+      "secret": false,
+      "description": "Own a straight line of 50 blocks",
+      "reward": 1000
+    },
+    {
+      "id": "line-75",
+      "name": "Express Line",
+      "category": "Lines",
+      "stat": "bestLine",
+      "threshold": 75,
+      "secret": false,
+      "description": "Own a straight line of 75 blocks",
+      "reward": 2500
+    },
+    {
+      "id": "line-100",
+      "name": "Century Line",
+      "category": "Lines",
+      "stat": "bestLine",
+      "threshold": 100,
+      "secret": false,
+      "description": "Own a straight line of 100 blocks",
+      "reward": 4000
+    },
+    {
+      "id": "line-150",
+      "name": "Horizon Line",
+      "category": "Lines",
+      "stat": "bestLine",
+      "threshold": 150,
+      "secret": false,
+      "description": "Own a straight line of 150 blocks",
+      "reward": 10000
+    },
+    {
+      "id": "taken-1",
+      "name": "First Strike",
+      "category": "Taking",
+      "stat": "taken",
+      "threshold": 1,
+      "secret": false,
+      "description": "Take 1 block from other players",
+      "reward": 5
+    },
+    {
+      "id": "taken-5",
+      "name": "Pickpocket",
+      "category": "Taking",
+      "stat": "taken",
+      "threshold": 5,
+      "secret": false,
+      "description": "Take 5 blocks from other players",
+      "reward": 5
+    },
+    {
+      "id": "retakes-10",
+      "name": "Raider",
+      "category": "Taking",
+      "stat": "taken",
+      "threshold": 10,
+      "secret": false,
+      "description": "Take 10 blocks from other players",
+      "reward": 5
+    },
+    {
+      "id": "taken-25",
+      "name": "Bandit",
+      "category": "Taking",
+      "stat": "taken",
+      "threshold": 25,
+      "secret": false,
+      "description": "Take 25 blocks from other players",
+      "reward": 10
+    },
+    {
+      "id": "taken-50",
+      "name": "Marauder",
+      "category": "Taking",
+      "stat": "taken",
+      "threshold": 50,
+      "secret": false,
+      "description": "Take 50 blocks from other players",
+      "reward": 20
+    },
+    {
+      "id": "taken-100",
+      "name": "Pirate King",
+      "category": "Taking",
+      "stat": "taken",
+      "threshold": 100,
+      "secret": false,
+      "description": "Take 100 blocks from other players",
+      "reward": 40
+    },
+    {
+      "id": "taken-250",
+      "name": "Warlord",
+      "category": "Taking",
+      "stat": "taken",
+      "threshold": 250,
+      "secret": false,
+      "description": "Take 250 blocks from other players",
+      "reward": 100
+    },
+    {
+      "id": "taken-500",
+      "name": "Conqueror",
+      "category": "Taking",
+      "stat": "taken",
+      "threshold": 500,
+      "secret": false,
+      "description": "Take 500 blocks from other players",
+      "reward": 200
+    },
+    {
+      "id": "taken-1k",
+      "name": "Invader",
+      "category": "Taking",
+      "stat": "taken",
+      "threshold": 1000,
+      "secret": false,
+      "description": "Take 1,000 blocks from other players",
+      "reward": 400
+    },
+    {
+      "id": "taken-2500",
+      "name": "Siege Engine",
+      "category": "Taking",
+      "stat": "taken",
+      "threshold": 2500,
+      "secret": false,
+      "description": "Take 2,500 blocks from other players",
+      "reward": 1000
+    },
+    {
+      "id": "taken-5k",
+      "name": "Juggernaut",
+      "category": "Taking",
+      "stat": "taken",
+      "threshold": 5000,
+      "secret": false,
+      "description": "Take 5,000 blocks from other players",
+      "reward": 2000
+    },
+    {
+      "id": "taken-10k",
+      "name": "Overlord",
+      "category": "Taking",
+      "stat": "taken",
+      "threshold": 10000,
+      "secret": false,
+      "description": "Take 10,000 blocks from other players",
+      "reward": 4000
+    },
+    {
+      "id": "taken-25k",
+      "name": "Unstoppable",
+      "category": "Taking",
+      "stat": "taken",
+      "threshold": 25000,
+      "secret": false,
+      "description": "Take 25,000 blocks from other players",
+      "reward": 10000
+    },
+    {
+      "id": "lost-1",
+      "name": "Ouch",
+      "category": "Losing",
+      "stat": "lost",
+      "threshold": 1,
+      "secret": false,
+      "description": "Lose 1 block to other players",
+      "reward": 5
+    },
+    {
+      "id": "lost-5",
+      "name": "Bruised",
+      "category": "Losing",
+      "stat": "lost",
+      "threshold": 5,
+      "secret": false,
+      "description": "Lose 5 blocks to other players",
+      "reward": 5
+    },
+    {
+      "id": "lost-10",
+      "name": "Battle Scarred",
+      "category": "Losing",
+      "stat": "lost",
+      "threshold": 10,
+      "secret": false,
+      "description": "Lose 10 blocks to other players",
+      "reward": 5
+    },
+    {
+      "id": "lost-25",
+      "name": "Dented Armor",
+      "category": "Losing",
+      "stat": "lost",
+      "threshold": 25,
+      "secret": false,
+      "description": "Lose 25 blocks to other players",
+      "reward": 10
+    },
+    {
+      "id": "lost-50",
+      "name": "Thick Skin",
+      "category": "Losing",
+      "stat": "lost",
+      "threshold": 50,
+      "secret": false,
+      "description": "Lose 50 blocks to other players",
+      "reward": 20
+    },
+    {
+      "id": "lost-100",
+      "name": "Comeback Material",
+      "category": "Losing",
+      "stat": "lost",
+      "threshold": 100,
+      "secret": false,
+      "description": "Lose 100 blocks to other players",
+      "reward": 40
+    },
+    {
+      "id": "lost-500",
+      "name": "Punching Bag",
+      "category": "Losing",
+      "stat": "lost",
+      "threshold": 500,
+      "secret": false,
+      "description": "Lose 500 blocks to other players",
+      "reward": 200
+    },
+    {
+      "id": "lost-1k",
+      "name": "Unbothered",
+      "category": "Losing",
+      "stat": "lost",
+      "threshold": 1000,
+      "secret": false,
+      "description": "Lose 1,000 blocks to other players",
+      "reward": 400
+    },
+    {
+      "id": "lost-5k",
+      "name": "Phoenix",
+      "category": "Losing",
+      "stat": "lost",
+      "threshold": 5000,
+      "secret": false,
+      "description": "Lose 5,000 blocks to other players",
+      "reward": 2000
+    },
+    {
+      "id": "lost-10k",
+      "name": "Unbreakable Spirit",
+      "category": "Losing",
+      "stat": "lost",
+      "threshold": 10000,
+      "secret": false,
+      "description": "Lose 10,000 blocks to other players",
+      "reward": 4000
+    },
+    {
+      "id": "lost-25k",
+      "name": "Eternal Optimist",
+      "category": "Losing",
+      "stat": "lost",
+      "threshold": 25000,
+      "secret": false,
+      "description": "Lose 25,000 blocks to other players",
+      "reward": 10000
+    },
+    {
+      "id": "taps-10",
+      "name": "Tap Tap",
+      "category": "Tapping",
+      "stat": "taps",
+      "threshold": 10,
+      "secret": false,
+      "description": "Tap blocks 10 times",
+      "reward": 5
+    },
+    {
+      "id": "taps-25",
+      "name": "Double Digits",
+      "category": "Tapping",
+      "stat": "taps",
+      "threshold": 25,
+      "secret": false,
+      "description": "Tap blocks 25 times",
+      "reward": 5
+    },
+    {
+      "id": "taps-100",
+      "name": "Button Masher",
+      "category": "Tapping",
+      "stat": "taps",
+      "threshold": 100,
+      "secret": false,
+      "description": "Tap blocks 100 times",
+      "reward": 5
+    },
+    {
+      "id": "taps-500",
+      "name": "Clicker",
+      "category": "Tapping",
+      "stat": "taps",
+      "threshold": 500,
+      "secret": false,
+      "description": "Tap blocks 500 times",
+      "reward": 5
+    },
+    {
+      "id": "taps-1k",
+      "name": "Finger Workout",
+      "category": "Tapping",
+      "stat": "taps",
+      "threshold": 1000,
+      "secret": false,
+      "description": "Tap blocks 1,000 times",
+      "reward": 5
+    },
+    {
+      "id": "taps-5k",
+      "name": "Rapid Fire",
+      "category": "Tapping",
+      "stat": "taps",
+      "threshold": 5000,
+      "secret": false,
+      "description": "Tap blocks 5,000 times",
+      "reward": 25
+    },
+    {
+      "id": "taps-10k",
+      "name": "Turbo Button",
+      "category": "Tapping",
+      "stat": "taps",
+      "threshold": 10000,
+      "secret": false,
+      "description": "Tap blocks 10,000 times",
+      "reward": 50
+    },
+    {
+      "id": "taps-50k",
+      "name": "Tap Dancer",
+      "category": "Tapping",
+      "stat": "taps",
+      "threshold": 50000,
+      "secret": false,
+      "description": "Tap blocks 50,000 times",
+      "reward": 250
+    },
+    {
+      "id": "taps-100k",
+      "name": "Machine Gun Finger",
+      "category": "Tapping",
+      "stat": "taps",
+      "threshold": 100000,
+      "secret": false,
+      "description": "Tap blocks 100,000 times",
+      "reward": 500
+    },
+    {
+      "id": "taps-250k",
+      "name": "Quarter Million",
+      "category": "Tapping",
+      "stat": "taps",
+      "threshold": 250000,
+      "secret": false,
+      "description": "Tap blocks 250,000 times",
+      "reward": 1000
+    },
+    {
+      "id": "taps-500k",
+      "name": "Half Million Hits",
+      "category": "Tapping",
+      "stat": "taps",
+      "threshold": 500000,
+      "secret": false,
+      "description": "Tap blocks 500,000 times",
+      "reward": 2500
+    },
+    {
+      "id": "taps-1m",
+      "name": "Million Tap Club",
+      "category": "Tapping",
+      "stat": "taps",
+      "threshold": 1000000,
+      "secret": false,
+      "description": "Tap blocks 1,000,000 times",
+      "reward": 5000
+    },
+    {
+      "id": "taps-2m",
+      "name": "Tapocalypse",
+      "category": "Tapping",
+      "stat": "taps",
+      "threshold": 2000000,
+      "secret": false,
+      "description": "Tap blocks 2,000,000 times",
+      "reward": 10000
+    },
+    {
+      "id": "earned-1",
+      "name": "Pocket Change",
+      "category": "Earning",
+      "stat": "squaresEarned",
+      "threshold": 1,
+      "secret": false,
+      "description": "Earn 1 square by claiming blocks",
+      "reward": 5
+    },
+    {
+      "id": "earned-10",
+      "name": "Piggy Bank",
+      "category": "Earning",
+      "stat": "squaresEarned",
+      "threshold": 10,
+      "secret": false,
+      "description": "Earn 10 squares by claiming blocks",
+      "reward": 5
+    },
+    {
+      "id": "earned-50",
+      "name": "Coin Purse",
+      "category": "Earning",
+      "stat": "squaresEarned",
+      "threshold": 50,
+      "secret": false,
+      "description": "Earn 50 squares by claiming blocks",
+      "reward": 5
+    },
+    {
+      "id": "earned-100",
+      "name": "Savings Jar",
+      "category": "Earning",
+      "stat": "squaresEarned",
+      "threshold": 100,
+      "secret": false,
+      "description": "Earn 100 squares by claiming blocks",
+      "reward": 5
+    },
+    {
+      "id": "earned-500",
+      "name": "Treasure Chest",
+      "category": "Earning",
+      "stat": "squaresEarned",
+      "threshold": 500,
+      "secret": false,
+      "description": "Earn 500 squares by claiming blocks",
+      "reward": 10
+    },
+    {
+      "id": "earned-1k",
+      "name": "Vault Keeper",
+      "category": "Earning",
+      "stat": "squaresEarned",
+      "threshold": 1000,
+      "secret": false,
+      "description": "Earn 1,000 squares by claiming blocks",
+      "reward": 20
+    },
+    {
+      "id": "earned-5k",
+      "name": "Gold Reserve",
+      "category": "Earning",
+      "stat": "squaresEarned",
+      "threshold": 5000,
+      "secret": false,
+      "description": "Earn 5,000 squares by claiming blocks",
+      "reward": 100
+    },
+    {
+      "id": "earned-10k",
+      "name": "Square Mint",
+      "category": "Earning",
+      "stat": "squaresEarned",
+      "threshold": 10000,
+      "secret": false,
+      "description": "Earn 10,000 squares by claiming blocks",
+      "reward": 200
+    },
+    {
+      "id": "earned-50k",
+      "name": "Treasury",
+      "category": "Earning",
+      "stat": "squaresEarned",
+      "threshold": 50000,
+      "secret": false,
+      "description": "Earn 50,000 squares by claiming blocks",
+      "reward": 1000
+    },
+    {
+      "id": "earned-100k",
+      "name": "Square Tycoon",
+      "category": "Earning",
+      "stat": "squaresEarned",
+      "threshold": 100000,
+      "secret": false,
+      "description": "Earn 100,000 squares by claiming blocks",
+      "reward": 2000
+    },
+    {
+      "id": "earned-250k",
+      "name": "Mega Mogul",
+      "category": "Earning",
+      "stat": "squaresEarned",
+      "threshold": 250000,
+      "secret": false,
+      "description": "Earn 250,000 squares by claiming blocks",
+      "reward": 5000
+    },
+    {
+      "id": "earned-500k",
+      "name": "Infinite Wallet",
+      "category": "Earning",
+      "stat": "squaresEarned",
+      "threshold": 500000,
+      "secret": false,
+      "description": "Earn 500,000 squares by claiming blocks",
+      "reward": 10000
+    },
+    {
+      "id": "spent-10",
+      "name": "Window Shopper",
+      "category": "Spending",
+      "stat": "squaresSpent",
+      "threshold": 10,
+      "secret": false,
+      "description": "Spend 10 squares on upgrades",
+      "reward": 5
+    },
+    {
+      "id": "spent-100",
+      "name": "First Splurge",
+      "category": "Spending",
+      "stat": "squaresSpent",
+      "threshold": 100,
+      "secret": false,
+      "description": "Spend 100 squares on upgrades",
+      "reward": 5
+    },
+    {
+      "id": "spent-500",
+      "name": "Shopaholic",
+      "category": "Spending",
+      "stat": "squaresSpent",
+      "threshold": 500,
+      "secret": false,
+      "description": "Spend 500 squares on upgrades",
+      "reward": 10
+    },
+    {
+      "id": "spent-1k",
+      "name": "Big Spender",
+      "category": "Spending",
+      "stat": "squaresSpent",
+      "threshold": 1000,
+      "secret": false,
+      "description": "Spend 1,000 squares on upgrades",
+      "reward": 20
+    },
+    {
+      "id": "spent-5k",
+      "name": "High Roller",
+      "category": "Spending",
+      "stat": "squaresSpent",
+      "threshold": 5000,
+      "secret": false,
+      "description": "Spend 5,000 squares on upgrades",
+      "reward": 100
+    },
+    {
+      "id": "spent-10k",
+      "name": "Spree",
+      "category": "Spending",
+      "stat": "squaresSpent",
+      "threshold": 10000,
+      "secret": false,
+      "description": "Spend 10,000 squares on upgrades",
+      "reward": 200
+    },
+    {
+      "id": "spent-50k",
+      "name": "Splurge Lord",
+      "category": "Spending",
+      "stat": "squaresSpent",
+      "threshold": 50000,
+      "secret": false,
+      "description": "Spend 50,000 squares on upgrades",
+      "reward": 1000
+    },
+    {
+      "id": "spent-100k",
+      "name": "Bottomless Pockets",
+      "category": "Spending",
+      "stat": "squaresSpent",
+      "threshold": 100000,
+      "secret": false,
+      "description": "Spend 100,000 squares on upgrades",
+      "reward": 2000
+    },
+    {
+      "id": "spent-500k",
+      "name": "Market Maker",
+      "category": "Spending",
+      "stat": "squaresSpent",
+      "threshold": 500000,
+      "secret": false,
+      "description": "Spend 500,000 squares on upgrades",
+      "reward": 10000
+    },
+    {
+      "id": "spent-1m",
+      "name": "All In",
+      "category": "Spending",
+      "stat": "squaresSpent",
+      "threshold": 1000000,
+      "secret": false,
+      "description": "Spend 1,000,000 squares on upgrades",
+      "reward": 20000
+    },
+    {
+      "id": "bought-1",
+      "name": "First Upgrade",
+      "category": "Upgrades",
+      "stat": "purchases",
+      "threshold": 1,
+      "secret": false,
+      "description": "Buy 1 upgrade level",
+      "reward": 5
+    },
+    {
+      "id": "bought-5",
+      "name": "Tinkerer",
+      "category": "Upgrades",
+      "stat": "purchases",
+      "threshold": 5,
+      "secret": false,
+      "description": "Buy 5 upgrade levels",
+      "reward": 5
+    },
+    {
+      "id": "bought-10",
+      "name": "Mechanic",
+      "category": "Upgrades",
+      "stat": "purchases",
+      "threshold": 10,
+      "secret": false,
+      "description": "Buy 10 upgrade levels",
+      "reward": 10
+    },
+    {
+      "id": "bought-25",
+      "name": "Engineer",
+      "category": "Upgrades",
+      "stat": "purchases",
+      "threshold": 25,
+      "secret": false,
+      "description": "Buy 25 upgrade levels",
+      "reward": 80
+    },
+    {
+      "id": "bought-50",
+      "name": "Inventor",
+      "category": "Upgrades",
+      "stat": "purchases",
+      "threshold": 50,
+      "secret": false,
+      "description": "Buy 50 upgrade levels",
+      "reward": 400
+    },
+    {
+      "id": "bought-100",
+      "name": "Mad Scientist",
+      "category": "Upgrades",
+      "stat": "purchases",
+      "threshold": 100,
+      "secret": false,
+      "description": "Buy 100 upgrade levels",
+      "reward": 1500
+    },
+    {
+      "id": "bought-150",
+      "name": "Overclocked",
+      "category": "Upgrades",
+      "stat": "purchases",
+      "threshold": 150,
+      "secret": false,
+      "description": "Buy 150 upgrade levels",
+      "reward": 4000
+    },
+    {
+      "id": "bought-200",
+      "name": "Nearly Maxed",
+      "category": "Upgrades",
+      "stat": "purchases",
+      "threshold": 200,
+      "secret": false,
+      "description": "Buy 200 upgrade levels",
+      "reward": 7500
+    },
+    {
+      "id": "bought-225",
+      "name": "Fully Loaded",
+      "category": "Upgrades",
+      "stat": "purchases",
+      "threshold": 225,
+      "secret": false,
+      "description": "Buy 225 upgrade levels",
+      "reward": 10000
+    },
+    {
+      "id": "clickpower-1",
+      "name": "Stronger Taps",
+      "category": "Upgrade levels",
+      "stat": "level:clickPower",
+      "threshold": 1,
+      "secret": false,
+      "description": "Reach Click Power level 1",
+      "reward": 5
+    },
+    {
+      "id": "clickpower-5",
+      "name": "Iron Finger",
+      "category": "Upgrade levels",
+      "stat": "level:clickPower",
+      "threshold": 5,
+      "secret": false,
+      "description": "Reach Click Power level 5",
+      "reward": 5
+    },
+    {
+      "id": "clickpower-10",
+      "name": "Steel Finger",
+      "category": "Upgrade levels",
+      "stat": "level:clickPower",
+      "threshold": 10,
+      "secret": false,
+      "description": "Reach Click Power level 10",
+      "reward": 8
+    },
+    {
+      "id": "clickpower-25",
+      "name": "Diamond Finger",
+      "category": "Upgrade levels",
+      "stat": "level:clickPower",
+      "threshold": 25,
+      "secret": false,
+      "description": "Reach Click Power level 25",
+      "reward": 40
+    },
+    {
+      "id": "clickpower-50",
+      "name": "Thunder Finger",
+      "category": "Upgrade levels",
+      "stat": "level:clickPower",
+      "threshold": 50,
+      "secret": false,
+      "description": "Reach Click Power level 50",
+      "reward": 500
+    },
+    {
+      "id": "clickpower-70",
+      "name": "Max Power",
+      "category": "Upgrade levels",
+      "stat": "level:clickPower",
+      "threshold": 70,
+      "secret": false,
+      "description": "Reach Click Power level 70",
+      "reward": 3000
+    },
+    {
+      "id": "defense-1",
+      "name": "Fence Builder",
+      "category": "Upgrade levels",
+      "stat": "level:defense",
+      "threshold": 1,
+      "secret": false,
+      "description": "Reach Defense level 1",
+      "reward": 5
+    },
+    {
+      "id": "defense-5",
+      "name": "Wall Raiser",
+      "category": "Upgrade levels",
+      "stat": "level:defense",
+      "threshold": 5,
+      "secret": false,
+      "description": "Reach Defense level 5",
+      "reward": 15
+    },
+    {
+      "id": "defense-10",
+      "name": "Fortified",
+      "category": "Upgrade levels",
+      "stat": "level:defense",
+      "threshold": 10,
+      "secret": false,
+      "description": "Reach Defense level 10",
+      "reward": 40
+    },
+    {
+      "id": "defense-25",
+      "name": "Bastion",
+      "category": "Upgrade levels",
+      "stat": "level:defense",
+      "threshold": 25,
+      "secret": false,
+      "description": "Reach Defense level 25",
+      "reward": 250
+    },
+    {
+      "id": "defense-50",
+      "name": "Impenetrable",
+      "category": "Upgrade levels",
+      "stat": "level:defense",
+      "threshold": 50,
+      "secret": false,
+      "description": "Reach Defense level 50",
+      "reward": 3000
+    },
+    {
+      "id": "earnings-1",
+      "name": "Side Hustle",
+      "category": "Upgrade levels",
+      "stat": "level:earnings",
+      "threshold": 1,
+      "secret": false,
+      "description": "Reach Earnings level 1",
+      "reward": 5
+    },
+    {
+      "id": "earnings-5",
+      "name": "Day Trader",
+      "category": "Upgrade levels",
+      "stat": "level:earnings",
+      "threshold": 5,
+      "secret": false,
+      "description": "Reach Earnings level 5",
+      "reward": 5
+    },
+    {
+      "id": "earnings-10",
+      "name": "Investor",
+      "category": "Upgrade levels",
+      "stat": "level:earnings",
+      "threshold": 10,
+      "secret": false,
+      "description": "Reach Earnings level 10",
+      "reward": 5
+    },
+    {
+      "id": "earnings-25",
+      "name": "Banker",
+      "category": "Upgrade levels",
+      "stat": "level:earnings",
+      "threshold": 25,
+      "secret": false,
+      "description": "Reach Earnings level 25",
+      "reward": 20
+    },
+    {
+      "id": "earnings-50",
+      "name": "Tycoon",
+      "category": "Upgrade levels",
+      "stat": "level:earnings",
+      "threshold": 50,
+      "secret": false,
+      "description": "Reach Earnings level 50",
+      "reward": 200
+    },
+    {
+      "id": "earnings-100",
+      "name": "Golden Goose",
+      "category": "Upgrade levels",
+      "stat": "level:earnings",
+      "threshold": 100,
+      "secret": false,
+      "description": "Reach Earnings level 100",
+      "reward": 25000
+    },
+    {
+      "id": "growth-1",
+      "name": "Green Thumb",
+      "category": "Upgrade levels",
+      "stat": "level:growth",
+      "threshold": 1,
+      "secret": false,
+      "description": "Reach Growth level 1",
+      "reward": 25
+    },
+    {
+      "id": "growth-2",
+      "name": "Gardener",
+      "category": "Upgrade levels",
+      "stat": "level:growth",
+      "threshold": 2,
+      "secret": false,
+      "description": "Reach Growth level 2",
+      "reward": 75
+    },
+    {
+      "id": "growth-3",
+      "name": "Landscaper",
+      "category": "Upgrade levels",
+      "stat": "level:growth",
+      "threshold": 3,
+      "secret": false,
+      "description": "Reach Growth level 3",
+      "reward": 150
+    },
+    {
+      "id": "growth-4",
+      "name": "Terraformer",
+      "category": "Upgrade levels",
+      "stat": "level:growth",
+      "threshold": 4,
+      "secret": false,
+      "description": "Reach Growth level 4",
+      "reward": 300
+    },
+    {
+      "id": "growth-5",
+      "name": "World Grower",
+      "category": "Upgrade levels",
+      "stat": "level:growth",
+      "threshold": 5,
+      "secret": false,
+      "description": "Reach Growth level 5",
+      "reward": 750
+    },
+    {
+      "id": "sand-1",
+      "name": "Beachcomber",
+      "category": "Terrain",
+      "stat": "terrain:sand",
+      "threshold": 1,
+      "secret": false,
+      "description": "Claim 1 sand block",
+      "reward": 5
+    },
+    {
+      "id": "sand-5",
+      "name": "Sandcastle",
+      "category": "Terrain",
+      "stat": "terrain:sand",
+      "threshold": 5,
+      "secret": false,
+      "description": "Claim 5 sand blocks",
+      "reward": 5
+    },
+    {
+      "id": "sand-10",
+      "name": "Dune Walker",
+      "category": "Terrain",
+      "stat": "terrain:sand",
+      "threshold": 10,
+      "secret": false,
+      "description": "Claim 10 sand blocks",
+      "reward": 10
+    },
+    {
+      "id": "sand-25",
+      "name": "Sun Tan",
+      "category": "Terrain",
+      "stat": "terrain:sand",
+      "threshold": 25,
+      "secret": false,
+      "description": "Claim 25 sand blocks",
+      "reward": 25
+    },
+    {
+      "id": "sand-50",
+      "name": "Desert Rat",
+      "category": "Terrain",
+      "stat": "terrain:sand",
+      "threshold": 50,
+      "secret": false,
+      "description": "Claim 50 sand blocks",
+      "reward": 50
+    },
+    {
+      "id": "sand-100",
+      "name": "Sand Baron",
+      "category": "Terrain",
+      "stat": "terrain:sand",
+      "threshold": 100,
+      "secret": false,
+      "description": "Claim 100 sand blocks",
+      "reward": 100
+    },
+    {
+      "id": "sand-250",
+      "name": "Oasis Seeker",
+      "category": "Terrain",
+      "stat": "terrain:sand",
+      "threshold": 250,
+      "secret": false,
+      "description": "Claim 250 sand blocks",
+      "reward": 250
+    },
+    {
+      "id": "sand-500",
+      "name": "Dune King",
+      "category": "Terrain",
+      "stat": "terrain:sand",
+      "threshold": 500,
+      "secret": false,
+      "description": "Claim 500 sand blocks",
+      "reward": 500
+    },
+    {
+      "id": "sand-1000",
+      "name": "Sandstorm",
+      "category": "Terrain",
+      "stat": "terrain:sand",
+      "threshold": 1000,
+      "secret": false,
+      "description": "Claim 1,000 sand blocks",
+      "reward": 1000
+    },
+    {
+      "id": "sand-2500",
+      "name": "Sea of Sand",
+      "category": "Terrain",
+      "stat": "terrain:sand",
+      "threshold": 2500,
+      "secret": false,
+      "description": "Claim 2,500 sand blocks",
+      "reward": 2500
+    },
+    {
+      "id": "sand-5000",
+      "name": "Desert Emperor",
+      "category": "Terrain",
+      "stat": "terrain:sand",
+      "threshold": 5000,
+      "secret": false,
+      "description": "Claim 5,000 sand blocks",
+      "reward": 5000
+    },
+    {
+      "id": "sand-10000",
+      "name": "Hourglass",
+      "category": "Terrain",
+      "stat": "terrain:sand",
+      "threshold": 10000,
+      "secret": false,
+      "description": "Claim 10,000 sand blocks",
+      "reward": 10000
+    },
+    {
+      "id": "forest-1",
+      "name": "Woodland Walk",
+      "category": "Terrain",
+      "stat": "terrain:forest",
+      "threshold": 1,
+      "secret": false,
+      "description": "Claim 1 forest block",
+      "reward": 5
+    },
+    {
+      "id": "forest-5",
+      "name": "Lumberjack",
+      "category": "Terrain",
+      "stat": "terrain:forest",
+      "threshold": 5,
+      "secret": false,
+      "description": "Claim 5 forest blocks",
+      "reward": 5
+    },
+    {
+      "id": "forest-10",
+      "name": "Grove Keeper",
+      "category": "Terrain",
+      "stat": "terrain:forest",
+      "threshold": 10,
+      "secret": false,
+      "description": "Claim 10 forest blocks",
+      "reward": 5
+    },
+    {
+      "id": "forest-25",
+      "name": "Forester",
+      "category": "Terrain",
+      "stat": "terrain:forest",
+      "threshold": 25,
+      "secret": false,
+      "description": "Claim 25 forest blocks",
+      "reward": 10
+    },
+    {
+      "id": "forest-50",
+      "name": "Park Ranger",
+      "category": "Terrain",
+      "stat": "terrain:forest",
+      "threshold": 50,
+      "secret": false,
+      "description": "Claim 50 forest blocks",
+      "reward": 20
+    },
+    {
+      "id": "forest-100",
+      "name": "Timberland",
+      "category": "Terrain",
+      "stat": "terrain:forest",
+      "threshold": 100,
+      "secret": false,
+      "description": "Claim 100 forest blocks",
+      "reward": 40
+    },
+    {
+      "id": "forest-250",
+      "name": "Old Growth",
+      "category": "Terrain",
+      "stat": "terrain:forest",
+      "threshold": 250,
+      "secret": false,
+      "description": "Claim 250 forest blocks",
+      "reward": 100
+    },
+    {
+      "id": "forest-500",
+      "name": "Deep Woods",
+      "category": "Terrain",
+      "stat": "terrain:forest",
+      "threshold": 500,
+      "secret": false,
+      "description": "Claim 500 forest blocks",
+      "reward": 200
+    },
+    {
+      "id": "forest-1000",
+      "name": "Canopy King",
+      "category": "Terrain",
+      "stat": "terrain:forest",
+      "threshold": 1000,
+      "secret": false,
+      "description": "Claim 1,000 forest blocks",
+      "reward": 400
+    },
+    {
+      "id": "forest-2500",
+      "name": "Evergreen",
+      "category": "Terrain",
+      "stat": "terrain:forest",
+      "threshold": 2500,
+      "secret": false,
+      "description": "Claim 2,500 forest blocks",
+      "reward": 1000
+    },
+    {
+      "id": "forest-5000",
+      "name": "Wildwood",
+      "category": "Terrain",
+      "stat": "terrain:forest",
+      "threshold": 5000,
+      "secret": false,
+      "description": "Claim 5,000 forest blocks",
+      "reward": 2000
+    },
+    {
+      "id": "forest-10000",
+      "name": "Ancient Forest",
+      "category": "Terrain",
+      "stat": "terrain:forest",
+      "threshold": 10000,
+      "secret": false,
+      "description": "Claim 10,000 forest blocks",
+      "reward": 4000
+    },
+    {
+      "id": "forest-25000",
+      "name": "Green Planet",
+      "category": "Terrain",
+      "stat": "terrain:forest",
+      "threshold": 25000,
+      "secret": false,
+      "description": "Claim 25,000 forest blocks",
+      "reward": 10000
+    },
+    {
+      "id": "stone-1",
+      "name": "Rock Bottom",
+      "category": "Terrain",
+      "stat": "terrain:stone",
+      "threshold": 1,
+      "secret": false,
+      "description": "Claim 1 stone block",
+      "reward": 5
+    },
+    {
+      "id": "stone-5",
+      "name": "Pebble Pusher",
+      "category": "Terrain",
+      "stat": "terrain:stone",
+      "threshold": 5,
+      "secret": false,
+      "description": "Claim 5 stone blocks",
+      "reward": 5
+    },
+    {
+      "id": "stone-10",
+      "name": "Stone Mason",
+      "category": "Terrain",
+      "stat": "terrain:stone",
+      "threshold": 10,
+      "secret": false,
+      "description": "Claim 10 stone blocks",
+      "reward": 8
+    },
+    {
+      "id": "stone-25",
+      "name": "Quarry Worker",
+      "category": "Terrain",
+      "stat": "terrain:stone",
+      "threshold": 25,
+      "secret": false,
+      "description": "Claim 25 stone blocks",
+      "reward": 20
+    },
+    {
+      "id": "stone-50",
+      "name": "Cave Dweller",
+      "category": "Terrain",
+      "stat": "terrain:stone",
+      "threshold": 50,
+      "secret": false,
+      "description": "Claim 50 stone blocks",
+      "reward": 40
+    },
+    {
+      "id": "stone-100",
+      "name": "Boulder Basher",
+      "category": "Terrain",
+      "stat": "terrain:stone",
+      "threshold": 100,
+      "secret": false,
+      "description": "Claim 100 stone blocks",
+      "reward": 80
+    },
+    {
+      "id": "stone-250",
+      "name": "Rock Solid",
+      "category": "Terrain",
+      "stat": "terrain:stone",
+      "threshold": 250,
+      "secret": false,
+      "description": "Claim 250 stone blocks",
+      "reward": 200
+    },
+    {
+      "id": "stone-500",
+      "name": "Mountain Mover",
+      "category": "Terrain",
+      "stat": "terrain:stone",
+      "threshold": 500,
+      "secret": false,
+      "description": "Claim 500 stone blocks",
+      "reward": 400
+    },
+    {
+      "id": "stone-1000",
+      "name": "Granite Grip",
+      "category": "Terrain",
+      "stat": "terrain:stone",
+      "threshold": 1000,
+      "secret": false,
+      "description": "Claim 1,000 stone blocks",
+      "reward": 800
+    },
+    {
+      "id": "stone-2500",
+      "name": "Stone Age",
+      "category": "Terrain",
+      "stat": "terrain:stone",
+      "threshold": 2500,
+      "secret": false,
+      "description": "Claim 2,500 stone blocks",
+      "reward": 2000
+    },
+    {
+      "id": "stone-5000",
+      "name": "Bedrock",
+      "category": "Terrain",
+      "stat": "terrain:stone",
+      "threshold": 5000,
+      "secret": false,
+      "description": "Claim 5,000 stone blocks",
+      "reward": 4000
+    },
+    {
+      "id": "stone-10000",
+      "name": "Mountain King",
+      "category": "Terrain",
+      "stat": "terrain:stone",
+      "threshold": 10000,
+      "secret": false,
+      "description": "Claim 10,000 stone blocks",
+      "reward": 8000
+    },
+    {
+      "id": "gold-1",
+      "name": "Struck Gold",
+      "category": "Terrain",
+      "stat": "terrain:gold",
+      "threshold": 1,
+      "secret": false,
+      "description": "Claim 1 gold block",
+      "reward": 8
+    },
+    {
+      "id": "gold-5",
+      "name": "Nugget Hunter",
+      "category": "Terrain",
+      "stat": "terrain:gold",
+      "threshold": 5,
+      "secret": false,
+      "description": "Claim 5 gold blocks",
+      "reward": 30
+    },
+    {
+      "id": "gold-10",
+      "name": "Gold Panner",
+      "category": "Terrain",
+      "stat": "terrain:gold",
+      "threshold": 10,
+      "secret": false,
+      "description": "Claim 10 gold blocks",
+      "reward": 75
+    },
+    {
+      "id": "gold-25",
+      "name": "Gold Fever",
+      "category": "Terrain",
+      "stat": "terrain:gold",
+      "threshold": 25,
+      "secret": false,
+      "description": "Claim 25 gold blocks",
+      "reward": 150
+    },
+    {
+      "id": "gold-50",
+      "name": "Golden Touch",
+      "category": "Terrain",
+      "stat": "terrain:gold",
+      "threshold": 50,
+      "secret": false,
+      "description": "Claim 50 gold blocks",
+      "reward": 300
+    },
+    {
+      "id": "gold-100",
+      "name": "Mother Lode",
+      "category": "Terrain",
+      "stat": "terrain:gold",
+      "threshold": 100,
+      "secret": false,
+      "description": "Claim 100 gold blocks",
+      "reward": 750
+    },
+    {
+      "id": "gold-250",
+      "name": "El Dorado",
+      "category": "Terrain",
+      "stat": "terrain:gold",
+      "threshold": 250,
+      "secret": false,
+      "description": "Claim 250 gold blocks",
+      "reward": 1500
+    },
+    {
+      "id": "gold-500",
+      "name": "Golden Age",
+      "category": "Terrain",
+      "stat": "terrain:gold",
+      "threshold": 500,
+      "secret": false,
+      "description": "Claim 500 gold blocks",
+      "reward": 3000
+    },
+    {
+      "id": "gold-1000",
+      "name": "Gold Standard",
+      "category": "Terrain",
+      "stat": "terrain:gold",
+      "threshold": 1000,
+      "secret": false,
+      "description": "Claim 1,000 gold blocks",
+      "reward": 7500
+    },
+    {
+      "id": "maps-1",
+      "name": "Tourist",
+      "category": "Exploring",
+      "stat": "mapsPlayed",
+      "threshold": 1,
+      "secret": false,
+      "description": "Play on 1 map",
+      "reward": 30
+    },
+    {
+      "id": "maps-2",
+      "name": "Traveler",
+      "category": "Exploring",
+      "stat": "mapsPlayed",
+      "threshold": 2,
+      "secret": false,
+      "description": "Play on 2 maps",
+      "reward": 60
+    },
+    {
+      "id": "maps-3",
+      "name": "Globetrotter",
+      "category": "Exploring",
+      "stat": "mapsPlayed",
+      "threshold": 3,
+      "secret": false,
+      "description": "Play on 3 maps",
+      "reward": 80
+    },
+    {
+      "id": "maps-5",
+      "name": "Explorer",
+      "category": "Exploring",
+      "stat": "mapsPlayed",
+      "threshold": 5,
+      "secret": false,
+      "description": "Play on 5 maps",
+      "reward": 150
+    },
+    {
+      "id": "maps-10",
+      "name": "Cartographer",
+      "category": "Exploring",
+      "stat": "mapsPlayed",
+      "threshold": 10,
+      "secret": false,
+      "description": "Play on 10 maps",
+      "reward": 300
+    },
+    {
+      "id": "days-1",
+      "name": "Day One",
+      "category": "Days",
+      "stat": "daysPlayed",
+      "threshold": 1,
+      "secret": false,
+      "description": "Play on 1 different day",
+      "reward": 20
+    },
+    {
+      "id": "days-5",
+      "name": "Regular",
+      "category": "Days",
+      "stat": "daysPlayed",
+      "threshold": 5,
+      "secret": false,
+      "description": "Play on 5 different days",
+      "reward": 100
+    },
+    {
+      "id": "days-10",
+      "name": "Ten Day Trek",
+      "category": "Days",
+      "stat": "daysPlayed",
+      "threshold": 10,
+      "secret": false,
+      "description": "Play on 10 different days",
+      "reward": 200
+    },
+    {
+      "id": "days-25",
+      "name": "Familiar Face",
+      "category": "Days",
+      "stat": "daysPlayed",
+      "threshold": 25,
+      "secret": false,
+      "description": "Play on 25 different days",
+      "reward": 500
+    },
+    {
+      "id": "days-50",
+      "name": "Fifty Days",
+      "category": "Days",
+      "stat": "daysPlayed",
+      "threshold": 50,
+      "secret": false,
+      "description": "Play on 50 different days",
+      "reward": 1000
+    },
+    {
+      "id": "days-100",
+      "name": "Old Timer",
+      "category": "Days",
+      "stat": "daysPlayed",
+      "threshold": 100,
+      "secret": false,
+      "description": "Play on 100 different days",
+      "reward": 2000
+    },
+    {
+      "id": "days-250",
+      "name": "Veteran",
+      "category": "Days",
+      "stat": "daysPlayed",
+      "threshold": 250,
+      "secret": false,
+      "description": "Play on 250 different days",
+      "reward": 5000
+    },
+    {
+      "id": "days-365",
+      "name": "Year One",
+      "category": "Days",
+      "stat": "daysPlayed",
+      "threshold": 365,
+      "secret": false,
+      "description": "Play on 365 different days",
+      "reward": 7500
+    },
+    {
+      "id": "days-500",
+      "name": "Lifer",
+      "category": "Days",
+      "stat": "daysPlayed",
+      "threshold": 500,
+      "secret": false,
+      "description": "Play on 500 different days",
+      "reward": 10000
+    },
+    {
+      "id": "streak-2",
+      "name": "Back Again",
+      "category": "Streaks",
+      "stat": "bestStreak",
+      "threshold": 2,
+      "secret": false,
+      "description": "Play 2 days in a row",
+      "reward": 50
+    },
+    {
+      "id": "streak-3",
+      "name": "Hat Trick",
+      "category": "Streaks",
+      "stat": "bestStreak",
+      "threshold": 3,
+      "secret": false,
+      "description": "Play 3 days in a row",
+      "reward": 80
+    },
+    {
+      "id": "streak-5",
+      "name": "Workweek",
+      "category": "Streaks",
+      "stat": "bestStreak",
+      "threshold": 5,
+      "secret": false,
+      "description": "Play 5 days in a row",
+      "reward": 150
+    },
+    {
+      "id": "streak-7",
+      "name": "Full Week",
+      "category": "Streaks",
+      "stat": "bestStreak",
+      "threshold": 7,
+      "secret": false,
+      "description": "Play 7 days in a row",
+      "reward": 200
+    },
+    {
+      "id": "streak-14",
+      "name": "Fortnight",
+      "category": "Streaks",
+      "stat": "bestStreak",
+      "threshold": 14,
+      "secret": false,
+      "description": "Play 14 days in a row",
+      "reward": 400
+    },
+    {
+      "id": "streak-30",
+      "name": "Monthly",
+      "category": "Streaks",
+      "stat": "bestStreak",
+      "threshold": 30,
+      "secret": false,
+      "description": "Play 30 days in a row",
+      "reward": 800
+    },
+    {
+      "id": "streak-60",
+      "name": "Two Months Strong",
+      "category": "Streaks",
+      "stat": "bestStreak",
+      "threshold": 60,
+      "secret": false,
+      "description": "Play 60 days in a row",
+      "reward": 1500
+    },
+    {
+      "id": "streak-100",
+      "name": "Hundred Day Combo",
+      "category": "Streaks",
+      "stat": "bestStreak",
+      "threshold": 100,
+      "secret": false,
+      "description": "Play 100 days in a row",
+      "reward": 2500
+    },
+    {
+      "id": "streak-180",
+      "name": "Half Year",
+      "category": "Streaks",
+      "stat": "bestStreak",
+      "threshold": 180,
+      "secret": false,
+      "description": "Play 180 days in a row",
+      "reward": 5000
+    },
+    {
+      "id": "streak-365",
+      "name": "Year-Round",
+      "category": "Streaks",
+      "stat": "bestStreak",
+      "threshold": 365,
+      "secret": false,
+      "description": "Play 365 days in a row",
+      "reward": 10000
+    },
+    {
+      "id": "rank-10",
+      "name": "Top Ten",
+      "category": "Rank",
+      "stat": "bestRank",
+      "threshold": 10,
+      "secret": false,
+      "description": "Reach the top 10 on a busy map",
+      "reward": 50
+    },
+    {
+      "id": "rank-5",
+      "name": "Top Five",
+      "category": "Rank",
+      "stat": "bestRank",
+      "threshold": 5,
+      "secret": false,
+      "description": "Reach the top 5 on a busy map",
+      "reward": 250
+    },
+    {
+      "id": "rank-3",
+      "name": "Podium",
+      "category": "Rank",
+      "stat": "bestRank",
+      "threshold": 3,
+      "secret": false,
+      "description": "Reach the top 3 on a busy map",
+      "reward": 1000
+    },
+    {
+      "id": "rank-2",
+      "name": "Runner-Up",
+      "category": "Rank",
+      "stat": "bestRank",
+      "threshold": 2,
+      "secret": false,
+      "description": "Reach the top 2 on a busy map",
+      "reward": 3000
+    },
+    {
+      "id": "rank-1",
+      "name": "King of the Hill",
+      "category": "Rank",
+      "stat": "bestRank",
+      "threshold": 1,
+      "secret": false,
+      "description": "Reach #1 on a busy map",
+      "reward": 10000
+    },
+    {
+      "id": "reign-1",
+      "name": "Crowned",
+      "category": "Reign",
+      "stat": "reignMinutes",
+      "threshold": 1,
+      "secret": false,
+      "description": "Spend 1 minute at #1 on a busy map",
+      "reward": 5
+    },
+    {
+      "id": "reign-10",
+      "name": "Brief Reign",
+      "category": "Reign",
+      "stat": "reignMinutes",
+      "threshold": 10,
+      "secret": false,
+      "description": "Spend 10 minutes at #1 on a busy map",
+      "reward": 5
+    },
+    {
+      "id": "reign-60",
+      "name": "Hour on the Throne",
+      "category": "Reign",
+      "stat": "reignMinutes",
+      "threshold": 60,
+      "secret": false,
+      "description": "Spend 60 minutes at #1 on a busy map",
+      "reward": 20
+    },
+    {
+      "id": "reign-300",
+      "name": "Long Reign",
+      "category": "Reign",
+      "stat": "reignMinutes",
+      "threshold": 300,
+      "secret": false,
+      "description": "Spend 300 minutes at #1 on a busy map",
+      "reward": 100
+    },
+    {
+      "id": "reign-1000",
+      "name": "Dynasty",
+      "category": "Reign",
+      "stat": "reignMinutes",
+      "threshold": 1000,
+      "secret": false,
+      "description": "Spend 1,000 minutes at #1 on a busy map",
+      "reward": 300
+    },
+    {
+      "id": "reign-5000",
+      "name": "Golden Era",
+      "category": "Reign",
+      "stat": "reignMinutes",
+      "threshold": 5000,
+      "secret": false,
+      "description": "Spend 5,000 minutes at #1 on a busy map",
+      "reward": 1500
+    },
+    {
+      "id": "reign-10k",
+      "name": "Empire Eternal",
+      "category": "Reign",
+      "stat": "reignMinutes",
+      "threshold": 10000,
+      "secret": false,
+      "description": "Spend 10,000 minutes at #1 on a busy map",
+      "reward": 3000
+    },
+    {
+      "id": "reign-30k",
+      "name": "Legendary Ruler",
+      "category": "Reign",
+      "stat": "reignMinutes",
+      "threshold": 30000,
+      "secret": false,
+      "description": "Spend 30,000 minutes at #1 on a busy map",
+      "reward": 10000
+    },
+    {
+      "id": "wipes-1",
+      "name": "Clean Slate",
+      "category": "Wipes",
+      "stat": "wipes",
+      "threshold": 1,
+      "secret": false,
+      "description": "Wipe your territory 1 time",
+      "reward": 20
+    },
+    {
+      "id": "wipes-5",
+      "name": "Fresh Start",
+      "category": "Wipes",
+      "stat": "wipes",
+      "threshold": 5,
+      "secret": false,
+      "description": "Wipe your territory 5 times",
+      "reward": 100
+    },
+    {
+      "id": "wipes-10",
+      "name": "Spring Cleaning",
+      "category": "Wipes",
+      "stat": "wipes",
+      "threshold": 10,
+      "secret": false,
+      "description": "Wipe your territory 10 times",
+      "reward": 200
+    },
+    {
+      "id": "wipes-25",
+      "name": "Serial Restarter",
+      "category": "Wipes",
+      "stat": "wipes",
+      "threshold": 25,
+      "secret": false,
+      "description": "Wipe your territory 25 times",
+      "reward": 500
+    },
+    {
+      "id": "wipes-50",
+      "name": "Eraser Head",
+      "category": "Wipes",
+      "stat": "wipes",
+      "threshold": 50,
+      "secret": false,
+      "description": "Wipe your territory 50 times",
+      "reward": 1000
+    },
+    {
+      "id": "wipes-100",
+      "name": "Eraser Champion",
+      "category": "Wipes",
+      "stat": "wipes",
+      "threshold": 100,
+      "secret": false,
+      "description": "Wipe your territory 100 times",
+      "reward": 2000
+    },
+    {
+      "id": "hours-1",
+      "name": "Warm Up",
+      "category": "Time",
+      "stat": "hoursPlayed",
+      "threshold": 1,
+      "secret": false,
+      "description": "Play actively for 1 hour",
+      "reward": 10
+    },
+    {
+      "id": "hours-5",
+      "name": "Getting Into It",
+      "category": "Time",
+      "stat": "hoursPlayed",
+      "threshold": 5,
+      "secret": false,
+      "description": "Play actively for 5 hours",
+      "reward": 50
+    },
+    {
+      "id": "hours-10",
+      "name": "Hooked",
+      "category": "Time",
+      "stat": "hoursPlayed",
+      "threshold": 10,
+      "secret": false,
+      "description": "Play actively for 10 hours",
+      "reward": 100
+    },
+    {
+      "id": "hours-25",
+      "name": "Dedicated",
+      "category": "Time",
+      "stat": "hoursPlayed",
+      "threshold": 25,
+      "secret": false,
+      "description": "Play actively for 25 hours",
+      "reward": 250
+    },
+    {
+      "id": "hours-50",
+      "name": "Committed",
+      "category": "Time",
+      "stat": "hoursPlayed",
+      "threshold": 50,
+      "secret": false,
+      "description": "Play actively for 50 hours",
+      "reward": 500
+    },
+    {
+      "id": "hours-100",
+      "name": "Hundred Hours",
+      "category": "Time",
+      "stat": "hoursPlayed",
+      "threshold": 100,
+      "secret": false,
+      "description": "Play actively for 100 hours",
+      "reward": 1000
+    },
+    {
+      "id": "hours-250",
+      "name": "Marathoner",
+      "category": "Time",
+      "stat": "hoursPlayed",
+      "threshold": 250,
+      "secret": false,
+      "description": "Play actively for 250 hours",
+      "reward": 2500
+    },
+    {
+      "id": "hours-500",
+      "name": "Five Hundred Club",
+      "category": "Time",
+      "stat": "hoursPlayed",
+      "threshold": 500,
+      "secret": false,
+      "description": "Play actively for 500 hours",
+      "reward": 5000
+    },
+    {
+      "id": "hours-1000",
+      "name": "Thousand Hour Legend",
+      "category": "Time",
+      "stat": "hoursPlayed",
+      "threshold": 1000,
+      "secret": false,
+      "description": "Play actively for 1,000 hours",
+      "reward": 10000
+    },
+    {
+      "id": "session-10",
+      "name": "Quick Run",
+      "category": "Sessions",
+      "stat": "sessionClaims",
+      "threshold": 10,
+      "secret": false,
+      "description": "Claim 10 empty blocks in one visit",
+      "reward": 5
+    },
+    {
+      "id": "session-25",
+      "name": "Session Grinder",
+      "category": "Sessions",
+      "stat": "sessionClaims",
+      "threshold": 25,
+      "secret": false,
+      "description": "Claim 25 empty blocks in one visit",
+      "reward": 5
+    },
+    {
+      "id": "session-50",
+      "name": "Binge",
+      "category": "Sessions",
+      "stat": "sessionClaims",
+      "threshold": 50,
+      "secret": false,
+      "description": "Claim 50 empty blocks in one visit",
+      "reward": 5
+    },
+    {
+      "id": "session-100",
+      "name": "Lost Track of Time",
+      "category": "Sessions",
+      "stat": "sessionClaims",
+      "threshold": 100,
+      "secret": false,
+      "description": "Claim 100 empty blocks in one visit",
+      "reward": 10
+    },
+    {
+      "id": "session-250",
+      "name": "All-Nighter",
+      "category": "Sessions",
+      "stat": "sessionClaims",
+      "threshold": 250,
+      "secret": false,
+      "description": "Claim 250 empty blocks in one visit",
+      "reward": 25
+    },
+    {
+      "id": "session-500",
+      "name": "Iron Will",
+      "category": "Sessions",
+      "stat": "sessionClaims",
+      "threshold": 500,
+      "secret": false,
+      "description": "Claim 500 empty blocks in one visit",
+      "reward": 50
+    },
+    {
+      "id": "session-1000",
+      "name": "No Sleep Club",
+      "category": "Sessions",
+      "stat": "sessionClaims",
+      "threshold": 1000,
+      "secret": false,
+      "description": "Claim 1,000 empty blocks in one visit",
+      "reward": 100
+    },
+    {
+      "id": "day-50",
+      "name": "Productive Day",
+      "category": "Big days",
+      "stat": "bestDayClaims",
+      "threshold": 50,
+      "secret": false,
+      "description": "Claim 50 empty blocks in one day",
+      "reward": 5
+    },
+    {
+      "id": "day-100",
+      "name": "Big Day",
+      "category": "Big days",
+      "stat": "bestDayClaims",
+      "threshold": 100,
+      "secret": false,
+      "description": "Claim 100 empty blocks in one day",
+      "reward": 10
+    },
+    {
+      "id": "day-250",
+      "name": "Huge Day",
+      "category": "Big days",
+      "stat": "bestDayClaims",
+      "threshold": 250,
+      "secret": false,
+      "description": "Claim 250 empty blocks in one day",
+      "reward": 25
+    },
+    {
+      "id": "day-500",
+      "name": "Monster Day",
+      "category": "Big days",
+      "stat": "bestDayClaims",
+      "threshold": 500,
+      "secret": false,
+      "description": "Claim 500 empty blocks in one day",
+      "reward": 50
+    },
+    {
+      "id": "day-1000",
+      "name": "Legendary Day",
+      "category": "Big days",
+      "stat": "bestDayClaims",
+      "threshold": 1000,
+      "secret": false,
+      "description": "Claim 1,000 empty blocks in one day",
+      "reward": 100
+    },
+    {
+      "id": "chat-1",
+      "name": "Hello There",
+      "category": "Chat",
+      "stat": "chatMessages",
+      "threshold": 1,
+      "secret": false,
+      "description": "Send 1 chat message",
+      "reward": 5
+    },
+    {
+      "id": "chat-10",
+      "name": "Chatty",
+      "category": "Chat",
+      "stat": "chatMessages",
+      "threshold": 10,
+      "secret": false,
+      "description": "Send 10 chat messages",
+      "reward": 5
+    },
+    {
+      "id": "chat-25",
+      "name": "Chatterbox",
+      "category": "Chat",
+      "stat": "chatMessages",
+      "threshold": 25,
+      "secret": false,
+      "description": "Send 25 chat messages",
+      "reward": 5
+    },
+    {
+      "id": "chat-50",
+      "name": "Talker",
+      "category": "Chat",
+      "stat": "chatMessages",
+      "threshold": 50,
+      "secret": false,
+      "description": "Send 50 chat messages",
+      "reward": 8
+    },
+    {
+      "id": "chat-100",
+      "name": "Social Butterfly",
+      "category": "Chat",
+      "stat": "chatMessages",
+      "threshold": 100,
+      "secret": false,
+      "description": "Send 100 chat messages",
+      "reward": 15
+    },
+    {
+      "id": "chat-500",
+      "name": "Town Crier",
+      "category": "Chat",
+      "stat": "chatMessages",
+      "threshold": 500,
+      "secret": false,
+      "description": "Send 500 chat messages",
+      "reward": 80
+    },
+    {
+      "id": "chat-1000",
+      "name": "Radio Host",
+      "category": "Chat",
+      "stat": "chatMessages",
+      "threshold": 1000,
+      "secret": false,
+      "description": "Send 1,000 chat messages",
+      "reward": 150
+    },
+    {
+      "id": "chat-5000",
+      "name": "Voice of the Map",
+      "category": "Chat",
+      "stat": "chatMessages",
+      "threshold": 5000,
+      "secret": false,
+      "description": "Send 5,000 chat messages",
+      "reward": 800
+    },
+    {
+      "id": "held-10",
+      "name": "Saver",
+      "category": "Saving",
+      "stat": "squaresHeld",
+      "threshold": 10,
+      "secret": false,
+      "description": "Have 10 squares at once",
+      "reward": 5
+    },
+    {
+      "id": "held-50",
+      "name": "Stash",
+      "category": "Saving",
+      "stat": "squaresHeld",
+      "threshold": 50,
+      "secret": false,
+      "description": "Have 50 squares at once",
+      "reward": 5
+    },
+    {
+      "id": "held-100",
+      "name": "Nest Egg",
+      "category": "Saving",
+      "stat": "squaresHeld",
+      "threshold": 100,
+      "secret": false,
+      "description": "Have 100 squares at once",
+      "reward": 5
+    },
+    {
+      "id": "held-500",
+      "name": "Hoarder",
+      "category": "Saving",
+      "stat": "squaresHeld",
+      "threshold": 500,
+      "secret": false,
+      "description": "Have 500 squares at once",
+      "reward": 15
+    },
+    {
+      "id": "held-1000",
+      "name": "Dragon Hoard",
+      "category": "Saving",
+      "stat": "squaresHeld",
+      "threshold": 1000,
+      "secret": false,
+      "description": "Have 1,000 squares at once",
+      "reward": 30
+    },
+    {
+      "id": "held-5000",
+      "name": "Bank Vault",
+      "category": "Saving",
+      "stat": "squaresHeld",
+      "threshold": 5000,
+      "secret": false,
+      "description": "Have 5,000 squares at once",
+      "reward": 150
+    },
+    {
+      "id": "held-10k",
+      "name": "Money Bin",
+      "category": "Saving",
+      "stat": "squaresHeld",
+      "threshold": 10000,
+      "secret": false,
+      "description": "Have 10,000 squares at once",
+      "reward": 300
+    },
+    {
+      "id": "held-50k",
+      "name": "Sea of Squares",
+      "category": "Saving",
+      "stat": "squaresHeld",
+      "threshold": 50000,
+      "secret": false,
+      "description": "Have 50,000 squares at once",
+      "reward": 1500
+    },
+    {
+      "id": "held-100k",
+      "name": "Square Mountain",
+      "category": "Saving",
+      "stat": "squaresHeld",
+      "threshold": 100000,
+      "secret": false,
+      "description": "Have 100,000 squares at once",
+      "reward": 3000
+    },
+    {
+      "id": "held-250k",
+      "name": "Scrooge Mode",
+      "category": "Saving",
+      "stat": "squaresHeld",
+      "threshold": 250000,
+      "secret": false,
+      "description": "Have 250,000 squares at once",
+      "reward": 8000
+    },
+    {
+      "id": "growth-blocks-1",
+      "name": "Sprout",
+      "category": "Growth",
+      "stat": "growthBlocks",
+      "threshold": 1,
+      "secret": false,
+      "description": "Make 1 extra block appear with the Growth upgrade",
+      "reward": 5
+    },
+    {
+      "id": "growth-blocks-10",
+      "name": "Budding",
+      "category": "Growth",
+      "stat": "growthBlocks",
+      "threshold": 10,
+      "secret": false,
+      "description": "Make 10 extra blocks appear with the Growth upgrade",
+      "reward": 5
+    },
+    {
+      "id": "growth-blocks-100",
+      "name": "Blooming",
+      "category": "Growth",
+      "stat": "growthBlocks",
+      "threshold": 100,
+      "secret": false,
+      "description": "Make 100 extra blocks appear with the Growth upgrade",
+      "reward": 5
+    },
+    {
+      "id": "growth-blocks-1k",
+      "name": "Overgrowth",
+      "category": "Growth",
+      "stat": "growthBlocks",
+      "threshold": 1000,
+      "secret": false,
+      "description": "Make 1,000 extra blocks appear with the Growth upgrade",
+      "reward": 20
+    },
+    {
+      "id": "growth-blocks-10k",
+      "name": "Jungle Maker",
+      "category": "Growth",
+      "stat": "growthBlocks",
+      "threshold": 10000,
+      "secret": false,
+      "description": "Make 10,000 extra blocks appear with the Growth upgrade",
+      "reward": 200
+    },
+    {
+      "id": "growth-blocks-100k",
+      "name": "Big Bang",
+      "category": "Growth",
+      "stat": "growthBlocks",
+      "threshold": 100000,
+      "secret": false,
+      "description": "Make 100,000 extra blocks appear with the Growth upgrade",
+      "reward": 2000
+    },
+    {
+      "id": "grown-10",
+      "name": "Edge Pusher",
+      "category": "Map growth",
+      "stat": "mapGrown",
+      "threshold": 10,
+      "secret": false,
+      "description": "Make the map grow by 10 blocks",
+      "reward": 5
+    },
+    {
+      "id": "grown-100",
+      "name": "Border Breaker",
+      "category": "Map growth",
+      "stat": "mapGrown",
+      "threshold": 100,
+      "secret": false,
+      "description": "Make the map grow by 100 blocks",
+      "reward": 5
+    },
+    {
+      "id": "grown-1k",
+      "name": "Land Raiser",
+      "category": "Map growth",
+      "stat": "mapGrown",
+      "threshold": 1000,
+      "secret": false,
+      "description": "Make the map grow by 1,000 blocks",
+      "reward": 30
+    },
+    {
+      "id": "grown-10k",
+      "name": "Continent Maker",
+      "category": "Map growth",
+      "stat": "mapGrown",
+      "threshold": 10000,
+      "secret": false,
+      "description": "Make the map grow by 10,000 blocks",
+      "reward": 300
+    },
+    {
+      "id": "grown-100k",
+      "name": "New World",
+      "category": "Map growth",
+      "stat": "mapGrown",
+      "threshold": 100000,
+      "secret": false,
+      "description": "Make the map grow by 100,000 blocks",
+      "reward": 3000
+    },
+    {
+      "id": "grown-250k",
+      "name": "Universe Builder",
+      "category": "Map growth",
+      "stat": "mapGrown",
+      "threshold": 250000,
+      "secret": false,
+      "description": "Make the map grow by 250,000 blocks",
+      "reward": 8000
+    },
+    {
+      "id": "renamed",
+      "name": "New Me",
+      "category": "Firsts",
+      "stat": "renames",
+      "threshold": 1,
+      "secret": false,
+      "description": "Choose your own name",
+      "reward": 5
+    },
+    {
+      "id": "account",
+      "name": "Made It Official",
+      "category": "Firsts",
+      "stat": "account",
+      "threshold": 1,
+      "secret": false,
+      "description": "Make an account",
+      "reward": 5
+    },
+    {
+      "id": "graduate",
+      "name": "Graduate",
+      "category": "Firsts",
+      "stat": "tutorialDone",
+      "threshold": 1,
+      "secret": false,
+      "description": "Finish the tutorial",
+      "reward": 5
+    },
+    {
+      "id": "meta-10",
+      "name": "Collector",
+      "category": "Collector",
+      "stat": "achievements",
+      "threshold": 10,
+      "secret": false,
+      "description": "Earn 10 achievements",
+      "reward": 60
+    },
+    {
+      "id": "meta-25",
+      "name": "Badge Hunter",
+      "category": "Collector",
+      "stat": "achievements",
+      "threshold": 25,
+      "secret": false,
+      "description": "Earn 25 achievements",
+      "reward": 400
+    },
+    {
+      "id": "meta-50",
+      "name": "Trophy Case",
+      "category": "Collector",
+      "stat": "achievements",
+      "threshold": 50,
+      "secret": false,
+      "description": "Earn 50 achievements",
+      "reward": 1500
+    },
+    {
+      "id": "meta-100",
+      "name": "Hall of Fame",
+      "category": "Collector",
+      "stat": "achievements",
+      "threshold": 100,
+      "secret": false,
+      "description": "Earn 100 achievements",
+      "reward": 6000
+    },
+    {
+      "id": "meta-150",
+      "name": "Legend",
+      "category": "Collector",
+      "stat": "achievements",
+      "threshold": 150,
+      "secret": false,
+      "description": "Earn 150 achievements",
+      "reward": 15000
+    },
+    {
+      "id": "meta-200",
+      "name": "Mythic",
+      "category": "Collector",
+      "stat": "achievements",
+      "threshold": 200,
+      "secret": false,
+      "description": "Earn 200 achievements",
+      "reward": 25000
+    },
+    {
+      "id": "meta-250",
+      "name": "Ascended",
+      "category": "Collector",
+      "stat": "achievements",
+      "threshold": 250,
+      "secret": false,
+      "description": "Earn 250 achievements",
+      "reward": 40000
+    },
+    {
+      "id": "meta-290",
+      "name": "Almost Everything",
+      "category": "Collector",
+      "stat": "achievements",
+      "threshold": 290,
+      "secret": false,
+      "description": "Earn 290 achievements",
+      "reward": 50000
+    },
+    {
+      "id": "secrets-1",
+      "name": "Snoop",
+      "category": "Collector",
+      "stat": "secrets",
+      "threshold": 1,
+      "secret": false,
+      "description": "Find 1 secret achievement",
+      "reward": 200
+    },
+    {
+      "id": "secrets-5",
+      "name": "Detective",
+      "category": "Collector",
+      "stat": "secrets",
+      "threshold": 5,
+      "secret": false,
+      "description": "Find 5 secret achievements",
+      "reward": 1000
+    },
+    {
+      "id": "secrets-10",
+      "name": "Know-It-All",
+      "category": "Collector",
+      "stat": "secrets",
+      "threshold": 10,
+      "secret": false,
+      "description": "Find 10 secret achievements",
+      "reward": 2000
+    },
+    {
+      "id": "secret-castaway",
+      "name": "Castaway",
+      "category": "Secrets",
+      "stat": "secret:castaway",
+      "threshold": 1,
+      "secret": true,
+      "description": "Claim a block with water on all four sides",
+      "reward": 250
+    },
+    {
+      "id": "secret-witching",
+      "name": "Witching Hour",
+      "category": "Secrets",
+      "stat": "secret:witching",
+      "threshold": 1,
+      "secret": true,
+      "description": "Claim a block between 3:00 and 3:59 in the morning (UTC)",
+      "reward": 100
+    },
+    {
+      "id": "secret-leet",
+      "name": "Leet",
+      "category": "Secrets",
+      "stat": "secret:leet",
+      "threshold": 1,
+      "secret": true,
+      "description": "Have exactly 1,337 squares",
+      "reward": 500
+    },
+    {
+      "id": "secret-revenge",
+      "name": "Revenge",
+      "category": "Secrets",
+      "stat": "secret:revenge",
+      "threshold": 1,
+      "secret": true,
+      "description": "Take a block back from the player who took it, within a minute",
+      "reward": 150
+    },
+    {
+      "id": "secret-poke",
+      "name": "Poke Poke",
+      "category": "Secrets",
+      "stat": "secret:poke",
+      "threshold": 1,
+      "secret": true,
+      "description": "Tap your own blocks 50 times in one visit",
+      "reward": 50
+    },
+    {
+      "id": "secret-treehugger",
+      "name": "Tree Hugger",
+      "category": "Secrets",
+      "stat": "secret:treehugger",
+      "threshold": 1,
+      "secret": true,
+      "description": "Claim 25 forest blocks in a row, nothing else in between",
+      "reward": 400
+    },
+    {
+      "id": "secret-speedrun",
+      "name": "Speed Run",
+      "category": "Secrets",
+      "stat": "secret:speedrun",
+      "threshold": 1,
+      "secret": true,
+      "description": "Claim 10 empty blocks within one minute",
+      "reward": 200
+    },
+    {
+      "id": "secret-comeback",
+      "name": "Comeback Kid",
+      "category": "Secrets",
+      "stat": "secret:comeback",
+      "threshold": 1,
+      "secret": true,
+      "description": "Lose every block on a map, then own 100 there again without wiping",
+      "reward": 600
+    },
+    {
+      "id": "secret-helloworld",
+      "name": "Hello World",
+      "category": "Secrets",
+      "stat": "secret:helloworld",
+      "threshold": 1,
+      "secret": true,
+      "description": "Say \"hello world\" in the chat",
+      "reward": 50
+    },
+    {
+      "id": "secret-wipedout",
+      "name": "Wiped Out",
+      "category": "Secrets",
+      "stat": "secret:wipedout",
+      "threshold": 1,
+      "secret": true,
+      "description": "Wipe a territory of 1,000 blocks or more",
+      "reward": 800
+    }
+  ]
 }

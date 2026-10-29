@@ -7,7 +7,18 @@ const UPGRADE_TABS = { clickPower: 'Click Power', defense: 'Defense', earnings: 
 const UPGRADE_COLUMNS = ['Level', 'Value after', 'Cost (squares)'];
 const RULES_TAB = 'Game Rules';
 const RULES_COLUMNS = ['Key', 'Value', 'What it means'];
-const TABS = [...Object.values(UPGRADE_TABS), RULES_TAB];
+const ACHIEVEMENTS_TAB = 'Achievements';
+const ACHIEVEMENT_COLUMNS = ['Key', 'Name', 'Category', 'Stat', 'Threshold', 'Secret', 'Description', 'Reward'];
+const TABS = [...Object.values(UPGRADE_TABS), RULES_TAB, ACHIEVEMENTS_TAB];
+
+// The stats an achievement can use: the ones the game counts (achievements.js has what each one means).
+// bestRank counts down: a threshold of 3 means "#3 or better".
+const STATS = ['claims', 'owned', 'bestSquare', 'bestLine', 'taken', 'lost', 'taps', 'squaresEarned', 'squaresSpent', 'purchases',
+  'level:clickPower', 'level:defense', 'level:earnings', 'level:growth', 'terrain:sand', 'terrain:forest', 'terrain:stone', 'terrain:gold',
+  'mapsPlayed', 'daysPlayed', 'bestStreak', 'bestRank', 'reignMinutes', 'wipes', 'hoursPlayed', 'sessionClaims', 'bestDayClaims',
+  'chatMessages', 'squaresHeld', 'growthBlocks', 'mapGrown', 'renames', 'account', 'tutorialDone', 'achievements', 'secrets',
+  'secret:castaway', 'secret:witching', 'secret:leet', 'secret:revenge', 'secret:poke', 'secret:treehugger', 'secret:speedrun',
+  'secret:comeback', 'secret:helloworld', 'secret:wipedout'];
 
 // Every Game Rules key, with the values it may take.
 const int = (min, max = Infinity) => ({ integer: true, min, max });
@@ -26,6 +37,8 @@ const RULE_KEYS = {
   newMapWidth: int(1, 1000),
   newMapHeight: int(1, 1000),
   newMapBlocks: int(1, 1000000),
+  rankMinPlayers: int(2, 100000),
+  rankMinBlocks: int(1, 1000000),
   terrainScale: num(2, 1000),
   waterShare: num(0, 0.6),
   sandShare: num(0, 0.6),
@@ -42,14 +55,6 @@ const RULE_KEYS = {
   soundOthersVolume: num(0, 1),
   defaultEffectsVolume: num(0, 1),
   defaultMusicVolume: num(0, 1),
-  'achievement.first-block': int(1),
-  'achievement.owned-100': int(1),
-  'achievement.owned-1000': int(1),
-  'achievement.square-10': int(1),
-  'achievement.square-50': int(1),
-  'achievement.line-10': int(1),
-  'achievement.line-100': int(1),
-  'achievement.retakes-10': int(1),
 };
 
 // CSV text -> rows of cells (quotes, doubled quotes, commas and line breaks inside quotes).
@@ -152,7 +157,33 @@ function validate(tabs) {
     });
     for (const k of Object.keys(RULE_KEYS)) if (!seen.has(k)) errors.push(`${RULES_TAB}: no row for "${k}"`);
   }
-  return errors.length ? { economy: null, errors } : { economy: { rules, upgrades }, errors };
+  // Achievements: one row each. Secret: "yes" hides it until earned (blank or "no" otherwise).
+  const achievements = [], keys = new Set();
+  const a = table(ACHIEVEMENTS_TAB, ACHIEVEMENT_COLUMNS);
+  if (a) {
+    const T = ACHIEVEMENTS_TAB;
+    a.rows.forEach((r, i) => {
+      const row = i + 1, cell = j => (r[a.at[j]] ?? '').trim(), at = j => where(T, a.at[j], row, ACHIEVEMENT_COLUMNS[j]);
+      const [key, name, category, stat, rawThreshold, rawSecret, description, rawReward] = ACHIEVEMENT_COLUMNS.map((c, j) => cell(j));
+      const bad = [];
+      if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(key)) bad.push(`${at(0)}: "${key}" must be lower-case letters, digits and dashes`);
+      else if (keys.has(key)) bad.push(`${at(0)}: "${key}" appears twice`);
+      keys.add(key);
+      if (!name) bad.push(`${at(1)}: blank`);
+      else if (name.length > 40) bad.push(`${at(1)}: at most 40 characters`);
+      if (!category) bad.push(`${at(2)}: blank`);
+      if (!STATS.includes(stat)) bad.push(`${at(3)}: unknown stat "${stat}" (one of: ${STATS.join(', ')})`);
+      const threshold = parseNumber(rawThreshold), reward = parseNumber(rawReward);
+      if (threshold === null || !(threshold > 0)) bad.push(`${at(4)}: "${rawThreshold}" must be a number above 0`);
+      if (!/^(|yes|no|true|false)$/i.test(rawSecret)) bad.push(`${at(5)}: "${rawSecret}" must be yes, no or blank`);
+      if (!description) bad.push(`${at(6)}: blank`);
+      if (reward === null || reward < 0) bad.push(`${at(7)}: "${rawReward}" must be a number of squares, 0 or more`);
+      if (bad.length) return errors.push(...bad);
+      achievements.push({ id: key, name, category, stat, threshold, secret: /^(yes|true)$/i.test(rawSecret), description, reward });
+    });
+    if (!a.rows.length) errors.push(`${T}: no achievements below the header row`);
+  }
+  return errors.length ? { economy: null, errors } : { economy: { rules, upgrades, achievements }, errors };
 }
 
 // Option B: a stored level under the old table becomes the lowest new level whose value is at least the old
@@ -196,7 +227,15 @@ function describeChanges(before, after) {
   for (const [key, moves] of Object.entries(remapTable(before?.upgrades, after.upgrades))) {
     if (moves.length) lines.push(`${UPGRADE_TABS[key]}: stored levels move ${moves.map(([a, b]) => `${a}→${b}`).join(', ')} (so nobody gets weaker)`);
   }
+  const was = new Map((before?.achievements ?? []).map(d => [d.id, JSON.stringify(d)]));
+  const now = new Map((after.achievements ?? []).map(d => [d.id, JSON.stringify(d)]));
+  const added = [...now.keys()].filter(k => !was.has(k)), removed = [...was.keys()].filter(k => !now.has(k));
+  const changed = [...now.keys()].filter(k => was.has(k) && was.get(k) !== now.get(k));
+  if (added.length || removed.length || changed.length) {
+    lines.push(`Achievements: ${now.size} in all; ${added.length} added, ${removed.length} removed, ${changed.length} changed`
+      + (removed.length ? ` (removed: ${removed.join(', ')})` : ''));
+  }
   return lines.length ? lines : ['No changes.'];
 }
 
-module.exports = { UPGRADE_TABS, RULES_TAB, TABS, RULE_KEYS, parseCsv, parseNumber, validate, remapLevel, remapTable, describeChanges };
+module.exports = { UPGRADE_TABS, RULES_TAB, ACHIEVEMENTS_TAB, STATS, TABS, RULE_KEYS, parseCsv, parseNumber, validate, remapLevel, remapTable, describeChanges };

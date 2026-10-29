@@ -325,6 +325,19 @@ a:hover { color: var(--gold-light); }
 .bar.total { height: 12px; }
 .bar.total > div { background: var(--yellow); }
 .ach-list { display: flex; flex-direction: column; gap: 8px; }
+.ach-cat { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; background: var(--card); border: 3px solid var(--ink); }
+.ach-cat.got { border-color: var(--yellow); }
+.ach-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.ach-head .t { font: 10px var(--title); color: var(--yellow); }
+.ach-head .n { font: 9px var(--title); color: var(--muted); font-variant-numeric: tabular-nums; }
+.ach-next, .ach-secret { display: flex; flex-direction: column; gap: 4px; }
+.ach-next .t, .ach-secret .t { font-size: 17px; font-weight: 600; }
+.ach-next .sub, .ach-secret .sub { font-size: 14px; color: var(--muted); }
+.ach-next .p { font-variant-numeric: tabular-nums; }
+.ach-secret:not(.got) .t { color: var(--muted); letter-spacing: .2em; }
+.ach-pips { display: flex; flex-wrap: wrap; gap: 4px; }
+.ach-pips span { width: 10px; height: 10px; border: 2px solid var(--ink); background: var(--raised); }
+.ach-pips span.on { background: var(--yellow); }
 .ach { display: flex; align-items: center; gap: 10px; padding: 10px; background: var(--card); border: 3px solid var(--ink); }
 .ach .badge { width: 36px; height: 36px; border: 3px solid var(--ink); flex: none; display: flex; align-items: center; justify-content: center; background: var(--raised); }
 .ach.got .badge { background: var(--yellow); }

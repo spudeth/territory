@@ -416,3 +416,328 @@ newMapBlocks 10240 · terrainScale 28 · waterShare 0.12 · sandShare 0.07 · fo
 
 #67 | 2026-10-28 | Sounds (Xoren): new "steal" sound when you take another player's block (three options on the sound test page, A until picked: OPEN Q14); PLAY on the welcome screen now plays the plain button click instead of the loud Spawn sound
 Loop order 9 done. Open: Q5, Q6, Q8, Q10, Q11, Q12. Stopping.
+
+#68 | 2026-10-28 | Loop 10: 300 achievements (generator in the scratchpad: ladders sized so each top tier is about 1,000 hours at 144 new blocks an hour; reward = 10 squares per hour of effort, at least 5; all 300 = about 30,000 hours, 571,508 squares). The 8 placeholder ids are kept, so earned ones still count | tests: list (300, secrets, rewards)
+#69 | 2026-10-28 | Loop 10: Achievements tab in the sync (Key, Name, Category, Stat, Threshold, Secret, Description, Reward; every cell checked by name; known stats only); data/economy.json carries it; the 8 achievement.* rows left Game Rules. New Game Rules: rankMinPlayers 10, rankMinBlocks 100 | tests: economy (bad rows named by cell, missing tab)
+#70 | 2026-10-28 | Loop 10: lifetime totals (totals.js, player_totals, migration 014 fills them from past play); earning pays the reward in the same transaction; checks per player in parallel; catch-up on connecting; secrets hidden ("???") until earned. Fixed on the way: a deadlock between a claim and an achievement save (the save no longer touches the map row), and a rank exploit found in the browser (ties counted as the better rank, so 1 block among beginners earned "#2"; now ties count against you and ranks need rankMinBlocks) | tests: achievements-live (fire once and pay once; secrets hidden then shown; catch-up; taps and squares counted)
+#71 | 2026-10-28 | Loop 10: Awards screen grouped by category: next tier, reward, progress bar, tier pips, total out of 300, secrets as ???; the pop-up shows the reward. Browsers now always check for new game files (Cache-Control: no-cache), after Xoren's first seeded map showed all grass from cached old code | full suite 121/121; checked in headless Chrome
+
+QUESTION Q13 (Bob's order named it Q11, which was already taken by nameLabelShare): the 300-achievement draft for the new **Achievements** tab, for Xoren's review. Paste the CSV below into a new tab named exactly `Achievements` (File > Import > Replace current sheet, or paste and split by comma). I added a **Reward** column after Description (squares paid; Bob's reward rule needs it in the sheet). Hours behind each reward: scratchpad `achievements-hours.txt`; ask if you want it as a column.
+Also on Game Rules: add `rankMinPlayers` 10 and `rankMinBlocks` 100, and delete the 8 `achievement.*` rows, or `npm run sync-rules` will refuse.
+Secrets (fun, fair, each cheap to spot): Castaway (a block with water on all 4 sides), Witching Hour (claim between 3:00 and 3:59 UTC), Leet (exactly 1,337 squares), Revenge (take a block back from whoever took it, within a minute), Poke Poke (tap your own blocks 50 times in one visit), Tree Hugger (25 forest claims in a row), Speed Run (10 empty blocks in a minute), Comeback Kid (lose every block on a map, then own 100 there again without wiping), Hello World (say it in chat), Wiped Out (wipe 1,000+ blocks).
+
+```csv
+Key,Name,Category,Stat,Threshold,Secret,Description,Reward
+first-block,First Block,Claiming,claims,1,,Claim 1 empty block,5
+claims-5,Homesteader,Claiming,claims,5,,Claim 5 empty blocks,5
+claims-10,Settler,Claiming,claims,10,,Claim 10 empty blocks,5
+claims-25,Pioneer,Claiming,claims,25,,Claim 25 empty blocks,5
+claims-50,Trailblazer,Claiming,claims,50,,Claim 50 empty blocks,5
+claims-100,Centurion,Claiming,claims,100,,Claim 100 empty blocks,8
+claims-250,Land Baron,Claiming,claims,250,,Claim 250 empty blocks,15
+claims-500,Frontier Lord,Claiming,claims,500,,Claim 500 empty blocks,30
+claims-1k,Kilo Claimer,Claiming,claims,1000,,"Claim 1,000 empty blocks",75
+claims-2500,Map Maker,Claiming,claims,2500,,"Claim 2,500 empty blocks",150
+claims-5k,Empire Builder,Claiming,claims,5000,,"Claim 5,000 empty blocks",300
+claims-10k,Ten Thousand Flags,Claiming,claims,10000,,"Claim 10,000 empty blocks",750
+claims-25k,Continental,Claiming,claims,25000,,"Claim 25,000 empty blocks",1500
+claims-50k,Worldshaper,Claiming,claims,50000,,"Claim 50,000 empty blocks",3000
+claims-100k,The Endless Frontier,Claiming,claims,100000,,"Claim 100,000 empty blocks",7500
+owned-10,Plot Holder,Holding,owned,10,,Own 10 blocks at once on one map,5
+owned-25,Small Holding,Holding,owned,25,,Own 25 blocks at once on one map,5
+owned-50,Big Backyard,Holding,owned,50,,Own 50 blocks at once on one map,10
+owned-100,Hundred Acres,Holding,owned,100,,Own 100 blocks at once on one map,25
+owned-250,Estate,Holding,owned,250,,Own 250 blocks at once on one map,80
+owned-500,Duchy,Holding,owned,500,,Own 500 blocks at once on one map,200
+owned-1000,Kingdom of 1K,Holding,owned,1000,,"Own 1,000 blocks at once on one map",500
+owned-2500,Superpower,Holding,owned,2500,,"Own 2,500 blocks at once on one map",1500
+owned-5000,Hegemon,Holding,owned,5000,,"Own 5,000 blocks at once on one map",4000
+owned-10k,Ten Thousand Strong,Holding,owned,10000,,"Own 10,000 blocks at once on one map",10000
+square-2,Two by Two,Squares,bestSquare,2,,Own a solid 2 by 2 square of blocks,5
+square-3,Tic-Tac-Toe,Squares,bestSquare,3,,Own a solid 3 by 3 square of blocks,8
+square-4,Four Square,Squares,bestSquare,4,,Own a solid 4 by 4 square of blocks,20
+square-5,High Five,Squares,bestSquare,5,,Own a solid 5 by 5 square of blocks,30
+square-10,Perfect Ten,Squares,bestSquare,10,,Own a solid 10 by 10 square of blocks,200
+square-15,Fifteen Square,Squares,bestSquare,15,,Own a solid 15 by 15 square of blocks,500
+square-20,Scoreboard,Squares,bestSquare,20,,Own a solid 20 by 20 square of blocks,1000
+square-25,Quarter Century,Squares,bestSquare,25,,Own a solid 25 by 25 square of blocks,2000
+square-30,Thirty by Thirty,Squares,bestSquare,30,,Own a solid 30 by 30 square of blocks,3000
+square-40,Forty Fort,Squares,bestSquare,40,,Own a solid 40 by 40 square of blocks,6000
+square-50,Half Century,Squares,bestSquare,50,,Own a solid 50 by 50 square of blocks,10000
+line-3,Three in a Row,Lines,bestLine,3,,Own a straight line of 3 blocks,5
+line-5,Five Alive,Lines,bestLine,5,,Own a straight line of 5 blocks,10
+line-10,Ruler,Lines,bestLine,10,,Own a straight line of 10 blocks,40
+line-15,Long Jump,Lines,bestLine,15,,Own a straight line of 15 blocks,100
+line-20,Road Trip,Lines,bestLine,20,,Own a straight line of 20 blocks,200
+line-25,Highway,Lines,bestLine,25,,Own a straight line of 25 blocks,300
+line-50,Great Wall,Lines,bestLine,50,,Own a straight line of 50 blocks,1000
+line-75,Express Line,Lines,bestLine,75,,Own a straight line of 75 blocks,2500
+line-100,Century Line,Lines,bestLine,100,,Own a straight line of 100 blocks,4000
+line-150,Horizon Line,Lines,bestLine,150,,Own a straight line of 150 blocks,10000
+taken-1,First Strike,Taking,taken,1,,Take 1 block from other players,5
+taken-5,Pickpocket,Taking,taken,5,,Take 5 blocks from other players,5
+retakes-10,Raider,Taking,taken,10,,Take 10 blocks from other players,5
+taken-25,Bandit,Taking,taken,25,,Take 25 blocks from other players,10
+taken-50,Marauder,Taking,taken,50,,Take 50 blocks from other players,20
+taken-100,Pirate King,Taking,taken,100,,Take 100 blocks from other players,40
+taken-250,Warlord,Taking,taken,250,,Take 250 blocks from other players,100
+taken-500,Conqueror,Taking,taken,500,,Take 500 blocks from other players,200
+taken-1k,Invader,Taking,taken,1000,,"Take 1,000 blocks from other players",400
+taken-2500,Siege Engine,Taking,taken,2500,,"Take 2,500 blocks from other players",1000
+taken-5k,Juggernaut,Taking,taken,5000,,"Take 5,000 blocks from other players",2000
+taken-10k,Overlord,Taking,taken,10000,,"Take 10,000 blocks from other players",4000
+taken-25k,Unstoppable,Taking,taken,25000,,"Take 25,000 blocks from other players",10000
+lost-1,Ouch,Losing,lost,1,,Lose 1 block to other players,5
+lost-5,Bruised,Losing,lost,5,,Lose 5 blocks to other players,5
+lost-10,Battle Scarred,Losing,lost,10,,Lose 10 blocks to other players,5
+lost-25,Dented Armor,Losing,lost,25,,Lose 25 blocks to other players,10
+lost-50,Thick Skin,Losing,lost,50,,Lose 50 blocks to other players,20
+lost-100,Comeback Material,Losing,lost,100,,Lose 100 blocks to other players,40
+lost-500,Punching Bag,Losing,lost,500,,Lose 500 blocks to other players,200
+lost-1k,Unbothered,Losing,lost,1000,,"Lose 1,000 blocks to other players",400
+lost-5k,Phoenix,Losing,lost,5000,,"Lose 5,000 blocks to other players",2000
+lost-10k,Unbreakable Spirit,Losing,lost,10000,,"Lose 10,000 blocks to other players",4000
+lost-25k,Eternal Optimist,Losing,lost,25000,,"Lose 25,000 blocks to other players",10000
+taps-10,Tap Tap,Tapping,taps,10,,Tap blocks 10 times,5
+taps-25,Double Digits,Tapping,taps,25,,Tap blocks 25 times,5
+taps-100,Button Masher,Tapping,taps,100,,Tap blocks 100 times,5
+taps-500,Clicker,Tapping,taps,500,,Tap blocks 500 times,5
+taps-1k,Finger Workout,Tapping,taps,1000,,"Tap blocks 1,000 times",5
+taps-5k,Rapid Fire,Tapping,taps,5000,,"Tap blocks 5,000 times",25
+taps-10k,Turbo Button,Tapping,taps,10000,,"Tap blocks 10,000 times",50
+taps-50k,Tap Dancer,Tapping,taps,50000,,"Tap blocks 50,000 times",250
+taps-100k,Machine Gun Finger,Tapping,taps,100000,,"Tap blocks 100,000 times",500
+taps-250k,Quarter Million,Tapping,taps,250000,,"Tap blocks 250,000 times",1000
+taps-500k,Half Million Hits,Tapping,taps,500000,,"Tap blocks 500,000 times",2500
+taps-1m,Million Tap Club,Tapping,taps,1000000,,"Tap blocks 1,000,000 times",5000
+taps-2m,Tapocalypse,Tapping,taps,2000000,,"Tap blocks 2,000,000 times",10000
+earned-1,Pocket Change,Earning,squaresEarned,1,,Earn 1 square by claiming blocks,5
+earned-10,Piggy Bank,Earning,squaresEarned,10,,Earn 10 squares by claiming blocks,5
+earned-50,Coin Purse,Earning,squaresEarned,50,,Earn 50 squares by claiming blocks,5
+earned-100,Savings Jar,Earning,squaresEarned,100,,Earn 100 squares by claiming blocks,5
+earned-500,Treasure Chest,Earning,squaresEarned,500,,Earn 500 squares by claiming blocks,10
+earned-1k,Vault Keeper,Earning,squaresEarned,1000,,"Earn 1,000 squares by claiming blocks",20
+earned-5k,Gold Reserve,Earning,squaresEarned,5000,,"Earn 5,000 squares by claiming blocks",100
+earned-10k,Square Mint,Earning,squaresEarned,10000,,"Earn 10,000 squares by claiming blocks",200
+earned-50k,Treasury,Earning,squaresEarned,50000,,"Earn 50,000 squares by claiming blocks",1000
+earned-100k,Square Tycoon,Earning,squaresEarned,100000,,"Earn 100,000 squares by claiming blocks",2000
+earned-250k,Mega Mogul,Earning,squaresEarned,250000,,"Earn 250,000 squares by claiming blocks",5000
+earned-500k,Infinite Wallet,Earning,squaresEarned,500000,,"Earn 500,000 squares by claiming blocks",10000
+spent-10,Window Shopper,Spending,squaresSpent,10,,Spend 10 squares on upgrades,5
+spent-100,First Splurge,Spending,squaresSpent,100,,Spend 100 squares on upgrades,5
+spent-500,Shopaholic,Spending,squaresSpent,500,,Spend 500 squares on upgrades,10
+spent-1k,Big Spender,Spending,squaresSpent,1000,,"Spend 1,000 squares on upgrades",20
+spent-5k,High Roller,Spending,squaresSpent,5000,,"Spend 5,000 squares on upgrades",100
+spent-10k,Spree,Spending,squaresSpent,10000,,"Spend 10,000 squares on upgrades",200
+spent-50k,Splurge Lord,Spending,squaresSpent,50000,,"Spend 50,000 squares on upgrades",1000
+spent-100k,Bottomless Pockets,Spending,squaresSpent,100000,,"Spend 100,000 squares on upgrades",2000
+spent-500k,Market Maker,Spending,squaresSpent,500000,,"Spend 500,000 squares on upgrades",10000
+spent-1m,All In,Spending,squaresSpent,1000000,,"Spend 1,000,000 squares on upgrades",20000
+bought-1,First Upgrade,Upgrades,purchases,1,,Buy 1 upgrade level,5
+bought-5,Tinkerer,Upgrades,purchases,5,,Buy 5 upgrade levels,5
+bought-10,Mechanic,Upgrades,purchases,10,,Buy 10 upgrade levels,10
+bought-25,Engineer,Upgrades,purchases,25,,Buy 25 upgrade levels,80
+bought-50,Inventor,Upgrades,purchases,50,,Buy 50 upgrade levels,400
+bought-100,Mad Scientist,Upgrades,purchases,100,,Buy 100 upgrade levels,1500
+bought-150,Overclocked,Upgrades,purchases,150,,Buy 150 upgrade levels,4000
+bought-200,Nearly Maxed,Upgrades,purchases,200,,Buy 200 upgrade levels,7500
+bought-225,Fully Loaded,Upgrades,purchases,225,,Buy 225 upgrade levels,10000
+clickpower-1,Stronger Taps,Upgrade levels,level:clickPower,1,,Reach Click Power level 1,5
+clickpower-5,Iron Finger,Upgrade levels,level:clickPower,5,,Reach Click Power level 5,5
+clickpower-10,Steel Finger,Upgrade levels,level:clickPower,10,,Reach Click Power level 10,8
+clickpower-25,Diamond Finger,Upgrade levels,level:clickPower,25,,Reach Click Power level 25,40
+clickpower-50,Thunder Finger,Upgrade levels,level:clickPower,50,,Reach Click Power level 50,500
+clickpower-70,Max Power,Upgrade levels,level:clickPower,70,,Reach Click Power level 70,3000
+defense-1,Fence Builder,Upgrade levels,level:defense,1,,Reach Defense level 1,5
+defense-5,Wall Raiser,Upgrade levels,level:defense,5,,Reach Defense level 5,15
+defense-10,Fortified,Upgrade levels,level:defense,10,,Reach Defense level 10,40
+defense-25,Bastion,Upgrade levels,level:defense,25,,Reach Defense level 25,250
+defense-50,Impenetrable,Upgrade levels,level:defense,50,,Reach Defense level 50,3000
+earnings-1,Side Hustle,Upgrade levels,level:earnings,1,,Reach Earnings level 1,5
+earnings-5,Day Trader,Upgrade levels,level:earnings,5,,Reach Earnings level 5,5
+earnings-10,Investor,Upgrade levels,level:earnings,10,,Reach Earnings level 10,5
+earnings-25,Banker,Upgrade levels,level:earnings,25,,Reach Earnings level 25,20
+earnings-50,Tycoon,Upgrade levels,level:earnings,50,,Reach Earnings level 50,200
+earnings-100,Golden Goose,Upgrade levels,level:earnings,100,,Reach Earnings level 100,25000
+growth-1,Green Thumb,Upgrade levels,level:growth,1,,Reach Growth level 1,25
+growth-2,Gardener,Upgrade levels,level:growth,2,,Reach Growth level 2,75
+growth-3,Landscaper,Upgrade levels,level:growth,3,,Reach Growth level 3,150
+growth-4,Terraformer,Upgrade levels,level:growth,4,,Reach Growth level 4,300
+growth-5,World Grower,Upgrade levels,level:growth,5,,Reach Growth level 5,750
+sand-1,Beachcomber,Terrain,terrain:sand,1,,Claim 1 sand block,5
+sand-5,Sandcastle,Terrain,terrain:sand,5,,Claim 5 sand blocks,5
+sand-10,Dune Walker,Terrain,terrain:sand,10,,Claim 10 sand blocks,10
+sand-25,Sun Tan,Terrain,terrain:sand,25,,Claim 25 sand blocks,25
+sand-50,Desert Rat,Terrain,terrain:sand,50,,Claim 50 sand blocks,50
+sand-100,Sand Baron,Terrain,terrain:sand,100,,Claim 100 sand blocks,100
+sand-250,Oasis Seeker,Terrain,terrain:sand,250,,Claim 250 sand blocks,250
+sand-500,Dune King,Terrain,terrain:sand,500,,Claim 500 sand blocks,500
+sand-1000,Sandstorm,Terrain,terrain:sand,1000,,"Claim 1,000 sand blocks",1000
+sand-2500,Sea of Sand,Terrain,terrain:sand,2500,,"Claim 2,500 sand blocks",2500
+sand-5000,Desert Emperor,Terrain,terrain:sand,5000,,"Claim 5,000 sand blocks",5000
+sand-10000,Hourglass,Terrain,terrain:sand,10000,,"Claim 10,000 sand blocks",10000
+forest-1,Woodland Walk,Terrain,terrain:forest,1,,Claim 1 forest block,5
+forest-5,Lumberjack,Terrain,terrain:forest,5,,Claim 5 forest blocks,5
+forest-10,Grove Keeper,Terrain,terrain:forest,10,,Claim 10 forest blocks,5
+forest-25,Forester,Terrain,terrain:forest,25,,Claim 25 forest blocks,10
+forest-50,Park Ranger,Terrain,terrain:forest,50,,Claim 50 forest blocks,20
+forest-100,Timberland,Terrain,terrain:forest,100,,Claim 100 forest blocks,40
+forest-250,Old Growth,Terrain,terrain:forest,250,,Claim 250 forest blocks,100
+forest-500,Deep Woods,Terrain,terrain:forest,500,,Claim 500 forest blocks,200
+forest-1000,Canopy King,Terrain,terrain:forest,1000,,"Claim 1,000 forest blocks",400
+forest-2500,Evergreen,Terrain,terrain:forest,2500,,"Claim 2,500 forest blocks",1000
+forest-5000,Wildwood,Terrain,terrain:forest,5000,,"Claim 5,000 forest blocks",2000
+forest-10000,Ancient Forest,Terrain,terrain:forest,10000,,"Claim 10,000 forest blocks",4000
+forest-25000,Green Planet,Terrain,terrain:forest,25000,,"Claim 25,000 forest blocks",10000
+stone-1,Rock Bottom,Terrain,terrain:stone,1,,Claim 1 stone block,5
+stone-5,Pebble Pusher,Terrain,terrain:stone,5,,Claim 5 stone blocks,5
+stone-10,Stone Mason,Terrain,terrain:stone,10,,Claim 10 stone blocks,8
+stone-25,Quarry Worker,Terrain,terrain:stone,25,,Claim 25 stone blocks,20
+stone-50,Cave Dweller,Terrain,terrain:stone,50,,Claim 50 stone blocks,40
+stone-100,Boulder Basher,Terrain,terrain:stone,100,,Claim 100 stone blocks,80
+stone-250,Rock Solid,Terrain,terrain:stone,250,,Claim 250 stone blocks,200
+stone-500,Mountain Mover,Terrain,terrain:stone,500,,Claim 500 stone blocks,400
+stone-1000,Granite Grip,Terrain,terrain:stone,1000,,"Claim 1,000 stone blocks",800
+stone-2500,Stone Age,Terrain,terrain:stone,2500,,"Claim 2,500 stone blocks",2000
+stone-5000,Bedrock,Terrain,terrain:stone,5000,,"Claim 5,000 stone blocks",4000
+stone-10000,Mountain King,Terrain,terrain:stone,10000,,"Claim 10,000 stone blocks",8000
+gold-1,Struck Gold,Terrain,terrain:gold,1,,Claim 1 gold block,8
+gold-5,Nugget Hunter,Terrain,terrain:gold,5,,Claim 5 gold blocks,30
+gold-10,Gold Panner,Terrain,terrain:gold,10,,Claim 10 gold blocks,75
+gold-25,Gold Fever,Terrain,terrain:gold,25,,Claim 25 gold blocks,150
+gold-50,Golden Touch,Terrain,terrain:gold,50,,Claim 50 gold blocks,300
+gold-100,Mother Lode,Terrain,terrain:gold,100,,Claim 100 gold blocks,750
+gold-250,El Dorado,Terrain,terrain:gold,250,,Claim 250 gold blocks,1500
+gold-500,Golden Age,Terrain,terrain:gold,500,,Claim 500 gold blocks,3000
+gold-1000,Gold Standard,Terrain,terrain:gold,1000,,"Claim 1,000 gold blocks",7500
+maps-1,Tourist,Exploring,mapsPlayed,1,,Play on 1 map,30
+maps-2,Traveler,Exploring,mapsPlayed,2,,Play on 2 maps,60
+maps-3,Globetrotter,Exploring,mapsPlayed,3,,Play on 3 maps,80
+maps-5,Explorer,Exploring,mapsPlayed,5,,Play on 5 maps,150
+maps-10,Cartographer,Exploring,mapsPlayed,10,,Play on 10 maps,300
+days-1,Day One,Days,daysPlayed,1,,Play on 1 different day,20
+days-5,Regular,Days,daysPlayed,5,,Play on 5 different days,100
+days-10,Ten Day Trek,Days,daysPlayed,10,,Play on 10 different days,200
+days-25,Familiar Face,Days,daysPlayed,25,,Play on 25 different days,500
+days-50,Fifty Days,Days,daysPlayed,50,,Play on 50 different days,1000
+days-100,Old Timer,Days,daysPlayed,100,,Play on 100 different days,2000
+days-250,Veteran,Days,daysPlayed,250,,Play on 250 different days,5000
+days-365,Year One,Days,daysPlayed,365,,Play on 365 different days,7500
+days-500,Lifer,Days,daysPlayed,500,,Play on 500 different days,10000
+streak-2,Back Again,Streaks,bestStreak,2,,Play 2 days in a row,50
+streak-3,Hat Trick,Streaks,bestStreak,3,,Play 3 days in a row,80
+streak-5,Workweek,Streaks,bestStreak,5,,Play 5 days in a row,150
+streak-7,Full Week,Streaks,bestStreak,7,,Play 7 days in a row,200
+streak-14,Fortnight,Streaks,bestStreak,14,,Play 14 days in a row,400
+streak-30,Monthly,Streaks,bestStreak,30,,Play 30 days in a row,800
+streak-60,Two Months Strong,Streaks,bestStreak,60,,Play 60 days in a row,1500
+streak-100,Hundred Day Combo,Streaks,bestStreak,100,,Play 100 days in a row,2500
+streak-180,Half Year,Streaks,bestStreak,180,,Play 180 days in a row,5000
+streak-365,Year-Round,Streaks,bestStreak,365,,Play 365 days in a row,10000
+rank-10,Top Ten,Rank,bestRank,10,,Reach the top 10 on a busy map,50
+rank-5,Top Five,Rank,bestRank,5,,Reach the top 5 on a busy map,250
+rank-3,Podium,Rank,bestRank,3,,Reach the top 3 on a busy map,1000
+rank-2,Runner-Up,Rank,bestRank,2,,Reach the top 2 on a busy map,3000
+rank-1,King of the Hill,Rank,bestRank,1,,Reach #1 on a busy map,10000
+reign-1,Crowned,Reign,reignMinutes,1,,Spend 1 minute at #1 on a busy map,5
+reign-10,Brief Reign,Reign,reignMinutes,10,,Spend 10 minutes at #1 on a busy map,5
+reign-60,Hour on the Throne,Reign,reignMinutes,60,,Spend 60 minutes at #1 on a busy map,20
+reign-300,Long Reign,Reign,reignMinutes,300,,Spend 300 minutes at #1 on a busy map,100
+reign-1000,Dynasty,Reign,reignMinutes,1000,,"Spend 1,000 minutes at #1 on a busy map",300
+reign-5000,Golden Era,Reign,reignMinutes,5000,,"Spend 5,000 minutes at #1 on a busy map",1500
+reign-10k,Empire Eternal,Reign,reignMinutes,10000,,"Spend 10,000 minutes at #1 on a busy map",3000
+reign-30k,Legendary Ruler,Reign,reignMinutes,30000,,"Spend 30,000 minutes at #1 on a busy map",10000
+wipes-1,Clean Slate,Wipes,wipes,1,,Wipe your territory 1 time,20
+wipes-5,Fresh Start,Wipes,wipes,5,,Wipe your territory 5 times,100
+wipes-10,Spring Cleaning,Wipes,wipes,10,,Wipe your territory 10 times,200
+wipes-25,Serial Restarter,Wipes,wipes,25,,Wipe your territory 25 times,500
+wipes-50,Eraser Head,Wipes,wipes,50,,Wipe your territory 50 times,1000
+wipes-100,Eraser Champion,Wipes,wipes,100,,Wipe your territory 100 times,2000
+hours-1,Warm Up,Time,hoursPlayed,1,,Play actively for 1 hour,10
+hours-5,Getting Into It,Time,hoursPlayed,5,,Play actively for 5 hours,50
+hours-10,Hooked,Time,hoursPlayed,10,,Play actively for 10 hours,100
+hours-25,Dedicated,Time,hoursPlayed,25,,Play actively for 25 hours,250
+hours-50,Committed,Time,hoursPlayed,50,,Play actively for 50 hours,500
+hours-100,Hundred Hours,Time,hoursPlayed,100,,Play actively for 100 hours,1000
+hours-250,Marathoner,Time,hoursPlayed,250,,Play actively for 250 hours,2500
+hours-500,Five Hundred Club,Time,hoursPlayed,500,,Play actively for 500 hours,5000
+hours-1000,Thousand Hour Legend,Time,hoursPlayed,1000,,"Play actively for 1,000 hours",10000
+session-10,Quick Run,Sessions,sessionClaims,10,,Claim 10 empty blocks in one visit,5
+session-25,Session Grinder,Sessions,sessionClaims,25,,Claim 25 empty blocks in one visit,5
+session-50,Binge,Sessions,sessionClaims,50,,Claim 50 empty blocks in one visit,5
+session-100,Lost Track of Time,Sessions,sessionClaims,100,,Claim 100 empty blocks in one visit,10
+session-250,All-Nighter,Sessions,sessionClaims,250,,Claim 250 empty blocks in one visit,25
+session-500,Iron Will,Sessions,sessionClaims,500,,Claim 500 empty blocks in one visit,50
+session-1000,No Sleep Club,Sessions,sessionClaims,1000,,"Claim 1,000 empty blocks in one visit",100
+day-50,Productive Day,Big days,bestDayClaims,50,,Claim 50 empty blocks in one day,5
+day-100,Big Day,Big days,bestDayClaims,100,,Claim 100 empty blocks in one day,10
+day-250,Huge Day,Big days,bestDayClaims,250,,Claim 250 empty blocks in one day,25
+day-500,Monster Day,Big days,bestDayClaims,500,,Claim 500 empty blocks in one day,50
+day-1000,Legendary Day,Big days,bestDayClaims,1000,,"Claim 1,000 empty blocks in one day",100
+chat-1,Hello There,Chat,chatMessages,1,,Send 1 chat message,5
+chat-10,Chatty,Chat,chatMessages,10,,Send 10 chat messages,5
+chat-25,Chatterbox,Chat,chatMessages,25,,Send 25 chat messages,5
+chat-50,Talker,Chat,chatMessages,50,,Send 50 chat messages,8
+chat-100,Social Butterfly,Chat,chatMessages,100,,Send 100 chat messages,15
+chat-500,Town Crier,Chat,chatMessages,500,,Send 500 chat messages,80
+chat-1000,Radio Host,Chat,chatMessages,1000,,"Send 1,000 chat messages",150
+chat-5000,Voice of the Map,Chat,chatMessages,5000,,"Send 5,000 chat messages",800
+held-10,Saver,Saving,squaresHeld,10,,Have 10 squares at once,5
+held-50,Stash,Saving,squaresHeld,50,,Have 50 squares at once,5
+held-100,Nest Egg,Saving,squaresHeld,100,,Have 100 squares at once,5
+held-500,Hoarder,Saving,squaresHeld,500,,Have 500 squares at once,15
+held-1000,Dragon Hoard,Saving,squaresHeld,1000,,"Have 1,000 squares at once",30
+held-5000,Bank Vault,Saving,squaresHeld,5000,,"Have 5,000 squares at once",150
+held-10k,Money Bin,Saving,squaresHeld,10000,,"Have 10,000 squares at once",300
+held-50k,Sea of Squares,Saving,squaresHeld,50000,,"Have 50,000 squares at once",1500
+held-100k,Square Mountain,Saving,squaresHeld,100000,,"Have 100,000 squares at once",3000
+held-250k,Scrooge Mode,Saving,squaresHeld,250000,,"Have 250,000 squares at once",8000
+growth-blocks-1,Sprout,Growth,growthBlocks,1,,Make 1 extra block appear with the Growth upgrade,5
+growth-blocks-10,Budding,Growth,growthBlocks,10,,Make 10 extra blocks appear with the Growth upgrade,5
+growth-blocks-100,Blooming,Growth,growthBlocks,100,,Make 100 extra blocks appear with the Growth upgrade,5
+growth-blocks-1k,Overgrowth,Growth,growthBlocks,1000,,"Make 1,000 extra blocks appear with the Growth upgrade",20
+growth-blocks-10k,Jungle Maker,Growth,growthBlocks,10000,,"Make 10,000 extra blocks appear with the Growth upgrade",200
+growth-blocks-100k,Big Bang,Growth,growthBlocks,100000,,"Make 100,000 extra blocks appear with the Growth upgrade",2000
+grown-10,Edge Pusher,Map growth,mapGrown,10,,Make the map grow by 10 blocks,5
+grown-100,Border Breaker,Map growth,mapGrown,100,,Make the map grow by 100 blocks,5
+grown-1k,Land Raiser,Map growth,mapGrown,1000,,"Make the map grow by 1,000 blocks",30
+grown-10k,Continent Maker,Map growth,mapGrown,10000,,"Make the map grow by 10,000 blocks",300
+grown-100k,New World,Map growth,mapGrown,100000,,"Make the map grow by 100,000 blocks",3000
+grown-250k,Universe Builder,Map growth,mapGrown,250000,,"Make the map grow by 250,000 blocks",8000
+renamed,New Me,Firsts,renames,1,,Choose your own name,5
+account,Made It Official,Firsts,account,1,,Make an account,5
+graduate,Graduate,Firsts,tutorialDone,1,,Finish the tutorial,5
+meta-10,Collector,Collector,achievements,10,,Earn 10 achievements,60
+meta-25,Badge Hunter,Collector,achievements,25,,Earn 25 achievements,400
+meta-50,Trophy Case,Collector,achievements,50,,Earn 50 achievements,1500
+meta-100,Hall of Fame,Collector,achievements,100,,Earn 100 achievements,6000
+meta-150,Legend,Collector,achievements,150,,Earn 150 achievements,15000
+meta-200,Mythic,Collector,achievements,200,,Earn 200 achievements,25000
+meta-250,Ascended,Collector,achievements,250,,Earn 250 achievements,40000
+meta-290,Almost Everything,Collector,achievements,290,,Earn 290 achievements,50000
+secrets-1,Snoop,Collector,secrets,1,,Find 1 secret achievement,200
+secrets-5,Detective,Collector,secrets,5,,Find 5 secret achievements,1000
+secrets-10,Know-It-All,Collector,secrets,10,,Find 10 secret achievements,2000
+secret-castaway,Castaway,Secrets,secret:castaway,1,yes,Claim a block with water on all four sides,250
+secret-witching,Witching Hour,Secrets,secret:witching,1,yes,Claim a block between 3:00 and 3:59 in the morning (UTC),100
+secret-leet,Leet,Secrets,secret:leet,1,yes,"Have exactly 1,337 squares",500
+secret-revenge,Revenge,Secrets,secret:revenge,1,yes,"Take a block back from the player who took it, within a minute",150
+secret-poke,Poke Poke,Secrets,secret:poke,1,yes,Tap your own blocks 50 times in one visit,50
+secret-treehugger,Tree Hugger,Secrets,secret:treehugger,1,yes,"Claim 25 forest blocks in a row, nothing else in between",400
+secret-speedrun,Speed Run,Secrets,secret:speedrun,1,yes,Claim 10 empty blocks within one minute,200
+secret-comeback,Comeback Kid,Secrets,secret:comeback,1,yes,"Lose every block on a map, then own 100 there again without wiping",600
+secret-helloworld,Hello World,Secrets,secret:helloworld,1,yes,"Say ""hello world"" in the chat",50
+secret-wipedout,Wiped Out,Secrets,secret:wipedout,1,yes,"Wipe a territory of 1,000 blocks or more",800
+```
+
+## Merge steps (loop 10)
+1. Not needed for the merge, but before the next `npm run sync-rules`: the Achievements tab and the Game Rules changes above.
+2. GitHub: pull request `iterate` -> `main`, merge. Render deploys and applies `014_totals.sql` (fills lifetime totals from past play).
+3. Expect a burst on the first connect after the deploy: players are credited for what they already did (blocks, wipes, purchases, renames), with rewards. Biggest realistic case: a few thousand squares for a long-time player.
+
+## Live checklist (loop 10)
+- Menu (welcome screen) > Awards: categories with progress bars, "x / 300", a Secrets card with ??? rows.
+- Claim a block on a fresh guest: First Block pops up with "+5 squares"; squares go up.
+- Say "hello world" in chat: a secret appears, then shows its name on the Awards screen.
+
+Loop order 10 done. Open: Q6, Q8, Q10, Q11, Q12, Q13, Q14. Stopping.

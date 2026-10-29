@@ -272,14 +272,53 @@ async function earnedAchievements(pool, playerId) {
 }
 
 // Records achievements; returns the ids that were new (not already earned).
-async function earnAchievements(pool, playerId, mapId, ids) {
-  const { rows } = await pool.query(
-    `INSERT INTO player_achievements (player_id, achievement_id, map_id) SELECT $1, unnest($2::text[]), $3
-     ON CONFLICT DO NOTHING RETURNING achievement_id`, [playerId, ids, mapId]);
-  return rows.map(r => r.achievement_id);
+// rewards: { id: squares } for the ids given. Each newly earned one pays its reward (ledger 'achievement:<id>').
+// Returns { fresh: the ids that were new, squares: the new exact balance, or null if nothing was paid }.
+function earnAchievements(pool, playerId, mapId, ids, rewards = {}) {
+  return tx(pool, async c => {
+    // Locks: only a key-share lock on the player (it waits for an account being deleted, so a deleted account
+    // earns nothing more, but never for a claim), and no map: a claim holds its map while it updates the player,
+    // so touching the map here could deadlock. mapId is not stored for that reason.
+    void mapId;
+    const { rows: [who] } = await c.query('SELECT deleted_at FROM players WHERE id = $1 FOR KEY SHARE', [playerId]);
+    if (!who || who.deleted_at) return { fresh: [], squares: null };
+    const { rows } = await c.query(
+      `INSERT INTO player_achievements (player_id, achievement_id) SELECT $1, unnest($2::text[])
+       ON CONFLICT DO NOTHING RETURNING achievement_id`, [playerId, ids]);
+    const fresh = rows.map(r => r.achievement_id);
+    let squares = null;
+    for (const id of fresh) {
+      const pay = Number(rewards[id]) || 0;
+      if (!pay) continue;
+      const { rows: [p] } = await c.query('UPDATE players SET squares = squares + $2 WHERE id = $1 AND deleted_at IS NULL RETURNING squares', [playerId, pay]);
+      if (!p) continue;
+      await c.query('INSERT INTO square_ledger (player_id, delta, balance_after, reason) VALUES ($1, $2, $3, $4)',
+        [playerId, pay, p.squares, 'achievement:' + id]);
+      squares = Number(p.squares);
+    }
+    return { fresh, squares };
+  });
 }
 
-Object.assign(module.exports, { earnedAchievements, earnAchievements });
+// A player's lifetime totals (totals.js): { stat: value }.
+async function loadTotals(pool, playerId) {
+  const { rows } = await pool.query('SELECT stat, value FROM player_totals WHERE player_id = $1', [playerId]);
+  return Object.fromEntries(rows.map(r => [r.stat, Number(r.value)]));
+}
+// Saves totals that changed: { stat: value }.
+async function saveTotals(pool, playerId, changes) {
+  const stats = Object.keys(changes);
+  if (!stats.length) return;
+  await pool.query(`INSERT INTO player_totals (player_id, stat, value) SELECT $1, * FROM unnest($2::text[], $3::float8[])
+    ON CONFLICT (player_id, stat) DO UPDATE SET value = EXCLUDED.value`, [playerId, stats, stats.map(k => changes[k])]);
+}
+// How many maps a player has played (has a look on).
+async function mapsPlayed(pool, playerId) {
+  const { rows: [r] } = await pool.query('SELECT count(*)::int AS n FROM player_map_settings WHERE player_id = $1', [playerId]);
+  return r.n;
+}
+
+Object.assign(module.exports, { earnedAchievements, earnAchievements, loadTotals, saveTotals, mapsPlayed });
 
 // The maps players can go to (official ones; purchased and VIP maps come later), oldest first.
 async function listMaps(pool) {
@@ -528,7 +567,7 @@ function deleteAccount(pool, playerId) {
     const { rows: maps } = await c.query('SELECT DISTINCT map_id FROM map_cells WHERE owner_id = $1', [playerId]);
     await c.query('UPDATE map_cells SET owner_id = NULL, claimed_at = NULL WHERE owner_id = $1', [playerId]);
     for (const t of ['player_tokens', 'player_map_settings', 'player_map_stats', 'player_achievements', 'player_skins',
-      'level_remaps', 'tap_limit_log', 'bans']) {
+      'level_remaps', 'tap_limit_log', 'bans', 'player_totals']) {
       await c.query(`DELETE FROM ${t} WHERE player_id = $1`, [playerId]);
     }
     await c.query('DELETE FROM player_links WHERE account_id = $1 OR guest_id = $1', [playerId]);
@@ -562,7 +601,7 @@ function resetProgress(pool, playerId) {
     const { rows: maps } = await c.query(`SELECT map_id FROM map_cells WHERE owner_id = $1
       UNION SELECT map_id FROM player_map_settings WHERE player_id = $1 UNION SELECT map_id FROM player_map_stats WHERE player_id = $1`, [playerId]);
     await c.query('UPDATE map_cells SET owner_id = NULL, claimed_at = NULL WHERE owner_id = $1', [playerId]);
-    for (const t of ['player_map_settings', 'player_map_stats', 'player_achievements', 'level_remaps']) {
+    for (const t of ['player_map_settings', 'player_map_stats', 'player_achievements', 'level_remaps', 'player_totals']) {
       await c.query(`DELETE FROM ${t} WHERE player_id = $1`, [playerId]);
     }
     await c.query("DELETE FROM player_skins WHERE player_id = $1 AND source <> 'purchase'", [playerId]);

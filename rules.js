@@ -49,9 +49,11 @@ const settings = {
   SOUND: { maxAtOnce: R.soundMaxAtOnce, hearing: R.soundHearingDistance, othersVolume: R.soundOthersVolume,
     effectsVolume: R.defaultEffectsVolume, musicVolume: R.defaultMusicVolume },
 
-  // Achievement thresholds by id ("achievement.first-block" in the sheet); names and stats are in achievements.js
-  ACHIEVEMENT_THRESHOLDS: Object.fromEntries(Object.entries(R).filter(([k]) => k.startsWith('achievement.'))
-    .map(([k, v]) => [k.slice('achievement.'.length), v])),
+  // Achievements (the sheet's Achievements tab): [{ id, name, category, stat, threshold, secret, description, reward }]
+  ACHIEVEMENTS: economy.achievements ?? [],
+  // Rank and reign achievements count only on maps where at least this many players own blocks.
+  RANK_MIN_PLAYERS: R.rankMinPlayers,
+  RANK_MIN_BLOCKS: R.rankMinBlocks,   // …and only for a player with at least this many blocks there
 
   // Per-map look, chosen on the first claim on a map and locked until a wipe (code constants, not numbers)
   COVERAGES: ['tile', 'stretch'], // how a skin covers a territory: per block, or one image over the full area (the first is the default)

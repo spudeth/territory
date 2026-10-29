@@ -126,9 +126,13 @@ The largest square and the longest line are **records**. Losing blocks never low
 
 ## Achievements
 
-- Each achievement is earned once per player, on whichever map they first reach it. (Q3: answered A)
-- They're checked on every stat change. The current 8 are placeholders until the real list is approved (see Q5 in `CODY-LOG.md`): First Block (1 first claim), 100 Blocks, 1,000 Blocks (owned at once), 10 by 10, 50 by 50 (largest square), Line of 10, Line of 100, Raider (10 retakes). (names in `achievements.js`; thresholds on Game Rules: `achievement.<id>`)
-- Menu → Achievements lists them, with progress toward each (your best on any map), and an All / Earned / Locked filter. A yellow pop-up shows when you earn one.
+- 300 achievements, from the sheet's **Achievements** tab (Key, Name, Category, Stat, Threshold, Secret, Description, Reward; `npm run sync-rules` checks and imports it). Each is earned once per player, and pays its **Reward** in squares (ledger reason `achievement:<key>`).
+- Categories climb nice-number ladders (1, 5, 10, 25, 50, 100, 250…). A category's top tier is about 1,000 hours of dedicated play (144 new blocks an hour); earning all 300 is about 30,000 hours. Rewards are about 10 squares per hour of effort, at least 5.
+- Stats (`economy.js`, `STATS`): lifetime totals kept per player (`player_totals`: blocks claimed, taken, lost, taps, squares earned by claiming and spent on upgrades, upgrades bought, terrain claimed, days played and the longest daily streak (UTC days), active hours (minutes with a tap), wipes, chat messages, Growth's extra blocks, map growth, most claimed in one visit and in one day, minutes at #1), plus records on any map (most owned at once, largest square, longest line), upgrade levels, maps played, best rank, the balance at its highest, and achievements and secrets found.
+- Rank and reign count only on maps where at least `rankMinPlayers` (10) players own blocks, for players with at least `rankMinBlocks` (100) blocks there; ties count against you.
+- 10 secret achievements show as "???" until earned.
+- Progress from before this list (blocks, wipes, purchases, squares, renames) counts: anything already reached is earned, with its reward, the next time the player connects.
+- Menu → Awards groups them by category, with each category's next tier and a progress bar, and the total out of 300. A yellow pop-up shows each one earned and its reward.
 
 ## Name labels
 
