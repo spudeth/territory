@@ -264,7 +264,9 @@ function drawSkinPreview(canvas, skin, color) {
 }
 
 let skinsBack = 'main';   // where the back button goes: the welcome screen, or the setup screen
-let skinList = [], skinTab = 'All';
+let skinList = [], skinTab = 'Common';
+// The tabs: by rarity (Ultra Rare sits with Legendary), and what you own. Collections are headings inside.
+const SKIN_TABS = { Common: ['Common'], Rare: ['Rare'], Legendary: ['Ultra Rare', 'Legendary'] };
 fills.skins = async () => {
   menu.querySelector('[data-view="skins"] .head [data-go]').dataset.go = skinsBack;
   skinsBack = 'main';
@@ -276,8 +278,7 @@ fills.skins = async () => {
 function drawSkins() {
   $('skins-owned').textContent = `${skinList.filter(s => s.owned).length} owned`;
   $('skins-squares').textContent = squares;
-  const collections = [...new Set(skinList.map(s => s.collection))];
-  $('skins-tabs').replaceChildren(...['All', ...collections, 'Owned'].map(name => {
+  $('skins-tabs').replaceChildren(...[...Object.keys(SKIN_TABS), 'Owned'].map(name => {
     const b = document.createElement('button');
     b.type = 'button';
     b.setAttribute('role', 'tab');
@@ -287,7 +288,8 @@ function drawSkins() {
     return b;
   }));
   const q = $('skins-search').value.trim().toLowerCase();
-  const shown = skinList.filter(s => (skinTab === 'All' || (skinTab === 'Owned' ? s.owned : s.collection === skinTab)) && (!q || s.name.toLowerCase().includes(q)));
+  // A search looks through every skin; otherwise the tab picks them.
+  const shown = skinList.filter(s => q ? s.name.toLowerCase().includes(q) : skinTab === 'Owned' ? s.owned : SKIN_TABS[skinTab].includes(s.rarity));
   const groups = new Map();
   for (const s of shown) (groups.get(s.collection) ?? groups.set(s.collection, []).get(s.collection)).push(s);
   $('catalog').replaceChildren(...[...groups].flatMap(([collection, list]) => {

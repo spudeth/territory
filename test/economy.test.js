@@ -28,7 +28,7 @@ test('the saved sheet passes and reads every level and rule as shown', () => {
   assert.deepEqual(e.upgrades.growth.map(l => l.value), [1, 2, 3, 4, 5, 6]);
   assert.equal(e.rules.hitsPerBlock, 10);
   assert.equal(e.achievements.length, 300);
-  assert.deepEqual(e.achievements[0], { id: 'first-block', name: 'First Block', category: 'Claiming', stat: 'claims', threshold: 1, secret: false, description: 'Claim 1 empty block', reward: 1 });
+  assert.deepEqual(e.achievements[0], { id: 'first-block', name: 'First Block', category: 'Claiming', stat: 'claims', threshold: 1, secret: false, description: 'Claim 1 empty block', reward: 0.5 });
   assert.equal(Object.keys(e.rules).length, Object.keys(economy.RULE_KEYS).length);
 });
 

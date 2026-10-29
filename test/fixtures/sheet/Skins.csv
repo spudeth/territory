@@ -204,3 +204,43 @@ flag-scotland,Scotland,art,Rare,1000,Flags,yes
 flag-wales,Wales,art,Rare,1000,Flags,yes
 flag-pr,Puerto Rico,art,Rare,1000,Flags,yes
 flag-gl,Greenland,art,Rare,1000,Flags,yes
+icon-heart,Heart,art,Common,100,Symbols,yes
+icon-gold-star,Gold Star,art,Common,100,Symbols,yes
+icon-moon,Moon,art,Common,100,Symbols,yes
+icon-sun,Sun,art,Common,100,Symbols,yes
+icon-lightning,Lightning,art,Common,100,Symbols,yes
+icon-snowflake,Snowflake,art,Common,100,Symbols,yes
+icon-rainbow,Rainbow,art,Common,100,Symbols,yes
+icon-music,Music,art,Common,100,Symbols,yes
+icon-crown,Crown,art,Common,100,Symbols,yes
+icon-shield,Shield,art,Common,100,Symbols,yes
+icon-anchor,Anchor,art,Common,100,Symbols,yes
+icon-pixel-sword,Pixel Sword,art,Common,100,Symbols,yes
+icon-checker-flag,Checker Flag,art,Common,100,Symbols,yes
+icon-leaf,Leaf,art,Common,100,Nature,yes
+icon-flower,Flower,art,Common,100,Nature,yes
+icon-clover,Clover,art,Common,100,Nature,yes
+icon-cactus,Cactus,art,Common,100,Nature,yes
+icon-mushroom,Mushroom,art,Common,100,Nature,yes
+icon-wave,Wave,art,Common,100,Nature,yes
+icon-bubbles,Bubbles,art,Common,100,Nature,yes
+icon-flame,Flame,art,Common,100,Nature,yes
+icon-lava,Lava,art,Common,100,Nature,yes
+icon-ice,Ice,art,Common,100,Nature,yes
+icon-camo,Camo,art,Common,100,Nature,yes
+icon-galaxy,Galaxy,art,Common,100,Nature,yes
+icon-planet,Planet,art,Common,100,Nature,yes
+icon-smiley,Smiley,art,Common,100,Critters,yes
+icon-ghost,Ghost,art,Common,100,Critters,yes
+icon-alien,Alien,art,Common,100,Critters,yes
+icon-skull,Skull,art,Common,100,Critters,yes
+icon-robot,Robot,art,Common,100,Critters,yes
+icon-cat,Cat,art,Common,100,Critters,yes
+icon-fish,Fish,art,Common,100,Critters,yes
+icon-paw,Paw,art,Common,100,Critters,yes
+icon-cherry,Cherry,art,Common,100,Snacks & Gems,yes
+icon-pizza,Pizza,art,Common,100,Snacks & Gems,yes
+icon-donut,Donut,art,Common,100,Snacks & Gems,yes
+icon-diamond,Diamond,art,Common,100,Snacks & Gems,yes
+icon-gem-red,Gem Red,art,Common,100,Snacks & Gems,yes
+icon-rocket,Rocket,art,Common,100,Snacks & Gems,yes
