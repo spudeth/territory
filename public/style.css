@@ -15,7 +15,7 @@
   --blue: #29adff; --pink: #ff77a8; --orange: #ffa300; --yellow: #ffec27;
   --teal: #00e4a0; --purple: #c29bff; --green: #00e436; --red: #c9302c;
   --title: 'Press Start 2P', monospace;
-  --body: 'Pixelify Sans', system-ui, sans-serif;
+  --body: 'VT323', 'Pixelify Sans', system-ui, sans-serif;   /* VT323 has only the digits (index.html) */
 }
 
 * { box-sizing: border-box; }
