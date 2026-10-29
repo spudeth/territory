@@ -145,6 +145,7 @@ function render() {
   const waterFrame = Math.floor(performance.now() / WATER_FRAME_MS) % 2;
   let waterShown = false;
   const fullArea = new Map();   // owner -> their visible blocks, for Full area skins
+  const white = mapInfo?.style === 'white' && !world;
   for (let y = r0; y < r1; y++) {
     for (let x = c0; x < c1; x++) {
       const o = ownerAt(x, y);
@@ -152,6 +153,7 @@ function render() {
       const x0 = X(x), y0 = Y(y), bw = X(x + 1) - x0, bh = Y(y + 1) - y0;
       const ground = world ? world.at(x, y) : 'grass';
       if (ground === 'water') { waterShown = true; ctx.drawImage(TERRAIN_TILES.water[waterFrame], x0, y0, bw, bh); }
+      else if (white) { ctx.fillStyle = '#f7f8fa'; ctx.fillRect(x0, y0, bw, bh); }   // the white style: clean white blocks
       else ctx.drawImage(ground === 'grass' ? tiles[variant(x, y)] : TERRAIN_TILES[ground], x0, y0, bw, bh);
 
       if (o) {
@@ -162,8 +164,9 @@ function render() {
         else if (img) ctx.drawImage(img, x0, y0, bw, bh);
         if (look.kind !== 'art' && !(look.full && look.kind === 'pattern')) {
           ctx.fillStyle = players[o]?.color || '#888';
-          ctx.globalCompositeOperation = 'color';
-          ctx.globalAlpha = look.kind === 'pattern' ? 1 : 0.9;
+          // On white there's no shading to keep, so the color goes on directly.
+          ctx.globalCompositeOperation = white && look.kind === 'default' ? 'source-over' : 'color';
+          ctx.globalAlpha = look.kind === 'pattern' ? 1 : white ? 0.85 : 0.9;
           ctx.fillRect(x0, y0, bw, bh);
           ctx.globalCompositeOperation = 'source-over';
           ctx.globalAlpha = 1;
