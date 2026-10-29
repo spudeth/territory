@@ -45,6 +45,13 @@
       C: [{ wave: 'saw', freq: 1200, slide: -4, attack: 0, hold: 0.06, decay: 0.1, vol: 0.3 },
           { wave: 'square', freq: 784, duty: 0.5, attack: 0, hold: 0.08, decay: 0.1, vol: 0.3, at: 0.07 }],
     },
+    death: {
+      label: 'You die on a map (your last block is taken)',
+      A: { wave: 'square', freq: 392, duty: 0.5, attack: 0, hold: 0.45, decay: 0.35, vol: 0.35, steps: [[0.15, 0.84], [0.3, 0.67], [0.45, 0.5]] },
+      B: [{ wave: 'noise', freq: 600, slide: -2, attack: 0, hold: 0.2, decay: 0.4, vol: 0.45 },
+          { wave: 'triangle', freq: 220, slide: -3, attack: 0, hold: 0.3, decay: 0.3, vol: 0.5 }],
+      C: { wave: 'saw', freq: 330, slide: -1.5, attack: 0, hold: 0.5, decay: 0.3, vol: 0.25, vib: [0.04, 6] },
+    },
     grow: {
       label: 'The map grows',
       A: { wave: 'sine', freq: 400, slide: 2.5, attack: 0.01, hold: 0.05, decay: 0.12, vol: 0.45 },

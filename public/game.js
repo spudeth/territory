@@ -416,7 +416,16 @@ function render() {
     if (squareIcon.complete) ctx.drawImage(squareIcon, (ox + (p.x + 0.5) * scale) * dpr - s / 2, bottom - s, s, s);
     ctx.globalAlpha = 1;
   }
-  if (squarePops.length) draw();   // keep animating
+  // A death: the last block's pieces falling away.
+  shards = shards.filter(s => now - s.t0 < 1500);
+  for (const s of shards) {
+    const t = (now - s.t0) / 1000;
+    ctx.globalAlpha = Math.max(0, 1 - t / 1.5);
+    ctx.fillStyle = s.color;
+    ctx.fillRect((ox + (s.x + s.vx * t) * scale) * dpr, (oy + (s.y + s.vy * t + 4 * t * t) * scale) * dpr, scale * dpr / 4, scale * dpr / 4);
+  }
+  ctx.globalAlpha = 1;
+  if (squarePops.length || shards.length) draw();   // keep animating
 }
 
 // The square that pops off a block when it earns a new whole square.
@@ -662,6 +671,37 @@ socket.on('disconnect', reason => {
 });
 // The server is about to disconnect us for good: banned, kicked by an admin, account deleted, or restored.
 const NOTICE_TITLES = { banned: "YOU'VE BEEN BANNED", kicked: 'DISCONNECTED', deleted: 'ACCOUNT DELETED', restored: 'GAME RESTORED' };
+// ---------- Death (loop 13) ----------
+// The last block shatters, the screen flashes and goes grey, the camera eases to it; then the death screen.
+// Reduce motion: a quick fade. A death while away shows the screen straight away.
+let shards = [];
+socket.on('died', life => {
+  const calm = matchMedia('(prefers-reduced-motion: reduce)').matches || life.offline || life.x == null;
+  if (!life.offline) gameAudio.play('death');
+  if (!calm) {
+    for (let i = 0; i < 16; i++) shards.push({ x: life.x + (i % 4) / 4, y: life.y + Math.floor(i / 4) / 4, vx: (Math.random() - 0.5) * 2, vy: -Math.random() * 1.5,
+      t0: performance.now(), color: myColor });
+    document.body.classList.add('dying');
+    const from = { ox, oy }, to = { ox: innerWidth / 2 - (life.x + 0.5) * scale, oy: innerHeight / 2 - (life.y + 0.5) * scale }, t0 = performance.now();
+    const ease = now => { const k = Math.min(1, (now - t0) / 900), e = 1 - (1 - k) ** 3; ox = from.ox + (to.ox - from.ox) * e; oy = from.oy + (to.oy - from.oy) * e; draw(); if (k < 1) requestAnimationFrame(ease); };
+    requestAnimationFrame(ease);
+  }
+  setTimeout(() => showDeath(life), calm ? 0 : 1500);
+});
+function showDeath(life) {
+  const s = Math.max(0, Math.round(life.seconds)), h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60;
+  $('death-time').textContent = h ? `${h}h ${m}m` : m ? `${m}m ${s % 60}s` : `${s}s`;
+  $('death-peak').textContent = life.peak.toLocaleString();
+  $('death-killer').textContent = life.killer ?? 'someone';
+  $('death-claims').textContent = life.claims.toLocaleString();
+  $('death-squares').textContent = (Math.round(life.squares * 10) / 10).toLocaleString();
+  $('death').hidden = false;
+}
+const leaveDeath = () => { $('death').hidden = true; document.body.classList.remove('dying'); };
+// Respawn: back on this map with no blocks and the same look (dying isn't wiping), so no setup screen.
+$('death-respawn').addEventListener('click', () => { gameAudio.play('button'); leaveDeath(); });
+$('death-menu').addEventListener('click', () => { gameAudio.play('button'); leaveDeath(); welcomeScreen.open(); });
+
 socket.on('notice', ({ kind, message }) => {
   if (kind === 'reset') return location.reload();   // this player started over: load the fresh start
   $('notice-title').textContent = NOTICE_TITLES[kind] ?? 'DISCONNECTED';

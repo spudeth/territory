@@ -1004,3 +1004,19 @@ OPEN for Bob (to paste into the sheet before the next sync): the Achievements ta
 #96 | 2026-10-29 | Xoren: max Defense is x2 (was x3 from the sheet). rules.js scales every Defense value the same way (1 + (v-1) x 1/2 with the sheet top at 3), so stored levels never move and nobody is remapped; the Upgrades screen shows the scaled values. OPEN Q18 (Bob): put the x2 into the sheet's Defense tab instead (then DEFENSE_TOP can go)? | tests: rules, shop, server upgrades pass
 #97 | 2026-10-29 | Xoren: Earnings level 100 costs 10,000 (the sheet had 116,172). rules.js flattens the cost curve in log space: level 1 stays 9, every level still costs more than the last (10: 18, 25: 50, 50: 293, 75: 1,711). Costs only, so no level remap. OPEN Q19 (Bob): put these costs in the sheet's Earnings tab (then EARNINGS_TOP_COST can go)? | tests pass
 #98 | 2026-10-29 | Correction (Xoren meant twice the current max): Defense tops out at x6 (DEFENSE_TOP 6), every level scaled the same way from the sheet's values; no remap. Supersedes #96
+#99 | 2026-10-29 | Loop 13: death and respawn. Losing your last block on a map to another player is a death there (per map; wiping is not a death, it just closes the life). player_lives (migration 015) records each life: map, start (first block), end, peak blocks, claims, squares earned, killer, where. On death: the last block shatters into 16 falling pieces, a white flash, the map goes grey, the camera eases to it (about 1.5 s; reduce motion: just the screen), the Death sound (3 options on the sound test page, A until picked: OPEN Q20), then the death screen "YOUR TERRITORY HAS FALLEN": time survived, most blocks at once, who took the last block, blocks claimed and squares earned this life; RESPAWN (same map, no blocks, same look: no setup screen) or MENU. A death while away shows on return to that map. Squares, upgrades, achievements, skins are never lost | tests: death (last block kills, peak and time, respawn, wipe not a death, offline death shown and marked seen); full suite 133/133. Screenshots docs/screenshots/loop13-death-screen.png, loop13-dying.png
+
+OPEN Q21 (Bob): death and survival achievement ideas, not added yet:
+- Survivor: a life lasting 1 hour / 1 day / 1 week on a busy map
+- Untouchable: 100 / 1,000 blocks owned at once without dying in that life
+- Phoenix Rising: respawn and reach 100 blocks within 10 minutes
+- Hard to Kill: 10 / 50 / 100 lives that ended in death (a count)
+- Kingslayer: take the last block of the map's #1 player (they die)
+- Executioner: end 10 / 100 / 1,000 lives
+- Last Stand: survive with exactly 1 block for 5 minutes
+
+## Merge steps (loop 13)
+1. GitHub: pull request iterate -> main, merge. Render deploys and applies 015_lives.sql.
+2. Live check: two accounts on one map; take one's last block: the other sees the shatter, then the death screen with the right numbers; RESPAWN, claim any empty block. Close a tab, have its last block taken, reopen that map: the death screen shows.
+
+Loop order 13 done. Stopping.
