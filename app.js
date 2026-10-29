@@ -95,7 +95,10 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
         // terrainAt(x, y): a seeded map's terrain (public/terrain.js); maps without a seed are all grass.
         // White maps never have terrain, even with a seed (one was made with a random seed by mistake).
         const world = m.seed && m.style !== 'white' ? terrain.makeWorld(m.seed, rules.TERRAIN) : null;
-        const map = { id: m.id, name: m.name, style: m.style, seed: m.seed, terrainAt: world ? world.at : () => 'grass',
+        // Terraformer changes (terrain_overrides) win over the seed's terrain.
+        const overrides = new Map(m.overrides.map(o => [key(o.x, o.y), o.terrain]));
+        const map = { id: m.id, name: m.name, style: m.style, seed: m.seed, overrides,
+          terrainAt: (x, y) => overrides.get(key(x, y)) ?? (world ? world.at(x, y) : 'grass'),
           room: 'map:' + m.id, cells: new Map(), counts: new Map(),
           players: new Map(m.players.map(p => [p.player_id, { name: p.name, color: p.color, skin: p.skin_id, coverage: p.coverage,
             unlocked: p.unlocked, wipeFloor: p.wipe_floor, upgrades: upgradesOf(p) }])),
@@ -327,6 +330,10 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
     };
   }
 
+  // Items (loop 14). Super Click: pid -> { until, value } while it runs.
+  const superClicks = new Map();
+  const TERRAFORM_TO = ['grass', 'sand', 'forest', 'stone', 'water'];   // never gold
+
   // A death: shown at once on the player's connections on that map; one that happens while they're away waits
   // for their return (store.unseenDeath, on entering the map).
   function announceDeath(pid, mapId, life) {
@@ -456,6 +463,7 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
         players: Object.fromEntries([...map.players].map(([pid, { upgrades, ...shown }]) => [pid, shown])),
         hits: [...map.hits].map(([k, h]) => [...k.split(',').map(Number), share(h)]),
         chat: chats.get(map.id) ?? [],
+        terrain: [...map.overrides].map(([k, t]) => [...k.split(',').map(Number), t]),   // Terraformer changes
       });
     }
     // upgraded: the guest profile just became an account; the browser can forget its guest token
@@ -622,7 +630,8 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       if (h?.by !== by) { map.hits.set(k, h = { by, n: session.spare }); session.spare = 0; }
       h.at = now;
       h.need = need;
-      h.n += rules.hitPower(upgrades);
+      const boost = superClicks.get(String(me.pid));   // Super Click: x value until it runs out
+      h.n += rules.hitPower(upgrades) * (boost && boost.until > now ? boost.value : 1);
       if (!rules.isTaken(h.n, need)) return io.to(map.room).emit('hit', { x, y, p: share(h) });
 
       session.spare = Math.max(0, h.n - need);
@@ -758,6 +767,77 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
     });
 
     let buying = false;   // one purchase at a time per connection (skins and upgrades)
+    // Items (loop 14): the list with what this player owns and how many uses are left.
+    socket.on('items', async (...args) => {
+      const reply = args.at(-1);
+      if (typeof reply !== 'function') return;
+      try { reply({ list: await store.itemsFor(pool, me.pid), balance: Number(me.squares) }); } catch { reply({ error: 'Could not load items. Try again.' }); }
+    });
+    socket.on('buyItem', async (p, reply) => {
+      if (typeof reply !== 'function') return;
+      if (!me.pid) return reply({ error: 'Claim a block first' });
+      const item = rules.ITEMS.find(i => i.id === p?.item && i.enabled);
+      if (!item) return reply({ error: 'That item is not for sale' });
+      if (buying) return reply({ error: 'One purchase at a time' });
+      buying = true;
+      try {
+        const r = await store.buyItem(pool, me.pid, item);
+        if (r.error) return reply(r);
+        balanceChanged(me.pid, r.squares);
+        totals.bump(me.pid, 'squaresSpent', item.price);
+        io.to('player:' + me.pid).emit('itemsChanged');
+        reply({ squares: rules.shownSquares(r.squares), balance: r.squares });
+      } catch (err) {
+        console.error(`ITEM PURCHASE FAILED (player ${me.pid}, ${p?.item}): ${err.message}`);
+        reply({ error: 'Could not buy that. Try again.' });
+      } finally { buying = false; }
+    });
+    // Uses an owned item: { item } for Super Click; { item, x, y, terrain } for the Terraformer (on this map).
+    // Limits are checked on the server, per player across every map. Answers { ok, usesLeft, nextAt } or { error }.
+    socket.on('useItem', async (p, reply) => {
+      if (typeof reply !== 'function') return;
+      if (!me.pid) return reply({ error: 'Claim a block first' });
+      const item = rules.ITEMS.find(i => i.id === p?.item);
+      if (!item) return reply({ error: 'Unknown item' });
+      const here = map, done = r => { if (r.ok) io.to('player:' + me.pid).emit('itemsChanged'); reply(r); };
+      try {
+        if (item.effect === 'clickMultiplier') {
+          const r = await store.useItem(pool, me.pid, item, here.id);
+          if (r.ok) {
+            const until = Date.now() + item.seconds * 1000;
+            superClicks.set(String(me.pid), { until, value: item.value });
+            io.to('player:' + me.pid).emit('superClick', { until, value: item.value });
+          }
+          return done(r);
+        }
+        if (item.effect === 'terraform') {
+          const { x, y, terrain } = p;
+          if (!Number.isInteger(x) || !Number.isInteger(y) || !TERRAFORM_TO.includes(terrain)) return reply({ error: 'Pick a block and grass, sand, forest, stone or water' });
+          await serial(here, async () => {
+            const k = key(x, y), owner = here.cells.get(k);
+            if (owner === undefined) return reply({ error: 'That is not a block' });
+            const mine = owner === me.pid, nextToMine = owner === null && rules.NEIGHBORS.some(([dx, dy]) => here.cells.get(key(x + dx, y + dy)) === me.pid);
+            if (!mine && !nextToMine) return reply({ error: 'Only your own blocks, or empty ones touching your land' });
+            if (here.terrainAt(x, y) === 'gold') return reply({ error: "Gold can't be changed" });
+            if (here.terrainAt(x, y) === terrain) return reply({ error: `It's already ${terrain}` });
+            const r = await store.useItem(pool, me.pid, item, here.id, c => store.setTerrain(c, here.id, x, y, terrain));
+            if (r.ok) {
+              here.overrides.set(k, terrain);
+              here.hits.delete(k);
+              io.to(here.room).emit('terrain', { x, y, terrain });
+              if (terrain === 'water' && owner) { setOwner(here, k, null); io.to(here.room).emit('claim', { x, y, pid: null }); statChanged(here, owner, 'owned', here.counts.get(owner) || 0); }
+            }
+            done(r);
+          });
+          return;
+        }
+        reply({ error: 'Unknown item' });
+      } catch (err) {
+        console.error(`ITEM USE FAILED (player ${me.pid}, ${p?.item}): ${err.message}`);
+        reply({ error: 'Could not use that. Try again.' });
+      }
+    });
+
     // Buys a skin with squares: { skin: id }. Answers { squares, balance } or { error, need }. Owned skins work on
     // every map; a guest's carry over when they make an account (it's the same player).
     socket.on('buySkin', async (p, reply) => {

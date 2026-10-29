@@ -110,6 +110,7 @@ function lookOf(o) {
   const p = players[o], kind = p?.skin && p.skin !== 'default' ? gameSettings.skinKinds?.[p.skin] : null;
   return kind ? { kind, id: p.skin, full: p.coverage === 'stretch', anim: gameSettings.skinAnimated?.includes(p.skin) } : { kind: 'default' };
 }
+let terrainChanges = new Map();   // "x,y" -> terrain from the Terraformer, over the seed's (items.js)
 let world = null;   // this map's terrain (terrain.makeWorld), or null for a map without a seed (all grass)
 let waterTimer = null;
 function variant(x, y) {
@@ -226,7 +227,7 @@ function render() {
       const o = ownerAt(x, y);
       if (o === undefined) continue;
       const x0 = X(x), y0 = Y(y), bw = X(x + 1) - x0, bh = Y(y + 1) - y0;
-      const ground = world ? world.at(x, y) : 'grass';
+      const ground = terrainChanges.get(key(x, y)) ?? (world ? world.at(x, y) : 'grass');
       if (ground === 'water') { waterShown = true; ctx.drawImage(TERRAIN_TILES.water[waterFrame], x0, y0, bw, bh); }
       else if (white) { ctx.fillStyle = '#f7f8fa'; ctx.fillRect(x0, y0, bw, bh); }   // the white style: clean white blocks
       else ctx.drawImage(ground === 'grass' ? tiles[variant(x, y)] : TERRAIN_TILES[ground], x0, y0, bw, bh);
@@ -487,7 +488,8 @@ function pointerEnd(e) {
   if (!pointers.delete(e.pointerId)) return;
   if (e.type === 'pointerup' && tap && pointers.size === 0) {
     const c = cellAt(e.clientX, e.clientY);
-    if (c && !(me && cells.get(key(c.x, c.y)) === me)) {
+    if (c && window.itemTap?.(c)) { /* the Terraformer took this tap (items.js) */ }
+    else if (c && !(me && cells.get(key(c.x, c.y)) === me)) {
       socket.emit('hit', c);
       gameAudio.play('tap');
       myTaps.set(key(c.x, c.y), Date.now());
@@ -555,7 +557,10 @@ function updateUI() {
 // ---------- Networking ----------
 // The auth callback runs on every (re)connect. It sends the guest's saved token (visitors have none until their
 // first claim) and, when logged in, a fresh login token (loginToken() is in account.js).
+// It connects once every script has loaded (items.js, the last one, calls socket.connect()): connecting earlier could
+// ask account.js for a login token before it exists, and then never connect.
 const socket = io({
+  autoConnect: false,
   auth: cb => loginToken().then(jwt => cb({
     token: localStorage.getItem('territory-token'), jwt, upgrade: sessionStorage.getItem('territory-upgrade') === '1',
   })),
@@ -585,6 +590,7 @@ socket.on('welcome', data => {
   }
   if (data.loginFailed) toast('Your login has expired. Log in again from the menu.');
   players = data.players;
+  terrainChanges = new Map((data.terrain ?? []).map(([x, y, t]) => [key(x, y), t]));
   world = data.map.seed && data.map.style !== 'white' ? terrain.makeWorld(data.map.seed, data.settings.terrain) : null;   // white maps: no terrain
   cells = new Map();
   bounds = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
@@ -675,6 +681,7 @@ const NOTICE_TITLES = { banned: "YOU'VE BEEN BANNED", kicked: 'DISCONNECTED', de
 // The last block shatters, the screen flashes and goes grey, the camera eases to it; then the death screen.
 // Reduce motion: a quick fade. A death while away shows the screen straight away.
 let shards = [];
+socket.on('terrain', ({ x, y, terrain }) => { terrainChanges.set(key(x, y), terrain); hits.delete(key(x, y)); draw(); });
 socket.on('died', life => {
   const calm = matchMedia('(prefers-reduced-motion: reduce)').matches || life.offline || life.x == null;
   if (!life.offline) gameAudio.play('death');

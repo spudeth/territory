@@ -93,7 +93,8 @@ async function loadMap(pool, mapId) {
     pool.query('SELECT s.player_id, p.name, s.color, s.skin_id, s.coverage, s.unlocked, s.wipe_floor, p.click_power, p.defense, p.earnings, p.growth FROM player_map_settings s JOIN players p ON p.id = s.player_id WHERE s.map_id = $1', [mapId]),
     pool.query('SELECT * FROM player_map_stats WHERE map_id = $1', [mapId]),
   ]);
-  return { ...map, cells: cells.rows, players: players.rows, stats: stats.rows };
+  const overrides = (await pool.query('SELECT x, y, terrain FROM terrain_overrides WHERE map_id = $1', [mapId])).rows;
+  return { ...map, cells: cells.rows, players: players.rows, stats: stats.rows, overrides };
 }
 
 async function cellOwner(pool, mapId, x, y) {
@@ -596,7 +597,7 @@ function deleteAccount(pool, playerId) {
     const { rows: maps } = await c.query('SELECT DISTINCT map_id FROM map_cells WHERE owner_id = $1', [playerId]);
     await c.query('UPDATE map_cells SET owner_id = NULL, claimed_at = NULL WHERE owner_id = $1', [playerId]);
     for (const t of ['player_tokens', 'player_map_settings', 'player_map_stats', 'player_achievements', 'player_skins',
-      'level_remaps', 'tap_limit_log', 'bans', 'player_totals', 'player_lives']) {
+      'level_remaps', 'tap_limit_log', 'bans', 'player_totals', 'player_lives', 'player_items', 'item_uses']) {
       await c.query(`DELETE FROM ${t} WHERE player_id = $1`, [playerId]);
     }
     await c.query('DELETE FROM player_links WHERE account_id = $1 OR guest_id = $1', [playerId]);
@@ -649,7 +650,7 @@ function deleteMap(pool, mapId) {
   return tx(pool, async c => {
     for (const sql of ['UPDATE players SET last_map_id = NULL WHERE last_map_id = $1', 'UPDATE square_ledger SET map_id = NULL WHERE map_id = $1',
       'UPDATE player_achievements SET map_id = NULL WHERE map_id = $1', 'DELETE FROM player_map_settings WHERE map_id = $1',
-      'DELETE FROM player_map_stats WHERE map_id = $1', 'DELETE FROM map_wipes WHERE map_id = $1', 'DELETE FROM player_lives WHERE map_id = $1', 'DELETE FROM map_edges WHERE map_id = $1',
+      'DELETE FROM player_map_stats WHERE map_id = $1', 'DELETE FROM map_wipes WHERE map_id = $1', 'DELETE FROM player_lives WHERE map_id = $1', 'DELETE FROM terrain_overrides WHERE map_id = $1', 'UPDATE item_uses SET map_id = NULL WHERE map_id = $1', 'DELETE FROM map_edges WHERE map_id = $1',
       'DELETE FROM map_cells WHERE map_id = $1', 'DELETE FROM maps WHERE id = $1']) await c.query(sql, [mapId]);
   });
 }
@@ -683,6 +684,56 @@ async function unseenDeath(pool, playerId, mapId) {
 }
 const markLifeSeen = (pool, id) => pool.query('UPDATE player_lives SET seen = true WHERE id = $1', [id]);
 Object.assign(module.exports, { lifeClaim, endLife, unseenDeath, markLifeSeen });
+
+// ---------- Items (loop 14) ----------
+// A use frees up `perMinutes` after it was made (a rolling window). For each item: owned, uses left now, and when
+// the next one frees up (null when none are used up).
+async function itemsFor(pool, playerId) {
+  const owned = new Set(playerId ? (await pool.query('SELECT item_id FROM player_items WHERE player_id = $1', [playerId])).rows.map(r => r.item_id) : []);
+  const uses = playerId ? (await pool.query("SELECT item_id, used_at FROM item_uses WHERE player_id = $1 AND used_at > now() - interval '1 day' ORDER BY used_at", [playerId])).rows : [];
+  return rules.ITEMS.filter(i => i.enabled || owned.has(i.id)).map(i => {
+    const recent = uses.filter(u => u.item_id === i.id && Date.now() - u.used_at.getTime() < i.perMinutes * 60000);
+    return { ...i, owned: owned.has(i.id), usesLeft: Math.max(0, i.uses - recent.length),
+      nextAt: recent.length ? recent[0].used_at.getTime() + i.perMinutes * 60000 : null };
+  });
+}
+// Buys an item with squares, in one transaction with the player row locked (a double tap pays once).
+function buyItem(pool, playerId, item) {
+  return tx(pool, async c => {
+    const { rows: [p] } = await c.query('SELECT squares FROM players WHERE id = $1 FOR UPDATE', [playerId]);
+    if (!p) return { error: 'Claim a block first' };
+    if ((await c.query('SELECT 1 FROM player_items WHERE player_id = $1 AND item_id = $2', [playerId, item.id])).rowCount) return { error: 'You already own this item' };
+    if (Number(p.squares) < item.price - 1e-9) return { error: 'Not enough squares', need: rules.roundSquares(item.price - Number(p.squares)) };
+    const { rows: [after] } = await c.query('UPDATE players SET squares = squares - $2 WHERE id = $1 RETURNING squares', [playerId, item.price]);
+    await c.query('INSERT INTO player_items (player_id, item_id) VALUES ($1, $2)', [playerId, item.id]);
+    await c.query('INSERT INTO square_ledger (player_id, delta, balance_after, reason) VALUES ($1, $2, $3, $4)', [playerId, -item.price, after.squares, 'item:' + item.id]);
+    return { squares: Number(after.squares) };
+  });
+}
+// Uses an owned item if a use is free (checked with the player row locked, so two devices can't both use the last
+// one). `apply(c)` runs in the same transaction (e.g. the terrain change); a refusal from it rolls everything back.
+// Returns { ok, usesLeft, nextAt } or { error, nextAt }.
+function useItem(pool, playerId, item, mapId, apply = async () => null) {
+  return tx(pool, async c => {
+    await c.query('SELECT 1 FROM players WHERE id = $1 FOR UPDATE', [playerId]);
+    if (!(await c.query('SELECT 1 FROM player_items WHERE player_id = $1 AND item_id = $2', [playerId, item.id])).rowCount) return { error: "You don't own this item" };
+    const { rows } = await c.query(`SELECT used_at FROM item_uses WHERE player_id = $1 AND item_id = $2 AND used_at > now() - make_interval(mins => $3)
+      ORDER BY used_at`, [playerId, item.id, item.perMinutes]);
+    if (rows.length >= item.uses) return { error: 'No uses left yet', nextAt: rows[0].used_at.getTime() + item.perMinutes * 60000 };
+    const refused = await apply(c);
+    if (refused) throw Object.assign(new Error(refused), { refusal: true });
+    await c.query('INSERT INTO item_uses (player_id, item_id, map_id) VALUES ($1, $2, $3)', [playerId, item.id, mapId]);
+    const used = [...rows.map(r => r.used_at.getTime()), Date.now()];
+    return { ok: true, usesLeft: item.uses - used.length, nextAt: used[0] + item.perMinutes * 60000 };
+  }).catch(err => { if (err.refusal) return { error: err.message }; throw err; });
+}
+// Terraformer: a block's terrain for good. Water can't be owned, so a block turned to water is freed.
+async function setTerrain(c, mapId, x, y, terrain) {
+  await c.query(`INSERT INTO terrain_overrides (map_id, x, y, terrain) VALUES ($1, $2, $3, $4)
+    ON CONFLICT (map_id, x, y) DO UPDATE SET terrain = EXCLUDED.terrain`, [mapId, x, y, terrain]);
+  if (terrain === 'water') await c.query('UPDATE map_cells SET owner_id = NULL, claimed_at = NULL WHERE map_id = $1 AND x = $2 AND y = $3', [mapId, x, y]);
+}
+Object.assign(module.exports, { itemsFor, buyItem, useItem, setTerrain });
 
 // An account's email, from Neon Auth (null for guests, or where Neon Auth isn't in this database).
 async function accountEmail(pool, authUserId) {

@@ -1020,3 +1020,12 @@ OPEN Q21 (Bob): death and survival achievement ideas, not added yet:
 2. Live check: two accounts on one map; take one's last block: the other sees the shatter, then the death screen with the right numbers; RESPAWN, claim any empty block. Close a tab, have its last block taken, reopen that map: the death screen shows.
 
 Loop order 13 done. Stopping.
+#100 | 2026-10-29 | Loop 14: items. Items tab in the sync (Key, Name, Description, Price, Uses, Per (minutes), Effect, Value, Duration (seconds), Enabled; kept from data/economy.json while the sheet has none; effects the code knows: clickMultiplier, terraform). Migration 016: player_items, item_uses, terrain_overrides. Buying: one locked transaction, ledger 'item:<key>'. Using: limits checked with the player row locked (uses per rolling window, per player across maps; two devices can't both use the last one). Super Click: Click Power x10 for 5 s, once an hour, stacks with the upgrade. Terraformer: up to 5 an hour, own blocks or empty ones touching your land, to grass, sand, forest, stone or water; never makes gold or changes gold; permanent and broadcast to everyone ("terrain"), sent with the map to newcomers; water frees an owned block (water can't be owned). Welcome screen: Settings tile became Items (teal, potion icon); Settings is a gear button beside the sound button. Items screen: cards with icon, what it does, Buy with price, Need X more, Owned. Item bar on the game screen: "Super Click: 0:04" while it runs, "Terraformer 3/5, next in 12:04"; the Terraformer asks for a block, then a terrain. Also fixed: the browser could, on a fast reload, connect before account.js loaded and then never connect (now it connects after every script loads) | tests: items (buy at price and one short, Super Click timing and two devices, Terraformer where allowed, never gold, 5 an hour, everyone sees it); full suite 137/137. Screenshots docs/screenshots/loop14-welcome.png, loop14-items-screen.png, loop14-item-bar.png
+
+OPEN Q22 (Bob): add the Items tab to the sheet (the two rows are in test/fixtures/sheet/Items.csv); until then the sync keeps them.
+
+## Merge steps (loop 14)
+1. GitHub: pull request iterate -> main, merge. Render deploys and applies 016_items.sql.
+2. Live check: give a test account squares (npm run admin -- give-squares "<name>" 60000 --reason "item test" --prod), buy both items, use Super Click (one tap takes a block for 5 s), terraform a block next to your land; a second browser sees the change.
+
+Loop order 14 done. Stopping.

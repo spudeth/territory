@@ -68,6 +68,8 @@ const settings = {
   ACHIEVEMENTS: economy.achievements ?? [],
   // Skins (the sheet's Skins tab): [{ id, name, kind: pattern|art, rarity, price, collection, enabled }]
   SKINS: economy.skins ?? [],
+  // Items (the sheet's Items tab): [{ id, name, description, price, uses, perMinutes, effect, value, seconds, enabled }]
+  ITEMS: economy.items ?? [],
   // Rank and reign achievements count only on maps where at least this many players own blocks.
   RANK_MIN_PLAYERS: R.rankMinPlayers,
   RANK_MIN_BLOCKS: R.rankMinBlocks,   // …and only for a player with at least this many blocks there

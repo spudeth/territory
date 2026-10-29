@@ -8187,5 +8187,31 @@
       "collection": "Showpieces",
       "enabled": true
     }
+  ],
+  "items": [
+    {
+      "id": "super-click",
+      "name": "Super Click",
+      "description": "Your Click Power x10 for 5 seconds, once an hour. Stacks with your Click Power upgrade.",
+      "price": 28800,
+      "uses": 1,
+      "perMinutes": 60,
+      "effect": "clickMultiplier",
+      "value": 10,
+      "seconds": 5,
+      "enabled": true
+    },
+    {
+      "id": "terraformer",
+      "name": "Terraformer",
+      "description": "Change one block to grass, sand, forest, stone or water: your own blocks, or empty ones touching your land. Up to 5 an hour. Never gold.",
+      "price": 28800,
+      "uses": 5,
+      "perMinutes": 60,
+      "effect": "terraform",
+      "value": 0,
+      "seconds": 0,
+      "enabled": true
+    }
   ]
 }
