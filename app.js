@@ -434,7 +434,8 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
         choices: { colors: rules.COLORS, coverages: rules.COVERAGES },
         hitsPerBlock: rules.HITS_PER_BLOCK,
         settings: { nameLabelShare: rules.NAME_LABEL_SHARE, nameMaxLength: rules.NAME_MAX_LENGTH, sound: rules.SOUND, terrain: rules.TERRAIN,
-          skinKinds: SKIN_KINDS },   // how to draw each skin: pattern (in the owner's color) or art
+          skinKinds: SKIN_KINDS,
+          skinAnimated: rules.SKINS.filter(s => s.rarity === 'Legendary').map(s => s.id) },   // drawn from <id>-anim.png, 4 frames   // how to draw each skin: pattern (in the owner's color) or art
         accounts: !!auth,                         // false when logins aren't set up on this server
         upgraded: false, loginFailed: false,      // see `flags`
         ...flags,

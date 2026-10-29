@@ -181,7 +181,14 @@ if '--export' in sys.argv:
     for i, (name, fn) in enumerate(ULTRA):
         if 'Ultra Rare ' + name in approved: put('Ultra Rare', name, 'art', art(fn), 4000 + (i % 5) * 1000, 'Scenes')
     for i, (name, fn) in enumerate(LEGEND):
-        if 'Legendary ' + name in approved: put('Legendary', name, 'art', fn(0), [25000, 20000, 15000, 12500, 10000][i], 'Showpieces')
+        if 'Legendary ' + name in approved:
+            put('Legendary', name, 'art', fn(0), [25000, 20000, 15000, 12500, 10000][i], 'Showpieces')
+            # The animation: 4 frames side by side, small and large (the game shows one every 220 ms).
+            key = 'art-' + name.lower().replace(' ', '-')
+            for size, suffix in ((16, ''), (64, '-large')):
+                sheet = Image.new('RGB', (size * 4, size))
+                for t in range(4): sheet.paste(fn(t).resize((size, size), Image.NEAREST), (t * size, 0))
+                sheet.save(os.path.join(out, key + suffix + '-anim.png'))
     sys.exit()
 
 # ---------- The review page ----------
