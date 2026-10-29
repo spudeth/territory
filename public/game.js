@@ -99,8 +99,8 @@ const clouds = [];
 
 // Skin images (public/skins/<id>.png, and -large.png for Full area), loaded the first time they're needed.
 const skinImages = new Map();
-function skinImage(id, large) {
-  const k = id + (large ? '-large' : '');
+function skinImage(id, large, anim) {
+  const k = id + (large ? '-large' : '') + (anim ? '-anim' : '');
   if (!skinImages.has(k)) skinImages.set(k, Object.assign(new Image(), { src: `skins/${k}.png`, onload: draw }));
   const img = skinImages.get(k);
   return img.complete && img.naturalWidth ? img : null;
@@ -108,7 +108,7 @@ function skinImage(id, large) {
 // How an owner's land is drawn: { kind: 'default' | 'pattern' | 'art', id, full: Full area coverage }.
 function lookOf(o) {
   const p = players[o], kind = p?.skin && p.skin !== 'default' ? gameSettings.skinKinds?.[p.skin] : null;
-  return kind ? { kind, id: p.skin, full: p.coverage === 'stretch' } : { kind: 'default' };
+  return kind ? { kind, id: p.skin, full: p.coverage === 'stretch', anim: gameSettings.skinAnimated?.includes(p.skin) } : { kind: 'default' };
 }
 let world = null;   // this map's terrain (terrain.makeWorld), or null for a map without a seed (all grass)
 let waterTimer = null;
@@ -217,7 +217,8 @@ function render() {
   const r0 = Math.max(bounds.y0, Math.floor(-oy / scale)), r1 = Math.min(bounds.y1, Math.ceil((innerHeight - oy) / scale));
 
   const waterFrame = Math.floor(performance.now() / WATER_FRAME_MS) % 2;
-  let waterShown = false;
+  let waterShown = false, animShown = false;   // keep redrawing while water or an animated skin is on screen
+  const animFrame = Math.floor(performance.now() / 220) % 4;
   const fullArea = new Map();   // owner -> their visible blocks, for Full area skins
   const white = mapInfo?.style === 'white' && !world;
   for (let y = r0; y < r1; y++) {
@@ -244,8 +245,9 @@ function render() {
       if (o) {
         // The owner's skin. Default: the ground recolored to their hue (keeping its shading). A pattern: its grey
         // art in their color. Art: the image as it is. Full area skins are drawn over the whole territory below.
-        const look = lookOf(o), img = look.kind !== 'default' && !look.full && skinImage(look.id, false);
+        const look = lookOf(o), img = look.kind !== 'default' && !look.full && skinImage(look.id, false, look.anim);
         if (look.full) { (fullArea.get(o) ?? fullArea.set(o, []).get(o)).push([x, y]); }
+        else if (img && look.anim) { animShown = true; ctx.drawImage(img, animFrame * img.naturalWidth / 4, 0, img.naturalWidth / 4, img.naturalHeight, x0, y0, bw, bh); }
         else if (img) ctx.drawImage(img, x0, y0, bw, bh);
         if (look.kind !== 'art' && !(look.full && look.kind === 'pattern')) {
           ctx.fillStyle = players[o]?.color || '#888';
@@ -263,20 +265,22 @@ function render() {
   // Full area: one enlarged image over each such territory, covering its whole shape (never stretched), clipped
   // to its blocks.
   for (const [o, mine] of fullArea) {
-    const look = lookOf(o), img = skinImage(look.id, true);
+    const look = lookOf(o), img = skinImage(look.id, true, look.anim);
     if (!img) continue;
+    const fw = look.anim ? img.naturalWidth / 4 : img.naturalWidth;
+    if (look.anim) animShown = true;
     let bx0 = Infinity, by0 = Infinity, bx1 = -Infinity, by1 = -Infinity;
     for (const [k, owner] of cells) {
       if (owner !== o) continue;
       const [x, y] = k.split(',').map(Number);
       bx0 = Math.min(bx0, x); by0 = Math.min(by0, y); bx1 = Math.max(bx1, x + 1); by1 = Math.max(by1, y + 1);
     }
-    const sx = X(bx0), sy = Y(by0), fit = skins.coverFit(img.naturalWidth, img.naturalHeight, X(bx1) - sx, Y(by1) - sy);
+    const sx = X(bx0), sy = Y(by0), fit = skins.coverFit(fw, img.naturalHeight, X(bx1) - sx, Y(by1) - sy);
     ctx.save();
     ctx.beginPath();
     for (const [x, y] of mine) ctx.rect(X(x), Y(y), X(x + 1) - X(x), Y(y + 1) - Y(y));
     ctx.clip();
-    ctx.drawImage(img, sx + fit.dx, sy + fit.dy, fit.dw, fit.dh);
+    ctx.drawImage(img, look.anim ? animFrame * fw : 0, 0, fw, img.naturalHeight, sx + fit.dx, sy + fit.dy, fit.dw, fit.dh);
     if (look.kind === 'pattern') {
       ctx.globalCompositeOperation = 'color';
       ctx.fillStyle = players[o]?.color || '#888';
@@ -327,8 +331,9 @@ function render() {
   }
 
   // Water ripples: draw again for the next frame while water is on screen (not while the tab is hidden).
-  if (waterShown && !waterTimer && !document.hidden) {
-    waterTimer = setTimeout(() => { waterTimer = null; draw(); }, WATER_FRAME_MS - performance.now() % WATER_FRAME_MS);
+  if ((waterShown || animShown) && !waterTimer && !document.hidden) {
+    const every = animShown ? 220 : WATER_FRAME_MS;
+    waterTimer = setTimeout(() => { waterTimer = null; draw(); }, every - performance.now() % every);
   }
 
   // Faint grid so individual blocks are readable on seamless grass: each block's top and left edge,
