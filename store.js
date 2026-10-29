@@ -394,7 +394,9 @@ async function skinsFor(pool, playerId) {
   const owned = new Set(playerId ? (await pool.query('SELECT skin_id FROM player_skins WHERE player_id = $1', [playerId])).rows.map(r => r.skin_id) : []);
   const count = rarity => { const ids = rules.SKINS.filter(s => s.rarity === rarity); return [ids.filter(s => owned.has(s.id)).length, ids.length]; };
   return [{ id: 'default', name: 'Default', kind: 'default', rarity: 'Common', price: 0, collection: 'Basic', owned: true },
-    ...rules.SKINS.filter(s => s.enabled || owned.has(s.id)).map(({ enabled, ...s }) => ({ ...s, price: skinPrices.skinPrice(s.rarity, ...count(s.rarity)), owned: owned.has(s.id) }))];
+    ...rules.SKINS.filter(s => s.enabled || owned.has(s.id)).map(({ enabled, ...s }) => ({ ...s, price: skinPrices.skinPrice(s.rarity, ...count(s.rarity)), owned: owned.has(s.id) }))
+      // Bob (loop 15): flags after every other skin, and within each group by price, then name.
+      .sort((a, b) => (a.collection === 'Flags') - (b.collection === 'Flags') || a.price - b.price || a.name.localeCompare(b.name))];
 }
 
 // Buys a skin with squares, in one transaction: the player row is locked, so a double tap or two devices can

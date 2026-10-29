@@ -129,3 +129,15 @@ test('prices rise as you collect: Common from 100 to 1,500 at half the commons o
   assert.equal(skins.skinPrice('Rare', 0, 199), 1000);
   assert.equal(skins.skinPrice('Legendary', 10, 10), 25000);
 });
+
+test('skin order: flags after the other skins; within each group by price, then name', async () => {
+  const list = (await store.skinsFor(pool, null)).slice(1);
+  const firstFlag = list.findIndex(s => s.collection === 'Flags');
+  assert.ok(firstFlag > 0 && list.slice(firstFlag).every(s => s.collection === 'Flags'), 'flags last');
+  for (const group of [list.slice(0, firstFlag), list.slice(firstFlag)]) {
+    for (let i = 1; i < group.length; i++) {
+      const a = group[i - 1], b = group[i];
+      assert.ok(a.price < b.price || (a.price === b.price && a.name.localeCompare(b.name) <= 0), `${a.name} before ${b.name}`);
+    }
+  }
+});
