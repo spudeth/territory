@@ -486,7 +486,7 @@ socket.on('welcome', data => {
   }
   if (data.loginFailed) toast('Your login has expired. Log in again from the menu.');
   players = data.players;
-  world = data.map.seed ? terrain.makeWorld(data.map.seed, data.settings.terrain) : null;
+  world = data.map.seed && data.map.style !== 'white' ? terrain.makeWorld(data.map.seed, data.settings.terrain) : null;   // white maps: no terrain
   cells = new Map();
   bounds = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
   for (const [x, y, owner] of data.cells) addCell(x, y, owner);

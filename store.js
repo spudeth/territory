@@ -340,6 +340,7 @@ async function createMap(pool, { name, style = 'grass', seed, blocks = rules.NEW
   if (!STYLES.includes(style)) throw new Error(`style must be one of: ${STYLES.join(', ')}`);
   const rectangle = width !== null || height !== null;
   if (seed === undefined || seed === null) seed = rectangle ? null : '';
+  if (style === 'white') seed = null;   // a white plain: no terrain, ever
   if (seed !== null) seed = String(seed).trim() || randomSeed();
   if (seed?.length > 100) throw new Error('the seed must be at most 100 characters');
   if (rectangle) {

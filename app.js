@@ -93,7 +93,8 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       maps.set(id, store.loadMap(pool, id).then(m => {
         if (!m) return null;
         // terrainAt(x, y): a seeded map's terrain (public/terrain.js); maps without a seed are all grass.
-        const world = m.seed ? terrain.makeWorld(m.seed, rules.TERRAIN) : null;
+        // White maps never have terrain, even with a seed (one was made with a random seed by mistake).
+        const world = m.seed && m.style !== 'white' ? terrain.makeWorld(m.seed, rules.TERRAIN) : null;
         const map = { id: m.id, name: m.name, style: m.style, seed: m.seed, terrainAt: world ? world.at : () => 'grass',
           room: 'map:' + m.id, cells: new Map(), counts: new Map(),
           players: new Map(m.players.map(p => [p.player_id, { name: p.name, color: p.color, skin: p.skin_id, coverage: p.coverage,
