@@ -57,6 +57,20 @@ ICONS = {
     'Robot': icon('#b8c1cc', lambda d: (d.rectangle([3, 4, 12, 13], fill='#6b7a8c'), d.rectangle([5, 7, 6, 8], fill='#4af2ff'), d.rectangle([9, 7, 10, 8], fill='#4af2ff'), d.rectangle([6, 11, 9, 11], fill='#222'), d.line([(8, 1), (8, 4)], fill='#6b7a8c'), d.point([(8, 1)], fill='#e8304a'))),
 }
 
+# --export: writes them as Common skins (public/skins/icon-<name>.png and a 64x64 -large.png) and prints Skins tab rows.
+COLLECTIONS = {'Symbols': 'Heart,Gold Star,Moon,Sun,Lightning,Snowflake,Rainbow,Music,Crown,Shield,Anchor,Pixel Sword,Checker Flag',
+  'Nature': 'Leaf,Flower,Clover,Cactus,Mushroom,Wave,Bubbles,Flame,Lava,Ice,Camo,Galaxy,Planet',
+  'Critters': 'Smiley,Ghost,Alien,Skull,Robot,Cat,Fish,Paw', 'Snacks & Gems': 'Cherry,Pizza,Donut,Diamond,Gem Red,Rocket'}
+if '--export' in sys.argv:
+    import os
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'public', 'skins')
+    for col, names in COLLECTIONS.items():
+        for name in names.split(','):
+            key = 'icon-' + name.lower().replace(' ', '-')
+            ICONS[name].save(os.path.join(out, key + '.png'))
+            ICONS[name].resize((64, 64), Image.NEAREST).save(os.path.join(out, key + '-large.png'))
+            print(f'{key},{name},art,Common,100,{col},yes')
+    sys.exit()
 html = ['<!doctype html><meta charset="utf-8"><title>Skin Ideas</title><style>body{background:#0f131a;color:#f2f4f8;font:16px system-ui;margin:24px}'
         'h1{font-size:20px}.g{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:16px}.c{background:#1b2230;padding:10px;border:3px solid #0a0d12;text-align:center}'
         'img{width:128px;height:128px;image-rendering:pixelated;display:block;margin:0 auto 8px}.t{display:grid;grid-template-columns:repeat(3,32px);width:96px;margin:8px auto 0}'

@@ -742,7 +742,7 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
         const r = await store.buySkin(pool, me.pid, skin);
         if (r.error) return reply(r);
         balanceChanged(me.pid, r.squares);
-        totals.bump(me.pid, 'squaresSpent', skin.price);
+        totals.bump(me.pid, 'squaresSpent', r.price);
         reply({ squares: rules.shownSquares(r.squares), balance: r.squares });
       } catch (err) {
         console.error(`SKIN PURCHASE FAILED (player ${me.pid}, ${p?.skin}): ${err.message}`);

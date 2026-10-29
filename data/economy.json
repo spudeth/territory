@@ -6035,6 +6035,366 @@
       "price": 1000,
       "collection": "Flags",
       "enabled": true
+    },
+    {
+      "id": "icon-heart",
+      "name": "Heart",
+      "kind": "art",
+      "rarity": "Common",
+      "price": 100,
+      "collection": "Symbols",
+      "enabled": true
+    },
+    {
+      "id": "icon-gold-star",
+      "name": "Gold Star",
+      "kind": "art",
+      "rarity": "Common",
+      "price": 100,
+      "collection": "Symbols",
+      "enabled": true
+    },
+    {
+      "id": "icon-moon",
+      "name": "Moon",
+      "kind": "art",
+      "rarity": "Common",
+      "price": 100,
+      "collection": "Symbols",
+      "enabled": true
+    },
+    {
+      "id": "icon-sun",
+      "name": "Sun",
+      "kind": "art",
+      "rarity": "Common",
+      "price": 100,
+      "collection": "Symbols",
+      "enabled": true
+    },
+    {
+      "id": "icon-lightning",
+      "name": "Lightning",
+      "kind": "art",
+      "rarity": "Common",
+      "price": 100,
+      "collection": "Symbols",
+      "enabled": true
+    },
+    {
+      "id": "icon-snowflake",
+      "name": "Snowflake",
+      "kind": "art",
+      "rarity": "Common",
+      "price": 100,
+      "collection": "Symbols",
+      "enabled": true
+    },
+    {
+      "id": "icon-rainbow",
+      "name": "Rainbow",
+      "kind": "art",
+      "rarity": "Common",
+      "price": 100,
+      "collection": "Symbols",
+      "enabled": true
+    },
+    {
+      "id": "icon-music",
+      "name": "Music",
+      "kind": "art",
+      "rarity": "Common",
+      "price": 100,
+      "collection": "Symbols",
+      "enabled": true
+    },
+    {
+      "id": "icon-crown",
+      "name": "Crown",
+      "kind": "art",
+      "rarity": "Common",
+      "price": 100,
+      "collection": "Symbols",
+      "enabled": true
+    },
+    {
+      "id": "icon-shield",
+      "name": "Shield",
+      "kind": "art",
+      "rarity": "Common",
+      "price": 100,
+      "collection": "Symbols",
+      "enabled": true
+    },
+    {
+      "id": "icon-anchor",
+      "name": "Anchor",
+      "kind": "art",
+      "rarity": "Common",
+      "price": 100,
+      "collection": "Symbols",
+      "enabled": true
+    },
+    {
+      "id": "icon-pixel-sword",
+      "name": "Pixel Sword",
+      "kind": "art",
+      "rarity": "Common",
+      "price": 100,
+      "collection": "Symbols",
+      "enabled": true
+    },
+    {
+      "id": "icon-checker-flag",
+      "name": "Checker Flag",
+      "kind": "art",
+      "rarity": "Common",
+      "price": 100,
+      "collection": "Symbols",
+      "enabled": true
+    },
+    {
+      "id": "icon-leaf",
+      "name": "Leaf",
+      "kind": "art",
+      "rarity": "Common",
+      "price": 100,
+      "collection": "Nature",
+      "enabled": true
+    },
+    {
+      "id": "icon-flower",
+      "name": "Flower",
+      "kind": "art",
+      "rarity": "Common",
+      "price": 100,
+      "collection": "Nature",
+      "enabled": true
+    },
+    {
+      "id": "icon-clover",
+      "name": "Clover",
+      "kind": "art",
+      "rarity": "Common",
+      "price": 100,
+      "collection": "Nature",
+      "enabled": true
+    },
+    {
+      "id": "icon-cactus",
+      "name": "Cactus",
+      "kind": "art",
+      "rarity": "Common",
+      "price": 100,
+      "collection": "Nature",
+      "enabled": true
+    },
+    {
+      "id": "icon-mushroom",
+      "name": "Mushroom",
+      "kind": "art",
+      "rarity": "Common",
+      "price": 100,
+      "collection": "Nature",
+      "enabled": true
+    },
+    {
+      "id": "icon-wave",
+      "name": "Wave",
+      "kind": "art",
+      "rarity": "Common",
+      "price": 100,
+      "collection": "Nature",
+      "enabled": true
+    },
+    {
+      "id": "icon-bubbles",
+      "name": "Bubbles",
+      "kind": "art",
+      "rarity": "Common",
+      "price": 100,
+      "collection": "Nature",
+      "enabled": true
+    },
+    {
+      "id": "icon-flame",
+      "name": "Flame",
+      "kind": "art",
+      "rarity": "Common",
+      "price": 100,
+      "collection": "Nature",
+      "enabled": true
+    },
+    {
+      "id": "icon-lava",
+      "name": "Lava",
+      "kind": "art",
+      "rarity": "Common",
+      "price": 100,
+      "collection": "Nature",
+      "enabled": true
+    },
+    {
+      "id": "icon-ice",
+      "name": "Ice",
+      "kind": "art",
+      "rarity": "Common",
+      "price": 100,
+      "collection": "Nature",
+      "enabled": true
+    },
+    {
+      "id": "icon-camo",
+      "name": "Camo",
+      "kind": "art",
+      "rarity": "Common",
+      "price": 100,
+      "collection": "Nature",
+      "enabled": true
+    },
+    {
+      "id": "icon-galaxy",
+      "name": "Galaxy",
+      "kind": "art",
+      "rarity": "Common",
+      "price": 100,
+      "collection": "Nature",
+      "enabled": true
+    },
+    {
+      "id": "icon-planet",
+      "name": "Planet",
+      "kind": "art",
+      "rarity": "Common",
+      "price": 100,
+      "collection": "Nature",
+      "enabled": true
+    },
+    {
+      "id": "icon-smiley",
+      "name": "Smiley",
+      "kind": "art",
+      "rarity": "Common",
+      "price": 100,
+      "collection": "Critters",
+      "enabled": true
+    },
+    {
+      "id": "icon-ghost",
+      "name": "Ghost",
+      "kind": "art",
+      "rarity": "Common",
+      "price": 100,
+      "collection": "Critters",
+      "enabled": true
+    },
+    {
+      "id": "icon-alien",
+      "name": "Alien",
+      "kind": "art",
+      "rarity": "Common",
+      "price": 100,
+      "collection": "Critters",
+      "enabled": true
+    },
+    {
+      "id": "icon-skull",
+      "name": "Skull",
+      "kind": "art",
+      "rarity": "Common",
+      "price": 100,
+      "collection": "Critters",
+      "enabled": true
+    },
+    {
+      "id": "icon-robot",
+      "name": "Robot",
+      "kind": "art",
+      "rarity": "Common",
+      "price": 100,
+      "collection": "Critters",
+      "enabled": true
+    },
+    {
+      "id": "icon-cat",
+      "name": "Cat",
+      "kind": "art",
+      "rarity": "Common",
+      "price": 100,
+      "collection": "Critters",
+      "enabled": true
+    },
+    {
+      "id": "icon-fish",
+      "name": "Fish",
+      "kind": "art",
+      "rarity": "Common",
+      "price": 100,
+      "collection": "Critters",
+      "enabled": true
+    },
+    {
+      "id": "icon-paw",
+      "name": "Paw",
+      "kind": "art",
+      "rarity": "Common",
+      "price": 100,
+      "collection": "Critters",
+      "enabled": true
+    },
+    {
+      "id": "icon-cherry",
+      "name": "Cherry",
+      "kind": "art",
+      "rarity": "Common",
+      "price": 100,
+      "collection": "Snacks & Gems",
+      "enabled": true
+    },
+    {
+      "id": "icon-pizza",
+      "name": "Pizza",
+      "kind": "art",
+      "rarity": "Common",
+      "price": 100,
+      "collection": "Snacks & Gems",
+      "enabled": true
+    },
+    {
+      "id": "icon-donut",
+      "name": "Donut",
+      "kind": "art",
+      "rarity": "Common",
+      "price": 100,
+      "collection": "Snacks & Gems",
+      "enabled": true
+    },
+    {
+      "id": "icon-diamond",
+      "name": "Diamond",
+      "kind": "art",
+      "rarity": "Common",
+      "price": 100,
+      "collection": "Snacks & Gems",
+      "enabled": true
+    },
+    {
+      "id": "icon-gem-red",
+      "name": "Gem Red",
+      "kind": "art",
+      "rarity": "Common",
+      "price": 100,
+      "collection": "Snacks & Gems",
+      "enabled": true
+    },
+    {
+      "id": "icon-rocket",
+      "name": "Rocket",
+      "kind": "art",
+      "rarity": "Common",
+      "price": 100,
+      "collection": "Snacks & Gems",
+      "enabled": true
     }
   ]
 }

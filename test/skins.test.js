@@ -40,7 +40,7 @@ test('the Skins tab: bad rows are named by cell, and every skin needs its images
   lines[2] = 'checker,Again,pattern,Common,100,,yes';
   tabs.Skins = lines.join('\n');
   const errors = economy.validate(tabs, { hasFile: f => !f.includes('flag-fr') }).errors;
-  for (const re of [/"shiny" must be pattern or art/, /"Epic" must be Common, Rare, Legendary/, /"cheap" must be a whole number/,
+  for (const re of [/"shiny" must be pattern or art/, /"Epic" must be Common, Rare, Ultra Rare, Legendary/, /"cheap" must be a whole number/,
     /"maybe" must be yes or no/, /"checker" appears twice/, /\("Collection"\): blank/, /no image public\/skins\/flag-fr\.png/]) {
     assert.ok(errors.some(e => re.test(e)), `${re} in:\n${errors.join('\n')}`);
   }
@@ -118,4 +118,14 @@ test('an owned skin can be picked on every map; one not owned cannot', async () 
   await g.s.next('player', d => String(d.pid) === String(g.pid) && d.skin === flag.id && d.coverage === 'stretch');
   const list = await g.s.ask('skins');
   assert.ok(list.find(k => k.id === flag.id).owned && list[0].id === 'default');
+});
+
+test('prices rise as you collect: Common from 100 to 1,500 at half the commons owned, and the same model per rarity', () => {
+  const commons = rules.SKINS.filter(s => s.rarity === 'Common').length;
+  assert.equal(skins.skinPrice('Common', 0, commons), 100);
+  assert.equal(skins.skinPrice('Common', Math.ceil(commons / 2), commons), 1500);
+  assert.equal(skins.skinPrice('Common', commons, commons), 1500, 'never above the top');
+  assert.ok(skins.skinPrice('Common', 5, commons) > 100 && skins.skinPrice('Common', 5, commons) < 1500);
+  assert.equal(skins.skinPrice('Rare', 0, 199), 1000);
+  assert.equal(skins.skinPrice('Legendary', 10, 10), 25000);
 });

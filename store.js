@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const { tx } = require('./db');
 const rules = require('./rules');
 const terrain = require('./public/terrain');
+const skinPrices = require('./public/skins');
 const { accountNames } = require('./names');
 
 const hashToken = token => crypto.createHash('sha256').update(token).digest();
@@ -387,10 +388,12 @@ Object.assign(module.exports, { STYLES, listMaps, createMap, mapsFor });
 // The skin catalog, with whether this player owns each (free skins count as owned by everyone).
 // The skin catalog (rules.SKINS, from the sheet) with what this player owns: [{ id, name, kind, rarity, price,
 // collection, owned }], the free plain look first. Skins taken out of the shop still show for their owners.
+// Prices are what this player would pay now (skins.skinPrice: they rise with how many of a rarity they own).
 async function skinsFor(pool, playerId) {
   const owned = new Set(playerId ? (await pool.query('SELECT skin_id FROM player_skins WHERE player_id = $1', [playerId])).rows.map(r => r.skin_id) : []);
+  const count = rarity => { const ids = rules.SKINS.filter(s => s.rarity === rarity); return [ids.filter(s => owned.has(s.id)).length, ids.length]; };
   return [{ id: 'default', name: 'Default', kind: 'default', rarity: 'Common', price: 0, collection: 'Basic', owned: true },
-    ...rules.SKINS.filter(s => s.enabled || owned.has(s.id)).map(({ enabled, ...s }) => ({ ...s, owned: owned.has(s.id) }))];
+    ...rules.SKINS.filter(s => s.enabled || owned.has(s.id)).map(({ enabled, ...s }) => ({ ...s, price: skinPrices.skinPrice(s.rarity, ...count(s.rarity)), owned: owned.has(s.id) }))];
 }
 
 // Buys a skin with squares, in one transaction: the player row is locked, so a double tap or two devices can
@@ -401,15 +404,19 @@ function buySkin(pool, playerId, skin) {
     const { rows: [p] } = await c.query('SELECT squares FROM players WHERE id = $1 FOR UPDATE', [playerId]);
     if (!p) return { error: 'Claim a block first' };
     if ((await c.query('SELECT 1 FROM player_skins WHERE player_id = $1 AND skin_id = $2', [playerId, skin.id])).rowCount) return { error: 'You already own this skin' };
+    // The price now: it rises with how many skins of this rarity they own (counted inside the lock).
+    const same = rules.SKINS.filter(s => s.rarity === skin.rarity).map(s => s.id);
+    const { rows: [o] } = await c.query('SELECT count(*)::int AS n FROM player_skins WHERE player_id = $1 AND skin_id = ANY($2)', [playerId, same]);
+    const price = skinPrices.skinPrice(skin.rarity, o.n, same.length);
     const balance = Number(p.squares);
-    if (balance < skin.price - 1e-9) return { error: 'Not enough squares', need: rules.roundSquares(skin.price - balance) };
+    if (balance < price - 1e-9) return { error: 'Not enough squares', need: rules.roundSquares(price - balance) };
     await c.query(`INSERT INTO skins (id, name, image, price_squares) VALUES ($1, $2, $3, $4)
-      ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, price_squares = EXCLUDED.price_squares`, [skin.id, skin.name, skin.id + '.png', skin.price]);
-    const { rows: [after] } = await c.query('UPDATE players SET squares = squares - $2 WHERE id = $1 RETURNING squares', [playerId, skin.price]);
+      ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, price_squares = EXCLUDED.price_squares`, [skin.id, skin.name, skin.id + '.png', price]);
+    const { rows: [after] } = await c.query('UPDATE players SET squares = squares - $2 WHERE id = $1 RETURNING squares', [playerId, price]);
     await c.query("INSERT INTO player_skins (player_id, skin_id, source) VALUES ($1, $2, 'squares')", [playerId, skin.id]);
     await c.query('INSERT INTO square_ledger (player_id, delta, balance_after, reason) VALUES ($1, $2, $3, $4)',
-      [playerId, -skin.price, after.squares, 'skin:' + skin.id]);
-    return { squares: Number(after.squares) };
+      [playerId, -price, after.squares, 'skin:' + skin.id]);
+    return { squares: Number(after.squares), price };
   });
 }
 

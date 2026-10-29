@@ -13,6 +13,16 @@
     return { dx: (w - dw) / 2, dy: (h - dh) / 2, dw, dh };
   }
 
+  // Prices rise as you collect (Xoren): each rarity starts at its first price and reaches its top price once you
+  // own half of that rarity's skins, in a straight line, rounded to 10. [start, top] per rarity. TODO: the sheet.
+  const PRICES = { Common: [100, 1500], Rare: [1000, 3000], 'Ultra Rare': [4000, 8000], Legendary: [10000, 25000] };
+  function skinPrice(rarity, owned, total) {
+    const [start, top] = PRICES[rarity] ?? PRICES.Common;
+    return Math.round((start + (top - start) * Math.min(1, owned / Math.max(1, total / 2))) / 10) * 10;
+  }
+
+  exports.PRICES = PRICES;
+  exports.skinPrice = skinPrice;
   exports.borderTexels = borderTexels;
   exports.coverFit = coverFit;
 })(typeof module === 'object' ? module.exports : (window.skins = {}));

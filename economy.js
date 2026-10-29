@@ -12,7 +12,7 @@ const ACHIEVEMENT_COLUMNS = ['Key', 'Name', 'Category', 'Stat', 'Threshold', 'Se
 const SKINS_TAB = 'Skins';
 const SKIN_COLUMNS = ['Key', 'Name', 'Kind', 'Rarity', 'Price', 'Collection', 'Enabled'];
 const SKIN_KINDS = ['pattern', 'art'];          // pattern: drawn in the owner's color; art: full-color image
-const RARITIES = ['Common', 'Rare', 'Legendary'];
+const RARITIES = ['Common', 'Rare', 'Ultra Rare', 'Legendary'];
 // The image files every skin needs, under public/: one block, and the large one for Full area coverage.
 const skinFiles = key => [`skins/${key}.png`, `skins/${key}-large.png`];
 const TABS = [...Object.values(UPGRADE_TABS), RULES_TAB, ACHIEVEMENTS_TAB, SKINS_TAB];
