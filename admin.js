@@ -304,7 +304,8 @@ function adminRouter({ pool, key, production, hooks }) {
       async prepare({ args, options }) {
         const name = args[0] ?? options.name;
         const rectangle = options.width !== undefined || options.height !== undefined;
-        const spec = { name, style: options.style ?? 'grass', seed: options.seed ?? '',   // '' = a random seed
+        // No --seed: a random one for an island, none for a rectangle. White maps never have terrain.
+        const spec = { name, style: options.style ?? 'grass', seed: options.seed ?? (rectangle ? null : ''),
           ...(rectangle ? { width: Number(options.width ?? rules.NEW_MAP_WIDTH), height: Number(options.height ?? rules.NEW_MAP_HEIGHT) } : {}) };
         if (!spec.name || spec.name === true) throw new Refusal('Give the map a name: create-map Snowfield');
         if (spec.seed === true) throw new Refusal('Give --seed some text, e.g. --seed "frosty hills", or leave it out for a random one.');

@@ -161,3 +161,15 @@ test('create-map makes a seeded island, random seed if none; map shows the seed'
   const plain = await store.createMap(pool, { name: 'Plain', width: 3, height: 3 });
   assert.equal((await store.findMap(pool, '#' + plain)).seed, null, 'a rectangle without a seed stays plain grass');
 });
+
+test('white maps never have terrain: no seed from create-map, and one with a seed still plays as plain white', async () => {
+  const id = await store.createMap(pool, { name: 'White Test', style: 'white', width: 5, height: 5, seed: 'ignored' });
+  assert.equal((await store.findMap(pool, '#' + id)).seed, null);
+  await pool.query("UPDATE maps SET seed = 'oops' WHERE id = $1", [id]);   // as the live map made before the fix
+  const s = player();
+  await s.welcome;
+  await s.ask('switchMap', id);
+  await s.next('welcome');
+  for (let i = 0; i < rules.HITS_PER_BLOCK; i++) s.emit('hit', { x: 2, y: 2 });   // plain hits, whatever 'oops' terrain says
+  await s.next('claim', d => d.x === 2 && d.y === 2);
+});
