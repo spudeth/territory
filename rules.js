@@ -7,6 +7,9 @@
 const economy = require('./data/economy.json');
 const R = economy.rules;
 const values = upgrade => economy.upgrades[upgrade].map(l => l.value);   // effect at each level, from level 0
+const DEFENSE_TOP = 2;
+const defenseTop = economy.upgrades.defense.at(-1).value;
+const defenseScaled = v => (defenseTop > 1 ? 1 + (v - 1) * (DEFENSE_TOP - 1) / (defenseTop - 1) : v);
 
 const settings = {
   // Claiming
@@ -29,7 +32,9 @@ const settings = {
   // at level 0; a level past the end of a table uses its last entry. UPGRADES has the costs too.
   UPGRADES: economy.upgrades,                   // { clickPower: [{ level, value, cost }, …], … }
   CLICK_POWER_MULTIPLIER: values('clickPower'), // Click Power: how many hits one click counts as (1.2 = +20%)
-  DEFENSE_MULTIPLIER: values('defense'),        // Defense: multiplies the hits others need to take your blocks
+  // Defense: multiplies the hits others need to take your blocks. Xoren: the top level is twice as hard (x2),
+  // whatever the sheet's top value; every level is scaled the same way, so stored levels never move.
+  DEFENSE_MULTIPLIER: values('defense').map(defenseScaled),
   EARNINGS_MULTIPLIER: values('earnings'),      // Earnings: multiplies squares per first claim, fractions kept
   GROWTH_BLOCKS: values('growth'),              // Growth: map blocks a brand-new claim creates (whole numbers)
 
@@ -136,5 +141,5 @@ const earnsSquares = (ownedAfterClaim, wipeFloor) => ownedAfterClaim > wipeFloor
 const wipeFloorAfterWipe = (wipeFloor, ownedAtWipe) => Math.max(wipeFloor, ownedAtWipe);
 
 // The rules read the numbers from this same object, so tests can try other dial values.
-module.exports = Object.assign(settings, { key, NEIGHBORS, roundSquares, NO_UPGRADES, hitError, hitsNeeded, hitPower, growthBlocks, isTaken,
+module.exports = Object.assign(settings, { key, NEIGHBORS, roundSquares, defenseScaled, NO_UPGRADES, hitError, hitsNeeded, hitPower, growthBlocks, isTaken,
   squaresForFirstClaim, shownSquares, decayCrack, tapAllowed, earnsSquares, wipeFloorAfterWipe });

@@ -308,7 +308,8 @@ test('menu screens: skins, upgrades and achievement progress come from the real 
   assert.equal(skinList.length, 1 + rules.SKINS.filter(s => s.enabled).length, 'the catalog from the sheet');
   assert.ok(skinList.slice(1).every(s => !s.owned), 'a visitor owns only the plain look');
   assert.deepEqual(await a.ask('upgrades'), { levels: rules.NO_UPGRADES, hitsPerBlock: rules.HITS_PER_BLOCK,
-    squaresPerClaim: rules.SQUARES_PER_FIRST_CLAIM, upgrades: rules.UPGRADES, balance: 0 });
+    squaresPerClaim: rules.SQUARES_PER_FIRST_CLAIM, balance: 0,
+    upgrades: { ...rules.UPGRADES, defense: rules.UPGRADES.defense.map(l => ({ ...l, value: rules.defenseScaled(l.value) })) } });
   const none = await a.ask('achievements');
   assert.equal(none.list.length, 300);
   assert.deepEqual([none.earned, none.values], [[], {}], 'a visitor has nothing yet');

@@ -29,6 +29,7 @@ Every rule in the game, in plain English. This file is updated whenever a rule c
 
 ## Taking blocks
 
+- **Defense tops out at ×2** (Xoren): the sheet's Defense values are scaled so the top level is exactly twice as hard to take as an undefended block; every level shrinks the same way, so stored levels never move. (rules.js, DEFENSE_TOP)
 - **Nothing is wasted:** when your tap takes a block with hit power to spare (e.g. 10 needed, you had 9.4 and tapped 1.5), the spare 0.9 counts toward the next block you hit. So every Click Power level means fewer or equal taps over time. (Bob, loop 12)
 
 - **Every block takes 10 hits to take**, empty or owned. (Game Rules: `hitsPerBlock`)

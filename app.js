@@ -715,7 +715,8 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       const reply = args.at(-1);   // with or without an argument before it
       if (typeof reply !== 'function') return;
       reply({ levels: upgrades, hitsPerBlock: rules.HITS_PER_BLOCK, squaresPerClaim: rules.SQUARES_PER_FIRST_CLAIM,
-        upgrades: rules.UPGRADES,       // { clickPower: [{ level, value, cost }, …], … } from the sheet
+        // { clickPower: [{ level, value, cost }, …], … } from the sheet; Defense shown as it works (scaled, top x2)
+        upgrades: { ...rules.UPGRADES, defense: rules.UPGRADES.defense.map(l => ({ ...l, value: rules.defenseScaled(l.value) })) },
         balance: Number(me.squares) }); // the exact balance, so "Need X more" is right with fractions
     });
 
