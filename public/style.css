@@ -600,7 +600,7 @@ body:not(.welcome) #welcome * { pointer-events: none; }
 
 /* ---------- The floating island's sky ---------- */
 body { background: #070b18; }
-#space { position: fixed; inset: 0; background: radial-gradient(ellipse at 50% 120%, #1b1f4a 0%, #0a0e22 55%, #05070f 100%); overflow: hidden; }
+#space { position: fixed; inset: 0; background: radial-gradient(ellipse at 50% 120%, #0e1128 0%, #06081a 55%, #03040a 100%); overflow: hidden; }
 #space canvas { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; }
 #twinkle-a { animation: twinkle 3.2s steps(2) infinite alternate; }
 #twinkle-b { animation: twinkle 4.6s steps(2) infinite alternate-reverse; }

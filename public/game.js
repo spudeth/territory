@@ -40,7 +40,7 @@ function paintSky() {
       const d = (u + v - 1) / 0.3;                                   // across the band, which runs bottom-left to top-right
       const glow = Math.exp(-d * d) * (0.45 + 0.55 * noise(u, v)) * (1 - 0.65 * Math.max(0, noise(u * 0.7 + 0.3, v * 0.7) - 0.45) * 2.5 * Math.exp(-d * d * 4));
       const i = (y * w + x) * 4;
-      img.data[i] = 8 + 95 * glow; img.data[i + 1] = 10 + 85 * glow; img.data[i + 2] = 32 + 150 * glow; img.data[i + 3] = 255;
+      img.data[i] = 4 + 55 * glow; img.data[i + 1] = 5 + 52 * glow; img.data[i + 2] = 16 + 95 * glow; img.data[i + 3] = 255;   // darker, less purple
       const star = rand(), dense = 0.012 + 0.05 * Math.exp(-d * d);
       if (star < dense) { const b = 140 + rand() * 115; img.data[i] = img.data[i + 1] = b; img.data[i + 2] = Math.min(255, b + 30); }
     }
