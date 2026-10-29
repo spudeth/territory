@@ -83,9 +83,18 @@
   // ---------- Starting shape ----------
   // `blocks` connected blocks around (0, 0): a round island with a ragged, seeded edge. Grows outward from the
   // middle, always taking the open spot with the lowest score (distance plus a little noise), so it's connected.
+  // Each seed also picks the land's character: how stretched it is, how ragged its coast, and (often) big holes
+  // where you see through the land; holes are skipped, so the land stays one piece.
   function startingShape(seed, blocks) {
-    const s = mix(hashString(seed) ^ 0x4004), r = Math.sqrt(blocks / Math.PI);
-    const score = (x, y) => Math.sqrt(x * x + y * y) / r + 0.6 * (fbm(s, x / (r * 0.45), y / (r * 0.45)) - 0.5);
+    const s = mix(hashString(seed) ^ 0x4004), r = Math.sqrt(blocks / Math.PI), pick = n => unit(s, 900 + n);
+    const stretch = 0.6 + pick(1) * 1.0, ragged = 0.5 + pick(2) * 1.1, angle = pick(3) * Math.PI;
+    const holeSeed = mix(s ^ 0x7007), holes = pick(4) < 0.35 ? -1 : below(0.06 + pick(5) * 0.14);
+    const ca = Math.cos(angle), sa = Math.sin(angle);
+    const score = (x, y) => {
+      const a = (x * ca + y * sa) / stretch, b = (y * ca - x * sa) * stretch;
+      return Math.sqrt(a * a + b * b) / r + ragged * (fbm(s, x / (r * 0.45), y / (r * 0.45)) - 0.5);
+    };
+    const hole = (x, y) => x * x + y * y > r * r * 0.04 && fbm(holeSeed, x / (r * 0.22), y / (r * 0.22)) < holes;
     const heap = [], seen = new Set(['0,0']), out = [];
     const less = (p, q) => p[0] < q[0] || (p[0] === q[0] && (p[2] < q[2] || (p[2] === q[2] && p[1] < q[1])));
     const push = item => {
@@ -117,7 +126,7 @@
       out.push([x, y]);
       for (const [nx, ny] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]]) {
         const k = nx + ',' + ny;
-        if (!seen.has(k)) { seen.add(k); push([score(nx, ny), nx, ny]); }
+        if (!seen.has(k)) { seen.add(k); if (!hole(nx, ny)) push([score(nx, ny), nx, ny]); }
       }
     }
     return out;

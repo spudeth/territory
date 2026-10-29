@@ -37,7 +37,7 @@ test('the starting shape has exactly the blocks asked for, all different and all
   }
   assert.equal(seen.size, 10240, 'one piece');
   const xs = shape.map(p => p[0]);
-  assert.ok(Math.max(...xs) - Math.min(...xs) < 140, 'roughly 101 across');
+  assert.ok(Math.max(...xs) - Math.min(...xs) < 260, 'continent-sized, not a line');
 });
 
 test("over a big area, each terrain covers about its share from the Game Rules tab", () => {

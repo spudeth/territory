@@ -22,14 +22,41 @@ const terrainTile = name => Object.assign(new Image(), { src: `tiles/terrain-${n
 const TERRAIN_TILES = { sand: terrainTile('sand'), forest: terrainTile('forest'), stone: terrainTile('stone'), gold: terrainTile('gold'),
   water: [terrainTile('water-0'), terrainTile('water-1')] };
 const WATER_FRAME_MS = 700;
-// Pixel clouds for the sky layers: two puffy clouds on a transparent tile, repeated.
+// Pixel clouds: each one a random clump of 2-4 puffs, a random size and a random speed, drifting left or right.
+// Limits keep them from getting too big, too small or too fast. The far layer moves with the map at 0.35 of its
+// speed and the near one at 1.6 (parallax); with reduce motion they only move when you pan.
+const clouds = [];
 (() => {
-  const c = Object.assign(document.createElement('canvas'), { width: 96, height: 48 }), g = c.getContext('2d');
-  const puff = (x, y, s) => { g.fillStyle = '#ffffff'; g.fillRect(x + 2 * s, y, 6 * s, 2 * s); g.fillRect(x, y + 2 * s, 10 * s, 2 * s);
-    g.fillStyle = '#d7deea'; g.fillRect(x, y + 4 * s, 10 * s, s); };
-  puff(6, 8, 1); puff(54, 26, 2);
-  const url = `url(${c.toDataURL()})`;
-  for (const id of ['clouds-back', 'clouds-front']) document.getElementById(id).style.backgroundImage = url;
+  const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  for (const [layer, count, near] of [['clouds-back', 9, false], ['clouds-front', 5, true]]) {
+    for (let i = 0; i < count; i++) {
+      const c = Object.assign(document.createElement('canvas'), { width: 40, height: 16 }), g = c.getContext('2d');
+      for (let n = 2 + Math.floor(Math.random() * 3), k = 0; k < n; k++) {
+        const x = 2 + Math.floor(Math.random() * 22), y = 2 + Math.floor(Math.random() * 6), w = 8 + Math.floor(Math.random() * 8);
+        g.fillStyle = '#ffffff'; g.fillRect(x + 2, y, w - 4, 2); g.fillRect(x, y + 2, w, 4);
+        g.fillStyle = '#d7deea'; g.fillRect(x, y + 6, w, 2);
+      }
+      const size = (near ? 4 : 2) + Math.random() * 3;   // pixels per cloud texel, within limits
+      const img = Object.assign(new Image(), { src: c.toDataURL() });
+      img.style.width = 40 * size + 'px';
+      document.getElementById(layer).append(img);
+      clouds.push({ img, w: 40 * size, x: Math.random() * innerWidth, y: Math.random() * innerHeight,
+        v: still ? 0 : (4 + Math.random() * 14) * (Math.random() < 0.5 ? -1 : 1), f: near ? 1.6 : 0.35 });
+    }
+  }
+  let last = performance.now();
+  function step(now) {
+    const dt = Math.min(0.1, (now - last) / 1000);
+    last = now;
+    for (const c of clouds) {
+      c.x += c.v * dt;
+      const spanX = innerWidth + 2 * c.w, spanY = innerHeight + 2 * c.w;
+      const sx = (((c.x + ox * c.f) % spanX) + spanX) % spanX - c.w, sy = (((c.y + oy * c.f) % spanY) + spanY) % spanY - c.w;
+      c.img.style.transform = `translate(${Math.round(sx)}px, ${Math.round(sy)}px)`;
+    }
+    requestAnimationFrame(step);   // the browser pauses this while the tab is hidden
+  }
+  requestAnimationFrame(step);
 })();
 
 // Skin images (public/skins/<id>.png, and -large.png for Full area), loaded the first time they're needed.
@@ -139,9 +166,6 @@ function render() {
   if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
   ctx.imageSmoothingEnabled = false;   // keep pixel art crisp
   ctx.clearRect(0, 0, w, h);   // space shows through (index.html #space)
-  // Clouds: the far layer moves slower than the map, the near one faster (parallax).
-  $('clouds-back').style.backgroundPosition = `${Math.round(ox * 0.35)}px ${Math.round(oy * 0.35)}px`;
-  $('clouds-front').style.backgroundPosition = `${Math.round(ox * 1.6)}px ${Math.round(oy * 1.6)}px`;
   if (!cells) return;
 
   // Block edges in device pixels, rounded so neighbouring blocks never leave gaps.
