@@ -22,6 +22,44 @@ const terrainTile = name => Object.assign(new Image(), { src: `tiles/terrain-${n
 const TERRAIN_TILES = { sand: terrainTile('sand'), forest: terrainTile('forest'), stone: terrainTile('stone'), gold: terrainTile('gold'),
   water: [terrainTile('water-0'), terrainTile('water-1')] };
 const WATER_FRAME_MS = 700;
+// The night sky behind the island: a pixel Milky Way (a glowing diagonal band with dark dust lanes) and scattered
+// stars, drawn once at a third of the screen's resolution and scaled up; brighter stars twinkle on two layers.
+function paintSky() {
+  const P = 3, w = Math.ceil(innerWidth / P), h = Math.ceil(innerHeight / P);
+  const rand = (() => { let s = 12345; return () => (s = Math.imul(s ^ (s >>> 15), 2654435761) >>> 0) / 4294967296; })();
+  const grid = Array.from({ length: 40 * 40 }, rand);   // value noise for the band's clouds and dust
+  const noise = (x, y) => {
+    const gx = x * 39, gy = y * 39, x0 = Math.floor(gx), y0 = Math.floor(gy), fx = gx - x0, fy = gy - y0;
+    const g = (a, b) => grid[(Math.min(39, a)) * 40 + Math.min(39, b)];
+    return (g(x0, y0) * (1 - fx) + g(x0 + 1, y0) * fx) * (1 - fy) + (g(x0, y0 + 1) * (1 - fx) + g(x0 + 1, y0 + 1) * fx) * fy;
+  };
+  const sky = $('sky'), g = Object.assign(sky, { width: w, height: h }).getContext('2d'), img = g.createImageData(w, h);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const u = x / w, v = y / h;
+      const d = (u + v - 1) / 0.3;                                   // across the band, which runs bottom-left to top-right
+      const glow = Math.exp(-d * d) * (0.45 + 0.55 * noise(u, v)) * (1 - 0.65 * Math.max(0, noise(u * 0.7 + 0.3, v * 0.7) - 0.45) * 2.5 * Math.exp(-d * d * 4));
+      const i = (y * w + x) * 4;
+      img.data[i] = 4 + 55 * glow; img.data[i + 1] = 5 + 52 * glow; img.data[i + 2] = 16 + 95 * glow; img.data[i + 3] = 255;   // darker, less purple
+      const star = rand(), dense = 0.012 + 0.05 * Math.exp(-d * d);
+      if (star < dense) { const b = 140 + rand() * 115; img.data[i] = img.data[i + 1] = b; img.data[i + 2] = Math.min(255, b + 30); }
+    }
+  }
+  g.putImageData(img, 0, 0);
+  for (const [id, n] of [['twinkle-a', 70], ['twinkle-b', 70]]) {
+    const c = Object.assign($(id), { width: w, height: h }).getContext('2d');
+    for (let k = 0; k < n; k++) {
+      const x = Math.floor(rand() * w), y = Math.floor(rand() * h);
+      c.fillStyle = rand() < 0.5 ? '#ffffff' : '#cfd8ff';
+      c.fillRect(x, y, 1, 1);
+      if (rand() < 0.3) { c.fillStyle = 'rgba(200,210,255,0.6)'; c.fillRect(x - 1, y, 3, 1); c.fillRect(x, y - 1, 1, 3); }
+    }
+  }
+}
+paintSky();
+let skyTimer;
+addEventListener('resize', () => { clearTimeout(skyTimer); skyTimer = setTimeout(paintSky, 300); });
+
 // Pixel clouds: each one a random clump of 2-4 puffs, a random size and a random speed, drifting left or right.
 // Limits keep them from getting too big, too small or too fast. The far layer moves with the map at 0.35 of its
 // speed and the near one at 1.6 (parallax); with reduce motion they only move when you pan.

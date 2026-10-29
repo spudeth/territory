@@ -244,3 +244,202 @@ icon-donut,Donut,art,Common,100,Snacks & Gems,yes
 icon-diamond,Diamond,art,Common,100,Snacks & Gems,yes
 icon-gem-red,Gem Red,art,Common,100,Snacks & Gems,yes
 icon-rocket,Rocket,art,Common,100,Snacks & Gems,yes
+pat-tiny-stripes,Tiny Stripes,pattern,Common,300,Stripes,yes
+pat-bold-stripes,Bold Stripes,pattern,Common,300,Stripes,yes
+pat-soft-stripes,Soft Stripes,pattern,Common,200,Stripes,yes
+pat-sharp-stripes,Sharp Stripes,pattern,Common,200,Stripes,yes
+pat-wild-stripes,Wild Stripes,pattern,Common,100,Stripes,yes
+pat-calm-stripes,Calm Stripes,pattern,Common,100,Stripes,yes
+pat-lucky-stripes,Lucky Stripes,pattern,Common,100,Stripes,yes
+pat-swift-stripes,Swift Stripes,pattern,Common,100,Stripes,yes
+pat-royal-stripes,Royal Stripes,pattern,Common,300,Stripes,yes
+pat-cozy-stripes,Cozy Stripes,pattern,Common,300,Stripes,yes
+pat-funky-stripes,Funky Stripes,pattern,Common,200,Stripes,yes
+pat-neat-stripes,Neat Stripes,pattern,Common,200,Stripes,yes
+pat-lazy-stripes,Lazy Stripes,pattern,Common,300,Stripes,yes
+pat-brave-stripes,Brave Stripes,pattern,Common,300,Stripes,yes
+pat-fizzy-stripes,Fizzy Stripes,pattern,Common,200,Stripes,yes
+pat-dizzy-stripes,Dizzy Stripes,pattern,Common,200,Stripes,yes
+pat-tiny-stripes-ii,Tiny Stripes II,pattern,Common,250,Stripes,yes
+pat-bold-stripes-ii,Bold Stripes II,pattern,Common,250,Stripes,yes
+pat-soft-stripes-ii,Soft Stripes II,pattern,Common,300,Stripes,yes
+pat-sharp-stripes-ii,Sharp Stripes II,pattern,Common,300,Stripes,yes
+pat-wild-stripes-ii,Wild Stripes II,pattern,Common,300,Stripes,yes
+pat-calm-stripes-ii,Calm Stripes II,pattern,Common,300,Stripes,yes
+pat-lucky-stripes-ii,Lucky Stripes II,pattern,Common,300,Stripes,yes
+pat-swift-stripes-ii,Swift Stripes II,pattern,Common,300,Stripes,yes
+pat-royal-checks,Royal Checks,pattern,Common,300,Checks,yes
+pat-cozy-checks,Cozy Checks,pattern,Common,300,Checks,yes
+pat-funky-checks,Funky Checks,pattern,Common,200,Checks,yes
+pat-neat-checks,Neat Checks,pattern,Common,200,Checks,yes
+pat-lazy-checks,Lazy Checks,pattern,Common,150,Checks,yes
+pat-brave-checks,Brave Checks,pattern,Common,150,Checks,yes
+pat-fizzy-checks,Fizzy Checks,pattern,Common,300,Checks,yes
+pat-dizzy-checks,Dizzy Checks,pattern,Common,300,Checks,yes
+pat-tiny-checks,Tiny Checks,pattern,Common,200,Checks,yes
+pat-bold-checks,Bold Checks,pattern,Common,200,Checks,yes
+pat-soft-checks,Soft Checks,pattern,Common,150,Checks,yes
+pat-sharp-checks,Sharp Checks,pattern,Common,150,Checks,yes
+pat-wild-checks,Wild Checks,pattern,Common,200,Checks,yes
+pat-calm-checks,Calm Checks,pattern,Common,200,Checks,yes
+pat-lucky-dots,Lucky Dots,pattern,Common,150,Dots,yes
+pat-swift-dots,Swift Dots,pattern,Common,150,Dots,yes
+pat-royal-dots,Royal Dots,pattern,Common,250,Dots,yes
+pat-cozy-dots,Cozy Dots,pattern,Common,250,Dots,yes
+pat-funky-dots,Funky Dots,pattern,Common,140,Dots,yes
+pat-neat-dots,Neat Dots,pattern,Common,140,Dots,yes
+pat-lazy-dots,Lazy Dots,pattern,Common,160,Dots,yes
+pat-brave-dots,Brave Dots,pattern,Common,160,Dots,yes
+pat-fizzy-dots,Fizzy Dots,pattern,Common,190,Dots,yes
+pat-dizzy-dots,Dizzy Dots,pattern,Common,190,Dots,yes
+pat-tiny-dots,Tiny Dots,pattern,Common,130,Dots,yes
+pat-bold-dots,Bold Dots,pattern,Common,130,Dots,yes
+pat-soft-waves,Soft Waves,pattern,Common,200,Waves,yes
+pat-sharp-waves,Sharp Waves,pattern,Common,200,Waves,yes
+pat-wild-waves,Wild Waves,pattern,Common,300,Waves,yes
+pat-calm-waves,Calm Waves,pattern,Common,300,Waves,yes
+pat-lucky-waves,Lucky Waves,pattern,Common,150,Waves,yes
+pat-swift-waves,Swift Waves,pattern,Common,150,Waves,yes
+pat-royal-waves,Royal Waves,pattern,Common,180,Waves,yes
+pat-cozy-waves,Cozy Waves,pattern,Common,180,Waves,yes
+pat-funky-waves,Funky Waves,pattern,Common,300,Waves,yes
+pat-neat-waves,Neat Waves,pattern,Common,300,Waves,yes
+pat-lazy-waves,Lazy Waves,pattern,Common,200,Waves,yes
+pat-brave-waves,Brave Waves,pattern,Common,200,Waves,yes
+pat-fizzy-zigzag,Fizzy Zigzag,pattern,Common,300,Zigzag,yes
+pat-dizzy-zigzag,Dizzy Zigzag,pattern,Common,300,Zigzag,yes
+pat-tiny-zigzag,Tiny Zigzag,pattern,Common,300,Zigzag,yes
+pat-bold-zigzag,Bold Zigzag,pattern,Common,300,Zigzag,yes
+pat-soft-zigzag,Soft Zigzag,pattern,Common,200,Zigzag,yes
+pat-sharp-zigzag,Sharp Zigzag,pattern,Common,200,Zigzag,yes
+pat-wild-zigzag,Wild Zigzag,pattern,Common,300,Zigzag,yes
+pat-calm-zigzag,Calm Zigzag,pattern,Common,300,Zigzag,yes
+pat-lucky-zigzag,Lucky Zigzag,pattern,Common,200,Zigzag,yes
+pat-swift-zigzag,Swift Zigzag,pattern,Common,200,Zigzag,yes
+pat-royal-zigzag,Royal Zigzag,pattern,Common,300,Zigzag,yes
+pat-cozy-zigzag,Cozy Zigzag,pattern,Common,300,Zigzag,yes
+pat-funky-plaid,Funky Plaid,pattern,Common,250,Plaid,yes
+pat-neat-plaid,Neat Plaid,pattern,Common,250,Plaid,yes
+pat-lazy-plaid,Lazy Plaid,pattern,Common,190,Plaid,yes
+pat-brave-plaid,Brave Plaid,pattern,Common,190,Plaid,yes
+pat-fizzy-plaid,Fizzy Plaid,pattern,Common,180,Plaid,yes
+pat-dizzy-plaid,Dizzy Plaid,pattern,Common,180,Plaid,yes
+pat-tiny-plaid,Tiny Plaid,pattern,Common,160,Plaid,yes
+pat-bold-plaid,Bold Plaid,pattern,Common,160,Plaid,yes
+pat-soft-plaid,Soft Plaid,pattern,Common,140,Plaid,yes
+pat-sharp-plaid,Sharp Plaid,pattern,Common,140,Plaid,yes
+pat-wild-plaid,Wild Plaid,pattern,Common,140,Plaid,yes
+pat-calm-plaid,Calm Plaid,pattern,Common,140,Plaid,yes
+pat-lucky-crosshatch,Lucky Crosshatch,pattern,Common,300,Crosshatch,yes
+pat-swift-crosshatch,Swift Crosshatch,pattern,Common,300,Crosshatch,yes
+pat-royal-crosshatch,Royal Crosshatch,pattern,Common,300,Crosshatch,yes
+pat-cozy-crosshatch,Cozy Crosshatch,pattern,Common,300,Crosshatch,yes
+pat-funky-crosshatch,Funky Crosshatch,pattern,Common,300,Crosshatch,yes
+pat-neat-crosshatch,Neat Crosshatch,pattern,Common,300,Crosshatch,yes
+pat-lazy-crosshatch,Lazy Crosshatch,pattern,Common,280,Crosshatch,yes
+pat-brave-crosshatch,Brave Crosshatch,pattern,Common,280,Crosshatch,yes
+pat-fizzy-diamonds,Fizzy Diamonds,pattern,Common,200,Diamonds,yes
+pat-dizzy-diamonds,Dizzy Diamonds,pattern,Common,200,Diamonds,yes
+pat-tiny-diamonds,Tiny Diamonds,pattern,Common,150,Diamonds,yes
+pat-bold-diamonds,Bold Diamonds,pattern,Common,150,Diamonds,yes
+pat-soft-diamonds,Soft Diamonds,pattern,Common,180,Diamonds,yes
+pat-sharp-diamonds,Sharp Diamonds,pattern,Common,180,Diamonds,yes
+pat-wild-diamonds,Wild Diamonds,pattern,Common,130,Diamonds,yes
+pat-calm-diamonds,Calm Diamonds,pattern,Common,130,Diamonds,yes
+pat-lucky-diamonds,Lucky Diamonds,pattern,Common,140,Diamonds,yes
+pat-swift-diamonds,Swift Diamonds,pattern,Common,140,Diamonds,yes
+pat-royal-diamonds,Royal Diamonds,pattern,Common,120,Diamonds,yes
+pat-cozy-diamonds,Cozy Diamonds,pattern,Common,120,Diamonds,yes
+pat-funky-rings,Funky Rings,pattern,Common,300,Rings,yes
+pat-neat-rings,Neat Rings,pattern,Common,300,Rings,yes
+pat-lazy-rings,Lazy Rings,pattern,Common,260,Rings,yes
+pat-brave-rings,Brave Rings,pattern,Common,260,Rings,yes
+pat-fizzy-rings,Fizzy Rings,pattern,Common,300,Rings,yes
+pat-dizzy-rings,Dizzy Rings,pattern,Common,300,Rings,yes
+pat-tiny-rings,Tiny Rings,pattern,Common,210,Rings,yes
+pat-bold-rings,Bold Rings,pattern,Common,210,Rings,yes
+pat-royal-bricks,Royal Bricks,pattern,Common,140,Bricks,yes
+pat-cozy-bricks,Cozy Bricks,pattern,Common,140,Bricks,yes
+pat-funky-bricks,Funky Bricks,pattern,Common,190,Bricks,yes
+pat-neat-bricks,Neat Bricks,pattern,Common,190,Bricks,yes
+pat-lazy-scales,Lazy Scales,pattern,Common,180,Scales,yes
+pat-brave-scales,Brave Scales,pattern,Common,180,Scales,yes
+pat-fizzy-scales,Fizzy Scales,pattern,Common,130,Scales,yes
+pat-dizzy-scales,Dizzy Scales,pattern,Common,130,Scales,yes
+pat-tiny-scales,Tiny Scales,pattern,Common,120,Scales,yes
+pat-bold-scales,Bold Scales,pattern,Common,120,Scales,yes
+pat-soft-grid,Soft Grid,pattern,Common,150,Grid,yes
+pat-sharp-grid,Sharp Grid,pattern,Common,150,Grid,yes
+pat-wild-pluses,Wild Pluses,pattern,Common,160,Pluses,yes
+pat-calm-pluses,Calm Pluses,pattern,Common,160,Pluses,yes
+pat-lucky-pluses,Lucky Pluses,pattern,Common,130,Pluses,yes
+pat-swift-pluses,Swift Pluses,pattern,Common,130,Pluses,yes
+pat-royal-triangles,Royal Triangles,pattern,Common,250,Triangles,yes
+pat-cozy-triangles,Cozy Triangles,pattern,Common,250,Triangles,yes
+pat-funky-triangles,Funky Triangles,pattern,Common,190,Triangles,yes
+pat-neat-triangles,Neat Triangles,pattern,Common,190,Triangles,yes
+pat-lazy-triangles,Lazy Triangles,pattern,Common,150,Triangles,yes
+pat-brave-triangles,Brave Triangles,pattern,Common,150,Triangles,yes
+pat-fizzy-triangles,Fizzy Triangles,pattern,Common,250,Triangles,yes
+pat-dizzy-triangles,Dizzy Triangles,pattern,Common,250,Triangles,yes
+pat-tiny-triangles,Tiny Triangles,pattern,Common,190,Triangles,yes
+pat-bold-triangles,Bold Triangles,pattern,Common,190,Triangles,yes
+pat-soft-triangles,Soft Triangles,pattern,Common,150,Triangles,yes
+pat-sharp-triangles,Sharp Triangles,pattern,Common,150,Triangles,yes
+pat-wild-chevrons,Wild Chevrons,pattern,Common,300,Chevrons,yes
+pat-calm-chevrons,Calm Chevrons,pattern,Common,300,Chevrons,yes
+art-sunset-bands,Sunset Bands,art,Rare,1000,Sunset Art,yes
+art-sunset-sun,Sunset Sun,art,Rare,1500,Sunset Art,yes
+art-sunset-mosaic,Sunset Mosaic,art,Rare,2000,Sunset Art,yes
+art-sunset-glass,Sunset Glass,art,Rare,2500,Sunset Art,yes
+art-ocean-bands,Ocean Bands,art,Rare,3000,Ocean Art,yes
+art-ocean-sun,Ocean Sun,art,Rare,1000,Ocean Art,yes
+art-ocean-mosaic,Ocean Mosaic,art,Rare,1500,Ocean Art,yes
+art-ocean-glass,Ocean Glass,art,Rare,2000,Ocean Art,yes
+art-forest-bands,Forest Bands,art,Rare,2500,Forest Art,yes
+art-forest-sun,Forest Sun,art,Rare,3000,Forest Art,yes
+art-forest-mosaic,Forest Mosaic,art,Rare,1000,Forest Art,yes
+art-forest-glass,Forest Glass,art,Rare,1500,Forest Art,yes
+art-candy-bands,Candy Bands,art,Rare,2000,Candy Art,yes
+art-candy-sun,Candy Sun,art,Rare,2500,Candy Art,yes
+art-candy-glass,Candy Glass,art,Rare,1000,Candy Art,yes
+art-ember-bands,Ember Bands,art,Rare,1500,Ember Art,yes
+art-ember-sun,Ember Sun,art,Rare,2000,Ember Art,yes
+art-ember-mosaic,Ember Mosaic,art,Rare,2500,Ember Art,yes
+art-ember-glass,Ember Glass,art,Rare,3000,Ember Art,yes
+art-arctic-bands,Arctic Bands,art,Rare,1000,Arctic Art,yes
+art-arctic-sun,Arctic Sun,art,Rare,1500,Arctic Art,yes
+art-arctic-mosaic,Arctic Mosaic,art,Rare,2000,Arctic Art,yes
+art-arctic-glass,Arctic Glass,art,Rare,2500,Arctic Art,yes
+art-neon-bands,Neon Bands,art,Rare,3000,Neon Art,yes
+art-neon-sun,Neon Sun,art,Rare,1000,Neon Art,yes
+art-neon-mosaic,Neon Mosaic,art,Rare,1500,Neon Art,yes
+art-neon-glass,Neon Glass,art,Rare,2000,Neon Art,yes
+art-desert-bands,Desert Bands,art,Rare,2500,Desert Art,yes
+art-desert-sun,Desert Sun,art,Rare,3000,Desert Art,yes
+art-candy-candy-cane,Candy Candy Cane,art,Rare,1000,Candy Art,yes
+art-neon-candy-cane,Neon Candy Cane,art,Rare,1500,Neon Art,yes
+art-ember-candy-cane,Ember Candy Cane,art,Rare,2000,Ember Art,yes
+art-ocean-candy-cane,Ocean Candy Cane,art,Rare,2500,Ocean Art,yes
+art-grape-candy-cane,Grape Candy Cane,art,Rare,3000,Grape Art,yes
+art-king,King,art,Rare,1000,Royals,yes
+art-queen,Queen,art,Rare,1500,Royals,yes
+art-alpenglow,Alpenglow,art,Ultra Rare,4000,Scenes,yes
+art-starry-hills,Starry Hills,art,Ultra Rare,5000,Scenes,yes
+art-coral-reef,Coral Reef,art,Ultra Rare,6000,Scenes,yes
+art-volcano,Volcano,art,Ultra Rare,7000,Scenes,yes
+art-crystal-cave,Crystal Cave,art,Ultra Rare,8000,Scenes,yes
+art-blossom-branch,Blossom Branch,art,Ultra Rare,4000,Scenes,yes
+art-northern-lights,Northern Lights,art,Ultra Rare,5000,Scenes,yes
+art-oasis,Oasis,art,Ultra Rare,6000,Scenes,yes
+art-waterfall,Waterfall,art,Ultra Rare,7000,Scenes,yes
+art-dusk-castle,Dusk Castle,art,Ultra Rare,8000,Scenes,yes
+art-lighthouse,Lighthouse,art,Ultra Rare,4000,Scenes,yes
+art-snow-village,Snow Village,art,Ultra Rare,5000,Scenes,yes
+art-deep-jungle,Deep Jungle,art,Ultra Rare,6000,Scenes,yes
+art-synth-horizon,Synth Horizon,art,Ultra Rare,7000,Scenes,yes
+art-moonlit-sea,Moonlit Sea,art,Ultra Rare,8000,Scenes,yes
+art-phoenix-flame,Phoenix Flame,art,Legendary,25000,Showpieces,yes
+art-aurora-veil,Aurora Veil,art,Legendary,20000,Showpieces,yes
+art-prism,Prism,art,Legendary,15000,Showpieces,yes
+art-cosmic-vortex,Cosmic Vortex,art,Legendary,12500,Showpieces,yes

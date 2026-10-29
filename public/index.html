@@ -32,7 +32,7 @@
        #drift moves it gently forever (welcome.js). -->
   <!-- Behind the floating island: deep space with twinkling stars, and clouds below and above it (game.js moves the
        clouds with the map, slower or faster, for depth). -->
-  <div id="space"><div class="stars a"></div><div class="stars b"></div></div>
+  <div id="space"><canvas id="sky"></canvas><canvas class="twinkle" id="twinkle-a"></canvas><canvas class="twinkle" id="twinkle-b"></canvas></div>
   <div class="clouds" id="clouds-back"></div>
   <div id="stage"><div id="drift"><canvas id="map"></canvas></div></div>
   <div class="clouds" id="clouds-front"></div>
