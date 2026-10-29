@@ -982,4 +982,5 @@ Map commands for Xoren (production; the server must be on loop 9 or later):
   npm run admin -- create-map "White Plains" --style white --width 32 --height 32 --prod
   npm run admin -- create-map Pangea --seed Pangea --prod
 (White Plains: a plain white rectangle with no terrain, since --width/--height give an unseeded rectangle. Pangea: a 10,240-block island with terrain.)
-NOT DONE from loop 12, still to do: 1 Awards filter tabs, 2 floating island background, 3 white-style check, 4 setup-before-welcome flow fix, 5 Click Power percentages and carry-over, 6 online dot, 7 the 205 new skins. OPEN Q16: loop 12 continues next session.
+NOT DONE from loop 12, still to do: (1 Awards filter tabs: done, #80) 2 floating island background, 3 white-style check, 4 setup-before-welcome flow fix, 5 Click Power percentages and carry-over, 6 online dot, 7 the 205 new skins. OPEN Q16: loop 12 continues next session.
+#80 | 2026-10-29 | Loop 12: Awards filter tabs back (All / Pending / Claimed) on top of the category grouping; Pending hides finished categories, Claimed shows categories with at least one earned

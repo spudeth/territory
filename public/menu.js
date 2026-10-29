@@ -433,17 +433,19 @@ async function buy(up, level, btn) {
 // Grouped by category, each with its next tier and a progress bar toward it. Secret ones show as "???".
 const fmtNum = n => Number(n).toLocaleString(undefined, { maximumFractionDigits: 1 });
 const COUNTS_DOWN = new Set(['bestRank']);   // #3 is better than #10
-let achData = null;
+let achData = null, achFilter = 'all';   // all, pending (not earned yet) or claimed (earned)
 
 function drawAchievements() {
   const { list, earned, values } = achData;
   const got = new Set(earned.map(e => e.id));
   $('ach-total').textContent = `${got.size} / ${list.length}`;
   $('ach-total-bar').style.width = `${list.length ? got.size / list.length * 100 : 0}%`;
+  for (const b of $('ach-filter').children) b.setAttribute('aria-selected', b.dataset.filter === achFilter);
   const groups = new Map();
   for (const a of list) (groups.get(a.category) ?? groups.set(a.category, []).get(a.category)).push(a);
-  $('ach-list').replaceChildren(...[...groups].map(([category, tiers]) => {
+  $('ach-list').replaceChildren(...[...groups].flatMap(([category, tiers]) => {
     const card = document.createElement('div'), done = tiers.filter(a => got.has(a.id)).length;
+    if ((achFilter === 'pending' && done === tiers.length) || (achFilter === 'claimed' && !done)) return [];
     card.className = 'ach-cat' + (done === tiers.length ? ' got' : '');
     card.innerHTML = '<div class="ach-head"><span class="t"></span><span class="n"></span></div>';
     card.querySelector('.t').textContent = category;
@@ -487,6 +489,7 @@ function drawAchievements() {
     return card;
   }));
 }
+for (const b of $('ach-filter').children) b.addEventListener('click', () => { achFilter = b.dataset.filter; if (achData) drawAchievements(); });
 fills.achievements = async () => {
   const r = await ask('achievements');
   if (view !== 'achievements') return;
