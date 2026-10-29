@@ -279,6 +279,9 @@ a:hover { color: var(--gold-light); }
 .skin { height: 72px; border: 3px solid var(--ink); position: relative; padding: 0; cursor: pointer; font: 600 13px var(--body); color: var(--well); }
 .skin .tag { position: absolute; top: 4px; right: 4px; font-size: 7px; padding: 3px 4px; }
 .skin .label { position: absolute; left: 4px; bottom: 4px; }
+.skin .skin-prev { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; }
+.skin .label { z-index: 1; text-shadow: 1px 1px 0 var(--ink); color: var(--text); }
+.skin .tag { z-index: 1; }
 .skin.all { background: var(--card); display: flex; align-items: center; justify-content: center; color: var(--gold); font-size: 15px; }
 .skin:disabled { cursor: default; }
 .coverages { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
@@ -301,6 +304,13 @@ a:hover { color: var(--gold-light); }
 
 /* Skins screen */
 .catalog { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.cat-title { font: 10px var(--title); color: var(--yellow); margin: 10px 0 8px; }
+.catalog canvas.prev { width: 100%; height: auto; aspect-ratio: 1; image-rendering: pixelated; display: block; background: var(--card); }
+.catalog .buy { min-height: 36px; font-size: 14px; padding: 0 6px; gap: 4px; background: var(--gold); color: var(--well); }
+.catalog .buy:disabled { background: var(--raised); color: var(--muted); }
+.catalog .rar { font: 7px var(--title); color: var(--muted); }
+.catalog .rar.Rare { color: var(--blue); }
+.catalog .rar.Legendary { color: var(--orange); }
 .catalog .tile { display: flex; flex-direction: column; gap: 6px; }
 .catalog .prev { height: 96px; border: 3px solid var(--ink); position: relative; }
 .catalog .prev .tag { position: absolute; top: 4px; right: 4px; font-size: 7px; padding: 3px 4px; }

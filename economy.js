@@ -9,7 +9,13 @@ const RULES_TAB = 'Game Rules';
 const RULES_COLUMNS = ['Key', 'Value', 'What it means'];
 const ACHIEVEMENTS_TAB = 'Achievements';
 const ACHIEVEMENT_COLUMNS = ['Key', 'Name', 'Category', 'Stat', 'Threshold', 'Secret', 'Description', 'Reward'];
-const TABS = [...Object.values(UPGRADE_TABS), RULES_TAB, ACHIEVEMENTS_TAB];
+const SKINS_TAB = 'Skins';
+const SKIN_COLUMNS = ['Key', 'Name', 'Kind', 'Rarity', 'Price', 'Collection', 'Enabled'];
+const SKIN_KINDS = ['pattern', 'art'];          // pattern: drawn in the owner's color; art: full-color image
+const RARITIES = ['Common', 'Rare', 'Legendary'];
+// The image files every skin needs, under public/: one block, and the large one for Full area coverage.
+const skinFiles = key => [`skins/${key}.png`, `skins/${key}-large.png`];
+const TABS = [...Object.values(UPGRADE_TABS), RULES_TAB, ACHIEVEMENTS_TAB, SKINS_TAB];
 
 // The stats an achievement can use: the ones the game counts (achievements.js has what each one means).
 // bestRank counts down: a threshold of 3 means "#3 or better".
@@ -90,7 +96,8 @@ const cellName = (col, row) => String.fromCharCode(65 + col) + (row + 1);
 
 // Checks the downloaded tabs. tabs: { 'Click Power': csvText, … }.
 // Returns { economy: { rules, upgrades }, errors: [] } or { economy: null, errors: ['…'] }.
-function validate(tabs) {
+// hasFile(path): whether a file exists under public/ (the sync passes one; skins need their images).
+function validate(tabs, { hasFile = () => true } = {}) {
   const errors = [];
   const where = (tab, col, row, header) => `${tab}, cell ${cellName(col, row)}${header ? ` ("${header}")` : ''}`;
 
@@ -183,7 +190,30 @@ function validate(tabs) {
     });
     if (!a.rows.length) errors.push(`${T}: no achievements below the header row`);
   }
-  return errors.length ? { economy: null, errors } : { economy: { rules, upgrades, achievements }, errors };
+  // Skins: one row each, with its images in public/skins/. Enabled "no" keeps a skin out of the shop (owners keep it).
+  const skins = [], skinKeys = new Set();
+  const k = table(SKINS_TAB, SKIN_COLUMNS);
+  if (k) {
+    k.rows.forEach((r, i) => {
+      const row = i + 1, cell = j => (r[k.at[j]] ?? '').trim(), at = j => where(SKINS_TAB, k.at[j], row, SKIN_COLUMNS[j]);
+      const [key, name, kind, rarity, rawPrice, collection, enabled] = SKIN_COLUMNS.map((c, j) => cell(j));
+      const bad = [];
+      if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(key) || key === 'default') bad.push(`${at(0)}: "${key}" must be lower-case letters, digits and dashes (not "default")`);
+      else if (skinKeys.has(key)) bad.push(`${at(0)}: "${key}" appears twice`);
+      skinKeys.add(key);
+      if (!name) bad.push(`${at(1)}: blank`);
+      if (!SKIN_KINDS.includes(kind)) bad.push(`${at(2)}: "${kind}" must be pattern or art`);
+      if (!RARITIES.includes(rarity)) bad.push(`${at(3)}: "${rarity}" must be ${RARITIES.join(', ')}`);
+      const price = parseNumber(rawPrice);
+      if (price === null || !Number.isInteger(price) || price < 1) bad.push(`${at(4)}: "${rawPrice}" must be a whole number of squares, 1 or more`);
+      if (!collection) bad.push(`${at(5)}: blank`);
+      if (!/^(yes|no)$/i.test(enabled)) bad.push(`${at(6)}: "${enabled}" must be yes or no`);
+      for (const f of /^[a-z0-9-]+$/.test(key) ? skinFiles(key) : []) if (!hasFile(f)) bad.push(`${at(0)}: no image public/${f}`);
+      if (bad.length) return errors.push(...bad);
+      skins.push({ id: key, name, kind, rarity, price, collection, enabled: /^yes$/i.test(enabled) });
+    });
+  }
+  return errors.length ? { economy: null, errors } : { economy: { rules, upgrades, achievements, skins }, errors };
 }
 
 // Option B: a stored level under the old table becomes the lowest new level whose value is at least the old
@@ -235,7 +265,11 @@ function describeChanges(before, after) {
     lines.push(`Achievements: ${now.size} in all; ${added.length} added, ${removed.length} removed, ${changed.length} changed`
       + (removed.length ? ` (removed: ${removed.join(', ')})` : ''));
   }
+  const hadSkins = new Map((before?.skins ?? []).map(d => [d.id, JSON.stringify(d)]));
+  const nowSkins = after.skins ?? [];
+  const newSkins = nowSkins.filter(d => !hadSkins.has(d.id)).length, changedSkins = nowSkins.filter(d => hadSkins.has(d.id) && hadSkins.get(d.id) !== JSON.stringify(d)).length;
+  if (newSkins || changedSkins || hadSkins.size !== nowSkins.length) lines.push(`Skins: ${nowSkins.length} in all; ${newSkins} added, ${changedSkins} changed`);
   return lines.length ? lines : ['No changes.'];
 }
 
-module.exports = { UPGRADE_TABS, RULES_TAB, ACHIEVEMENTS_TAB, STATS, TABS, RULE_KEYS, parseCsv, parseNumber, validate, remapLevel, remapTable, describeChanges };
+module.exports = { UPGRADE_TABS, RULES_TAB, ACHIEVEMENTS_TAB, SKINS_TAB, SKIN_KINDS, RARITIES, skinFiles, STATS, TABS, RULE_KEYS, parseCsv, parseNumber, validate, remapLevel, remapTable, describeChanges };

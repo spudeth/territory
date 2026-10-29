@@ -406,9 +406,11 @@
           <h1>SKINS</h1>
           <span class="right" id="skins-owned"></span>
         </div>
-        <p style="margin: 0; font-size: 15px; line-height: 1.35; color: var(--soft)">You choose a skin when you first enter a map. Buying unlocks it for every new map.</p>
-        <div class="catalog" id="catalog"></div>
-        <button class="btn soon foot" type="button" data-soon="Buying skins" style="background: var(--gold); color: var(--well)">Buy skins with squares <span class="tag" style="position: static">SOON</span></button>
+        <p style="margin: 0; font-size: 15px; line-height: 1.35; color: var(--soft)">Buy skins with squares. Owned skins work on every map: you pick one when you first enter a map.</p>
+        <div class="split" style="align-items: center"><span>Your squares</span><span class="chip"><img class="sq-icon" src="icons/square.svg" width="14" height="14" alt=""><span id="skins-squares">0</span></span></div>
+        <div class="tabs yellow" role="tablist" aria-label="Collections" id="skins-tabs"></div>
+        <input class="field" id="skins-search" type="search" placeholder="Search skins, e.g. Japan" autocomplete="off" aria-label="Search skins">
+        <div id="catalog"></div>
       </section>
 
       <!-- Upgrades -->
@@ -442,6 +444,7 @@
   <script src="/socket.io/socket.io.js"></script>
   <script src="labels.js"></script>
   <script src="terrain.js"></script>
+  <script src="skins.js"></script>
   <script src="sfx.js"></script>
   <script src="audio.js"></script>
   <script src="game.js"></script>

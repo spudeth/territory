@@ -384,11 +384,32 @@ async function mapsFor(pool, playerId) {
 Object.assign(module.exports, { STYLES, listMaps, createMap, mapsFor });
 
 // The skin catalog, with whether this player owns each (free skins count as owned by everyone).
+// The skin catalog (rules.SKINS, from the sheet) with what this player owns: [{ id, name, kind, rarity, price,
+// collection, owned }], the free plain look first. Skins taken out of the shop still show for their owners.
 async function skinsFor(pool, playerId) {
-  const { rows } = await pool.query(
-    `SELECT s.id, s.name, s.is_free OR ps.skin_id IS NOT NULL AS owned FROM skins s
-     LEFT JOIN player_skins ps ON ps.skin_id = s.id AND ps.player_id = $1 ORDER BY s.is_free DESC, s.id`, [playerId]);
-  return rows;
+  const owned = new Set(playerId ? (await pool.query('SELECT skin_id FROM player_skins WHERE player_id = $1', [playerId])).rows.map(r => r.skin_id) : []);
+  return [{ id: 'default', name: 'Default', kind: 'default', rarity: 'Common', price: 0, collection: 'Basic', owned: true },
+    ...rules.SKINS.filter(s => s.enabled || owned.has(s.id)).map(({ enabled, ...s }) => ({ ...s, owned: owned.has(s.id) }))];
+}
+
+// Buys a skin with squares, in one transaction: the player row is locked, so a double tap or two devices can
+// never pay twice. skin: a catalog entry { id, name, price }. Returns { squares } (the new exact balance), or
+// { error } with `need` (squares short) when there aren't enough.
+function buySkin(pool, playerId, skin) {
+  return tx(pool, async c => {
+    const { rows: [p] } = await c.query('SELECT squares FROM players WHERE id = $1 FOR UPDATE', [playerId]);
+    if (!p) return { error: 'Claim a block first' };
+    if ((await c.query('SELECT 1 FROM player_skins WHERE player_id = $1 AND skin_id = $2', [playerId, skin.id])).rowCount) return { error: 'You already own this skin' };
+    const balance = Number(p.squares);
+    if (balance < skin.price - 1e-9) return { error: 'Not enough squares', need: rules.roundSquares(skin.price - balance) };
+    await c.query(`INSERT INTO skins (id, name, image, price_squares) VALUES ($1, $2, $3, $4)
+      ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, price_squares = EXCLUDED.price_squares`, [skin.id, skin.name, skin.id + '.png', skin.price]);
+    const { rows: [after] } = await c.query('UPDATE players SET squares = squares - $2 WHERE id = $1 RETURNING squares', [playerId, skin.price]);
+    await c.query("INSERT INTO player_skins (player_id, skin_id, source) VALUES ($1, $2, 'squares')", [playerId, skin.id]);
+    await c.query('INSERT INTO square_ledger (player_id, delta, balance_after, reason) VALUES ($1, $2, $3, $4)',
+      [playerId, -skin.price, after.squares, 'skin:' + skin.id]);
+    return { squares: Number(after.squares) };
+  });
 }
 
 // For the Achievements screen: a player's best value of each stat on any map (the progress shown), and the
@@ -475,7 +496,7 @@ async function logTapLimits(pool, entries) {
     [entries.map(e => e[0]), entries.map(e => e[1])]);
 }
 
-Object.assign(module.exports, { skinsFor, achievementProgress, saveTutorial, applyEconomy, buyUpgrade, logTapLimits });
+Object.assign(module.exports, { skinsFor, buySkin, achievementProgress, saveTutorial, applyEconomy, buyUpgrade, logTapLimits });
 
 // ---------- Admin (npm run admin; admin.js) ----------
 
