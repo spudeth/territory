@@ -318,6 +318,14 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
     };
   }
 
+  // Who has the game open in a visible tab on a map: sent to everyone there as 'online' (a list of player ids).
+  function sendOnline(map) {
+    if (!map) return;
+    const pids = new Set();
+    for (const s of io.sockets.sockets.values()) if (s.data.mapId === map.id && s.data.visible && s.data.me?.pid) pids.add(String(s.data.me.pid));
+    io.to(map.room).emit('online', [...pids]);
+  }
+
   // A purchase: new upgrade levels and balance for every connection of the player and every loaded map (where
   // Defense is read from), so the new level counts from the next tap.
   function upgradesChanged(pid, levels, balance) {
@@ -392,15 +400,21 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
     }
     // This visit, for the Sessions achievements and some secrets.
     const session = { claims: 0, recent: [], forestRun: 0, pokes: 0, minute: null, visitorTaps: 0, spare: 0 };
-    socket.on('disconnect', () => { if (me.pid) totals.save(me.pid); });
+    socket.data.visible = true;
+    socket.on('disconnect', () => { if (me.pid) totals.save(me.pid); sendOnline(map); });
+    // The browser says when its tab is shown or hidden (online dots).
+    socket.on('visible', v => { socket.data.visible = !!v; sendOnline(map); });
 
     // Puts this connection on `next` and sends the whole map. Also used when switching maps, so the browser
     // handles a switch like a fresh welcome.
     function enter(next, flags = {}) {
+      const old = map;
       if (map) socket.leave(map.room);
       map = next;
       socket.data.mapId = map.id;
       socket.join(map.room);
+      if (old && old !== map) sendOnline(old);
+      setTimeout(() => sendOnline(map));   // after the welcome below
       const mine = map.players.get(me.pid);
       color = mine?.color ?? rules.COLORS[Math.floor(Math.random() * rules.COLORS.length)].hex;
       skin = mine?.skin ?? 'default';
@@ -473,6 +487,7 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
         me.name = r.name;
         socket.join('player:' + me.pid);
         socket.emit('you', { token, pid: me.pid, name: me.name });
+        sendOnline(map);
         totals.bump(me.pid, 'taps', session.visitorTaps);
         session.visitorTaps = 0;
         session.minute = Math.floor(Date.now() / 60000);

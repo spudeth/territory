@@ -283,6 +283,13 @@ function render() {
     ctx.fillRect(box.x + pad, Math.round(box.y + (box.h - dot) / 2), dot, dot);
     ctx.fillStyle = String(owner) === String(me) ? '#f7c948' : '#ffffff';
     ctx.fillText(name, box.x + pad * 2 + dot, box.y + box.h / 2 + dpr);
+    if (online.has(String(owner))) {   // a green dot: they have the game open right now
+      const r = 3.5 * dpr;
+      ctx.fillStyle = '#0a0d12';
+      ctx.beginPath(); ctx.arc(box.x + box.w, box.y, r + dpr, 0, 2 * Math.PI); ctx.fill();
+      ctx.fillStyle = '#2fd35b';
+      ctx.beginPath(); ctx.arc(box.x + box.w, box.y, r, 0, 2 * Math.PI); ctx.fill();
+    }
   }
 
   // Blocks the tutorial points at (coach.js): a thick yellow outline with a dark edge.
@@ -435,6 +442,7 @@ function updateUI() {
     li.innerHTML = '<span class="sq"></span><span class="name"></span><span class="n"></span>';
     li.children[0].style.background = players[pid]?.color || '#888';
     li.children[1].textContent = players[pid]?.name || '…';
+    li.children[1].classList.toggle('online', online.has(String(pid)));
     li.children[2].textContent = n;
     return li;
   }));
@@ -450,6 +458,12 @@ const socket = io({
     token: localStorage.getItem('territory-token'), jwt, upgrade: sessionStorage.getItem('territory-upgrade') === '1',
   })),
 });
+
+// Players with the game open in a visible tab on this map (green dots), and telling the server about our tab.
+let online = new Set();
+socket.on('online', list => { online = new Set(list.map(String)); updateUI(); draw(); });
+document.addEventListener('visibilitychange', () => socket.emit('visible', !document.hidden));
+socket.on('connect', () => { if (document.hidden) socket.emit('visible', false); });
 
 socket.on('welcome', data => {
   const first = !cells || data.map.id !== mapInfo?.id;   // a new map (or a switch) gets a fresh view

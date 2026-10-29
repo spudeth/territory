@@ -579,3 +579,17 @@ test('taps still arriving while a claim is saved leave no crack on the new owner
   const late = a.events.slice(after).filter(([n, d]) => n === 'hit' && d.x === 20 && d.y === 30 && d.p > 0);
   assert.deepEqual(late, [], 'no crack shows up later on the claimed block');
 });
+
+test('online dots: players with the game open in a visible tab, gone when they hide or close it', async () => {
+  const a = player(), b = player();
+  await Promise.all([a.welcome, b.welcome]);
+  a.take(22, 30);
+  const you = await a.next('you');
+  await b.next('online', list => list.includes(String(you.pid)));
+  a.emit('visible', false);
+  await b.next('online', list => !list.includes(String(you.pid)));
+  a.emit('visible', true);
+  await b.next('online', list => list.includes(String(you.pid)));
+  a.disconnect();
+  await b.next('online', list => !list.includes(String(you.pid)));
+});
