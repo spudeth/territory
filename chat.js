@@ -1,5 +1,6 @@
 // Text chat rules: one chat per map, kept only in memory (the last HISTORY messages per map, for players who
 // arrive). cleanMessage() tidies what a player typed and hides bad words.
+const { hasSlur } = require('./profanity');
 const MAX_LENGTH = 120;        // characters per message
 const MIN_GAP_MS = 2000;       // one message per 2 seconds per player
 const HISTORY = 30;            // messages a player sees when they arrive on a map
@@ -23,6 +24,7 @@ function plain(word) {
   return [...word.toLowerCase()].map(c => LEET[c] ?? c).join('').replace(/[^a-z]/g, '').replace(/(.)\1{2,}/g, '$1');
 }
 function isBad(word) {
+  if (hasSlur(word)) return true;   // the name filter's slur variants (profanity.js)
   const w = plain(word);
   if (!w) return false;
   const squeezed = w.replace(/(.)\1+/g, '$1');   // "fuuck" -> "fuck", "shiit" -> "shit"

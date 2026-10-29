@@ -9,6 +9,7 @@ const store = require('./store');
 const rules = require('./rules');
 const { dumpTables, restoreTables } = require('./db');
 const { COMMANDS } = require('./admin-spec');
+const { isProfane } = require('./profanity');
 
 class Refusal extends Error {}   // a problem to tell the admin about (no such player, too few squares…)
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
@@ -125,6 +126,18 @@ function adminRouter({ pool, key, production, hooks }) {
           `Achievements: ${i.achievements.length ? i.achievements.join(', ') : 'none'}`,
           `Ban: ${ban ? `BANNED ${ban.until ? `until ${new Date(ban.until).toISOString().slice(0, 16).replace('T', ' ')} UTC` : 'permanently'}${ban.reason ? ` (${ban.reason})` : ''}` : 'not banned'}`,
         ];
+      },
+    },
+
+    'bad-names': {
+      async prepare() { return {}; },
+      async run() {
+        const { rows } = await pool.query("SELECT id, name, auth_user_id IS NOT NULL AS account FROM players WHERE deleted_at IS NULL ORDER BY id");
+        const bad = rows.filter(p => isProfane(p.name));
+        return bad.length
+          ? [`${plural(bad.length, 'name')} the filter blocks now (of ${rows.length.toLocaleString()}):`,
+            ...bad.map(p => `  ${p.name} (#${p.id}, ${p.account ? 'account' : 'guest'})`)]
+          : [`No blocked names among ${plural(rows.length, 'player')}.`];
       },
     },
 

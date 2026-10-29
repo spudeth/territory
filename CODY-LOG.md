@@ -370,6 +370,9 @@ Admin commands through the live server with a secret key, dev by default and --p
 #59 | 2026-10-28 | Loop 8: MENU button now opens the welcome screen; menu screens' back buttons return to it; the old hub's How to play moved into Settings; the old hub's Get squares / VIP "soon" tiles and the Maps screen are no longer reachable (the picker replaces Maps). Tutorial menu tour points at the welcome screen (one line added: "Press PLAY to get back to your land."; Q8 wording still open). A tip showing when the welcome screen opens waits for the game | tests: tutorial test passes with the new highlights
 #60 | 2026-10-28 | Loop 8 checks in headless Chrome, desktop 1440x900 and phone 390x844: new visitor opens on welcome; COMING SOON map; PLAY -> setup -> Spawn -> tutorial; claim; MENU back with "You: 1 block · #1"; Upgrades opens and returns; reload -> PLAY goes straight in, centred on their block; wipe -> setup; reduce motion (no zoom, no drift); phone with a 4x slower CPU: 61 fps on the welcome screen. Not checked: a logged-in account (needs an email code; only the tag and the hidden login button differ), switching between two real maps (dev has only Grass; covered by the server test) | full suite 106/106
 
+#61 | 2026-10-28 | Bob fix 1: welcome screen on phones. Sizes scale with clamp() (logo, map preview, gaps, buttons) with minimums (text 14px, buttons 44px, preview 96px); padding 16-24px plus safe-area insets; height in dvh; centred only when it all fits, otherwise scrolls from the top; Privacy · Terms in the flow below the card | checked: iPhone SE 375x667 (scrolls), iPhone 15 393x852 (fits), large Android 412x915 (fits), all three in landscape (scroll), desktop: no overlaps, no sideways scroll, every minimum met
+#62 | 2026-10-28 | Bob fix 2: slur variants. profanity.js hasSlur(): squeezes doubled letters and matches vowel and letter swaps (i/e/y, g/q/b, k/c) and -a/-ah/-uh/-er/-ur endings and plurals ("Nibba", "Niqqa", "Nibber", "Fagget", "Trannie", "Kyke"); names and chat both use it. Ordinary names still pass (Nigel, Nigeria, Nibble, Niblet, Tardis, Pakistan, Chinook…). New read-only admin command `bad-names` lists every existing name the filter blocks; renames nobody. Dev scan: 23 names, none blocked. Production: OPEN for Xoren after the deploy (the live server needs the new filter): `npm run admin -- bad-names --prod`, then rename or ban with the admin commands | tests: full suite 108/108
+
 ## Merge steps (loop 8, plus #53-#56 since Xoren's last merge)
 1. On GitHub: open a pull request from `iterate` into `main` (it merges cleanly) and merge it.
 2. Render deploys by itself. No database changes this time.
@@ -385,5 +388,8 @@ Admin commands through the live server with a secret key, dev by default and --p
 - Names: every territory shows a dark name tag on its own land.
 - Mine a brand-new block: a square rises off it.
 - Settings > Reset all progress on a test account, then mine again: squares come in.
+- On a phone: the welcome screen fits (or scrolls) with nothing cut off or overlapping; Privacy · Terms sit below the card.
+- After the deploy: `npm run admin -- bad-names --prod` lists names to deal with (the "Nibba" account should be there). Rename or ban them; nothing is renamed automatically.
+- Try renaming an account to "Nibba" or "Niqqa": "That name isn't allowed".
 
 Loop order 8 done. Open: Q5 (achievements), Q6 (Spawn), Q8 (tutorial wording), Q10 (Purchase sound), Q11 (nameLabelShare row). Stopping.

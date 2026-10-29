@@ -264,3 +264,12 @@ test('create-map makes a map players can switch to; backup and restore put the g
   const again = await guest();
   assert.ok(Number(again.pid) > Number(g.pid));
 });
+
+test('bad-names lists names the filter blocks now, and changes nothing', async () => {
+  const g = await guest();
+  await pool.query("UPDATE players SET name = 'Nibba' WHERE id = $1", [g.pid]);   // a name from before the stricter filter
+  const r = await admin('bad-names');
+  assert.equal(r.code, 0, r.out);
+  assert.ok(r.out.includes(`Nibba (#${g.pid}, guest)`), r.out);
+  assert.equal((await pool.query('SELECT name FROM players WHERE id = $1', [g.pid])).rows[0].name, 'Nibba', 'not renamed');
+});

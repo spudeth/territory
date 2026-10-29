@@ -94,6 +94,15 @@ Claimed: 412 blocks by 23 players
 Top: 1. Bold Hare 112, 2. Sly Wolf 60, 3. Zesty Deer 48
 ```
 
+**bad-names**: every player name the name filter would block now, for example after the filter got stricter. It changes nothing; rename or ban them yourself.
+```
+npm run admin -- bad-names --prod
+```
+```
+1 name the filter blocks now (of 2,140):
+  Nibba (#311, account)
+```
+
 **backup**: saves the whole game to a file on your computer.
 ```
 npm run admin -- backup --prod

@@ -6,7 +6,7 @@ const chat = require('../chat');
 test('bad words become ***, disguised or not', () => {
   for (const [said, shown] of [
     ['what the fuck', 'what the ***'], ['FUCKING hell', '*** hell'], ['sh1t move', '*** move'], ['fuuuuck', '***'],
-    ['f.u.c.k off', '*** off'], ['f u c k you', '*** you'], ['you $lut', 'you ***'], ['b!tch', '***'],
+    ['f.u.c.k off', '*** off'], ['f u c k you', '*** you'], ['you $lut', 'you ***'], ['b!tch', '***'], ['hey nibba', 'hey ***'], ['NIQQAS lol', '*** lol'],
   ]) assert.equal(chat.cleanMessage(said), shown, said);
 });
 
