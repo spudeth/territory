@@ -1197,7 +1197,7 @@
       "threshold": 1,
       "secret": false,
       "description": "Claim 1 empty block",
-      "reward": 1
+      "reward": 0.5
     },
     {
       "id": "claims-5",
@@ -1207,7 +1207,7 @@
       "threshold": 10,
       "secret": false,
       "description": "Claim 10 empty blocks",
-      "reward": 1
+      "reward": 4.5
     },
     {
       "id": "claims-10",
@@ -1217,7 +1217,7 @@
       "threshold": 25,
       "secret": false,
       "description": "Claim 25 empty blocks",
-      "reward": 1
+      "reward": 7.5
     },
     {
       "id": "claims-25",
@@ -1227,7 +1227,7 @@
       "threshold": 50,
       "secret": false,
       "description": "Claim 50 empty blocks",
-      "reward": 1
+      "reward": 10
     },
     {
       "id": "claims-50",
@@ -1237,7 +1237,7 @@
       "threshold": 100,
       "secret": false,
       "description": "Claim 100 empty blocks",
-      "reward": 2
+      "reward": 25
     },
     {
       "id": "claims-100",
@@ -1247,7 +1247,7 @@
       "threshold": 250,
       "secret": false,
       "description": "Claim 250 empty blocks",
-      "reward": 3
+      "reward": 75
     },
     {
       "id": "claims-250",
@@ -1257,7 +1257,7 @@
       "threshold": 500,
       "secret": false,
       "description": "Claim 500 empty blocks",
-      "reward": 8
+      "reward": 100
     },
     {
       "id": "claims-500",
@@ -1267,7 +1267,7 @@
       "threshold": 1000,
       "secret": false,
       "description": "Claim 1,000 empty blocks",
-      "reward": 15
+      "reward": 250
     },
     {
       "id": "claims-1k",
@@ -1277,7 +1277,7 @@
       "threshold": 2500,
       "secret": false,
       "description": "Claim 2,500 empty blocks",
-      "reward": 30
+      "reward": 750
     },
     {
       "id": "claims-2500",
@@ -1287,7 +1287,7 @@
       "threshold": 5000,
       "secret": false,
       "description": "Claim 5,000 empty blocks",
-      "reward": 75
+      "reward": 1000
     },
     {
       "id": "claims-5k",
@@ -1297,7 +1297,7 @@
       "threshold": 10000,
       "secret": false,
       "description": "Claim 10,000 empty blocks",
-      "reward": 150
+      "reward": 2500
     },
     {
       "id": "claims-10k",
@@ -1307,7 +1307,7 @@
       "threshold": 25000,
       "secret": false,
       "description": "Claim 25,000 empty blocks",
-      "reward": 300
+      "reward": 7500
     },
     {
       "id": "claims-25k",
@@ -1317,7 +1317,7 @@
       "threshold": 50000,
       "secret": false,
       "description": "Claim 50,000 empty blocks",
-      "reward": 750
+      "reward": 10000
     },
     {
       "id": "claims-50k",
@@ -1327,7 +1327,7 @@
       "threshold": 75000,
       "secret": false,
       "description": "Claim 75,000 empty blocks",
-      "reward": 1000
+      "reward": 10000
     },
     {
       "id": "claims-100k",
@@ -1337,7 +1337,7 @@
       "threshold": 100000,
       "secret": false,
       "description": "Claim 100,000 empty blocks",
-      "reward": 1500
+      "reward": 10000
     },
     {
       "id": "owned-10",
@@ -1347,7 +1347,7 @@
       "threshold": 10,
       "secret": false,
       "description": "Own 10 blocks at once on one map",
-      "reward": 1
+      "reward": 0.3
     },
     {
       "id": "owned-25",
@@ -1357,7 +1357,7 @@
       "threshold": 25,
       "secret": false,
       "description": "Own 25 blocks at once on one map",
-      "reward": 1
+      "reward": 0.8
     },
     {
       "id": "owned-50",
@@ -1447,7 +1447,7 @@
       "threshold": 3,
       "secret": false,
       "description": "Own a solid 3 by 3 square of blocks",
-      "reward": 2
+      "reward": 1.8
     },
     {
       "id": "square-3",
@@ -1457,7 +1457,7 @@
       "threshold": 4,
       "secret": false,
       "description": "Own a solid 4 by 4 square of blocks",
-      "reward": 4
+      "reward": 3.6
     },
     {
       "id": "square-4",
@@ -1467,7 +1467,7 @@
       "threshold": 5,
       "secret": false,
       "description": "Own a solid 5 by 5 square of blocks",
-      "reward": 6
+      "reward": 6.3
     },
     {
       "id": "square-5",
@@ -1557,7 +1557,7 @@
       "threshold": 5,
       "secret": false,
       "description": "Own a straight line of 5 blocks",
-      "reward": 2
+      "reward": 2.2
     },
     {
       "id": "line-5",
@@ -1567,7 +1567,7 @@
       "threshold": 8,
       "secret": false,
       "description": "Own a straight line of 8 blocks",
-      "reward": 6
+      "reward": 5.7
     },
     {
       "id": "line-10",
@@ -1577,7 +1577,7 @@
       "threshold": 10,
       "secret": false,
       "description": "Own a straight line of 10 blocks",
-      "reward": 8
+      "reward": 8.9
     },
     {
       "id": "line-15",
@@ -1657,7 +1657,7 @@
       "threshold": 1,
       "secret": false,
       "description": "Take 1 block from other players",
-      "reward": 1
+      "reward": 0.1
     },
     {
       "id": "taken-5",
@@ -1667,7 +1667,7 @@
       "threshold": 5,
       "secret": false,
       "description": "Take 5 blocks from other players",
-      "reward": 1
+      "reward": 0.4
     },
     {
       "id": "retakes-10",
@@ -1677,7 +1677,7 @@
       "threshold": 10,
       "secret": false,
       "description": "Take 10 blocks from other players",
-      "reward": 1
+      "reward": 0.8
     },
     {
       "id": "taken-25",
@@ -1787,7 +1787,7 @@
       "threshold": 1,
       "secret": false,
       "description": "Lose 1 block to other players",
-      "reward": 1
+      "reward": 0.1
     },
     {
       "id": "lost-5",
@@ -1797,7 +1797,7 @@
       "threshold": 5,
       "secret": false,
       "description": "Lose 5 blocks to other players",
-      "reward": 1
+      "reward": 0.4
     },
     {
       "id": "lost-10",
@@ -1807,7 +1807,7 @@
       "threshold": 10,
       "secret": false,
       "description": "Lose 10 blocks to other players",
-      "reward": 1
+      "reward": 0.8
     },
     {
       "id": "lost-25",
@@ -1907,7 +1907,7 @@
       "threshold": 2500,
       "secret": false,
       "description": "Tap blocks 2,500 times",
-      "reward": 3
+      "reward": 2.5
     },
     {
       "id": "taps-100",
@@ -2027,7 +2027,7 @@
       "threshold": 25,
       "secret": false,
       "description": "Earn 25 squares by claiming blocks",
-      "reward": 1
+      "reward": 0.1
     },
     {
       "id": "earned-10",
@@ -2037,7 +2037,7 @@
       "threshold": 50,
       "secret": false,
       "description": "Earn 50 squares by claiming blocks",
-      "reward": 1
+      "reward": 0.2
     },
     {
       "id": "earned-50",
@@ -2047,7 +2047,7 @@
       "threshold": 100,
       "secret": false,
       "description": "Earn 100 squares by claiming blocks",
-      "reward": 1
+      "reward": 0.4
     },
     {
       "id": "earned-100",
@@ -2147,7 +2147,7 @@
       "threshold": 10,
       "secret": false,
       "description": "Spend 10 squares on upgrades",
-      "reward": 1
+      "reward": 0.1
     },
     {
       "id": "spent-100",
@@ -2157,7 +2157,7 @@
       "threshold": 100,
       "secret": false,
       "description": "Spend 100 squares on upgrades",
-      "reward": 1
+      "reward": 0.4
     },
     {
       "id": "spent-500",
@@ -2247,7 +2247,7 @@
       "threshold": 1,
       "secret": false,
       "description": "Buy 1 upgrade level",
-      "reward": 1
+      "reward": 0.1
     },
     {
       "id": "bought-5",
@@ -2257,7 +2257,7 @@
       "threshold": 5,
       "secret": false,
       "description": "Buy 5 upgrade levels",
-      "reward": 1
+      "reward": 0.5
     },
     {
       "id": "bought-10",
@@ -2267,7 +2267,7 @@
       "threshold": 10,
       "secret": false,
       "description": "Buy 10 upgrade levels",
-      "reward": 2
+      "reward": 2.1
     },
     {
       "id": "bought-25",
@@ -2337,7 +2337,7 @@
       "threshold": 1,
       "secret": false,
       "description": "Reach Click Power level 1",
-      "reward": 1
+      "reward": 0.1
     },
     {
       "id": "clickpower-5",
@@ -2347,7 +2347,7 @@
       "threshold": 5,
       "secret": false,
       "description": "Reach Click Power level 5",
-      "reward": 1
+      "reward": 0.5
     },
     {
       "id": "clickpower-10",
@@ -2357,7 +2357,7 @@
       "threshold": 10,
       "secret": false,
       "description": "Reach Click Power level 10",
-      "reward": 2
+      "reward": 1.4
     },
     {
       "id": "clickpower-25",
@@ -2367,7 +2367,7 @@
       "threshold": 25,
       "secret": false,
       "description": "Reach Click Power level 25",
-      "reward": 8
+      "reward": 8.5
     },
     {
       "id": "clickpower-50",
@@ -2397,7 +2397,7 @@
       "threshold": 1,
       "secret": false,
       "description": "Reach Defense level 1",
-      "reward": 1
+      "reward": 0.5
     },
     {
       "id": "defense-5",
@@ -2417,7 +2417,7 @@
       "threshold": 10,
       "secret": false,
       "description": "Reach Defense level 10",
-      "reward": 8
+      "reward": 7.9
     },
     {
       "id": "defense-25",
@@ -2447,7 +2447,7 @@
       "threshold": 1,
       "secret": false,
       "description": "Reach Earnings level 1",
-      "reward": 1
+      "reward": 0.1
     },
     {
       "id": "earnings-5",
@@ -2457,7 +2457,7 @@
       "threshold": 5,
       "secret": false,
       "description": "Reach Earnings level 5",
-      "reward": 1
+      "reward": 0.2
     },
     {
       "id": "earnings-10",
@@ -2467,7 +2467,7 @@
       "threshold": 10,
       "secret": false,
       "description": "Reach Earnings level 10",
-      "reward": 1
+      "reward": 0.6
     },
     {
       "id": "earnings-25",
@@ -2477,7 +2477,7 @@
       "threshold": 25,
       "secret": false,
       "description": "Reach Earnings level 25",
-      "reward": 4
+      "reward": 3.6
     },
     {
       "id": "earnings-50",
@@ -2507,7 +2507,7 @@
       "threshold": 1,
       "secret": false,
       "description": "Reach Growth level 1",
-      "reward": 5
+      "reward": 4.6
     },
     {
       "id": "growth-2",
@@ -2557,7 +2557,7 @@
       "threshold": 1,
       "secret": false,
       "description": "Claim 1 sand block",
-      "reward": 1
+      "reward": 0.2
     },
     {
       "id": "sand-5",
@@ -2677,7 +2677,7 @@
       "threshold": 1,
       "secret": false,
       "description": "Claim 1 forest block",
-      "reward": 1
+      "reward": 0.1
     },
     {
       "id": "forest-5",
@@ -2687,7 +2687,7 @@
       "threshold": 5,
       "secret": false,
       "description": "Claim 5 forest blocks",
-      "reward": 1
+      "reward": 0.4
     },
     {
       "id": "forest-10",
@@ -2697,7 +2697,7 @@
       "threshold": 10,
       "secret": false,
       "description": "Claim 10 forest blocks",
-      "reward": 1
+      "reward": 0.8
     },
     {
       "id": "forest-25",
@@ -2707,7 +2707,7 @@
       "threshold": 25,
       "secret": false,
       "description": "Claim 25 forest blocks",
-      "reward": 2
+      "reward": 1.9
     },
     {
       "id": "forest-50",
@@ -2717,7 +2717,7 @@
       "threshold": 50,
       "secret": false,
       "description": "Claim 50 forest blocks",
-      "reward": 4
+      "reward": 3.8
     },
     {
       "id": "forest-100",
@@ -2727,7 +2727,7 @@
       "threshold": 100,
       "secret": false,
       "description": "Claim 100 forest blocks",
-      "reward": 8
+      "reward": 7.7
     },
     {
       "id": "forest-250",
@@ -2807,7 +2807,7 @@
       "threshold": 1,
       "secret": false,
       "description": "Claim 1 stone block",
-      "reward": 1
+      "reward": 0.2
     },
     {
       "id": "stone-5",
@@ -2817,7 +2817,7 @@
       "threshold": 5,
       "secret": false,
       "description": "Claim 5 stone blocks",
-      "reward": 1
+      "reward": 0.9
     },
     {
       "id": "stone-10",
@@ -2827,7 +2827,7 @@
       "threshold": 10,
       "secret": false,
       "description": "Claim 10 stone blocks",
-      "reward": 2
+      "reward": 1.7
     },
     {
       "id": "stone-25",
@@ -2837,7 +2837,7 @@
       "threshold": 25,
       "secret": false,
       "description": "Claim 25 stone blocks",
-      "reward": 4
+      "reward": 4.3
     },
     {
       "id": "stone-50",
@@ -2847,7 +2847,7 @@
       "threshold": 50,
       "secret": false,
       "description": "Claim 50 stone blocks",
-      "reward": 8
+      "reward": 8.7
     },
     {
       "id": "stone-100",
@@ -2927,7 +2927,7 @@
       "threshold": 1,
       "secret": false,
       "description": "Claim 1 gold block",
-      "reward": 2
+      "reward": 1.4
     },
     {
       "id": "gold-5",
@@ -2937,7 +2937,7 @@
       "threshold": 5,
       "secret": false,
       "description": "Claim 5 gold blocks",
-      "reward": 8
+      "reward": 6.9
     },
     {
       "id": "gold-10",
@@ -3307,7 +3307,7 @@
       "threshold": 1,
       "secret": false,
       "description": "Spend 1 minute at #1 on a busy map",
-      "reward": 1
+      "reward": 0.1
     },
     {
       "id": "reign-10",
@@ -3317,7 +3317,7 @@
       "threshold": 10,
       "secret": false,
       "description": "Spend 10 minutes at #1 on a busy map",
-      "reward": 1
+      "reward": 0.7
     },
     {
       "id": "reign-60",
@@ -3537,7 +3537,7 @@
       "threshold": 25,
       "secret": false,
       "description": "Claim 25 empty blocks in one visit",
-      "reward": 1
+      "reward": 0.5
     },
     {
       "id": "session-25",
@@ -3557,7 +3557,7 @@
       "threshold": 75,
       "secret": false,
       "description": "Claim 75 empty blocks in one visit",
-      "reward": 2
+      "reward": 1.6
     },
     {
       "id": "session-100",
@@ -3567,7 +3567,7 @@
       "threshold": 100,
       "secret": false,
       "description": "Claim 100 empty blocks in one visit",
-      "reward": 2
+      "reward": 2.1
     },
     {
       "id": "session-250",
@@ -3577,7 +3577,7 @@
       "threshold": 250,
       "secret": false,
       "description": "Claim 250 empty blocks in one visit",
-      "reward": 5
+      "reward": 5.2
     },
     {
       "id": "session-500",
@@ -3607,7 +3607,7 @@
       "threshold": 50,
       "secret": false,
       "description": "Claim 50 empty blocks in one day",
-      "reward": 1
+      "reward": 0.9
     },
     {
       "id": "day-100",
@@ -3617,7 +3617,7 @@
       "threshold": 100,
       "secret": false,
       "description": "Claim 100 empty blocks in one day",
-      "reward": 2
+      "reward": 1.8
     },
     {
       "id": "day-250",
@@ -3627,7 +3627,7 @@
       "threshold": 250,
       "secret": false,
       "description": "Claim 250 empty blocks in one day",
-      "reward": 5
+      "reward": 4.5
     },
     {
       "id": "day-500",
@@ -3637,7 +3637,7 @@
       "threshold": 500,
       "secret": false,
       "description": "Claim 500 empty blocks in one day",
-      "reward": 10
+      "reward": 9
     },
     {
       "id": "day-1000",
@@ -3657,7 +3657,7 @@
       "threshold": 1,
       "secret": false,
       "description": "Send 1 chat message",
-      "reward": 1
+      "reward": 0.1
     },
     {
       "id": "chat-10",
@@ -3667,7 +3667,7 @@
       "threshold": 10,
       "secret": false,
       "description": "Send 10 chat messages",
-      "reward": 1
+      "reward": 0.3
     },
     {
       "id": "chat-25",
@@ -3677,7 +3677,7 @@
       "threshold": 25,
       "secret": false,
       "description": "Send 25 chat messages",
-      "reward": 1
+      "reward": 0.8
     },
     {
       "id": "chat-50",
@@ -3687,7 +3687,7 @@
       "threshold": 50,
       "secret": false,
       "description": "Send 50 chat messages",
-      "reward": 2
+      "reward": 1.7
     },
     {
       "id": "chat-100",
@@ -3697,7 +3697,7 @@
       "threshold": 100,
       "secret": false,
       "description": "Send 100 chat messages",
-      "reward": 3
+      "reward": 3.3
     },
     {
       "id": "chat-500",
@@ -3737,7 +3737,7 @@
       "threshold": 100,
       "secret": false,
       "description": "Have 100 squares at once",
-      "reward": 1
+      "reward": 0.7
     },
     {
       "id": "held-50",
@@ -3747,7 +3747,7 @@
       "threshold": 250,
       "secret": false,
       "description": "Have 250 squares at once",
-      "reward": 2
+      "reward": 1.7
     },
     {
       "id": "held-100",
@@ -3757,7 +3757,7 @@
       "threshold": 500,
       "secret": false,
       "description": "Have 500 squares at once",
-      "reward": 3
+      "reward": 3.3
     },
     {
       "id": "held-500",
@@ -3767,7 +3767,7 @@
       "threshold": 1000,
       "secret": false,
       "description": "Have 1,000 squares at once",
-      "reward": 6
+      "reward": 6.7
     },
     {
       "id": "held-1000",
@@ -3837,7 +3837,7 @@
       "threshold": 1,
       "secret": false,
       "description": "Make 1 extra block appear with the Growth upgrade",
-      "reward": 1
+      "reward": 0.1
     },
     {
       "id": "growth-blocks-10",
@@ -3847,7 +3847,7 @@
       "threshold": 10,
       "secret": false,
       "description": "Make 10 extra blocks appear with the Growth upgrade",
-      "reward": 1
+      "reward": 0.1
     },
     {
       "id": "growth-blocks-100",
@@ -3857,7 +3857,7 @@
       "threshold": 100,
       "secret": false,
       "description": "Make 100 extra blocks appear with the Growth upgrade",
-      "reward": 1
+      "reward": 0.4
     },
     {
       "id": "growth-blocks-1k",
@@ -3897,7 +3897,7 @@
       "threshold": 10,
       "secret": false,
       "description": "Make the map grow by 10 blocks",
-      "reward": 1
+      "reward": 0.1
     },
     {
       "id": "grown-100",
@@ -3907,7 +3907,7 @@
       "threshold": 100,
       "secret": false,
       "description": "Make the map grow by 100 blocks",
-      "reward": 1
+      "reward": 0.7
     },
     {
       "id": "grown-1k",
@@ -3917,7 +3917,7 @@
       "threshold": 1000,
       "secret": false,
       "description": "Make the map grow by 1,000 blocks",
-      "reward": 8
+      "reward": 6.9
     },
     {
       "id": "grown-10k",
@@ -3957,7 +3957,7 @@
       "threshold": 1,
       "secret": false,
       "description": "Choose your own name",
-      "reward": 1
+      "reward": 0.2
     },
     {
       "id": "account",
@@ -3967,7 +3967,7 @@
       "threshold": 1,
       "secret": false,
       "description": "Make an account",
-      "reward": 1
+      "reward": 0.2
     },
     {
       "id": "graduate",
@@ -3977,7 +3977,7 @@
       "threshold": 1,
       "secret": false,
       "description": "Finish the tutorial",
-      "reward": 1
+      "reward": 0.4
     },
     {
       "id": "meta-10",

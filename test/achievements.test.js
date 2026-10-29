@@ -3,13 +3,15 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const achievements = require('../achievements');
 
-test('the list from the sheet: exactly 300, about 10 secret, every one with a reward of at least 1 square', () => {
+test('the list from the sheet: exactly 300, about 10 secret, every one paying something', () => {
   const list = achievements.DEFINITIONS;
   assert.equal(list.length, 300);
   assert.ok(achievements.index(list).size > 30);
   const secrets = list.filter(d => d.secret);
   assert.ok(secrets.length >= 8 && secrets.length <= 12, `${secrets.length} secrets`);
-  for (const d of list) assert.ok(d.reward >= 1, `${d.id} pays ${d.reward}`);
+  for (const d of list) assert.ok(d.reward > 0, `${d.id} pays ${d.reward}`);
+  // Claiming pays half the squares mined since the tier before (Xoren): First Block 0.5, then 4.5 for blocks 2-10.
+  assert.deepEqual(['first-block', 'claims-5'].map(id => list.find(d => d.id === id).reward), [0.5, 4.5]);
   // Top tiers (about 1,000 hours) pay about 2,000 squares (2 an hour).
   for (const id of ['claims-100k', 'owned-10k', 'square-50', 'line-150', 'taken-25k', 'taps-2m', 'hours-1000']) {
     assert.ok(list.find(d => d.id === id).reward >= 1500, id);
