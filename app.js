@@ -391,7 +391,7 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       catchUp(me.pid, upgrades, me.account).catch(err => console.error(`CATCH-UP FAILED (player ${me.pid}): ${err.message}`));
     }
     // This visit, for the Sessions achievements and some secrets.
-    const session = { claims: 0, recent: [], forestRun: 0, pokes: 0, minute: null, visitorTaps: 0 };
+    const session = { claims: 0, recent: [], forestRun: 0, pokes: 0, minute: null, visitorTaps: 0, spare: 0 };
     socket.on('disconnect', () => { if (me.pid) totals.save(me.pid); });
 
     // Puts this connection on `next` and sends the whole map. Also used when switching maps, so the browser
@@ -574,12 +574,15 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       h = map.hits.get(k);
       const owner = map.cells.get(k);
       const need = rules.hitsNeeded(owner ? map.players.get(owner)?.upgrades ?? rules.NO_UPGRADES : null, map.terrainAt(x, y));
-      if (h?.by !== by) map.hits.set(k, h = { by, n: 0 });
+      // Hit power left over from the tap that took the last block counts toward the next one, so a higher Click
+      // Power level never wastes power (GAME-RULES.md).
+      if (h?.by !== by) { map.hits.set(k, h = { by, n: session.spare }); session.spare = 0; }
       h.at = now;
       h.need = need;
       h.n += rules.hitPower(upgrades);
       if (!rules.isTaken(h.n, need)) return io.to(map.room).emit('hit', { x, y, p: share(h) });
 
+      session.spare = Math.max(0, h.n - need);
       map.hits.delete(k);
       const here = map;
       here.claiming.add(k);

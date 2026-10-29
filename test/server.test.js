@@ -292,8 +292,10 @@ test("upgrades: Click Power and Defense multiply hits (Bob's example: 17 clicks)
   await c.welcome;
   for (let i = 0; i < 9; i++) c.emit('hit', { x: 18, y: 25 });   // Defense never applies to empty blocks: 9 clicks
   await c.next('claim', at(18, 25));
-  for (let i = 0; i < 16; i++) c.emit('hit', { x: 17, y: 25 });
-  await c.next('hit', d => d.x === 17 && d.y === 25 && d.p === 0.96);   // 16 x 1.2 = 19.2 of 20
+  // The 9th click left 0.8 spare (10.8 of 10), which counts toward the next block: 0.8 + 15 x 1.2 = 18.8 of 20,
+  // and the 16th click takes it (17 without the carry-over).
+  for (let i = 0; i < 15; i++) c.emit('hit', { x: 17, y: 25 });
+  await c.next('hit', d => d.x === 17 && d.y === 25 && d.p === 0.94);
   c.emit('hit', { x: 17, y: 25 });
   await c.next('claim', d => d.x === 17 && d.y === 25 && d.pid !== you.pid);
 });
