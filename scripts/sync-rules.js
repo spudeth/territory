@@ -33,7 +33,8 @@ async function main() {
     }
   }
 
-  const { economy: next, errors } = economy.validate(tabs);
+  const hasFile = f => fs.existsSync(path.join(__dirname, '..', 'public', f));   // skins need their images
+  const { economy: next, errors } = economy.validate(tabs, { hasFile });
   if (errors.length) {
     console.error(`The sheet has ${errors.length} problem${errors.length === 1 ? '' : 's'}; nothing was written:`);
     for (const e of errors) console.error('  - ' + e);

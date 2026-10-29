@@ -4190,5 +4190,1852 @@
       "description": "Wipe a territory of 1,000 blocks or more",
       "reward": 150
     }
+  ],
+  "skins": [
+    {
+      "id": "checker",
+      "name": "Checker",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 100,
+      "collection": "Patterns",
+      "enabled": true
+    },
+    {
+      "id": "stripes",
+      "name": "Stripes",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 100,
+      "collection": "Patterns",
+      "enabled": true
+    },
+    {
+      "id": "brick",
+      "name": "Brick",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 150,
+      "collection": "Patterns",
+      "enabled": true
+    },
+    {
+      "id": "dots",
+      "name": "Dots",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 150,
+      "collection": "Patterns",
+      "enabled": true
+    },
+    {
+      "id": "rows",
+      "name": "Rows",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 200,
+      "collection": "Patterns",
+      "enabled": true
+    },
+    {
+      "id": "diamond",
+      "name": "Diamond",
+      "kind": "pattern",
+      "rarity": "Common",
+      "price": 300,
+      "collection": "Patterns",
+      "enabled": true
+    },
+    {
+      "id": "flag-af",
+      "name": "Afghanistan",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-al",
+      "name": "Albania",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-dz",
+      "name": "Algeria",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-ad",
+      "name": "Andorra",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-ao",
+      "name": "Angola",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-ag",
+      "name": "Antigua and Barbuda",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-ar",
+      "name": "Argentina",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-am",
+      "name": "Armenia",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-au",
+      "name": "Australia",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-at",
+      "name": "Austria",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-az",
+      "name": "Azerbaijan",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-bs",
+      "name": "Bahamas",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-bh",
+      "name": "Bahrain",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-bd",
+      "name": "Bangladesh",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-bb",
+      "name": "Barbados",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-by",
+      "name": "Belarus",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-be",
+      "name": "Belgium",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-bz",
+      "name": "Belize",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-bj",
+      "name": "Benin",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-bt",
+      "name": "Bhutan",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-bo",
+      "name": "Bolivia",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-ba",
+      "name": "Bosnia and Herzegovina",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-bw",
+      "name": "Botswana",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-br",
+      "name": "Brazil",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-bn",
+      "name": "Brunei",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-bg",
+      "name": "Bulgaria",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-bf",
+      "name": "Burkina Faso",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-bi",
+      "name": "Burundi",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-cv",
+      "name": "Cabo Verde",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-kh",
+      "name": "Cambodia",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-cm",
+      "name": "Cameroon",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-ca",
+      "name": "Canada",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-cf",
+      "name": "Central African Republic",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-td",
+      "name": "Chad",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-cl",
+      "name": "Chile",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-cn",
+      "name": "China",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-co",
+      "name": "Colombia",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-km",
+      "name": "Comoros",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-cg",
+      "name": "Congo",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-cr",
+      "name": "Costa Rica",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-ci",
+      "name": "Cote d'Ivoire",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-hr",
+      "name": "Croatia",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-cu",
+      "name": "Cuba",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-cy",
+      "name": "Cyprus",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-cz",
+      "name": "Czechia",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-cd",
+      "name": "DR Congo",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-dk",
+      "name": "Denmark",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-dj",
+      "name": "Djibouti",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-dm",
+      "name": "Dominica",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-do",
+      "name": "Dominican Republic",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-ec",
+      "name": "Ecuador",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-eg",
+      "name": "Egypt",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-sv",
+      "name": "El Salvador",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-gq",
+      "name": "Equatorial Guinea",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-er",
+      "name": "Eritrea",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-ee",
+      "name": "Estonia",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-sz",
+      "name": "Eswatini",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-et",
+      "name": "Ethiopia",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-fj",
+      "name": "Fiji",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-fi",
+      "name": "Finland",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-fr",
+      "name": "France",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-ga",
+      "name": "Gabon",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-gm",
+      "name": "Gambia",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-ge",
+      "name": "Georgia",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-de",
+      "name": "Germany",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-gh",
+      "name": "Ghana",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-gr",
+      "name": "Greece",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-gd",
+      "name": "Grenada",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-gt",
+      "name": "Guatemala",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-gn",
+      "name": "Guinea",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-gw",
+      "name": "Guinea-Bissau",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-gy",
+      "name": "Guyana",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-ht",
+      "name": "Haiti",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-hn",
+      "name": "Honduras",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-hu",
+      "name": "Hungary",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-is",
+      "name": "Iceland",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-in",
+      "name": "India",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-id",
+      "name": "Indonesia",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-ir",
+      "name": "Iran",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-iq",
+      "name": "Iraq",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-ie",
+      "name": "Ireland",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-il",
+      "name": "Israel",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-it",
+      "name": "Italy",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-jm",
+      "name": "Jamaica",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-jp",
+      "name": "Japan",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-jo",
+      "name": "Jordan",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-kz",
+      "name": "Kazakhstan",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-ke",
+      "name": "Kenya",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-ki",
+      "name": "Kiribati",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-kp",
+      "name": "North Korea",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-kr",
+      "name": "South Korea",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-kw",
+      "name": "Kuwait",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-kg",
+      "name": "Kyrgyzstan",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-la",
+      "name": "Laos",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-lv",
+      "name": "Latvia",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-lb",
+      "name": "Lebanon",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-ls",
+      "name": "Lesotho",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-lr",
+      "name": "Liberia",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-ly",
+      "name": "Libya",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-li",
+      "name": "Liechtenstein",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-lt",
+      "name": "Lithuania",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-lu",
+      "name": "Luxembourg",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-mg",
+      "name": "Madagascar",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-mw",
+      "name": "Malawi",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-my",
+      "name": "Malaysia",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-mv",
+      "name": "Maldives",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-ml",
+      "name": "Mali",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-mt",
+      "name": "Malta",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-mh",
+      "name": "Marshall Islands",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-mr",
+      "name": "Mauritania",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-mu",
+      "name": "Mauritius",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-mx",
+      "name": "Mexico",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-fm",
+      "name": "Micronesia",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-md",
+      "name": "Moldova",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-mc",
+      "name": "Monaco",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-mn",
+      "name": "Mongolia",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-me",
+      "name": "Montenegro",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-ma",
+      "name": "Morocco",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-mz",
+      "name": "Mozambique",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-mm",
+      "name": "Myanmar",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-na",
+      "name": "Namibia",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-nr",
+      "name": "Nauru",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-np",
+      "name": "Nepal",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-nl",
+      "name": "Netherlands",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-nz",
+      "name": "New Zealand",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-ni",
+      "name": "Nicaragua",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-ne",
+      "name": "Niger",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-ng",
+      "name": "Nigeria",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-mk",
+      "name": "North Macedonia",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-no",
+      "name": "Norway",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-om",
+      "name": "Oman",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-pk",
+      "name": "Pakistan",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-pw",
+      "name": "Palau",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-pa",
+      "name": "Panama",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-pg",
+      "name": "Papua New Guinea",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-py",
+      "name": "Paraguay",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-pe",
+      "name": "Peru",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-ph",
+      "name": "Philippines",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-pl",
+      "name": "Poland",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-pt",
+      "name": "Portugal",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-qa",
+      "name": "Qatar",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-ro",
+      "name": "Romania",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-ru",
+      "name": "Russia",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-rw",
+      "name": "Rwanda",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-kn",
+      "name": "Saint Kitts and Nevis",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-lc",
+      "name": "Saint Lucia",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-vc",
+      "name": "Saint Vincent and the Grenadines",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-ws",
+      "name": "Samoa",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-sm",
+      "name": "San Marino",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-st",
+      "name": "Sao Tome and Principe",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-sa",
+      "name": "Saudi Arabia",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-sn",
+      "name": "Senegal",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-rs",
+      "name": "Serbia",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-sc",
+      "name": "Seychelles",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-sl",
+      "name": "Sierra Leone",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-sg",
+      "name": "Singapore",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-sk",
+      "name": "Slovakia",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-si",
+      "name": "Slovenia",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-sb",
+      "name": "Solomon Islands",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-so",
+      "name": "Somalia",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-za",
+      "name": "South Africa",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-ss",
+      "name": "South Sudan",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-es",
+      "name": "Spain",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-lk",
+      "name": "Sri Lanka",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-sd",
+      "name": "Sudan",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-sr",
+      "name": "Suriname",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-se",
+      "name": "Sweden",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-ch",
+      "name": "Switzerland",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-sy",
+      "name": "Syria",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-tj",
+      "name": "Tajikistan",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-tz",
+      "name": "Tanzania",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-th",
+      "name": "Thailand",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-tl",
+      "name": "Timor-Leste",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-tg",
+      "name": "Togo",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-to",
+      "name": "Tonga",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-tt",
+      "name": "Trinidad and Tobago",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-tn",
+      "name": "Tunisia",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-tr",
+      "name": "Turkiye",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-tm",
+      "name": "Turkmenistan",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-tv",
+      "name": "Tuvalu",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-ug",
+      "name": "Uganda",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-ua",
+      "name": "Ukraine",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-ae",
+      "name": "United Arab Emirates",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-gb",
+      "name": "United Kingdom",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-us",
+      "name": "United States",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-uy",
+      "name": "Uruguay",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-uz",
+      "name": "Uzbekistan",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-vu",
+      "name": "Vanuatu",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-ve",
+      "name": "Venezuela",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-vn",
+      "name": "Viet Nam",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-ye",
+      "name": "Yemen",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-zm",
+      "name": "Zambia",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-zw",
+      "name": "Zimbabwe",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-eu",
+      "name": "European Union",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-england",
+      "name": "England",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-scotland",
+      "name": "Scotland",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-wales",
+      "name": "Wales",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-pr",
+      "name": "Puerto Rico",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    },
+    {
+      "id": "flag-gl",
+      "name": "Greenland",
+      "kind": "art",
+      "rarity": "Rare",
+      "price": 1000,
+      "collection": "Flags",
+      "enabled": true
+    }
   ]
 }

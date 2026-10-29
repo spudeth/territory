@@ -22,6 +22,19 @@ const terrainTile = name => Object.assign(new Image(), { src: `tiles/terrain-${n
 const TERRAIN_TILES = { sand: terrainTile('sand'), forest: terrainTile('forest'), stone: terrainTile('stone'), gold: terrainTile('gold'),
   water: [terrainTile('water-0'), terrainTile('water-1')] };
 const WATER_FRAME_MS = 700;
+// Skin images (public/skins/<id>.png, and -large.png for Full area), loaded the first time they're needed.
+const skinImages = new Map();
+function skinImage(id, large) {
+  const k = id + (large ? '-large' : '');
+  if (!skinImages.has(k)) skinImages.set(k, Object.assign(new Image(), { src: `skins/${k}.png`, onload: draw }));
+  const img = skinImages.get(k);
+  return img.complete && img.naturalWidth ? img : null;
+}
+// How an owner's land is drawn: { kind: 'default' | 'pattern' | 'art', id, full: Full area coverage }.
+function lookOf(o) {
+  const p = players[o], kind = p?.skin && p.skin !== 'default' ? gameSettings.skinKinds?.[p.skin] : null;
+  return kind ? { kind, id: p.skin, full: p.coverage === 'stretch' } : { kind: 'default' };
+}
 let world = null;   // this map's terrain (terrain.makeWorld), or null for a map without a seed (all grass)
 let waterTimer = null;
 function variant(x, y) {
@@ -131,6 +144,7 @@ function render() {
 
   const waterFrame = Math.floor(performance.now() / WATER_FRAME_MS) % 2;
   let waterShown = false;
+  const fullArea = new Map();   // owner -> their visible blocks, for Full area skins
   for (let y = r0; y < r1; y++) {
     for (let x = c0; x < c1; x++) {
       const o = ownerAt(x, y);
@@ -141,17 +155,62 @@ function render() {
       else ctx.drawImage(ground === 'grass' ? tiles[variant(x, y)] : TERRAIN_TILES[ground], x0, y0, bw, bh);
 
       if (o) {
-        // Recolor the grass to the owner's hue (keeping its shading); solid border marks the territory edge.
+        // The owner's skin. Default: the ground recolored to their hue (keeping its shading). A pattern: its grey
+        // art in their color. Art: the image as it is. Full area skins are drawn over the whole territory below.
+        const look = lookOf(o), img = look.kind !== 'default' && !look.full && skinImage(look.id, false);
+        if (look.full) { (fullArea.get(o) ?? fullArea.set(o, []).get(o)).push([x, y]); }
+        else if (img) ctx.drawImage(img, x0, y0, bw, bh);
+        if (look.kind !== 'art' && !(look.full && look.kind === 'pattern')) {
+          ctx.fillStyle = players[o]?.color || '#888';
+          ctx.globalCompositeOperation = 'color';
+          ctx.globalAlpha = look.kind === 'pattern' ? 1 : 0.9;
+          ctx.fillRect(x0, y0, bw, bh);
+          ctx.globalCompositeOperation = 'source-over';
+          ctx.globalAlpha = 1;
+        }
+      }
+    }
+  }
+
+  // Full area: one enlarged image over each such territory, covering its whole shape (never stretched), clipped
+  // to its blocks.
+  for (const [o, mine] of fullArea) {
+    const look = lookOf(o), img = skinImage(look.id, true);
+    if (!img) continue;
+    let bx0 = Infinity, by0 = Infinity, bx1 = -Infinity, by1 = -Infinity;
+    for (const [k, owner] of cells) {
+      if (owner !== o) continue;
+      const [x, y] = k.split(',').map(Number);
+      bx0 = Math.min(bx0, x); by0 = Math.min(by0, y); bx1 = Math.max(bx1, x + 1); by1 = Math.max(by1, y + 1);
+    }
+    const sx = X(bx0), sy = Y(by0), fit = skins.coverFit(img.naturalWidth, img.naturalHeight, X(bx1) - sx, Y(by1) - sy);
+    ctx.save();
+    ctx.beginPath();
+    for (const [x, y] of mine) ctx.rect(X(x), Y(y), X(x + 1) - X(x), Y(y + 1) - Y(y));
+    ctx.clip();
+    ctx.drawImage(img, sx + fit.dx, sy + fit.dy, fit.dw, fit.dh);
+    if (look.kind === 'pattern') {
+      ctx.globalCompositeOperation = 'color';
+      ctx.fillStyle = players[o]?.color || '#888';
+      ctx.fillRect(sx, sy, X(bx1) - sx, Y(by1) - sy);
+    }
+    ctx.restore();
+  }
+
+  // Borders, highlights and cracks, on top of every skin.
+  for (let y = r0; y < r1; y++) {
+    for (let x = c0; x < c1; x++) {
+      const o = ownerAt(x, y);
+      if (o === undefined) continue;
+      const x0 = X(x), y0 = Y(y), bw = X(x + 1) - x0, bh = Y(y + 1) - y0;
+      if (o) {
+        // The territory edge in the owner's color: thicker around art skins, which don't show the color.
+        const b = border * skins.borderTexels(lookOf(o).kind);
         ctx.fillStyle = players[o]?.color || '#888';
-        ctx.globalCompositeOperation = 'color';
-        ctx.globalAlpha = 0.9;
-        ctx.fillRect(x0, y0, bw, bh);
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.globalAlpha = 1;
-        if (ownerAt(x - 1, y) !== o) ctx.fillRect(x0, y0, border, bh);
-        if (ownerAt(x + 1, y) !== o) ctx.fillRect(x0 + bw - border, y0, border, bh);
-        if (ownerAt(x, y - 1) !== o) ctx.fillRect(x0, y0, bw, border);
-        if (ownerAt(x, y + 1) !== o) ctx.fillRect(x0, y0 + bh - border, bw, border);
+        if (ownerAt(x - 1, y) !== o) ctx.fillRect(x0, y0, b, bh);
+        if (ownerAt(x + 1, y) !== o) ctx.fillRect(x0 + bw - b, y0, b, bh);
+        if (ownerAt(x, y - 1) !== o) ctx.fillRect(x0, y0, bw, b);
+        if (ownerAt(x, y + 1) !== o) ctx.fillRect(x0, y0 + bh - b, bw, b);
       }
 
       // Light up blocks we're allowed to take next.

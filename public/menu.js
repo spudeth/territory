@@ -169,7 +169,6 @@ function shade(hex) {
   const n = parseInt(hex.slice(1), 16), d = c => Math.round(c * 0.62).toString(16).padStart(2, '0');
   return '#' + d(n >> 16) + d((n >> 8) & 255) + d(n & 255);
 }
-const SKIN_LOOKS = ['checker', 'stripes', 'brick', 'dots', 'rows', 'diamond'];   // shown locked, from the design
 const paint = (el, color) => { el.style.setProperty('--c', color); el.style.setProperty('--c2', shade(color)); };
 
 function drawSetup() {
@@ -184,20 +183,24 @@ function drawSetup() {
     b.addEventListener('click', () => { pick.color = c.hex; drawSetup(); });
     return b;
   }));
-  const skins = ['default', ...SKIN_LOOKS.slice(0, 4)].map(id => {
+  // Owned skins first (pick one), then a few locked ones with their price (they open the Skins screen).
+  const owned = setupSkins.filter(k => k.owned), locked = setupSkins.filter(k => !k.owned).sort((a, b) => a.price - b.price).slice(0, 4);
+  const skins = [...owned, ...locked].map(k => {
     const b = document.createElement('button');
     b.type = 'button';
-    b.className = `skin pat-${id}`;
+    b.className = 'skin';
     b.setAttribute('role', 'radio');
-    paint(b, pick.color);
-    if (id === 'default') {
-      b.setAttribute('aria-checked', pick.skin === 'default');
-      b.classList.toggle('picked', pick.skin === 'default');
-      b.innerHTML = '<span class="label">Default</span>';
+    b.innerHTML = '<canvas class="skin-prev"></canvas><span class="label"></span>';
+    drawSkinPreview(b.querySelector('canvas'), k, pick.color);
+    b.querySelector('.label').textContent = k.name;
+    if (k.owned) {
+      b.setAttribute('aria-checked', pick.skin === k.id);
+      b.classList.toggle('picked', pick.skin === k.id);
+      b.addEventListener('click', () => { pick.skin = k.id; drawSetup(); });
     } else {
-      b.disabled = true;
-      b.setAttribute('aria-label', `${skinName(id)}, locked`);
-      b.innerHTML = '<span class="tag">LOCK</span>';
+      b.setAttribute('aria-label', `${k.name}, ${k.price} squares`);
+      b.insertAdjacentHTML('beforeend', `<span class="tag">${k.price.toLocaleString()}</span>`);
+      b.addEventListener('click', () => { skinsBack = 'setup'; show('skins'); });
     }
     return b;
   });
@@ -215,8 +218,10 @@ function drawSetup() {
 }
 for (const b of menu.querySelectorAll('[data-coverage]')) b.addEventListener('click', () => { pick.coverage = b.dataset.coverage; drawSetup(); });
 
+let setupSkins = [{ id: 'default', name: 'Default', kind: 'default', price: 0, owned: true }];
 fills.setup = () => {
   pick ??= { color: myColor, skin: mySkin, coverage: myCoverage };
+  ask('skins').then(list => { if (Array.isArray(list)) { setupSkins = list; if (view === 'setup') drawSetup(); } });
   $('setup-map').textContent = mapInfo.name.toUpperCase();
   drawSetup();
 };
@@ -236,35 +241,93 @@ $('spawn').addEventListener('click', async () => {
 });
 
 // ---------- Skins ----------
-let skinsBack = 'main';   // where the back button goes: the hub, or the setup screen
+// A skin's preview on a canvas: patterns in a color, art as it is, the plain look as the color itself.
+function drawSkinPreview(canvas, skin, color) {
+  canvas.width = canvas.height = 16;
+  const g = canvas.getContext('2d');
+  g.fillStyle = color;
+  g.fillRect(0, 0, 16, 16);
+  if (skin.kind === 'default') return;
+  const img = new Image();
+  img.onload = () => {
+    g.clearRect(0, 0, 16, 16);
+    g.drawImage(img, 0, 0);
+    if (skin.kind === 'pattern') { g.globalCompositeOperation = 'color'; g.fillStyle = color; g.fillRect(0, 0, 16, 16); g.globalCompositeOperation = 'source-over'; }
+  };
+  img.src = `skins/${skin.id}.png`;
+}
+
+let skinsBack = 'main';   // where the back button goes: the welcome screen, or the setup screen
+let skinList = [], skinTab = 'All';
 fills.skins = async () => {
   menu.querySelector('[data-view="skins"] .head [data-go]').dataset.go = skinsBack;
   skinsBack = 'main';
-  const real = await ask('skins');
+  const list = await ask('skins');
   if (view !== 'skins') return;
-  const owned = Array.isArray(real) ? real.filter(s => s.owned) : [];
-  $('skins-owned').textContent = `${owned.length} owned`;
-  const tile = (look, name, price, ownedSkin) => {
-    const t = document.createElement('div');
-    t.className = 'tile';
-    t.innerHTML = '<div class="prev"></div><span class="nm"></span><span class="pr"></span>';
-    const prev = t.querySelector('.prev');
-    prev.className = `prev pat-${look}`;
-    paint(prev, myColor);
-    if (ownedSkin) prev.classList.add('owned-mark');
-    else if (look === 'mystery') prev.textContent = '?';
-    else prev.innerHTML = '<span class="tag">LOCK</span>';
-    t.querySelector('.nm').textContent = name;
-    const pr = t.querySelector('.pr');
-    if (ownedSkin) { pr.textContent = 'Owned'; pr.style.color = 'var(--green)'; }
-    else pr.innerHTML = price ? '<img class="sq-icon" src="icons/square.svg" width="10" height="10" alt="">SOON' : 'Coming soon';
-    return t;
-  };
-  $('catalog').replaceChildren(
-    ...owned.map(s => tile(s.id === 'default' ? 'default' : s.id, s.name, false, true)),
-    ...SKIN_LOOKS.map(id => tile(id, skinName(id), true, false)),
-    tile('mystery', 'Mystery', false, false), tile('mystery', 'Mystery', false, false));
+  skinList = Array.isArray(list) ? list : [];
+  drawSkins();
 };
+function drawSkins() {
+  $('skins-owned').textContent = `${skinList.filter(s => s.owned).length} owned`;
+  $('skins-squares').textContent = squares;
+  const collections = [...new Set(skinList.map(s => s.collection))];
+  $('skins-tabs').replaceChildren(...['All', ...collections, 'Owned'].map(name => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.setAttribute('role', 'tab');
+    b.setAttribute('aria-selected', name === skinTab);
+    b.textContent = name;
+    b.addEventListener('click', () => { skinTab = name; drawSkins(); });
+    return b;
+  }));
+  const q = $('skins-search').value.trim().toLowerCase();
+  const shown = skinList.filter(s => (skinTab === 'All' || (skinTab === 'Owned' ? s.owned : s.collection === skinTab)) && (!q || s.name.toLowerCase().includes(q)));
+  const groups = new Map();
+  for (const s of shown) (groups.get(s.collection) ?? groups.set(s.collection, []).get(s.collection)).push(s);
+  $('catalog').replaceChildren(...[...groups].flatMap(([collection, list]) => {
+    const title = document.createElement('div');
+    title.className = 'cat-title';
+    title.textContent = `${collection.toUpperCase()} (${list.length})`;
+    const grid = document.createElement('div');
+    grid.className = 'catalog';
+    for (const s of list) {
+      const t = document.createElement('div');
+      t.className = 'tile';
+      t.innerHTML = '<canvas class="prev"></canvas><span class="nm"></span><span class="rar"></span>';
+      drawSkinPreview(t.querySelector('canvas'), s, myColor);
+      t.querySelector('.nm').textContent = s.name;
+      t.querySelector('.rar').textContent = s.rarity.toUpperCase();
+      t.querySelector('.rar').classList.add(s.rarity);
+      if (s.owned) {
+        t.insertAdjacentHTML('beforeend', '<span class="pr" style="color: var(--green)">Owned</span>');
+      } else {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn buy';
+        const short = s.price - squares;
+        b.disabled = short > 0;
+        b.innerHTML = short > 0 ? `Need ${short.toLocaleString()} more` : `${s.price.toLocaleString()} <img class="sq-icon" src="icons/square.svg" width="12" height="12" alt="squares">`;
+        b.addEventListener('click', () => buySkin(s, b));
+        t.append(b);
+      }
+      grid.append(t);
+    }
+    return [title, grid];
+  }));
+  if (!shown.length) $('catalog').innerHTML = '<p class="note">No skins match.</p>';
+}
+$('skins-search').addEventListener('input', () => drawSkins());
+async function buySkin(s, button) {
+  button.disabled = true;   // a double tap sends one purchase
+  const r = await ask('buySkin', { skin: s.id });
+  if (r.error) { fail(r.need ? `${r.error}: ${r.need} more needed` : r.error); button.disabled = false; return; }
+  gameAudio.play('purchase');
+  squares = r.squares;
+  updateUI();
+  s.owned = true;
+  toast(`${s.name} is yours`, 'good');
+  if (view === 'skins') drawSkins();
+}
 
 // ---------- Upgrades ----------
 const num = v => (Math.round(v * 100) / 100).toLocaleString(undefined, { minimumFractionDigits: Number.isInteger(v) ? 1 : 0, maximumFractionDigits: 2 });

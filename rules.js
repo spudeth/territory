@@ -51,6 +51,8 @@ const settings = {
 
   // Achievements (the sheet's Achievements tab): [{ id, name, category, stat, threshold, secret, description, reward }]
   ACHIEVEMENTS: economy.achievements ?? [],
+  // Skins (the sheet's Skins tab): [{ id, name, kind: pattern|art, rarity, price, collection, enabled }]
+  SKINS: economy.skins ?? [],
   // Rank and reign achievements count only on maps where at least this many players own blocks.
   RANK_MIN_PLAYERS: R.rankMinPlayers,
   RANK_MIN_BLOCKS: R.rankMinBlocks,   // …and only for a player with at least this many blocks there
@@ -134,5 +136,5 @@ const earnsSquares = (ownedAfterClaim, wipeFloor) => ownedAfterClaim > wipeFloor
 const wipeFloorAfterWipe = (wipeFloor, ownedAtWipe) => Math.max(wipeFloor, ownedAtWipe);
 
 // The rules read the numbers from this same object, so tests can try other dial values.
-module.exports = Object.assign(settings, { key, NEIGHBORS, NO_UPGRADES, hitError, hitsNeeded, hitPower, growthBlocks, isTaken,
+module.exports = Object.assign(settings, { key, NEIGHBORS, roundSquares, NO_UPGRADES, hitError, hitsNeeded, hitPower, growthBlocks, isTaken,
   squaresForFirstClaim, shownSquares, decayCrack, tapAllowed, earnsSquares, wipeFloorAfterWipe });

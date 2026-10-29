@@ -8,6 +8,8 @@ const { adminRouter, bannedMessage } = require('./admin');
 const rules = require('./rules');
 const chat = require('./chat');
 const terrain = require('./public/terrain');
+// How each skin is drawn, for the browser: { id: 'pattern' | 'art' }.
+const SKIN_KINDS = Object.fromEntries(rules.SKINS.map(s => [s.id, s.kind]));
 const stats = require('./stats');
 const achievements = require('./achievements');
 const { createTotals } = require('./totals');
@@ -408,7 +410,8 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
         me: { ...me, color, skin, coverage, locked: lockedHere(), wipeFloor: mine?.wipeFloor ?? 0, squares: rules.shownSquares(me.squares) },
         choices: { colors: rules.COLORS, coverages: rules.COVERAGES },
         hitsPerBlock: rules.HITS_PER_BLOCK,
-        settings: { nameLabelShare: rules.NAME_LABEL_SHARE, nameMaxLength: rules.NAME_MAX_LENGTH, sound: rules.SOUND, terrain: rules.TERRAIN },
+        settings: { nameLabelShare: rules.NAME_LABEL_SHARE, nameMaxLength: rules.NAME_MAX_LENGTH, sound: rules.SOUND, terrain: rules.TERRAIN,
+          skinKinds: SKIN_KINDS },   // how to draw each skin: pattern (in the owner's color) or art
         accounts: !!auth,                         // false when logins aren't set up on this server
         upgraded: false, loginFailed: false,      // see `flags`
         ...flags,
@@ -706,10 +709,33 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       });
     });
 
+    let buying = false;   // one purchase at a time per connection (skins and upgrades)
+    // Buys a skin with squares: { skin: id }. Answers { squares, balance } or { error, need }. Owned skins work on
+    // every map; a guest's carry over when they make an account (it's the same player).
+    socket.on('buySkin', async (p, reply) => {
+      if (typeof reply !== 'function') return;
+      if (!me.pid) return reply({ error: 'Claim a block first' });
+      const skin = rules.SKINS.find(s => s.id === p?.skin && s.enabled);
+      if (!skin) return reply({ error: 'That skin is not for sale' });
+      if (buying) return reply({ error: 'One purchase at a time' });
+      buying = true;
+      try {
+        const r = await store.buySkin(pool, me.pid, skin);
+        if (r.error) return reply(r);
+        balanceChanged(me.pid, r.squares);
+        totals.bump(me.pid, 'squaresSpent', skin.price);
+        reply({ squares: rules.shownSquares(r.squares), balance: r.squares });
+      } catch (err) {
+        console.error(`SKIN PURCHASE FAILED (player ${me.pid}, ${p?.skin}): ${err.message}`);
+        reply({ error: 'Could not buy that. Try again.' });
+      } finally {
+        buying = false;
+      }
+    });
+
     // Buys the next level of an upgrade with squares: { upgrade, level } where level is the one the player
     // sees (so a double tap can't buy twice). Guests may buy. Answers with { levels, squares, balance } or
     // { error, need }. The new level works straight away on every device and map.
-    let buying = false;
     socket.on('buyUpgrade', async (p, reply) => {
       if (typeof reply !== 'function') return;
       if (!me.pid) return reply({ error: 'Claim a block first' });

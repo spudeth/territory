@@ -745,3 +745,233 @@ secret-wipedout,Wiped Out,Secrets,secret:wipedout,1,yes,"Wipe a territory of 1,0
 #74 | 2026-10-29 | Xoren: achievement rewards scaled to a fifth: base 1 square (was 5), 2 squares per hour of effort, so a 1,000-hour top tier pays about 2,000 (was 10,000). Overrides Bob's 'at least 10,000 for 1,000 hours'; the CSV above (Q13) is updated | tests updated
 
 Loop order 10 done. Open: Q6, Q8, Q10, Q11, Q12, Q13, Q14. Stopping.
+
+#75 | 2026-10-29 | Loop 11: scripts/skins/draw_skins.py draws every skin in code: 6 patterns (checker, stripes, brick, dots, plus rows and diamond) in two greys, tinted with the owner's color in the game; 199 flags (all 193 UN members plus EU, England, Scotland, Wales, Puerto Rico, Greenland) from their real colors and proportions, simplified to 16x16; each at 16x16 and a large version (patterns 64x64, flags 96 wide in their own proportions). Contact sheet: docs/screenshots/loop11-flags.png
+#76 | 2026-10-29 | Loop 11: Skins tab in the sync (Key, Name, Kind, Rarity, Price, Collection, Enabled; every cell checked; each skin must have public/skins/<key>.png and <key>-large.png). data/economy.json carries the 205 skins. Collections are just a column, so a new one (Emoji) is: art files in public/skins/, rows in the tab | tests: sync validation
+#77 | 2026-10-29 | Loop 11: buying skins: one transaction locking the player row (no double spend), ledger 'skin:<key>', the Purchase sound, counted as squares spent. Owned skins work on every map (same player row, so a guest's skins carry over to their account). Skins screen: collection tabs (All, Basic, Patterns, Flags, Owned), search, Buy with price and square icon, "Need X more", Owned. Setup screen: owned skins first, then the four cheapest locked ones with their price (tap opens the Skins screen); the "locked for this map" note stays | tests: exact price, one short, double tap and two devices, every map
+#78 | 2026-10-29 | Loop 11: the map draws skins: per block (pattern tinted, or the art) or Full area (one large image per territory, scaled to cover its bounding box without stretching, clipped to its blocks). Art skins get a 2-texel border in the owner's color (patterns and the plain look keep 1). public/skins.js holds both rules | tests: border and cover fit; screenshots docs/screenshots/loop11-flag-per-block.png (Japan), loop11-flag-full-area.png (Brazil), loop11-skins-screen.png | full suite 128/128
+
+QUESTION Q15 (Bob, Xoren): the Skins tab draft, ready to paste into a new tab named exactly `Skins`. Starting prices: patterns 100-300 (checker and stripes 100, brick and dots 150, rows 200, diamond 300), every flag 1,000 (Rare, one price). No Legendary skins yet. Questions inside it:
+- Flags cover the 193 UN members. I left out the two UN observer states (Palestine, Vatican City) and disputed territories, to stay clear of politics; say if you want them.
+- Afghanistan uses the flag the UN still seats (black, red, green); Syria uses the flag adopted in 2025 (green, white, black, three red stars).
+- Coats of arms and emblems are simplified to a shape in their main color at 16x16.
+
+```csv
+Key,Name,Kind,Rarity,Price,Collection,Enabled
+checker,Checker,pattern,Common,100,Patterns,yes
+stripes,Stripes,pattern,Common,100,Patterns,yes
+brick,Brick,pattern,Common,150,Patterns,yes
+dots,Dots,pattern,Common,150,Patterns,yes
+rows,Rows,pattern,Common,200,Patterns,yes
+diamond,Diamond,pattern,Common,300,Patterns,yes
+flag-af,Afghanistan,art,Rare,1000,Flags,yes
+flag-al,Albania,art,Rare,1000,Flags,yes
+flag-dz,Algeria,art,Rare,1000,Flags,yes
+flag-ad,Andorra,art,Rare,1000,Flags,yes
+flag-ao,Angola,art,Rare,1000,Flags,yes
+flag-ag,Antigua and Barbuda,art,Rare,1000,Flags,yes
+flag-ar,Argentina,art,Rare,1000,Flags,yes
+flag-am,Armenia,art,Rare,1000,Flags,yes
+flag-au,Australia,art,Rare,1000,Flags,yes
+flag-at,Austria,art,Rare,1000,Flags,yes
+flag-az,Azerbaijan,art,Rare,1000,Flags,yes
+flag-bs,Bahamas,art,Rare,1000,Flags,yes
+flag-bh,Bahrain,art,Rare,1000,Flags,yes
+flag-bd,Bangladesh,art,Rare,1000,Flags,yes
+flag-bb,Barbados,art,Rare,1000,Flags,yes
+flag-by,Belarus,art,Rare,1000,Flags,yes
+flag-be,Belgium,art,Rare,1000,Flags,yes
+flag-bz,Belize,art,Rare,1000,Flags,yes
+flag-bj,Benin,art,Rare,1000,Flags,yes
+flag-bt,Bhutan,art,Rare,1000,Flags,yes
+flag-bo,Bolivia,art,Rare,1000,Flags,yes
+flag-ba,Bosnia and Herzegovina,art,Rare,1000,Flags,yes
+flag-bw,Botswana,art,Rare,1000,Flags,yes
+flag-br,Brazil,art,Rare,1000,Flags,yes
+flag-bn,Brunei,art,Rare,1000,Flags,yes
+flag-bg,Bulgaria,art,Rare,1000,Flags,yes
+flag-bf,Burkina Faso,art,Rare,1000,Flags,yes
+flag-bi,Burundi,art,Rare,1000,Flags,yes
+flag-cv,Cabo Verde,art,Rare,1000,Flags,yes
+flag-kh,Cambodia,art,Rare,1000,Flags,yes
+flag-cm,Cameroon,art,Rare,1000,Flags,yes
+flag-ca,Canada,art,Rare,1000,Flags,yes
+flag-cf,Central African Republic,art,Rare,1000,Flags,yes
+flag-td,Chad,art,Rare,1000,Flags,yes
+flag-cl,Chile,art,Rare,1000,Flags,yes
+flag-cn,China,art,Rare,1000,Flags,yes
+flag-co,Colombia,art,Rare,1000,Flags,yes
+flag-km,Comoros,art,Rare,1000,Flags,yes
+flag-cg,Congo,art,Rare,1000,Flags,yes
+flag-cr,Costa Rica,art,Rare,1000,Flags,yes
+flag-ci,Cote d'Ivoire,art,Rare,1000,Flags,yes
+flag-hr,Croatia,art,Rare,1000,Flags,yes
+flag-cu,Cuba,art,Rare,1000,Flags,yes
+flag-cy,Cyprus,art,Rare,1000,Flags,yes
+flag-cz,Czechia,art,Rare,1000,Flags,yes
+flag-cd,DR Congo,art,Rare,1000,Flags,yes
+flag-dk,Denmark,art,Rare,1000,Flags,yes
+flag-dj,Djibouti,art,Rare,1000,Flags,yes
+flag-dm,Dominica,art,Rare,1000,Flags,yes
+flag-do,Dominican Republic,art,Rare,1000,Flags,yes
+flag-ec,Ecuador,art,Rare,1000,Flags,yes
+flag-eg,Egypt,art,Rare,1000,Flags,yes
+flag-sv,El Salvador,art,Rare,1000,Flags,yes
+flag-gq,Equatorial Guinea,art,Rare,1000,Flags,yes
+flag-er,Eritrea,art,Rare,1000,Flags,yes
+flag-ee,Estonia,art,Rare,1000,Flags,yes
+flag-sz,Eswatini,art,Rare,1000,Flags,yes
+flag-et,Ethiopia,art,Rare,1000,Flags,yes
+flag-fj,Fiji,art,Rare,1000,Flags,yes
+flag-fi,Finland,art,Rare,1000,Flags,yes
+flag-fr,France,art,Rare,1000,Flags,yes
+flag-ga,Gabon,art,Rare,1000,Flags,yes
+flag-gm,Gambia,art,Rare,1000,Flags,yes
+flag-ge,Georgia,art,Rare,1000,Flags,yes
+flag-de,Germany,art,Rare,1000,Flags,yes
+flag-gh,Ghana,art,Rare,1000,Flags,yes
+flag-gr,Greece,art,Rare,1000,Flags,yes
+flag-gd,Grenada,art,Rare,1000,Flags,yes
+flag-gt,Guatemala,art,Rare,1000,Flags,yes
+flag-gn,Guinea,art,Rare,1000,Flags,yes
+flag-gw,Guinea-Bissau,art,Rare,1000,Flags,yes
+flag-gy,Guyana,art,Rare,1000,Flags,yes
+flag-ht,Haiti,art,Rare,1000,Flags,yes
+flag-hn,Honduras,art,Rare,1000,Flags,yes
+flag-hu,Hungary,art,Rare,1000,Flags,yes
+flag-is,Iceland,art,Rare,1000,Flags,yes
+flag-in,India,art,Rare,1000,Flags,yes
+flag-id,Indonesia,art,Rare,1000,Flags,yes
+flag-ir,Iran,art,Rare,1000,Flags,yes
+flag-iq,Iraq,art,Rare,1000,Flags,yes
+flag-ie,Ireland,art,Rare,1000,Flags,yes
+flag-il,Israel,art,Rare,1000,Flags,yes
+flag-it,Italy,art,Rare,1000,Flags,yes
+flag-jm,Jamaica,art,Rare,1000,Flags,yes
+flag-jp,Japan,art,Rare,1000,Flags,yes
+flag-jo,Jordan,art,Rare,1000,Flags,yes
+flag-kz,Kazakhstan,art,Rare,1000,Flags,yes
+flag-ke,Kenya,art,Rare,1000,Flags,yes
+flag-ki,Kiribati,art,Rare,1000,Flags,yes
+flag-kp,North Korea,art,Rare,1000,Flags,yes
+flag-kr,South Korea,art,Rare,1000,Flags,yes
+flag-kw,Kuwait,art,Rare,1000,Flags,yes
+flag-kg,Kyrgyzstan,art,Rare,1000,Flags,yes
+flag-la,Laos,art,Rare,1000,Flags,yes
+flag-lv,Latvia,art,Rare,1000,Flags,yes
+flag-lb,Lebanon,art,Rare,1000,Flags,yes
+flag-ls,Lesotho,art,Rare,1000,Flags,yes
+flag-lr,Liberia,art,Rare,1000,Flags,yes
+flag-ly,Libya,art,Rare,1000,Flags,yes
+flag-li,Liechtenstein,art,Rare,1000,Flags,yes
+flag-lt,Lithuania,art,Rare,1000,Flags,yes
+flag-lu,Luxembourg,art,Rare,1000,Flags,yes
+flag-mg,Madagascar,art,Rare,1000,Flags,yes
+flag-mw,Malawi,art,Rare,1000,Flags,yes
+flag-my,Malaysia,art,Rare,1000,Flags,yes
+flag-mv,Maldives,art,Rare,1000,Flags,yes
+flag-ml,Mali,art,Rare,1000,Flags,yes
+flag-mt,Malta,art,Rare,1000,Flags,yes
+flag-mh,Marshall Islands,art,Rare,1000,Flags,yes
+flag-mr,Mauritania,art,Rare,1000,Flags,yes
+flag-mu,Mauritius,art,Rare,1000,Flags,yes
+flag-mx,Mexico,art,Rare,1000,Flags,yes
+flag-fm,Micronesia,art,Rare,1000,Flags,yes
+flag-md,Moldova,art,Rare,1000,Flags,yes
+flag-mc,Monaco,art,Rare,1000,Flags,yes
+flag-mn,Mongolia,art,Rare,1000,Flags,yes
+flag-me,Montenegro,art,Rare,1000,Flags,yes
+flag-ma,Morocco,art,Rare,1000,Flags,yes
+flag-mz,Mozambique,art,Rare,1000,Flags,yes
+flag-mm,Myanmar,art,Rare,1000,Flags,yes
+flag-na,Namibia,art,Rare,1000,Flags,yes
+flag-nr,Nauru,art,Rare,1000,Flags,yes
+flag-np,Nepal,art,Rare,1000,Flags,yes
+flag-nl,Netherlands,art,Rare,1000,Flags,yes
+flag-nz,New Zealand,art,Rare,1000,Flags,yes
+flag-ni,Nicaragua,art,Rare,1000,Flags,yes
+flag-ne,Niger,art,Rare,1000,Flags,yes
+flag-ng,Nigeria,art,Rare,1000,Flags,yes
+flag-mk,North Macedonia,art,Rare,1000,Flags,yes
+flag-no,Norway,art,Rare,1000,Flags,yes
+flag-om,Oman,art,Rare,1000,Flags,yes
+flag-pk,Pakistan,art,Rare,1000,Flags,yes
+flag-pw,Palau,art,Rare,1000,Flags,yes
+flag-pa,Panama,art,Rare,1000,Flags,yes
+flag-pg,Papua New Guinea,art,Rare,1000,Flags,yes
+flag-py,Paraguay,art,Rare,1000,Flags,yes
+flag-pe,Peru,art,Rare,1000,Flags,yes
+flag-ph,Philippines,art,Rare,1000,Flags,yes
+flag-pl,Poland,art,Rare,1000,Flags,yes
+flag-pt,Portugal,art,Rare,1000,Flags,yes
+flag-qa,Qatar,art,Rare,1000,Flags,yes
+flag-ro,Romania,art,Rare,1000,Flags,yes
+flag-ru,Russia,art,Rare,1000,Flags,yes
+flag-rw,Rwanda,art,Rare,1000,Flags,yes
+flag-kn,Saint Kitts and Nevis,art,Rare,1000,Flags,yes
+flag-lc,Saint Lucia,art,Rare,1000,Flags,yes
+flag-vc,Saint Vincent and the Grenadines,art,Rare,1000,Flags,yes
+flag-ws,Samoa,art,Rare,1000,Flags,yes
+flag-sm,San Marino,art,Rare,1000,Flags,yes
+flag-st,Sao Tome and Principe,art,Rare,1000,Flags,yes
+flag-sa,Saudi Arabia,art,Rare,1000,Flags,yes
+flag-sn,Senegal,art,Rare,1000,Flags,yes
+flag-rs,Serbia,art,Rare,1000,Flags,yes
+flag-sc,Seychelles,art,Rare,1000,Flags,yes
+flag-sl,Sierra Leone,art,Rare,1000,Flags,yes
+flag-sg,Singapore,art,Rare,1000,Flags,yes
+flag-sk,Slovakia,art,Rare,1000,Flags,yes
+flag-si,Slovenia,art,Rare,1000,Flags,yes
+flag-sb,Solomon Islands,art,Rare,1000,Flags,yes
+flag-so,Somalia,art,Rare,1000,Flags,yes
+flag-za,South Africa,art,Rare,1000,Flags,yes
+flag-ss,South Sudan,art,Rare,1000,Flags,yes
+flag-es,Spain,art,Rare,1000,Flags,yes
+flag-lk,Sri Lanka,art,Rare,1000,Flags,yes
+flag-sd,Sudan,art,Rare,1000,Flags,yes
+flag-sr,Suriname,art,Rare,1000,Flags,yes
+flag-se,Sweden,art,Rare,1000,Flags,yes
+flag-ch,Switzerland,art,Rare,1000,Flags,yes
+flag-sy,Syria,art,Rare,1000,Flags,yes
+flag-tj,Tajikistan,art,Rare,1000,Flags,yes
+flag-tz,Tanzania,art,Rare,1000,Flags,yes
+flag-th,Thailand,art,Rare,1000,Flags,yes
+flag-tl,Timor-Leste,art,Rare,1000,Flags,yes
+flag-tg,Togo,art,Rare,1000,Flags,yes
+flag-to,Tonga,art,Rare,1000,Flags,yes
+flag-tt,Trinidad and Tobago,art,Rare,1000,Flags,yes
+flag-tn,Tunisia,art,Rare,1000,Flags,yes
+flag-tr,Turkiye,art,Rare,1000,Flags,yes
+flag-tm,Turkmenistan,art,Rare,1000,Flags,yes
+flag-tv,Tuvalu,art,Rare,1000,Flags,yes
+flag-ug,Uganda,art,Rare,1000,Flags,yes
+flag-ua,Ukraine,art,Rare,1000,Flags,yes
+flag-ae,United Arab Emirates,art,Rare,1000,Flags,yes
+flag-gb,United Kingdom,art,Rare,1000,Flags,yes
+flag-us,United States,art,Rare,1000,Flags,yes
+flag-uy,Uruguay,art,Rare,1000,Flags,yes
+flag-uz,Uzbekistan,art,Rare,1000,Flags,yes
+flag-vu,Vanuatu,art,Rare,1000,Flags,yes
+flag-ve,Venezuela,art,Rare,1000,Flags,yes
+flag-vn,Viet Nam,art,Rare,1000,Flags,yes
+flag-ye,Yemen,art,Rare,1000,Flags,yes
+flag-zm,Zambia,art,Rare,1000,Flags,yes
+flag-zw,Zimbabwe,art,Rare,1000,Flags,yes
+flag-eu,European Union,art,Rare,1000,Flags,yes
+flag-england,England,art,Rare,1000,Flags,yes
+flag-scotland,Scotland,art,Rare,1000,Flags,yes
+flag-wales,Wales,art,Rare,1000,Flags,yes
+flag-pr,Puerto Rico,art,Rare,1000,Flags,yes
+flag-gl,Greenland,art,Rare,1000,Flags,yes
+```
+
+## Merge steps (loop 11)
+1. Before the next `npm run sync-rules`: add the Skins tab from the CSV above (plus the earlier Q12/Q13 sheet changes).
+2. GitHub: pull request `iterate` -> `main`, merge. Render deploys. No database changes this time (skins are added to the skins table when first bought).
+
+## Live checklist (loop 11)
+- Welcome > Skins: tabs, search "japan", prices with the square icon; "Need X more" when short.
+- Buy a pattern: Purchase sound, squares go down, Owned.
+- Wipe a map (or start a new one): the setup screen shows owned skins first; pick a flag with "Full area", claim a few blocks: one big flag over the territory, owner's color as the border. "Per block": a flag on every block.
+
+Loop order 11 done. Open: Q6, Q8, Q10, Q11, Q12, Q13, Q14, Q15. Stopping.
