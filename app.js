@@ -494,7 +494,12 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
         map.cells.set(key(g.x, g.y), null);
         io.to(map.room).emit('grow', g);
       }
-      if (r.squares !== null) balanceChanged(me.pid, r.squares);
+      if (r.squares !== null) {
+        // Whole squares this claim mined, for the rising-square animation (rewards don't animate).
+        const mined = rules.shownSquares(r.squares) - rules.shownSquares(me.squares);
+        if (mined > 0) socket.emit('mined', { x, y, count: mined });
+        balanceChanged(me.pid, r.squares);
+      }
       claimStats({ x, y, k, from, ground, grown: r.grown.length, earned: r.squares !== null ? earn : 0, joinedMap: r.joinedMap });
     }
 

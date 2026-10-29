@@ -249,6 +249,7 @@ function render() {
   const now = performance.now();
   squarePops = squarePops.filter(p => now - p.t0 < SQUARE_POP.ms);
   for (const p of squarePops) {
+    if (now < p.t0) continue;   // a later square of the same claim, not started yet
     const e = 1 - Math.pow(1 - (now - p.t0) / SQUARE_POP.ms, SQUARE_POP.power);   // fast, then slow
     const s = SQUARE_POP.size * scale * dpr;
     const bottom = Y(p.y) + (SQUARE_POP.centered ? s / 2 : 0) - e * SQUARE_POP.rise * scale * dpr;
@@ -264,7 +265,7 @@ function render() {
 // centered: starts centered on the block's top grid line instead of sitting on it.
 const SQUARE_POP = { ms: 1350, rise: 1.15, power: 4.5, size: 0.28, centered: false };   // Xoren's picks
 const squareIcon = Object.assign(new Image(), { src: 'icons/square.svg' });
-let squarePops = [], lastClaim = null;
+let squarePops = [];
 
 // Where a block's centre is on screen, for placing other players' sounds.
 const screenAt = (x, y) => ({ sx: ox + (x + 0.5) * scale, sy: oy + (y + 0.5) * scale });
@@ -447,7 +448,7 @@ socket.on('claim', ({ x, y, pid }) => {
   cells.set(key(x, y), pid);
   hits.delete(key(x, y));
   myTaps.delete(key(x, y));
-  if (pid === me) { gameAudio.play(before ? 'steal' : 'claim'); tell('claimed', { x, y, from: before }); lastClaim = { x, y }; }
+  if (pid === me) { gameAudio.play(before ? 'steal' : 'claim'); tell('claimed', { x, y, from: before }); }
   else if (me && before === me) { gameAudio.play('taken'); tell('taken', { x, y }); }
   else gameAudio.play('claim', screenAt(x, y));
   updateUI();
@@ -470,8 +471,13 @@ socket.on('rename', ({ pid, name }) => {
   if (pid === me) myName = name;
   updateUI();
 });
+// One rising square per square a claim mined, a little apart.
+socket.on('mined', ({ x, y, count }) => {
+  const t = performance.now();
+  for (let i = 0; i < Math.min(count, 50); i++) squarePops.push({ x, y, t0: t + i * 150 });
+  draw();
+});
 socket.on('squares', n => {
-  if (n > squares && lastClaim) { squarePops.push({ ...lastClaim, t0: performance.now() }); draw(); }
   squares = n;
   updateUI();
   if (n > 0) tell('squares', n);

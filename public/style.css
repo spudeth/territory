@@ -199,6 +199,7 @@ a:hover { color: var(--gold-light); }
 }
 #popup .kicker { font: 8px var(--title); }
 #popup .what { font-size: 17px; font-weight: 600; }
+#popup .reward { display: flex; align-items: center; gap: 4px; font: 10px var(--title); margin-top: 4px; }
 
 /* ---------- Menu ---------- */
 #menu { position: fixed; inset: 0; background: rgba(10, 13, 18, .62); z-index: 10; }

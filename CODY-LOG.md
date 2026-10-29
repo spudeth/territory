@@ -741,4 +741,5 @@ secret-wipedout,Wiped Out,Secrets,secret:wipedout,1,yes,"Wipe a territory of 1,0
 - Say "hello world" in chat: a secret appears, then shows its name on the Awards screen.
 
 #72 | 2026-10-29 | Fix (Xoren): a single crack appeared on a just-claimed block about a minute later. Taps still in flight while a claim was being saved started a new crack on it, which the fade timer later showed. Taps on a block mid-claim are now ignored, and a claim clears any crack on its block | tests: regression test fails without the fix, passes with it
+#73 | 2026-10-29 | Xoren: one rising square per square a claim mines (the server sends "mined" with the count; staggered 150 ms); achievement rewards no longer animate. Achievement pop-up shows the name and what was done, with "+N [square]" below
 Loop order 10 done. Open: Q6, Q8, Q10, Q11, Q12, Q13, Q14. Stopping.

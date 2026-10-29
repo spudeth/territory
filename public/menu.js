@@ -437,7 +437,9 @@ let popupTimer, achTimer;
 function onAchievement(a) {
   gameAudio.play('achievement');
   tell('achievement', a);
-  $('popup-what').textContent = a.reward ? `${a.name} · +${fmtNum(a.reward)} squares` : a.name;
+  $('popup-what').textContent = a.description ? `${a.name} · ${a.description}` : a.name;
+  $('popup-reward').hidden = !a.reward;
+  $('popup-reward-n').textContent = `+${fmtNum(a.reward ?? 0)}`;
   $('popup').hidden = false;
   clearTimeout(popupTimer);
   popupTimer = setTimeout(() => { $('popup').hidden = true; }, 4000);
