@@ -225,6 +225,12 @@ fills.setup = () => {
   $('setup-map').textContent = mapInfo.name.toUpperCase();
   drawSetup();
 };
+// Changed your mind: back to the welcome screen without spawning (nothing is saved until the first claim).
+$('setup-cancel').addEventListener('click', () => {
+  view = null;   // the setup screen can't be closed any other way
+  menu.hidden = true;
+  welcomeScreen.open();
+});
 $('spawn').addEventListener('click', async () => {
   $('spawn').disabled = true;
   const r = await ask('setup', pick);
