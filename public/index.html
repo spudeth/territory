@@ -113,6 +113,24 @@
   </div>
 
   <!-- A message from the server that ends the game for now: banned, kicked, account deleted, restored -->
+  <!-- Death on this map (loop 13): what the life was, then RESPAWN or MENU -->
+  <div id="flash"></div>
+  <div id="death" hidden>
+    <div class="card" role="alertdialog" aria-labelledby="death-title">
+      <h1 id="death-title">YOUR TERRITORY HAS FALLEN</h1>
+      <dl>
+        <dt>Time survived</dt><dd id="death-time"></dd>
+        <dt>Most blocks at once</dt><dd id="death-peak"></dd>
+        <dt>Last block taken by</dt><dd id="death-killer"></dd>
+        <dt>Blocks claimed this life</dt><dd id="death-claims"></dd>
+        <dt>Squares earned this life</dt><dd id="death-squares"></dd>
+      </dl>
+      <div class="pair">
+        <button class="btn" type="button" id="death-menu">MENU</button>
+        <button class="btn" type="button" id="death-respawn" style="background: var(--green); color: var(--well)">RESPAWN</button>
+      </div>
+    </div>
+  </div>
   <div id="notice" hidden>
     <div class="card" role="alertdialog" aria-labelledby="notice-title">
       <h1 id="notice-title"></h1>

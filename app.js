@@ -327,6 +327,16 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
     };
   }
 
+  // A death: shown at once on the player's connections on that map; one that happens while they're away waits
+  // for their return (store.unseenDeath, on entering the map).
+  function announceDeath(pid, mapId, life) {
+    let shown = false;
+    for (const s of io.sockets.sockets.values()) {
+      if (String(s.data.me?.pid) === String(pid) && String(s.data.mapId) === String(mapId)) { s.emit('died', life); shown = true; }
+    }
+    if (shown) store.markLifeSeen(pool, life.id).catch(() => {});
+  }
+
   // Who has the game open in a visible tab on a map: sent to everyone there as 'online' (a list of player ids).
   function sendOnline(map) {
     if (!map) return;
@@ -424,6 +434,8 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       socket.join(map.room);
       if (old && old !== map) sendOnline(old);
       setTimeout(() => sendOnline(map));   // after the welcome below
+      // A death on this map while they were away: the death screen, now.
+      if (me.pid) store.unseenDeath(pool, me.pid, map.id).then(l => l && socket.emit('died', { ...l, offline: true }), () => {});
       const mine = map.players.get(me.pid);
       color = mine?.color ?? rules.COLORS[Math.floor(Math.random() * rules.COLORS.length)].hex;
       skin = mine?.skin ?? 'default';
@@ -550,7 +562,12 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
         const mine = lostTo.get(pid + '|' + here + k);
         if (mine && String(mine.by) === String(from) && now - mine.at <= 60000) totals.best(pid, 'secret:revenge', 1);
         lostTo.set(from + '|' + here + k, { by: pid, at: now });
-        if (!map.counts.get(from)) comeback.add(from + '|' + map.id);
+        if (!map.counts.get(from)) {
+          comeback.add(from + '|' + map.id);
+          // Their last block here: they die on this map (loop 13).
+          store.endLife(pool, from, map.id, pid, x, y).then(life => life && announceDeath(from, map.id, life))
+            .catch(err => console.error(`DEATH FAILED (player ${from}): ${err.message}`));
+        }
         const theirs = rankOn(map, from);
         if (theirs) totals.best(from, 'bestRank', theirs);
       }
@@ -564,6 +581,7 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       }
       const rank = rankOn(map, pid);
       if (rank) totals.best(pid, 'bestRank', rank);
+      store.lifeClaim(pool, pid, map.id, map.counts.get(pid) || 0, earned).catch(err => console.error(`LIFE FAILED (player ${pid}): ${err.message}`));
       if (joinedMap) store.mapsPlayed(pool, pid).then(n => totals.best(pid, 'mapsPlayed', n), () => {});
     }
 
@@ -626,6 +644,7 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
         const r = await wipeOn(here, me.pid);
         if (!r) return socket.emit('denied', 'You have no blocks to wipe');
         totals.bump(me.pid, 'wipes');
+        store.endLife(pool, me.pid, here.id).catch(() => {});   // a wipe ends the life, but isn't a death
         if (r.cells.length >= 1000) totals.best(me.pid, 'secret:wipedout', 1);
         comeback.delete(me.pid + '|' + here.id);
       }).catch(err => {
@@ -715,7 +734,8 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       const reply = args.at(-1);   // with or without an argument before it
       if (typeof reply !== 'function') return;
       reply({ levels: upgrades, hitsPerBlock: rules.HITS_PER_BLOCK, squaresPerClaim: rules.SQUARES_PER_FIRST_CLAIM,
-        upgrades: rules.UPGRADES,       // { clickPower: [{ level, value, cost }, …], … } from the sheet
+        // { clickPower: [{ level, value, cost }, …], … } from the sheet; Defense shown as it works (scaled, top x2)
+        upgrades: { ...rules.UPGRADES, defense: rules.UPGRADES.defense.map(l => ({ ...l, value: rules.defenseScaled(l.value) })) },
         balance: Number(me.squares) }); // the exact balance, so "Need X more" is right with fractions
     });
 

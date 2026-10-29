@@ -596,7 +596,7 @@ function deleteAccount(pool, playerId) {
     const { rows: maps } = await c.query('SELECT DISTINCT map_id FROM map_cells WHERE owner_id = $1', [playerId]);
     await c.query('UPDATE map_cells SET owner_id = NULL, claimed_at = NULL WHERE owner_id = $1', [playerId]);
     for (const t of ['player_tokens', 'player_map_settings', 'player_map_stats', 'player_achievements', 'player_skins',
-      'level_remaps', 'tap_limit_log', 'bans', 'player_totals']) {
+      'level_remaps', 'tap_limit_log', 'bans', 'player_totals', 'player_lives']) {
       await c.query(`DELETE FROM ${t} WHERE player_id = $1`, [playerId]);
     }
     await c.query('DELETE FROM player_links WHERE account_id = $1 OR guest_id = $1', [playerId]);
@@ -630,7 +630,7 @@ function resetProgress(pool, playerId) {
     const { rows: maps } = await c.query(`SELECT map_id FROM map_cells WHERE owner_id = $1
       UNION SELECT map_id FROM player_map_settings WHERE player_id = $1 UNION SELECT map_id FROM player_map_stats WHERE player_id = $1`, [playerId]);
     await c.query('UPDATE map_cells SET owner_id = NULL, claimed_at = NULL WHERE owner_id = $1', [playerId]);
-    for (const t of ['player_map_settings', 'player_map_stats', 'player_achievements', 'level_remaps', 'player_totals']) {
+    for (const t of ['player_map_settings', 'player_map_stats', 'player_achievements', 'level_remaps', 'player_totals', 'player_lives']) {
       await c.query(`DELETE FROM ${t} WHERE player_id = $1`, [playerId]);
     }
     await c.query("DELETE FROM player_skins WHERE player_id = $1 AND source <> 'purchase'", [playerId]);
@@ -649,11 +649,40 @@ function deleteMap(pool, mapId) {
   return tx(pool, async c => {
     for (const sql of ['UPDATE players SET last_map_id = NULL WHERE last_map_id = $1', 'UPDATE square_ledger SET map_id = NULL WHERE map_id = $1',
       'UPDATE player_achievements SET map_id = NULL WHERE map_id = $1', 'DELETE FROM player_map_settings WHERE map_id = $1',
-      'DELETE FROM player_map_stats WHERE map_id = $1', 'DELETE FROM map_wipes WHERE map_id = $1', 'DELETE FROM map_edges WHERE map_id = $1',
+      'DELETE FROM player_map_stats WHERE map_id = $1', 'DELETE FROM map_wipes WHERE map_id = $1', 'DELETE FROM player_lives WHERE map_id = $1', 'DELETE FROM map_edges WHERE map_id = $1',
       'DELETE FROM map_cells WHERE map_id = $1', 'DELETE FROM maps WHERE id = $1']) await c.query(sql, [mapId]);
   });
 }
 Object.assign(module.exports, { deleteMap });
+
+// ---------- Lives (death and respawn) ----------
+// After a claim: the open life on this map gets the claim, its squares and its peak (one is started if none is open).
+async function lifeClaim(pool, playerId, mapId, owned, squares) {
+  const r = await pool.query(`UPDATE player_lives SET claims = claims + 1, squares = squares + $3, peak = GREATEST(peak, $4)
+    WHERE player_id = $1 AND map_id = $2 AND ended_at IS NULL`, [playerId, mapId, squares, owned]);
+  if (!r.rowCount) await pool.query('INSERT INTO player_lives (player_id, map_id, claims, squares, peak) VALUES ($1, $2, 1, $3, $4)', [playerId, mapId, squares, owned]);
+}
+// Ends the open life on this map: a death (killer set, where the last block was) or a wipe (killer null, seen).
+// Returns the ended life (for the death screen), or null if none was open.
+async function endLife(pool, playerId, mapId, killerId = null, x = null, y = null) {
+  const { rows: [l] } = await pool.query(`UPDATE player_lives SET ended_at = now(), killer_id = $3::bigint, x = $4, y = $5, seen = $3::bigint IS NULL
+    WHERE player_id = $1 AND map_id = $2 AND ended_at IS NULL RETURNING id`, [playerId, mapId, killerId, x, y]);
+  return l ? lifeShown(pool, l.id) : null;
+}
+// A life as the death screen shows it.
+async function lifeShown(pool, id) {
+  const { rows: [l] } = await pool.query(`SELECT l.id, l.map_id AS "mapId", extract(epoch FROM l.ended_at - l.started_at)::float AS seconds, l.peak,
+    l.claims, l.squares::float AS squares, k.name AS killer, l.x, l.y FROM player_lives l LEFT JOIN players k ON k.id = l.killer_id WHERE l.id = $1`, [id]);
+  return l ?? null;
+}
+// A death on this map the player hasn't seen yet (they were away), or null; marks it seen.
+async function unseenDeath(pool, playerId, mapId) {
+  const { rows: [l] } = await pool.query(`UPDATE player_lives SET seen = true WHERE id = (SELECT id FROM player_lives WHERE player_id = $1
+    AND map_id = $2 AND killer_id IS NOT NULL AND NOT seen ORDER BY id DESC LIMIT 1) RETURNING id`, [playerId, mapId]);
+  return l ? lifeShown(pool, l.id) : null;
+}
+const markLifeSeen = (pool, id) => pool.query('UPDATE player_lives SET seen = true WHERE id = $1', [id]);
+Object.assign(module.exports, { lifeClaim, endLife, unseenDeath, markLifeSeen });
 
 // An account's email, from Neon Auth (null for guests, or where Neon Auth isn't in this database).
 async function accountEmail(pool, authUserId) {

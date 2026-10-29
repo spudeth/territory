@@ -308,7 +308,8 @@ test('menu screens: skins, upgrades and achievement progress come from the real 
   assert.equal(skinList.length, 1 + rules.SKINS.filter(s => s.enabled).length, 'the catalog from the sheet');
   assert.ok(skinList.slice(1).every(s => !s.owned), 'a visitor owns only the plain look');
   assert.deepEqual(await a.ask('upgrades'), { levels: rules.NO_UPGRADES, hitsPerBlock: rules.HITS_PER_BLOCK,
-    squaresPerClaim: rules.SQUARES_PER_FIRST_CLAIM, upgrades: rules.UPGRADES, balance: 0 });
+    squaresPerClaim: rules.SQUARES_PER_FIRST_CLAIM, balance: 0,
+    upgrades: { ...rules.UPGRADES, defense: rules.UPGRADES.defense.map(l => ({ ...l, value: rules.defenseScaled(l.value) })) } });
   const none = await a.ask('achievements');
   assert.equal(none.list.length, 300);
   assert.deepEqual([none.earned, none.values], [[], {}], 'a visitor has nothing yet');
@@ -592,4 +593,39 @@ test('online dots: players with the game open in a visible tab, gone when they h
   await b.next('online', list => list.includes(String(you.pid)));
   a.disconnect();
   await b.next('online', list => !list.includes(String(you.pid)));
+});
+
+test('death: losing your last block kills (with the life on the screen); respawn works; wiping is not a death; an offline death shows on return', async () => {
+  const id = await require('../store').createMap(pool, { name: 'Arena', width: 6, height: 6 });
+  const join = async () => { const s = player(); await s.welcome; await s.ask('switchMap', id); await s.next('welcome'); return s; };
+  const take = async (s, x, y, by) => { s.take(x, y); return s.next('claim', d => d.x === x && d.y === y && (!by || String(d.pid) === String(by))); };
+  const a = await join(), b = await join();
+  await take(a, 0, 0); const youA = await a.next('you');
+  await take(a, 1, 0, youA.pid);                       // a owns 2 at once
+  await take(b, 2, 0); const youB = await b.next('you');
+  await take(b, 1, 0, youB.pid);                       // b takes one: a lives on
+  await new Promise(r => setTimeout(r, 300));
+  assert.equal(a.events.filter(([n]) => n === 'died').length, 0, 'still alive with one block');
+  await take(b, 0, 0, youB.pid);                       // the last one
+  const life = await a.next('died');
+  assert.deepEqual([life.peak, life.claims, life.killer], [2, 2, youB.name]);
+  assert.ok(life.seconds >= 0 && life.seconds < 60, 'time survived, from the first block');
+  await take(a, 4, 4, youA.pid);                       // respawn: any empty block, no setup
+  a.emit('wipe');
+  await a.next('wipe');
+  await new Promise(r => setTimeout(r, 400));
+  assert.equal(a.events.filter(([n]) => n === 'died').length, 0, 'wiping is not a death');
+
+  // Offline: a has a block, leaves; b takes it; a sees the death screen on returning to the map.
+  await take(a, 3, 0, youA.pid);
+  await take(b, 3, 1, youB.pid).catch(() => {});      // b next door (b's land is at x 0-2, y 0)
+  a.disconnect();
+  await take(b, 3, 0, youB.pid);
+  const back = player({ token: youA.token });
+  await back.welcome;
+  await back.ask('switchMap', id);
+  const shown = await back.next('died');
+  assert.equal(shown.offline, true);
+  assert.equal(shown.killer, youB.name);
+  assert.equal((await pool.query('SELECT count(*)::int AS n FROM player_lives WHERE player_id = $1 AND killer_id IS NOT NULL AND NOT seen', [youA.pid])).rows[0].n, 0, 'seen now');
 });
