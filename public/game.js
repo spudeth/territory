@@ -145,6 +145,7 @@ function render() {
   const waterFrame = Math.floor(performance.now() / WATER_FRAME_MS) % 2;
   let waterShown = false;
   const fullArea = new Map();   // owner -> their visible blocks, for Full area skins
+  const white = mapInfo?.style === 'white' && !world;
   for (let y = r0; y < r1; y++) {
     for (let x = c0; x < c1; x++) {
       const o = ownerAt(x, y);
@@ -152,6 +153,7 @@ function render() {
       const x0 = X(x), y0 = Y(y), bw = X(x + 1) - x0, bh = Y(y + 1) - y0;
       const ground = world ? world.at(x, y) : 'grass';
       if (ground === 'water') { waterShown = true; ctx.drawImage(TERRAIN_TILES.water[waterFrame], x0, y0, bw, bh); }
+      else if (white) { ctx.fillStyle = '#f7f8fa'; ctx.fillRect(x0, y0, bw, bh); }   // the white style: clean white blocks
       else ctx.drawImage(ground === 'grass' ? tiles[variant(x, y)] : TERRAIN_TILES[ground], x0, y0, bw, bh);
 
       if (o) {
@@ -162,8 +164,9 @@ function render() {
         else if (img) ctx.drawImage(img, x0, y0, bw, bh);
         if (look.kind !== 'art' && !(look.full && look.kind === 'pattern')) {
           ctx.fillStyle = players[o]?.color || '#888';
-          ctx.globalCompositeOperation = 'color';
-          ctx.globalAlpha = look.kind === 'pattern' ? 1 : 0.9;
+          // On white there's no shading to keep, so the color goes on directly.
+          ctx.globalCompositeOperation = white && look.kind === 'default' ? 'source-over' : 'color';
+          ctx.globalAlpha = look.kind === 'pattern' ? 1 : white ? 0.85 : 0.9;
           ctx.fillRect(x0, y0, bw, bh);
           ctx.globalCompositeOperation = 'source-over';
           ctx.globalAlpha = 1;
@@ -283,6 +286,13 @@ function render() {
     ctx.fillRect(box.x + pad, Math.round(box.y + (box.h - dot) / 2), dot, dot);
     ctx.fillStyle = String(owner) === String(me) ? '#f7c948' : '#ffffff';
     ctx.fillText(name, box.x + pad * 2 + dot, box.y + box.h / 2 + dpr);
+    if (online.has(String(owner))) {   // a green dot: they have the game open right now
+      const r = 3.5 * dpr;
+      ctx.fillStyle = '#0a0d12';
+      ctx.beginPath(); ctx.arc(box.x + box.w, box.y, r + dpr, 0, 2 * Math.PI); ctx.fill();
+      ctx.fillStyle = '#2fd35b';
+      ctx.beginPath(); ctx.arc(box.x + box.w, box.y, r, 0, 2 * Math.PI); ctx.fill();
+    }
   }
 
   // Blocks the tutorial points at (coach.js): a thick yellow outline with a dark edge.
@@ -435,6 +445,7 @@ function updateUI() {
     li.innerHTML = '<span class="sq"></span><span class="name"></span><span class="n"></span>';
     li.children[0].style.background = players[pid]?.color || '#888';
     li.children[1].textContent = players[pid]?.name || '…';
+    li.children[1].classList.toggle('online', online.has(String(pid)));
     li.children[2].textContent = n;
     return li;
   }));
@@ -450,6 +461,12 @@ const socket = io({
     token: localStorage.getItem('territory-token'), jwt, upgrade: sessionStorage.getItem('territory-upgrade') === '1',
   })),
 });
+
+// Players with the game open in a visible tab on this map (green dots), and telling the server about our tab.
+let online = new Set();
+socket.on('online', list => { online = new Set(list.map(String)); updateUI(); draw(); });
+document.addEventListener('visibilitychange', () => socket.emit('visible', !document.hidden));
+socket.on('connect', () => { if (document.hidden) socket.emit('visible', false); });
 
 socket.on('welcome', data => {
   const first = !cells || data.map.id !== mapInfo?.id;   // a new map (or a switch) gets a fresh view

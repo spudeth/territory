@@ -975,3 +975,16 @@ flag-gl,Greenland,art,Rare,1000,Flags,yes
 - Wipe a map (or start a new one): the setup screen shows owned skins first; pick a flag with "Full area", claim a few blocks: one big flag over the territory, owner's color as the border. "Per block": a flag on every block.
 
 Loop order 11 done. Open: Q6, Q8, Q10, Q11, Q12, Q13, Q14, Q15. Stopping.
+
+#79 | 2026-10-29 | Loop 12 (partial, out of budget): sync keeps the current skins while the sheet has no Skins tab; nameLabelShare dropped from the code (Bob removed the row); ran the real sync: 300 achievements, 205 skins kept, 30 rules | tests: economy, achievements pass
+
+Map commands for Xoren (production; the server must be on loop 9 or later):
+  npm run admin -- create-map "White Plains" --style white --width 32 --height 32 --prod
+  npm run admin -- create-map Pangea --seed Pangea --prod
+(White Plains: a plain white rectangle with no terrain, since --width/--height give an unseeded rectangle. Pangea: a 10,240-block island with terrain.)
+NOT DONE from loop 12, still to do: (1 Awards filter tabs: done, #80) 2 floating island background, 3 white-style check, 4 setup-before-welcome flow fix, 5 Click Power percentages and carry-over, 6 online dot, 7 the 205 new skins. OPEN Q16: loop 12 continues next session.
+#80 | 2026-10-29 | Loop 12: Awards filter tabs back (All / Pending / Claimed) on top of the category grouping; Pending hides finished categories, Claimed shows categories with at least one earned
+#81 | 2026-10-29 | Loop 12 (5a): upgrade cards show the real change as a percentage ("+40% → +50% more powerful clicks"; Defense and Earnings the same; Growth stays a block count), never rounded click counts. Still to do: 5b carry-over, 2, 3, 4, 6, 7
+#82 | 2026-10-29 | Loop 12 (5b): hit power left over from the tap that takes a block counts toward the next block the player hits (any block: once taken, "the same block" is theirs), so higher Click Power never wastes power over time; GAME-RULES.md updated. Bob's 17-click example is now 16 when spare carries over (test updated) | tests: upgrades, stray-crack pass. Still to do: 2 background, 3 white style, 4 flow fix, 6 online dot, 7 the 205 new skins
+#83 | 2026-10-29 | Loop 12 (6): online dots. Browsers report when their tab is shown or hidden; the server sends each map who has it open and visible ("online"), at once on hide, show, close, switch or a new guest. A small green dot sits at the corner of their name tag and after their leaderboard name | tests: online dots (show, hide, show, close). Still to do: 2 background, 3 white style, 4 flow fix, 7 the 205 new skins
+#84 | 2026-10-29 | Loop 12 (3): the white style draws clean white blocks (#f7f8fa) with the soft grey grid; owned blocks are filled with the owner color (the grass recolor would leave white white). Map commands for Xoren are in #79. "???" stays COMING SOON (welcome.js PLACEHOLDER_MAPS). Not yet checked in a browser

@@ -594,3 +594,6 @@ body:not(.welcome) #welcome * { pointer-events: none; }
   #welcome { transition: opacity .5s ease; }
   body:not(.welcome) #welcome { transform: none; }
 }
+
+/* Online: a small green dot after the name (the player has the game open right now). */
+#board-list .name.online::after { content: ''; display: inline-block; width: 7px; height: 7px; margin-left: 6px; border-radius: 50%; background: #2fd35b; box-shadow: 0 0 0 2px var(--ink); vertical-align: middle; }

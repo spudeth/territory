@@ -39,7 +39,6 @@ const RULE_KEYS = {
   renameWaitMinutes: num(0, 100000),
   maxTapsPerSecond: num(1, 100),
   nameMaxLength: int(1, 15),          // the database allows at most 15
-  nameLabelShare: num(0.01, 1),
   newMapWidth: int(1, 1000),
   newMapHeight: int(1, 1000),
   newMapBlocks: int(1, 1000000),
@@ -192,7 +191,9 @@ function validate(tabs, { hasFile = () => true } = {}) {
   }
   // Skins: one row each, with its images in public/skins/. Enabled "no" keeps a skin out of the shop (owners keep it).
   const skins = [], skinKeys = new Set();
-  const k = table(SKINS_TAB, SKIN_COLUMNS);
+  // No Skins tab yet (Google returns the first tab for an unknown name): skins stay as they are (the sync keeps them).
+  const skinsTab = typeof tabs[SKINS_TAB] === 'string' && parseCsv(tabs[SKINS_TAB])[0]?.some(c => c.trim() === 'Kind');
+  const k = skinsTab ? table(SKINS_TAB, SKIN_COLUMNS) : null;
   if (k) {
     k.rows.forEach((r, i) => {
       const row = i + 1, cell = j => (r[k.at[j]] ?? '').trim(), at = j => where(SKINS_TAB, k.at[j], row, SKIN_COLUMNS[j]);
@@ -213,7 +214,7 @@ function validate(tabs, { hasFile = () => true } = {}) {
       skins.push({ id: key, name, kind, rarity, price, collection, enabled: /^yes$/i.test(enabled) });
     });
   }
-  return errors.length ? { economy: null, errors } : { economy: { rules, upgrades, achievements, skins }, errors };
+  return errors.length ? { economy: null, errors } : { economy: { rules, upgrades, achievements, ...(skinsTab ? { skins } : {}) }, errors };
 }
 
 // Option B: a stored level under the old table becomes the lowest new level whose value is at least the old

@@ -292,8 +292,10 @@ test("upgrades: Click Power and Defense multiply hits (Bob's example: 17 clicks)
   await c.welcome;
   for (let i = 0; i < 9; i++) c.emit('hit', { x: 18, y: 25 });   // Defense never applies to empty blocks: 9 clicks
   await c.next('claim', at(18, 25));
-  for (let i = 0; i < 16; i++) c.emit('hit', { x: 17, y: 25 });
-  await c.next('hit', d => d.x === 17 && d.y === 25 && d.p === 0.96);   // 16 x 1.2 = 19.2 of 20
+  // The 9th click left 0.8 spare (10.8 of 10), which counts toward the next block: 0.8 + 15 x 1.2 = 18.8 of 20,
+  // and the 16th click takes it (17 without the carry-over).
+  for (let i = 0; i < 15; i++) c.emit('hit', { x: 17, y: 25 });
+  await c.next('hit', d => d.x === 17 && d.y === 25 && d.p === 0.94);
   c.emit('hit', { x: 17, y: 25 });
   await c.next('claim', d => d.x === 17 && d.y === 25 && d.pid !== you.pid);
 });
@@ -576,4 +578,18 @@ test('taps still arriving while a claim is saved leave no crack on the new owner
   await new Promise(r => setTimeout(r, DECAY_MS * 3));   // long enough for any leftover crack to fade a step
   const late = a.events.slice(after).filter(([n, d]) => n === 'hit' && d.x === 20 && d.y === 30 && d.p > 0);
   assert.deepEqual(late, [], 'no crack shows up later on the claimed block');
+});
+
+test('online dots: players with the game open in a visible tab, gone when they hide or close it', async () => {
+  const a = player(), b = player();
+  await Promise.all([a.welcome, b.welcome]);
+  a.take(22, 30);
+  const you = await a.next('you');
+  await b.next('online', list => list.includes(String(you.pid)));
+  a.emit('visible', false);
+  await b.next('online', list => !list.includes(String(you.pid)));
+  a.emit('visible', true);
+  await b.next('online', list => list.includes(String(you.pid)));
+  a.disconnect();
+  await b.next('online', list => !list.includes(String(you.pid)));
 });

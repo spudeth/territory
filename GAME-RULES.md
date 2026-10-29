@@ -29,6 +29,8 @@ Every rule in the game, in plain English. This file is updated whenever a rule c
 
 ## Taking blocks
 
+- **Nothing is wasted:** when your tap takes a block with hit power to spare (e.g. 10 needed, you had 9.4 and tapped 1.5), the spare 0.9 counts toward the next block you hit. So every Click Power level means fewer or equal taps over time. (Bob, loop 12)
+
 - **Every block takes 10 hits to take**, empty or owned. (Game Rules: `hitsPerBlock`)
 - One click counts as 1 hit, times your Click Power (see Upgrades). With no upgrades, 10 clicks take a block.
 - **Your first block** on a map must be an empty block. It can be anywhere.

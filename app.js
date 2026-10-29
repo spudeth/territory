@@ -318,6 +318,14 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
     };
   }
 
+  // Who has the game open in a visible tab on a map: sent to everyone there as 'online' (a list of player ids).
+  function sendOnline(map) {
+    if (!map) return;
+    const pids = new Set();
+    for (const s of io.sockets.sockets.values()) if (s.data.mapId === map.id && s.data.visible && s.data.me?.pid) pids.add(String(s.data.me.pid));
+    io.to(map.room).emit('online', [...pids]);
+  }
+
   // A purchase: new upgrade levels and balance for every connection of the player and every loaded map (where
   // Defense is read from), so the new level counts from the next tap.
   function upgradesChanged(pid, levels, balance) {
@@ -391,16 +399,22 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       catchUp(me.pid, upgrades, me.account).catch(err => console.error(`CATCH-UP FAILED (player ${me.pid}): ${err.message}`));
     }
     // This visit, for the Sessions achievements and some secrets.
-    const session = { claims: 0, recent: [], forestRun: 0, pokes: 0, minute: null, visitorTaps: 0 };
-    socket.on('disconnect', () => { if (me.pid) totals.save(me.pid); });
+    const session = { claims: 0, recent: [], forestRun: 0, pokes: 0, minute: null, visitorTaps: 0, spare: 0 };
+    socket.data.visible = true;
+    socket.on('disconnect', () => { if (me.pid) totals.save(me.pid); sendOnline(map); });
+    // The browser says when its tab is shown or hidden (online dots).
+    socket.on('visible', v => { socket.data.visible = !!v; sendOnline(map); });
 
     // Puts this connection on `next` and sends the whole map. Also used when switching maps, so the browser
     // handles a switch like a fresh welcome.
     function enter(next, flags = {}) {
+      const old = map;
       if (map) socket.leave(map.room);
       map = next;
       socket.data.mapId = map.id;
       socket.join(map.room);
+      if (old && old !== map) sendOnline(old);
+      setTimeout(() => sendOnline(map));   // after the welcome below
       const mine = map.players.get(me.pid);
       color = mine?.color ?? rules.COLORS[Math.floor(Math.random() * rules.COLORS.length)].hex;
       skin = mine?.skin ?? 'default';
@@ -473,6 +487,7 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
         me.name = r.name;
         socket.join('player:' + me.pid);
         socket.emit('you', { token, pid: me.pid, name: me.name });
+        sendOnline(map);
         totals.bump(me.pid, 'taps', session.visitorTaps);
         session.visitorTaps = 0;
         session.minute = Math.floor(Date.now() / 60000);
@@ -574,12 +589,15 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       h = map.hits.get(k);
       const owner = map.cells.get(k);
       const need = rules.hitsNeeded(owner ? map.players.get(owner)?.upgrades ?? rules.NO_UPGRADES : null, map.terrainAt(x, y));
-      if (h?.by !== by) map.hits.set(k, h = { by, n: 0 });
+      // Hit power left over from the tap that took the last block counts toward the next one, so a higher Click
+      // Power level never wastes power (GAME-RULES.md).
+      if (h?.by !== by) { map.hits.set(k, h = { by, n: session.spare }); session.spare = 0; }
       h.at = now;
       h.need = need;
       h.n += rules.hitPower(upgrades);
       if (!rules.isTaken(h.n, need)) return io.to(map.room).emit('hit', { x, y, p: share(h) });
 
+      session.spare = Math.max(0, h.n - need);
       map.hits.delete(k);
       const here = map;
       here.claiming.add(k);

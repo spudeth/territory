@@ -332,22 +332,24 @@ async function buySkin(s, button) {
 // ---------- Upgrades ----------
 const num = v => (Math.round(v * 100) / 100).toLocaleString(undefined, { minimumFractionDigits: Number.isInteger(v) ? 1 : 0, maximumFractionDigits: 2 });
 const plural = (v, word) => `${word}${v === 1 ? '' : 's'}`;
-// Each upgrade's effect at a level, as a number and what it counts (shown as "10 → 9 clicks per block").
+// Each upgrade's effect at a level and what it means, shown as "+40% → +50% more powerful clicks": the real change,
+// never a rounded count of clicks. Growth stays a count of blocks.
+const pct = v => `+${Math.round((v - 1) * 1000) / 10}%`;
 const UPGRADES = [
   { key: 'clickPower', name: 'Click Power', about: 'Each click counts as more hits', color: 'var(--orange)',
     icon: '<path d="M4 0h2v3h2v1H7v1H6v1H5v1H4v1H3V5H1V4h1V3h1V2h1z" fill="#0f131a"/>',
-    effect: (v, u) => { const n = Math.ceil(u.hitsPerBlock / v - 1e-9); return [n, plural(n, 'click') + ' per block']; } },
+    effect: v => [pct(v), 'more powerful clicks'] },
   { key: 'defense', name: 'Defense', about: 'Others need more hits to take your blocks', color: 'var(--blue)',
     icon: '<path d="M0 0h8v4H7v2H6v1H5v1H3V7H2V6H1V4H0z" fill="#0f131a"/>',
-    effect: (v, u) => { const n = Math.round(u.hitsPerBlock * v * 100) / 100; return [n, plural(n, 'hit') + ' to take your block']; } },
+    effect: v => [pct(v), 'more hits needed to take your blocks'] },
   { key: 'earnings', name: 'Earnings', about: 'More squares per brand-new block', color: 'var(--text)',
     icon: '<path d="M0 4h3v4H0zM5 4h3v4H5zM2 0h4v3H2z" fill="#0f131a"/>',
-    effect: (v, u) => { const n = u.squaresPerClaim * v; return [n, plural(n, 'square') + ' per new block']; } },
+    effect: v => [pct(v), 'more squares per new block'] },
   { key: 'growth', name: 'Growth', about: 'More new map blocks per brand-new block', color: 'var(--green)',
     icon: '<path d="M3 0h2v3h3v2H5v3H3V5H0V3h3z" fill="#0f131a"/>',
     effect: v => [v, 'new map ' + plural(v, 'block') + ' per claim'] },
 ];
-const show2 = n => num(n).replace(/\.0$/, '');   // 4 rather than 4.0 in "5 → 4"
+const show2 = n => typeof n === 'string' ? n : num(n).replace(/\.0$/, '');   // 4 rather than 4.0 in "5 → 4"
 
 let upgradeData = null;
 fills.upgrades = async () => {
@@ -433,17 +435,19 @@ async function buy(up, level, btn) {
 // Grouped by category, each with its next tier and a progress bar toward it. Secret ones show as "???".
 const fmtNum = n => Number(n).toLocaleString(undefined, { maximumFractionDigits: 1 });
 const COUNTS_DOWN = new Set(['bestRank']);   // #3 is better than #10
-let achData = null;
+let achData = null, achFilter = 'all';   // all, pending (not earned yet) or claimed (earned)
 
 function drawAchievements() {
   const { list, earned, values } = achData;
   const got = new Set(earned.map(e => e.id));
   $('ach-total').textContent = `${got.size} / ${list.length}`;
   $('ach-total-bar').style.width = `${list.length ? got.size / list.length * 100 : 0}%`;
+  for (const b of $('ach-filter').children) b.setAttribute('aria-selected', b.dataset.filter === achFilter);
   const groups = new Map();
   for (const a of list) (groups.get(a.category) ?? groups.set(a.category, []).get(a.category)).push(a);
-  $('ach-list').replaceChildren(...[...groups].map(([category, tiers]) => {
+  $('ach-list').replaceChildren(...[...groups].flatMap(([category, tiers]) => {
     const card = document.createElement('div'), done = tiers.filter(a => got.has(a.id)).length;
+    if ((achFilter === 'pending' && done === tiers.length) || (achFilter === 'claimed' && !done)) return [];
     card.className = 'ach-cat' + (done === tiers.length ? ' got' : '');
     card.innerHTML = '<div class="ach-head"><span class="t"></span><span class="n"></span></div>';
     card.querySelector('.t').textContent = category;
@@ -487,6 +491,7 @@ function drawAchievements() {
     return card;
   }));
 }
+for (const b of $('ach-filter').children) b.addEventListener('click', () => { achFilter = b.dataset.filter; if (achData) drawAchievements(); });
 fills.achievements = async () => {
   const r = await ask('achievements');
   if (view !== 'achievements') return;
