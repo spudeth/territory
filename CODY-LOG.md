@@ -984,3 +984,4 @@ Map commands for Xoren (production; the server must be on loop 9 or later):
 (White Plains: a plain white rectangle with no terrain, since --width/--height give an unseeded rectangle. Pangea: a 10,240-block island with terrain.)
 NOT DONE from loop 12, still to do: (1 Awards filter tabs: done, #80) 2 floating island background, 3 white-style check, 4 setup-before-welcome flow fix, 5 Click Power percentages and carry-over, 6 online dot, 7 the 205 new skins. OPEN Q16: loop 12 continues next session.
 #80 | 2026-10-29 | Loop 12: Awards filter tabs back (All / Pending / Claimed) on top of the category grouping; Pending hides finished categories, Claimed shows categories with at least one earned
+#81 | 2026-10-29 | Loop 12 (5a): upgrade cards show the real change as a percentage ("+40% → +50% more powerful clicks"; Defense and Earnings the same; Growth stays a block count), never rounded click counts. Still to do: 5b carry-over, 2, 3, 4, 6, 7
