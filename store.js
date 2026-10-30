@@ -611,7 +611,7 @@ function deleteAccount(pool, playerId) {
     const { rows: maps } = await c.query('SELECT DISTINCT map_id FROM map_cells WHERE owner_id = $1', [playerId]);
     await c.query('UPDATE map_cells SET owner_id = NULL, claimed_at = NULL WHERE owner_id = $1', [playerId]);
     for (const t of ['player_tokens', 'player_map_settings', 'player_map_stats', 'player_achievements', 'player_skins',
-      'level_remaps', 'tap_limit_log', 'bans', 'player_totals', 'player_lives', 'player_items', 'item_uses']) {
+      'level_remaps', 'tap_limit_log', 'bans', 'player_totals', 'player_lives', 'player_items', 'item_uses', 'email_consent_log']) {
       await c.query(`DELETE FROM ${t} WHERE player_id = $1`, [playerId]);
     }
     await c.query('DELETE FROM player_links WHERE account_id = $1 OR guest_id = $1', [playerId]);
@@ -619,7 +619,7 @@ function deleteAccount(pool, playerId) {
       await c.query("INSERT INTO square_ledger (player_id, delta, balance_after, reason) VALUES ($1, $2, 0, 'account deleted')",
         [playerId, -Number(p.squares)]);
     }
-    await c.query(`UPDATE players SET name = 'deleted' || id, auth_user_id = NULL, name_changed_at = NULL, last_map_id = NULL,
+    await c.query(`UPDATE players SET email_updates = false, unsubscribe_token = NULL, name = 'deleted' || id, auth_user_id = NULL, name_changed_at = NULL, last_map_id = NULL,
       squares = 0, click_power = 0, defense = 0, earnings = 0, growth = 0, tutorial = '{}', deleted_at = now() WHERE id = $1`, [playerId]);
     // Neon Auth keeps its users in this same database; deleting the user removes their sessions and logins too.
     let authDeleted = false;
@@ -688,6 +688,36 @@ async function profile(pool, playerId) {
   return { ...p, best: best.rows[0] ?? null, earned: recent.rows.map(r => r.id), rank: p.blocks ? rank.rows[0].rank : null };
 }
 Object.assign(module.exports, { profile });
+
+// ---------- Email updates list (loop 15) ----------
+// Joins or leaves the list (accounts only): the latest choice on the player, when, where from, and a log row.
+// Returns { on, email, token } (email from Neon Auth, for the Resend Audience).
+async function setEmailUpdates(pool, playerId, on, source) {
+  const { rows: [p] } = await pool.query(`UPDATE players SET email_updates = $2, email_updates_at = now(), email_updates_source = $3,
+      unsubscribe_token = coalesce(unsubscribe_token, replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', ''))
+    WHERE id = $1 AND auth_user_id IS NOT NULL RETURNING email_updates, unsubscribe_token, auth_user_id`, [playerId, on, source]);
+  if (!p) return { error: 'Only accounts can get emails' };
+  await pool.query('INSERT INTO email_consent_log (player_id, subscribed, source) VALUES ($1, $2, $3)', [playerId, on, source]);
+  return { on: p.email_updates, token: p.unsubscribe_token, email: await accountEmail(pool, p.auth_user_id) };
+}
+async function emailUpdates(pool, playerId) {
+  const { rows: [p] } = await pool.query('SELECT email_updates, auth_user_id FROM players WHERE id = $1', [playerId]);
+  return { on: !!p?.email_updates, account: !!p?.auth_user_id };
+}
+// The one-click unsubscribe link: no login needed. Returns { email } (for the Audience) or null for an unknown link.
+async function unsubscribeByToken(pool, token) {
+  const { rows: [p] } = await pool.query(`UPDATE players SET email_updates = false, email_updates_at = now(), email_updates_source = 'unsubscribe-link'
+    WHERE unsubscribe_token = $1 RETURNING id, auth_user_id`, [String(token ?? '')]);
+  if (!p) return null;
+  await pool.query("INSERT INTO email_consent_log (player_id, subscribed, source) VALUES ($1, false, 'unsubscribe-link')", [p.id]);
+  return { email: await accountEmail(pool, p.auth_user_id) };
+}
+// Everyone on the list (admin email-list): [{ name, email, since, source }].
+async function emailList(pool) {
+  const { rows } = await pool.query("SELECT id, name, auth_user_id, email_updates_at, email_updates_source FROM players WHERE email_updates ORDER BY email_updates_at");
+  return Promise.all(rows.map(async r => ({ name: r.name, email: await accountEmail(pool, r.auth_user_id), since: r.email_updates_at, source: r.email_updates_source })));
+}
+Object.assign(module.exports, { setEmailUpdates, emailUpdates, unsubscribeByToken, emailList });
 
 // ---------- Lives (death and respawn) ----------
 // After a claim: the open life on this map gets the claim, its squares and its peak (one is started if none is open).

@@ -245,6 +245,7 @@
         <form id="form-signup">
           <label class="lbl">Email<input class="field" name="email" type="email" placeholder="you@email.com" autocomplete="email" required></label>
           <label class="lbl">Password<input class="field" name="password" type="password" placeholder="8+ characters" autocomplete="new-password" minlength="8" required></label>
+          <label class="check"><input type="checkbox" name="updates" id="signup-updates"> Send me updates about changes to the game</label>
           <button class="btn" type="submit" style="background: var(--green); color: var(--well)">Create account</button>
         </form>
         <p class="note" style="text-align: center">We'll email you a 6-digit code to confirm.</p>
@@ -320,6 +321,10 @@
           <div class="volume"><label for="vol-music">Music</label><input id="vol-music" type="range" min="0" max="1" step="0.05">
             <button class="btn icon-btn mute" type="button" data-mute="music" aria-pressed="false"></button></div>
           <div class="split" style="align-items: center"><p class="note">Saved on this device.</p><button class="text-btn" type="button" id="change-station">Change station</button></div>
+        </div>
+        <div class="card box" id="email-box" hidden>
+          <label class="check"><input type="checkbox" id="email-updates"> Send me updates about changes to the game</label>
+          <p class="note">Emails come from Territory, at most now and then. Every email has a one-click unsubscribe link.</p>
         </div>
         <button class="btn" type="button" id="how-to-play-2"><svg class="pix" width="18" height="18" viewBox="0 0 8 8" aria-hidden="true"><path d="M2 0h4v1h1v3H6v1H5v1H3V4h1V3h1V1H3v1H1V1h1zM3 7h2v1H3z" fill="currentColor"/></svg>How to play</button>
         <button class="btn" type="button" id="menu-logout" style="margin-top: 4px">

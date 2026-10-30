@@ -13,6 +13,7 @@ const SKIN_KINDS = Object.fromEntries(rules.SKINS.map(s => [s.id, s.kind]));
 const stats = require('./stats');
 const achievements = require('./achievements');
 const { createTotals } = require('./totals');
+const { createEmail } = require('./email');
 const { guestName, guestNames, checkName } = require('./names');
 
 const { key } = rules;
@@ -40,7 +41,7 @@ function guestLimiter(limit, windowMs) {
 //   auth:      from createAuth(), or null to run with guests only
 //   publicUrl: the site's address (https://territory.sarl); requests for any other host, such as www or
 //              the onrender.com address, are sent there. Unset locally.
-function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPerIp = rules.GUESTS_PER_IP, crackDecayMs = rules.CRACK_DECAY_SECONDS * 1000,
+function createGame(pool, { email = createEmail(), achievementList = achievements.DEFINITIONS, guestsPerIp = rules.GUESTS_PER_IP, crackDecayMs = rules.CRACK_DECAY_SECONDS * 1000,
   auth = null, publicUrl = null, tapsPerSecond = null, tapLogMs = 60 * 1000, adminKey = null } = {}) {
   // adminKey: the secret npm run admin must send (ADMIN_KEY); without it, admin commands are off.
   // The server counts as production when it has a publicUrl; admin commands then need --prod.
@@ -57,7 +58,17 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
   // The IP address the server sees for you, to check the per-IP guest limit works behind the custom domain.
   app.get('/api/ip', (req, res) => res.json({ ip: clientIp(req.headers, req.socket.remoteAddress) }));
   if (auth) app.use(auth.router);
-  app.use('/admin', adminRouter({ pool, key: adminKey, production: !!publicUrl, hooks: adminHooks() }));
+  // The one-click unsubscribe link from every email: no login needed (loop 15).
+  app.get('/unsubscribe', async (req, res) => {
+    const r = await store.unsubscribeByToken(pool, req.query.t).catch(() => null);
+    if (r?.email) email.sync(r.email, false).catch(err => console.error(`AUDIENCE SYNC FAILED: ${err.message}`));
+    res.status(r ? 200 : 404).type('html').send(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Territory</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Pixelify+Sans:wght@400;600&display=swap">
+<style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0f131a;color:#f2f4f8;font:17px 'Pixelify Sans',system-ui;padding:16px;box-sizing:border-box}
+div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12,4px 4px 0 3px #0a0d12;text-align:center}h1{font:14px/1.6 'Press Start 2P',monospace;color:#f7c948;margin:0 0 12px}a{color:#f7c948}</style>
+<div><h1>${r ? "YOU'RE UNSUBSCRIBED" : 'LINK NOT FOUND'}</h1><p>${r ? "You won't get any more update emails from Territory. You can join again any time in Settings." : 'This unsubscribe link is not valid. You can turn emails off in Settings.'}</p><p><a href="/">Back to the game</a></p></div>`);
+  });
+  app.use('/admin', adminRouter({ pool, key: adminKey, production: !!publicUrl, hooks: adminHooks(), email }));
   // Browsers check every file for a newer version (a quick "not modified" when unchanged), so after an update
   // nobody keeps running old game code from their cache. Also serves /privacy and /terms.
   app.use(express.static(__dirname + '/public', { extensions: ['html'], setHeaders: res => res.setHeader('Cache-Control', 'no-cache') }));
@@ -866,6 +877,23 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       } catch (err) {
         console.error(`PROFILE FAILED (${p?.pid}): ${err.message}`);
         reply({ error: 'Could not load that profile. Try again.' });
+      }
+    });
+
+    // Email updates (accounts only): { on, source } sets it ('signup' or 'settings'); with no data, answers { on, account }.
+    socket.on('emailUpdates', async (p, ...rest) => {
+      const reply = typeof p === 'function' ? p : rest.at(-1);
+      if (typeof reply !== 'function') return;
+      if (!me.pid) return reply({ on: false, account: false });
+      try {
+        if (typeof p !== 'object' || p === null || typeof p.on !== 'boolean') return reply(await store.emailUpdates(pool, me.pid));
+        const r = await store.setEmailUpdates(pool, me.pid, p.on, p.source === 'signup' ? 'signup' : 'settings');
+        if (r.error) return reply(r);
+        email.sync(r.email, r.on).catch(err => console.error(`AUDIENCE SYNC FAILED: ${err.message}`));
+        reply({ on: r.on });
+      } catch (err) {
+        console.error(`EMAIL UPDATES FAILED (player ${me.pid}): ${err.message}`);
+        reply({ error: 'Could not save that. Try again.' });
       }
     });
 

@@ -20,6 +20,7 @@
     "maxTapsPerSecond": 12,
     "rankMinPlayers": 10,
     "rankMinBlocks": 100,
+    "mailingAddress": "2212 W 5th Ave, Gary, IN 46404",
     "newMapBlocks": 10240,
     "terrainScale": 28,
     "waterShare": 0.12,

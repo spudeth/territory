@@ -680,3 +680,6 @@ body.welcome #itembar, body.zooming #itembar { opacity: 0; pointer-events: none;
 #chat-mention { list-style: none; margin: 0; padding: 4px; width: 100%; background: var(--panel); box-shadow: 0 0 0 2px var(--ink); max-height: 180px; overflow-y: auto; }
 #chat-mention li { padding: 8px 10px; font-size: 15px; cursor: pointer; }
 #chat-mention li.on, #chat-mention li:hover { background: var(--raised); }
+
+.check { display: flex; align-items: flex-start; gap: 8px; font-size: 15px; color: var(--soft); cursor: pointer; }
+.check input { accent-color: var(--gold); width: 18px; height: 18px; margin-top: 1px; flex: none; }

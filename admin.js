@@ -17,7 +17,7 @@ const BACKUP_MS = 10 * 60 * 1000;
 
 // hooks: what the live game does for admin commands (from app.js): kick, wipePlayer, wipeMap, reloadMaps,
 // squaresChanged, reloadAll.
-function adminRouter({ pool, key, production, hooks }) {
+function adminRouter({ pool, key, production, hooks, email }) {
   const router = express.Router();
   router.use(express.json({ limit: '200mb' }));   // a restore uploads a whole backup
   const backups = new Map();                       // backup token -> when it was taken
@@ -72,11 +72,11 @@ function adminRouter({ pool, key, production, hooks }) {
         backups.delete(backupToken);
         if (!at || Date.now() - at > BACKUP_MS) throw new Refusal('No backup was taken first: destructive commands need one (the command line takes it for you).');
       }
-      const lines = await impl.run(ctx);
+      const out = await impl.run(ctx), lines = Array.isArray(out) ? out : out.lines;   // a command may also send a file to save
       if (spec.kind !== 'read') {
         await store.logAdmin(pool, { command, target, args: { args, options }, ok: true, result: lines.join(' | '), ip: req.ip });
       }
-      res.json({ lines });
+      res.json({ lines, file: Array.isArray(out) ? undefined : out.file });
     } catch (err) {
       const known = err instanceof Refusal;
       if (!known) console.error(`ADMIN ${command} FAILED: ${err.stack}`);
@@ -220,6 +220,28 @@ function adminRouter({ pool, key, production, hooks }) {
         ] };
       },
       run: wipeMaps,
+    },
+
+    'email-list': {
+      async prepare() { return {}; },
+      async run() {
+        const list = await store.emailList(pool);
+        const q = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+        const csv = ['email,name,since,source', ...list.map(r => [r.email, r.name, r.since?.toISOString?.() ?? r.since, r.source].map(q).join(','))].join('\n') + '\n';
+        return { lines: [`${list.length.toLocaleString()} player${list.length === 1 ? '' : 's'} on the email updates list.`],
+          file: { name: `email-list-${new Date().toISOString().slice(0, 10)}.csv`, content: csv } };
+      },
+    },
+    'email-test': {
+      async prepare({ options }) {
+        if (!options.to || options.to === true) throw new Refusal('Give the address to send to: email-test --to you@example.com');
+        return { target: `email ${options.to}`, preview: [`Send a test email to ${options.to}, with the mailing address and an unsubscribe line in its footer.`] };
+      },
+      async run({ options }) {
+        try { await email.send(options.to, 'Territory: test email', 'This is a test of the Territory email updates list.'); }
+        catch (err) { throw new Refusal(err.message); }
+        return [`Sent a test email to ${options.to}.`];
+      },
     },
 
     'delete-map': {

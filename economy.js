@@ -48,6 +48,7 @@ const RULE_KEYS = {
   newMapBlocks: int(1, 1000000),
   rankMinPlayers: int(2, 100000),
   rankMinBlocks: int(1, 1000000),
+  mailingAddress: { text: true },   // the email footer's postal address (US anti-spam law); blank = nothing is sent
   terrainScale: num(2, 1000),
   waterShare: num(0, 0.6),
   sandShare: num(0, 0.6),
@@ -156,6 +157,7 @@ function validate(tabs, { hasFile = () => true } = {}) {
       if (seen.has(k)) return errors.push(`${where(RULES_TAB, kc, row, 'Key')}: "${k}" appears twice`);
       seen.add(k);
       if (!(r[dc] ?? '').trim()) errors.push(`${where(RULES_TAB, dc, row, 'What it means')}: blank`);
+      if (spec.text) { rules[k] = raw.trim(); return; }   // a text value; may be blank
       const n = parseNumber(raw);
       if (raw.trim() === '') return errors.push(`${where(RULES_TAB, vc, row, 'Value')}: blank (${k})`);
       if (n === null) return errors.push(`${where(RULES_TAB, vc, row, 'Value')}: "${raw}" is not a number (${k})`);

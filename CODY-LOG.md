@@ -1054,3 +1054,25 @@ OPEN Q23 (Xoren): review the i text, all in public/info.js:
 - starring: 'Star one pattern and one art skin as your favorites. They show at the top here and on your profile.',
 #105 | 2026-10-30 | Loop 15 Phase 5: @-mentions: typing @ in chat lists players on this map, filtered as you type (tap, Enter or Tab picks; arrows move); the server keeps only real names of players on the map, at most 3 per message, under the chat rate limit; mentions are gold in chat, and a mention of you is highlighted more strongly with a soft Mention sound (3 options on the sound test page, A until picked: OPEN Q24). No notifications or inbox (Bob's correction). A muted sender's messages stay hidden, mentions included | tests: @-mentions; full suite pass. Screenshot loop15-mention.png. Phase 5 ready to merge
 Phase 6 (notifications): skipped per Bob.
+#106 | 2026-10-30 | Loop 15 Phase 7: email updates list. Migration 018: players.email_updates, email_updates_at, email_updates_source, unsubscribe_token (unique, 64 random hex), and email_consent_log (every join or leave: when, where). Sign-up checkbox "Send me updates about changes to the game" (unchecked; works for email and Google sign-up); Settings > Account toggle (accounts only). One-click unsubscribe link in every email (and List-Unsubscribe headers); /unsubscribe?t=... works without login, styled page. email.js sends through Resend and keeps the Resend Audience in sync; it refuses to send while mailingAddress (new text row on Game Rules) is blank. Admin: email-list (count, CSV saved to exports/, git-ignored), email-test --to. Privacy page: Email updates and Notifications and chat sections, marked NEEDS XOREN'S REVIEW (OPEN Q25). Deleting an account clears all of it | tests: email (accounts only, consent saved and logged, unsubscribe link, no address no send, footer and headers, Audience sync); full suite 143/143. Screenshots loop15-signup-checkbox.png, loop15-unsubscribe.png. Phase 7 ready to merge
+#107 | 2026-10-30 | Loop 15 wrap-up: full suite 143/143. Screenshots docs/screenshots/: loop15-skin-order.png, loop15-owned-starred.png, loop15-profile-desktop.png, loop15-profile-phone.png, loop15-info-popup.png, loop15-mention.png, loop15-signup-checkbox.png, loop15-unsubscribe.png. Sound test page now has Mention (Q24)
+OPEN Q25: Xoren, please review the two new sections in public/privacy.html (Email updates; Notifications and chat).
+
+## Merge steps (loop 15)
+Each phase is its own commit on iterate (Phase 1 4d96a22, 2 ce46c95, 3 60f57a8, 4 c45cae0, 5 ce89218, 7 the next commit). They build on each other, so merge in order; one pull request iterate -> main merges them all.
+1. Phase 1 (skin order): no database change. Check: Rare tab lists non-flag skins first, then flags, cheapest first.
+2. Phase 2 (stars): Render applies 017_stars.sql. Check: star one pattern and one art skin; both top Owned under "★ Starred" after a reload.
+3. Phase 3 (profiles): no database change. Check: open a profile from the leaderboard, chat, a name tag, the death screen and your welcome name; on a phone, swipe down closes it.
+4. Phase 4 (i buttons): no database change. Text in public/info.js (Q23).
+5. Phase 5 (@-mentions): no database change. Check with two browsers: @ lists names, the mentioned player sees it highlighted and hears Mention.
+6. Phase 7 (email): Render applies 018_email_updates.sql. Until the Resend steps below are done, the checkbox and toggle still save consent; nothing is sent and the Audience isn't synced (logged once).
+
+## Xoren's steps: Resend and the mailing address
+1. Google Sheet, Game Rules tab: add a row mailingAddress = 2212 W 5th Ave, Gary, IN 46404. Then npm run sync-rules (already in data/economy.json; the sheet row keeps the next sync from dropping it).
+2. Resend: add and verify the game's sending domain (the DNS records Resend lists), create an Audience, and an API key with sending access.
+3. Render, Environment: RESEND_API_KEY, RESEND_AUDIENCE_ID, RESEND_FROM (e.g. Territory <updates@territory.sarl>), and PUBLIC_URL only if the game is not at https://territory.sarl (unsubscribe links use it). Save; Render restarts.
+4. Test: npm run admin -- email-test --to <your email> --prod. Check the footer has the address and the unsubscribe link works.
+5. npm run admin -- email-list --prod shows the count and saves the list to exports/.
+6. Review privacy.html (Q25), and answer Q23 (info text) and Q24 (Mention sound).
+
+Loop order 15 done. Stopping.

@@ -72,7 +72,8 @@ const settings = {
   ITEMS: economy.items ?? [],
   // Rank and reign achievements count only on maps where at least this many players own blocks.
   RANK_MIN_PLAYERS: R.rankMinPlayers,
-  RANK_MIN_BLOCKS: R.rankMinBlocks,   // …and only for a player with at least this many blocks there
+  RANK_MIN_BLOCKS: R.rankMinBlocks,
+  MAILING_ADDRESS: R.mailingAddress ?? '',   // the email footer; blank = no email is sent (email.js)   // …and only for a player with at least this many blocks there
 
   // Per-map look, chosen on the first claim on a map and locked until a wipe (code constants, not numbers)
   COVERAGES: ['tile', 'stretch'], // how a skin covers a territory: per block, or one image over the full area (the first is the default)
