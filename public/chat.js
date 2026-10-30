@@ -78,16 +78,19 @@
   input.addEventListener('keydown', e => { if (e.key === 'Escape') { e.stopPropagation(); setOpen(false); } });
 
   // Tap a name in the open chat to mute that player here; their messages disappear.
+  // Tap a name in the open chat: their profile (muting is a button there, window.chatMute).
   log.addEventListener('click', e => {
     const who = e.target.closest('.chat-who');
-    if (!who || !isOpen() || who.dataset.pid === String(me)) return;
-    muted.add(who.dataset.pid);
-    saveMuted();
-    for (const w of log.querySelectorAll(`.chat-who[data-pid="${who.dataset.pid}"]`)) w.parentElement.remove();
-    trim();
-    drawMuted();
-    toast(`Muted ${who.dataset.name}`, 'good');
+    if (who && isOpen()) openProfile(who.dataset.pid);
   });
+  window.chatMute = { has: pid => muted.has(String(pid)), set(pid, name, on) {
+    if (on) {
+      muted.add(String(pid));
+      for (const w of log.querySelectorAll(`.chat-who[data-pid="${pid}"]`)) w.parentElement.remove();
+    } else muted.delete(String(pid));
+    saveMuted(); trim(); drawMuted();
+    toast(on ? `Muted ${name}` : `Unmuted ${name}`, 'good');
+  } };
   $('chat-unmute').addEventListener('click', () => {
     muted.clear();
     saveMuted();

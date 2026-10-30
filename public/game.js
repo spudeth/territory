@@ -110,6 +110,7 @@ function lookOf(o) {
   const p = players[o], kind = p?.skin && p.skin !== 'default' ? gameSettings.skinKinds?.[p.skin] : null;
   return kind ? { kind, id: p.skin, full: p.coverage === 'stretch', anim: gameSettings.skinAnimated?.includes(p.skin) } : { kind: 'default' };
 }
+let tagBoxes = [];   // name tags drawn last frame, in CSS pixels: tapping one opens that player's profile
 let terrainChanges = new Map();   // "x,y" -> terrain from the Terraformer, over the seed's (items.js)
 let world = null;   // this map's terrain (terrain.makeWorld), or null for a map without a seed (all grass)
 let waterTimer = null;
@@ -370,7 +371,9 @@ function render() {
     const tag = { owner: l.owner, name, box: { x: Math.round(cx - w / 2), y: Math.round(cy - h / 2), w: Math.round(w), h: Math.round(h) } };
     if (String(l.owner) === String(me)) tags.unshift(tag); else tags.push(tag);
   }
+  tagBoxes = [];
   for (const { owner, name, box } of labels.withoutOverlaps(tags, 4 * dpr)) {
+    tagBoxes.push({ owner, x: box.x / dpr, y: box.y / dpr, w: box.w / dpr, h: box.h / dpr });
     ctx.fillStyle = 'rgba(10,13,18,0.82)';
     ctx.fillRect(box.x, box.y, box.w, box.h);
     ctx.fillStyle = players[owner]?.color || '#888';
@@ -488,7 +491,9 @@ function pointerEnd(e) {
   if (!pointers.delete(e.pointerId)) return;
   if (e.type === 'pointerup' && tap && pointers.size === 0) {
     const c = cellAt(e.clientX, e.clientY);
-    if (c && window.itemTap?.(c)) { /* the Terraformer took this tap (items.js) */ }
+    const tagHit = tagBoxes.find(b => e.clientX >= b.x && e.clientX < b.x + b.w && e.clientY >= b.y && e.clientY < b.y + b.h);
+    if (tagHit) openProfile(tagHit.owner);   // exactly the tag; the block around it still attacks
+    else if (c && window.itemTap?.(c)) { /* the Terraformer took this tap (items.js) */ }
     else if (c && !(me && cells.get(key(c.x, c.y)) === me)) {
       socket.emit('hit', c);
       gameAudio.play('tap');
@@ -547,6 +552,8 @@ function updateUI() {
     li.children[0].style.background = players[pid]?.color || '#888';
     li.children[1].textContent = players[pid]?.name || '…';
     li.children[1].classList.toggle('online', online.has(String(pid)));
+    li.style.cursor = 'pointer';
+    li.onclick = () => openProfile(pid);
     li.children[2].textContent = n;
     return li;
   }));
@@ -700,6 +707,9 @@ function showDeath(life) {
   $('death-time').textContent = h ? `${h}h ${m}m` : m ? `${m}m ${s % 60}s` : `${s}s`;
   $('death-peak').textContent = life.peak.toLocaleString();
   $('death-killer').textContent = life.killer ?? 'someone';
+  $('death-killer').onclick = life.killerId ? () => { leaveDeath(); openProfile(life.killerId); } : null;
+  $('death-killer').style.cursor = life.killerId ? 'pointer' : '';
+  $('death-killer').style.textDecoration = life.killerId ? 'underline' : '';
   $('death-claims').textContent = life.claims.toLocaleString();
   $('death-squares').textContent = (Math.round(life.squares * 10) / 10).toLocaleString();
   $('death').hidden = false;

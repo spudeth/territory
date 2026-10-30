@@ -647,3 +647,21 @@ body.welcome #itembar, body.zooming #itembar { opacity: 0; pointer-events: none;
 #terra-choices button { width: 48px; height: 48px; padding: 0; border: 3px solid var(--ink); image-rendering: pixelated; background-size: cover; cursor: pointer; }
 .catalog .star { min-height: 36px; font-size: 18px; color: var(--muted); background: var(--raised); }
 .catalog .star.on { color: var(--well); background: var(--gold); }
+
+/* ---------- Profiles (loop 15) ---------- */
+.pf-stats { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 8px 14px; font-size: 16px; }
+.pf-stats dt { color: var(--muted); }
+.pf-stats dd { margin: 0; text-align: right; font-weight: 600; }
+.pf-recent { list-style: none; margin: 0 0 6px; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 15px; }
+.pf-recent li span { color: var(--muted); font-size: 13px; margin-left: 6px; }
+.pf-stars { display: grid; grid-template-columns: repeat(2, minmax(0, 120px)); gap: 12px; }
+.pf-stars canvas { width: 100%; aspect-ratio: 1; image-rendering: pixelated; border: 3px solid var(--ink); display: block; }
+.pf-stars span { font-size: 14px; }
+.pf-online { font-size: 13px; color: #2fd35b; }
+.pf-online::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #2fd35b; margin-right: 5px; }
+#w-name { cursor: pointer; }
+/* Phones: the profile slides up from the bottom as a sheet (close with X or a swipe down). */
+@media (max-width: 699px) {
+  #menu.sheet .panel { top: auto; max-height: 85%; border-radius: 0; animation: sheet-up .25s ease-out; }
+  @keyframes sheet-up { from { transform: translateY(100%); } to { transform: none; } }
+}

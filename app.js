@@ -731,9 +731,14 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       const shown = got => achievementList.map(d => d.secret && !got.has(d.id)
         ? { id: d.id, name: '???', category: d.category, secret: true, stat: null, threshold: 1, reward: null, description: 'A secret achievement' }
         : { id: d.id, name: d.name, category: d.category, secret: d.secret, stat: d.stat, threshold: d.threshold, reward: d.reward, description: d.description });
-      if (!me.pid) return reply({ list: shown(new Set()), earned: [], values: {} });
+      // Another player's (read-only, from their profile): { pid } before the reply.
+      const other = args.length > 1 && args[0]?.pid && String(args[0].pid) !== String(me.pid) ? args[0].pid : null;
+      const pid = other ?? me.pid;
+      if (!pid) return reply({ list: shown(new Set()), earned: [], values: {} });
       try {
-        const { values, earned: rows } = await progressValues(me.pid, upgrades, me.account);
+        const theirs = other ? (await pool.query('SELECT click_power, defense, earnings, growth, auth_user_id FROM players WHERE id = $1', [other])).rows[0] : null;
+        const levels = theirs ? upgradesOf(theirs) : upgrades, account = theirs ? !!theirs.auth_user_id : me.account;
+        const { values, earned: rows } = await progressValues(pid, levels, account);
         reply({ list: shown(new Set(rows.map(e => e.id))), earned: rows, values });
       } catch { reply({ error: 'Could not load achievements. Try again.' }); }
     });
@@ -835,6 +840,25 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       } catch (err) {
         console.error(`ITEM USE FAILED (player ${me.pid}, ${p?.item}): ${err.message}`);
         reply({ error: 'Could not use that. Try again.' });
+      }
+    });
+
+    // A player's profile ({ pid }): see store.profile. Achievements as the list's names (known ids only), and
+    // whether they have the game open right now.
+    socket.on('profile', async (p, reply) => {
+      if (typeof reply !== 'function') return;
+      try {
+        const pr = await store.profile(pool, p?.pid ?? me.pid);
+        if (!pr) return reply({ error: 'No such player' });
+        const known = pr.earned.filter(id => knownIds.has(id));
+        const online = [...io.sockets.sockets.values()].some(s => String(s.data.me?.pid) === String(pr.id) && s.data.visible);
+        reply({ id: pr.id, name: pr.name, account: pr.account, squares: pr.squares, color: pr.color, online, since: pr.created_at,
+          map: pr.map, blocks: pr.blocks, rank: pr.rank, best: pr.best, stars: { pattern: pr.star_pattern, art: pr.star_art },
+          achievements: { earned: known.length, total: achievementList.length,
+            recent: known.slice(0, 5).map(id => achievementList.find(d => d.id === id)).map(d => ({ id: d.id, name: d.name, description: d.description })) } });
+      } catch (err) {
+        console.error(`PROFILE FAILED (${p?.pid}): ${err.message}`);
+        reply({ error: 'Could not load that profile. Try again.' });
       }
     });
 

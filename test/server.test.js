@@ -629,3 +629,24 @@ test('death: losing your last block kills (with the life on the screen); respawn
   assert.equal(shown.killer, youB.name);
   assert.equal((await pool.query('SELECT count(*)::int AS n FROM player_lives WHERE player_id = $1 AND killer_id IS NOT NULL AND NOT seen', [youA.pid])).rows[0].n, 0, 'seen now');
 });
+
+test('profiles: what anyone can see of a player, and nothing private; their awards read-only', async () => {
+  const a = player(), b = player();
+  await Promise.all([a.welcome, b.welcome]);
+  a.take(29, 29);
+  const you = await a.next('you');
+  await a.next('claim', at(29, 29));
+  await new Promise(r => setTimeout(r, 400));
+  const p = await b.ask('profile', { pid: you.pid });
+  assert.equal(p.name, you.name);
+  assert.equal(p.account, false);
+  assert.equal(p.blocks, 1);
+  assert.ok(p.rank >= 1 && p.online && p.achievements.total === rules.ACHIEVEMENTS.length);
+  assert.equal(p.best.n, 1);
+  assert.ok(new Date(p.since).getFullYear() >= 2026);
+  assert.deepEqual(Object.keys(p).sort(), ['account', 'achievements', 'best', 'blocks', 'color', 'id', 'map', 'name', 'online', 'rank', 'since', 'squares', 'stars'],
+    'no email, sign-in method or IP');
+  const theirs = await b.timeout(15000).emitWithAck('achievements', { pid: you.pid });
+  assert.ok(theirs.earned.some(e => e.id === 'first-block'), 'their awards, read-only');
+  assert.deepEqual(await b.ask('profile', { pid: 999999 }), { error: 'No such player' });
+});

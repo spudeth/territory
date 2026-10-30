@@ -670,6 +670,25 @@ function deleteMap(pool, mapId) {
 }
 Object.assign(module.exports, { deleteMap });
 
+// A player's public profile (loop 15). Nothing from the login system: no email, sign-in method or IP.
+async function profile(pool, playerId) {
+  const { rows: [p] } = await pool.query(`SELECT p.id, p.name, p.auth_user_id IS NOT NULL AS account, floor(p.squares)::int AS squares,
+      p.star_pattern, p.star_art, p.created_at, p.last_map_id, m.name AS map,
+      (SELECT color FROM player_map_settings s WHERE s.player_id = p.id AND s.map_id = p.last_map_id) AS color,
+      (SELECT count(*)::int FROM map_cells c WHERE c.map_id = p.last_map_id AND c.owner_id = p.id) AS blocks
+    FROM players p LEFT JOIN maps m ON m.id = p.last_map_id WHERE p.id = $1 AND p.deleted_at IS NULL`, [playerId]);
+  if (!p) return null;
+  const [best, recent, rank] = await Promise.all([
+    pool.query(`SELECT s.owned_max AS n, m.name AS map FROM player_map_stats s JOIN maps m ON m.id = s.map_id WHERE s.player_id = $1
+      ORDER BY s.owned_max DESC LIMIT 1`, [playerId]),
+    pool.query('SELECT achievement_id AS id FROM player_achievements WHERE player_id = $1 ORDER BY earned_at DESC', [playerId]),
+    pool.query(`SELECT 1 + count(*)::int AS rank FROM (SELECT owner_id, count(*) AS n FROM map_cells WHERE map_id = $1 AND owner_id IS NOT NULL
+      GROUP BY owner_id) o WHERE o.n > $2`, [p.last_map_id, p.blocks]),
+  ]);
+  return { ...p, best: best.rows[0] ?? null, earned: recent.rows.map(r => r.id), rank: p.blocks ? rank.rows[0].rank : null };
+}
+Object.assign(module.exports, { profile });
+
 // ---------- Lives (death and respawn) ----------
 // After a claim: the open life on this map gets the claim, its squares and its peak (one is started if none is open).
 async function lifeClaim(pool, playerId, mapId, owned, squares) {
@@ -687,7 +706,7 @@ async function endLife(pool, playerId, mapId, killerId = null, x = null, y = nul
 // A life as the death screen shows it.
 async function lifeShown(pool, id) {
   const { rows: [l] } = await pool.query(`SELECT l.id, l.map_id AS "mapId", extract(epoch FROM l.ended_at - l.started_at)::float AS seconds, l.peak,
-    l.claims, l.squares::float AS squares, k.name AS killer, l.x, l.y FROM player_lives l LEFT JOIN players k ON k.id = l.killer_id WHERE l.id = $1`, [id]);
+    l.claims, l.squares::float AS squares, k.name AS killer, k.id AS "killerId", l.x, l.y FROM player_lives l LEFT JOIN players k ON k.id = l.killer_id WHERE l.id = $1`, [id]);
   return l ?? null;
 }
 // A death on this map the player hasn't seen yet (they were away), or null; marks it seen.

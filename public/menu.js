@@ -8,6 +8,7 @@ const fills = {};     // view name -> function that fills the view in just befor
 let view = null;      // the view showing, or null when the menu is closed
 
 function show(name) {
+  if (name !== 'achievements' && typeof achTarget !== 'undefined') achTarget = null;
   if (name === 'main') return closeMenu();   // the old menu hub: the welcome screen is underneath now
   if (menu.hidden) gameAudio.play('menuOpen');
   for (const v of menu.querySelectorAll('[data-view]')) v.hidden = v.dataset.view !== name;
@@ -16,6 +17,7 @@ function show(name) {
   $('menu-error').textContent = '';
   menu.classList.toggle('strong', name === 'wipe' || name === 'reset' || name === 'setup');
   menu.classList.toggle('bare', name === 'wipe' || name === 'reset');
+  menu.classList.toggle('sheet', name === 'profile');   // phones: a sheet from the bottom
   menu.hidden = false;
   view = name;
   fills[name]?.();
@@ -521,8 +523,9 @@ function drawAchievements() {
   }));
 }
 for (const b of $('ach-filter').children) b.addEventListener('click', () => { achFilter = b.dataset.filter; if (achData) drawAchievements(); });
+let achTarget = null;   // another player's id when opened from their profile (read-only)
 fills.achievements = async () => {
-  const r = await ask('achievements');
+  const r = await (achTarget ? ask('achievements', { pid: achTarget }) : ask('achievements'));
   if (view !== 'achievements') return;
   if (r.error) return fail(r.error);
   achData = r;
