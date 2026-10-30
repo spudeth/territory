@@ -305,6 +305,7 @@ function drawSkins() {
     const title = document.createElement('div');
     title.className = 'cat-title';
     title.textContent = `${collection.toUpperCase()} (${list.length})`;
+    if (collection === '★ Starred' || (skinTab === 'Owned' && collection === [...groups.keys()][0])) title.dataset.info = 'starring';
     const grid = document.createElement('div');
     grid.className = 'catalog';
     for (const s of list) {
@@ -405,6 +406,7 @@ function drawUpgrades() {
       + '<button class="btn" type="button"></button>';
     card.querySelector('.ic').style.background = up.color;
     card.querySelector('.t').textContent = up.name;
+    card.querySelector('.t').dataset.info = up.key;   // info.js: clickPower, defense, earnings, growth
     card.querySelector('.d').textContent = up.about;
     // Pips for a few levels, a bar for many.
     const pips = card.querySelector('.pips'), bar = card.querySelector('.bar');
@@ -482,6 +484,7 @@ function drawAchievements() {
     card.className = 'ach-cat' + (done === tiers.length ? ' got' : '');
     card.innerHTML = '<div class="ach-head"><span class="t"></span><span class="n"></span></div>';
     card.querySelector('.t').textContent = category;
+    if (tiers.every(a => a.secret)) card.querySelector('.t').dataset.info = 'secrets';
     card.querySelector('.n').textContent = `${done} / ${tiers.length}`;
     if (tiers.every(a => a.secret)) {
       // Secrets: each on its own line.

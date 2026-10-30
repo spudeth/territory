@@ -30,6 +30,7 @@
       c.innerHTML = `<div class="ic" style="background: ${COLORS[i.effect] ?? 'var(--raised)'}">${ICONS[i.effect] ?? ''}</div>`
         + '<div><div class="nm"></div><div class="ds"></div></div><div class="act"></div>';
       c.querySelector('.nm').textContent = i.name;
+      c.querySelector('.nm').dataset.info = 'items';
       c.querySelector('.ds').textContent = i.description;
       const act = c.querySelector('.act');
       if (i.owned) act.innerHTML = '<span style="color: var(--green); font-weight: 600">Owned</span>';

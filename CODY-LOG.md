@@ -1033,3 +1033,22 @@ Loop order 14 done. Stopping.
 Loop 15 corrections from Bob: Phase 6 skipped (later: push and email); Phase 5 without notifications or inbox; mailingAddress "2212 W 5th Ave, Gary, IN 46404" (corrected by Bob)
 #102 | 2026-10-29 | Loop 15 Phase 2: starred skins: one Common pattern and one Rare-or-better art skin (flags included) per player (players.star_pattern / star_art, migration 017); a new star replaces the old, tapping again removes it; star buttons on the Owned tab, starred first there under "★ Starred" (no other screen re-sorts); saved on the server, so they follow the account. Common icon skins (art, but Common) cannot be starred | tests: stars; full suite pass. Phase 2 ready to merge
 #103 | 2026-10-29 | Loop 15 Phase 3: player profiles (profile.js, store.profile): opened from the leaderboard, a chat name, a map name tag (the tag box only; the block around it still attacks), "taken by" on the death screen, and your own name on the welcome card. Shows name, color, GUEST/ACCOUNT, online dot, achievements x / 300 with the 5 most recent and See all (their Awards, read-only), most blocks ever and where, squares (rounded down), starred pattern and art skin (or "No favorite yet"), current map with blocks and rank, playing since (month, year). Nothing from the login system. Phones: a sheet from the bottom, closes with X or a swipe down. Chat: tapping a name now opens the profile; muting moved to a button there | tests: profiles; full suite pass. Screenshots loop15-profile-desktop.png, loop15-profile-phone.png. Phase 3 ready to merge
+#104 | 2026-10-30 | Loop 15 Phase 4: "i" buttons (info.js): any element with data-info gets a small i (44px tap area) with a 1-2 sentence popup that closes on any tap; on squares, each upgrade, coverage, LOCKED AFTER SPAWN, the wipe floor, terrain (by the map name), skin prices, secrets, rank, items, the online dot, starring | full suite: 134 pass; the 6 failures were all in admin.test.js during a network drop / the computer sleeping (one test ran 16 hours); admin.test.js rerun alone: 12/12. Screenshot loop15-info-popup.png. Phase 4 ready to merge
+(Phase 3 note: its first full run hit the same network drop, Neon host not found; the affected files were rerun and pass.)
+
+OPEN Q23 (Xoren): review the i text, all in public/info.js:
+- squares: 'Squares are the game\'s currency. You earn them by claiming brand-new blocks and from achievements, and spend them on upgrades, skins and items.',
+- clickPower: 'Each tap counts as more hits, so you take blocks with fewer taps. Spare power from the tap that takes a block counts toward the next one.',
+- defense: 'Others need more hits to take your blocks. At the top level, your blocks are 6 times as hard to take.',
+- earnings: 'You earn more squares for every brand-new block you claim.',
+- growth: 'Every brand-new block you claim makes the map grow. Growth adds extra new blocks to the edge of the map each time.',
+- coverage: 'Per block repeats your skin on every block. Full area shows one big image over your whole territory.',
+- locked: 'Your color, skin and coverage lock when you spawn. To change them on this map, wipe your territory and start again.',
+- wipeFloor: 'After a wipe, you only earn squares again once you own more blocks here than you had when you wiped. It stops wipe-and-reclaim farming.',
+- terrain: 'Sand takes fewer taps, forest more, and stone many more. Water can\'t be claimed, and gold pays bonus squares the first time it\'s claimed.',
+- skinPrices: 'Skin prices rise as you collect. Each rarity reaches its top price once you own half of its skins.',
+- secrets: 'Secret achievements stay hidden as ??? until you find them. Each one is a small surprise.',
+- rank: 'Ranks count on busy maps only: at least 10 players with blocks, and you need 100 blocks yourself. Ties count against you.',
+- items: 'Items are bought once and are yours for good. Each can be used a few times an hour, on any map.',
+- online: 'A green dot means the player has the game open right now.',
+- starring: 'Star one pattern and one art skin as your favorites. They show at the top here and on your profile.',

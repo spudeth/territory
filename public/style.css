@@ -665,3 +665,11 @@ body.welcome #itembar, body.zooming #itembar { opacity: 0; pointer-events: none;
   #menu.sheet .panel { top: auto; max-height: 85%; border-radius: 0; animation: sheet-up .25s ease-out; }
   @keyframes sheet-up { from { transform: translateY(100%); } to { transform: none; } }
 }
+
+/* ---------- "i" buttons (loop 15, info.js) ---------- */
+.info-btn { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; margin: -12px -10px -12px -4px; padding: 0;
+  background: none; border: 0; cursor: pointer; vertical-align: middle; }
+.info-btn span { width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; font: 8px var(--title); color: var(--well);
+  background: var(--soft); box-shadow: 0 0 0 2px var(--ink); }
+#info-pop { position: fixed; z-index: 70; max-width: min(300px, calc(100% - 24px)); padding: 10px 12px; background: var(--panel); color: var(--text);
+  font-size: 15px; line-height: 1.35; box-shadow: 0 0 0 3px var(--ink), 4px 4px 0 3px var(--ink); }

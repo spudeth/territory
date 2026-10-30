@@ -52,13 +52,13 @@
       <div class="card w-card">
         <div class="w-who">
           <div class="w-name"><span class="swatch" id="w-color"></span><span id="w-name">Connecting…</span></div>
-          <div class="w-line"><span class="tag" id="w-tag">GUEST</span><span class="w-sq"><img class="sq-icon" src="icons/square.svg" width="12" height="12" alt="Squares"><span id="w-squares">0</span></span></div>
+          <div class="w-line"><span class="tag" id="w-tag">GUEST</span><span class="w-sq"><img class="sq-icon" src="icons/square.svg" width="12" height="12" alt="Squares"><span id="w-squares" data-info="squares">0</span></span></div>
         </div>
         <div class="w-picker" id="w-picker">
           <button class="btn w-arrow" type="button" id="w-prev" aria-label="Previous map"><svg class="pix" width="16" height="16" viewBox="0 0 8 8" aria-hidden="true"><path d="M5 0h2v8H5V7H4V6H3V5H2V3h1V2h1V1h1z" fill="currentColor"/></svg></button>
           <div class="w-map">
             <div class="w-thumb" id="w-thumb"><canvas id="w-thumb-canvas"></canvas><div class="w-soon" id="w-soon" hidden><span class="tag">COMING SOON</span></div></div>
-            <span class="w-map-name" id="w-map-name"></span>
+            <span class="w-map-name" id="w-map-name" data-info="terrain"></span>
             <span class="w-stat" id="w-stat-1"></span>
             <span class="w-stat" id="w-stat-2"></span>
           </div>
@@ -338,7 +338,7 @@
           <ul>
             <li>All <b id="wipe-count"></b> you own here become empty.</li>
             <li>You'll pick a new color, skin and coverage.</li>
-            <li>No squares here until you own <b id="wipe-floor"></b> again.</li>
+            <li><span data-info="wipeFloor">No squares here until you own <b id="wipe-floor"></b> again.</span></li>
             <li>Your squares, skins and other maps are not touched.</li>
           </ul>
           <label class="lbl">Type WIPE to confirm<input class="field" id="wipe-word" type="text" placeholder="WIPE" autocomplete="off" autocapitalize="characters"></label>
@@ -357,12 +357,12 @@
           <h1 id="pf-name" style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis"></h1>
           <button class="btn icon-btn close" type="button" aria-label="Close"><svg class="pix" width="16" height="16" aria-hidden="true"><use href="#i-close"/></svg></button>
         </div>
-        <div class="w-line"><span class="tag" id="pf-tag">GUEST</span><span id="pf-online" class="pf-online" hidden>online</span></div>
+        <div class="w-line"><span class="tag" id="pf-tag">GUEST</span><span id="pf-online" class="pf-online" hidden><span data-info="online">online</span></span></div>
         <dl class="pf-stats">
           <dt>Achievements</dt><dd id="pf-ach"></dd>
           <dt>Most blocks ever</dt><dd id="pf-best"></dd>
           <dt>Squares</dt><dd id="pf-squares"></dd>
-          <dt>Now on</dt><dd id="pf-now"></dd>
+          <dt><span data-info="rank">Now on</span></dt><dd id="pf-now"></dd>
           <dt>Playing since</dt><dd id="pf-since"></dd>
         </dl>
         <div><div class="cat-title" style="margin-top: 0">RECENT ACHIEVEMENTS</div><ul id="pf-recent" class="pf-recent"></ul>
@@ -378,7 +378,7 @@
           <h1>ITEMS</h1>
         </div>
         <p style="margin: 0; font-size: 15px; color: var(--soft)">Bought once with squares, yours for good. Each can be used a few times an hour, on any map.</p>
-        <div class="split" style="align-items: center"><span>Your squares</span><span class="chip"><img class="sq-icon" src="icons/square.svg" width="14" height="14" alt=""><span id="items-squares">0</span></span></div>
+        <div class="split" style="align-items: center"><span data-info="items">Your squares</span><span class="chip"><img class="sq-icon" src="icons/square.svg" width="14" height="14" alt=""><span id="items-squares">0</span></span></div>
         <div id="items-list" class="items-list"></div>
       </section>
 
@@ -435,7 +435,7 @@
       <!-- First entry on a map (and after a wipe): color, skin, coverage -->
       <section data-view="setup" hidden>
         <div class="head" style="flex-direction: column; align-items: flex-start; gap: 6px; position: relative">
-          <span class="tag" style="position: absolute; top: 14px; right: 54px; background: #3a2a0a; color: #f7c948; border-color: #f7c948">🔒 LOCKED AFTER SPAWN</span>
+          <span class="tag" style="position: absolute; top: 14px; right: 54px; background: #3a2a0a; color: #f7c948; border-color: #f7c948"><span data-info="locked">🔒 LOCKED AFTER SPAWN</span></span>
           <button class="btn icon-btn" type="button" id="setup-cancel" aria-label="Back to the menu" style="position: absolute; top: 0; right: 0"><svg class="pix" width="16" height="16" aria-hidden="true"><use href="#i-close"/></svg></button>
           <div style="font: 9px var(--title); color: var(--green)">WELCOME TO</div>
           <h1 id="setup-map" style="font-size: 16px"></h1>
@@ -445,7 +445,7 @@
         <div class="colors" role="radiogroup" aria-label="Color" id="setup-colors"></div>
         <h2 class="sec">2 · SKIN</h2>
         <div class="skins" role="radiogroup" aria-label="Skin" id="setup-skins"></div>
-        <h2 class="sec">3 · COVERAGE</h2>
+        <h2 class="sec"><span data-info="coverage">3 · COVERAGE</span></h2>
         <div class="coverages" role="radiogroup" aria-label="Coverage">
           <button class="card" type="button" role="radio" data-coverage="tile">
             <span style="display: grid; grid-template-columns: repeat(3, 12px); gap: 2px" aria-hidden="true">
@@ -474,7 +474,7 @@
           <span class="right" id="skins-owned"></span>
         </div>
         <p style="margin: 0; font-size: 15px; line-height: 1.35; color: var(--soft)">Buy skins with squares. Owned skins work on every map: you pick one when you first enter a map.</p>
-        <div class="split" style="align-items: center"><span>Your squares</span><span class="chip"><img class="sq-icon" src="icons/square.svg" width="14" height="14" alt=""><span id="skins-squares">0</span></span></div>
+        <div class="split" style="align-items: center"><span data-info="skinPrices">Your squares</span><span class="chip"><img class="sq-icon" src="icons/square.svg" width="14" height="14" alt=""><span id="skins-squares">0</span></span></div>
         <div class="tabs yellow" role="tablist" aria-label="Collections" id="skins-tabs"></div>
         <input class="field" id="skins-search" type="search" placeholder="Search skins, e.g. Japan" autocomplete="off" aria-label="Search skins">
         <div id="catalog"></div>
@@ -526,6 +526,7 @@
   <script src="coach.js"></script>
   <script src="chat.js"></script>
   <script src="welcome.js"></script>
+  <script src="info.js"></script>
   <script src="profile.js"></script>
   <script src="items.js"></script>
 </body>
