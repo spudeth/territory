@@ -673,7 +673,14 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       const text = chat.cleanMessage(raw);
       if (!text) return reply({ error: 'Type a message first' });
       lastChat.set(me.pid, now);
-      const msg = { pid: me.pid, name: me.name, text, at: now };
+      // @-mentions (loop 15): only real names of players on this map, at most 3 per message.
+      const lower = text.toLowerCase(), mentions = [];
+      for (const [pid, p] of [...map.players].sort((a, b) => b[1].name.length - a[1].name.length)) {
+        if (mentions.length < 3 && p.name && lower.includes('@' + p.name.toLowerCase()) && !mentions.some(m => m.name.toLowerCase().includes(p.name.toLowerCase()))) {
+          mentions.push({ pid, name: p.name });
+        }
+      }
+      const msg = { pid: me.pid, name: me.name, text, at: now, mentions };
       const list = chats.get(map.id) ?? [];
       list.push(msg);
       if (list.length > chat.HISTORY) list.shift();

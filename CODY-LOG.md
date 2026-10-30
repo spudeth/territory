@@ -1052,3 +1052,5 @@ OPEN Q23 (Xoren): review the i text, all in public/info.js:
 - items: 'Items are bought once and are yours for good. Each can be used a few times an hour, on any map.',
 - online: 'A green dot means the player has the game open right now.',
 - starring: 'Star one pattern and one art skin as your favorites. They show at the top here and on your profile.',
+#105 | 2026-10-30 | Loop 15 Phase 5: @-mentions: typing @ in chat lists players on this map, filtered as you type (tap, Enter or Tab picks; arrows move); the server keeps only real names of players on the map, at most 3 per message, under the chat rate limit; mentions are gold in chat, and a mention of you is highlighted more strongly with a soft Mention sound (3 options on the sound test page, A until picked: OPEN Q24). No notifications or inbox (Bob's correction). A muted sender's messages stay hidden, mentions included | tests: @-mentions; full suite pass. Screenshot loop15-mention.png. Phase 5 ready to merge
+Phase 6 (notifications): skipped per Bob.

@@ -29,7 +29,7 @@
     items.forEach((li, i) => li.classList.toggle('hide-closed', i < items.length - SHOWN_CLOSED));
   }
 
-  function add({ pid, name, text }, fresh) {
+  function add({ pid, name, text, mentions }, fresh) {
     if (muted.has(String(pid))) return;
     const li = document.createElement('li');
     const who = document.createElement('span');
@@ -38,7 +38,19 @@
     who.style.color = String(pid) === String(me) ? 'var(--gold)' : players[pid]?.color || 'var(--soft)';
     who.dataset.pid = pid;
     who.dataset.name = name;
-    li.append(who, document.createTextNode(text));
+    // Mentions: highlighted; more strongly (and a soft sound) when it's you.
+    const names = (mentions ?? []).map(m => m.name).filter(Boolean);
+    if (names.length) {
+      const re = new RegExp('(' + names.map(n => '@' + n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')', 'gi');
+      li.append(who, ...text.split(re).map(part => {
+        const m = names.find(n => part.toLowerCase() === '@' + n.toLowerCase());
+        return m ? Object.assign(document.createElement('span'), { className: 'mention', textContent: part }) : document.createTextNode(part);
+      }));
+      if (mentions.some(m => String(m.pid) === String(me))) {
+        li.classList.add('mentions-me');
+        if (fresh) gameAudio.play('mention');
+      }
+    } else li.append(who, document.createTextNode(text));
     if (!fresh) li.classList.add('old');
     else setTimeout(() => li.classList.add('old'), FADE_MS);
     const atBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 30;
@@ -74,6 +86,42 @@
     $('chat-send').disabled = false;
     if (r.error) return toast(r.error);
     input.value = '';
+  });
+  // @ autocomplete: players on this map, filtered as you type; tap or Enter picks one.
+  const pickList = Object.assign(document.createElement('ul'), { id: 'chat-mention', hidden: true });
+  form.before(pickList);
+  let picks = [], picked = 0;
+  function query() {
+    const upto = input.value.slice(0, input.selectionStart), at = upto.lastIndexOf('@');
+    return at >= 0 && !/\s{2}/.test(upto.slice(at)) ? { at, q: upto.slice(at + 1).toLowerCase() } : null;
+  }
+  function drawPicks() {
+    const m = query();
+    picks = m ? Object.entries(players).filter(([pid, p]) => p?.name && String(pid) !== String(me) && p.name.toLowerCase().startsWith(m.q)).map(([, p]) => p.name).slice(0, 6) : [];
+    picked = 0;
+    pickList.hidden = !picks.length;
+    pickList.replaceChildren(...picks.map((n, i) => {
+      const li = document.createElement('li');
+      li.textContent = n;
+      li.classList.toggle('on', i === picked);
+      li.addEventListener('pointerdown', e => { e.preventDefault(); choose(n); });
+      return li;
+    }));
+  }
+  function choose(name) {
+    const m = query();
+    if (!m) return;
+    input.value = input.value.slice(0, m.at) + '@' + name + ' ' + input.value.slice(input.selectionStart);
+    input.setSelectionRange(m.at + name.length + 2, m.at + name.length + 2);
+    pickList.hidden = true;
+  }
+  input.addEventListener('input', drawPicks);
+  input.addEventListener('keydown', e => {
+    if (!pickList.hidden && picks.length && (e.key === 'Enter' || e.key === 'Tab')) { e.preventDefault(); return choose(picks[picked]); }
+    if (!pickList.hidden && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+      e.preventDefault(); picked = (picked + (e.key === 'ArrowDown' ? 1 : picks.length - 1)) % picks.length;
+      [...pickList.children].forEach((li, i) => li.classList.toggle('on', i === picked));
+    }
   });
   input.addEventListener('keydown', e => { if (e.key === 'Escape') { e.stopPropagation(); setOpen(false); } });
 

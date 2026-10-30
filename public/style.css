@@ -673,3 +673,10 @@ body.welcome #itembar, body.zooming #itembar { opacity: 0; pointer-events: none;
   background: var(--soft); box-shadow: 0 0 0 2px var(--ink); }
 #info-pop { position: fixed; z-index: 70; max-width: min(300px, calc(100% - 24px)); padding: 10px 12px; background: var(--panel); color: var(--text);
   font-size: 15px; line-height: 1.35; box-shadow: 0 0 0 3px var(--ink), 4px 4px 0 3px var(--ink); }
+
+/* ---------- @-mentions (loop 15) ---------- */
+#chat-log .mention { color: var(--gold); font-weight: 600; }
+#chat-log li.mentions-me { box-shadow: inset 3px 0 0 var(--gold); background: rgba(247, 201, 72, .14); }
+#chat-mention { list-style: none; margin: 0; padding: 4px; width: 100%; background: var(--panel); box-shadow: 0 0 0 2px var(--ink); max-height: 180px; overflow-y: auto; }
+#chat-mention li { padding: 8px 10px; font-size: 15px; cursor: pointer; }
+#chat-mention li.on, #chat-mention li:hover { background: var(--raised); }

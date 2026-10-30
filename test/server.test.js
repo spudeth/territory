@@ -650,3 +650,17 @@ test('profiles: what anyone can see of a player, and nothing private; their awar
   assert.ok(theirs.earned.some(e => e.id === 'first-block'), 'their awards, read-only');
   assert.deepEqual(await b.ask('profile', { pid: 999999 }), { error: 'No such player' });
 });
+
+test('@-mentions: only real names of players on the map, at most 3 per message', async () => {
+  const id = await require('../store').createMap(pool, { name: 'Chatter', width: 8, height: 8 });
+  const join = async () => { const s = player(); await s.welcome; await s.ask('switchMap', id); await s.next('welcome'); return s; };
+  const ps = [];
+  for (let i = 0; i < 5; i++) { const s = await join(); s.take(i, 0); ps.push({ s, you: await s.next('you') }); }
+  await new Promise(r => setTimeout(r, 2200));
+  const [a, ...others] = ps;
+  const text = 'hi ' + others.map(o => '@' + o.you.name).join(' ') + ' and @Nobody Here';
+  assert.deepEqual(await a.s.ask('chat', text), {});
+  const msg = await others[0].s.next('chat', m => m.text.startsWith('hi'));
+  assert.equal(msg.mentions.length, 3, 'at most 3');
+  assert.ok(msg.mentions.every(m => others.some(o => String(o.you.pid) === String(m.pid) && o.you.name === m.name)), 'only real players');
+});
