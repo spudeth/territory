@@ -51,7 +51,7 @@ test('connected blocks only; accounts at least marketMinAccountDays old; a sale 
   const l = await listed;
   assert.deepEqual([l.size, l.price, l.levels, l.seller.pid], [2, 100, [1, 1], sell.playerId]);
   assert.deepEqual(await ss.ask('build', { kind: 'factory', x: 2, y: 0 }), { error: 'Not on land for sale' }, 'no new buildings on listed land');
-  assert.deepEqual(await ss.ask('build', { kind: 'wall', x: 3, y: 0, side: 'n' }), { error: 'Not on land for sale' }, 'nor walls');
+  assert.deepEqual(await ss.ask('build', { kind: 'wall', x: 3, y: 0, side: 'n' }), { error: 'Not on land for sale', at: { x: 3, y: 0, side: 'n' } }, 'nor walls');
   // A factory on it already moves with it.
   const { rows: [f] } = await pool.query(`INSERT INTO factories (map_id, owner_id, x, y, awake_until, processed_at) VALUES ($1, $2, 3, 0, now(), now()) RETURNING id`, [id, sell.playerId]);
   await pool.query('UPDATE map_cells SET factory_id = $2 WHERE map_id = $1 AND x = 3 AND y = 0', [id, f.id]);

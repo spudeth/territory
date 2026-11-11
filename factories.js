@@ -4,14 +4,14 @@
 // to it (straight-line distance; ties in a fixed seeded order), checked again every step. A target outside its
 // home square (factoryAreaSize wide, centred on it) needs extra hits for the distance.
 //
-// Time runs in steps of tickSeconds aligned to the clock (step boundaries are multiples of tickSeconds), and
-// every factory is brought up to date step by step, so a long sleep gives exactly what staying awake would.
+// Time runs in one-second steps aligned to the clock (loop 18: so each hit can be shown as it happens), and every
+// factory is brought up to date step by step, so a long sleep gives exactly what staying awake would.
 const catalog = require('./catalog');
 const rules = require('./rules');
 
 const { E } = catalog;
 const key = (x, y) => x + ',' + y;
-const STEP_MS = () => E.tickSeconds * 1000;
+const STEP_MS = () => 1000;
 // The step boundary at or before `ms`.
 const stepFloor = ms => Math.floor(ms / STEP_MS()) * STEP_MS();
 
@@ -44,6 +44,17 @@ function chooseTarget(map, owner, fx, fy, seed) {
   return best && { x: best.x, y: best.y };
 }
 
+// Whether (t.x, t.y) can still be the owner's target: empty, not water, and next to their land across a side with
+// no wall of theirs.
+function stillTarget(map, owner, t) {
+  if (map.cells.get(key(t.x, t.y)) !== null || map.terrainAt(t.x, t.y) === 'water') return false;
+  for (const [side, [dx, dy]] of Object.entries(rules.SIDES)) {
+    const x = t.x - dx, y = t.y - dy;   // the neighbour whose `side` faces t
+    if (map.cells.get(key(x, y)) === owner && !rules.hasWall(map, x, y, side)) return true;
+  }
+  return false;
+}
+
 // Blocks a target lies beyond the factory's home square: Chebyshev distance - half the square (0 inside it).
 const beyondHome = (fx, fy, x, y) => Math.max(0, Math.max(Math.abs(x - fx), Math.abs(y - fy)) - Math.floor(E.factoryAreaSize / 2));
 // Hits a factory needs for block (x, y): its hardness, plus d x factoryDistancePenaltyWh x W(L) x hitsPerSquare.
@@ -69,5 +80,5 @@ function pausedIds(factories, owned) {
 // How many factories a player with `owned` blocks may have.
 const factoryLimit = owned => Math.floor(owned / E.factoryBlocksPerFactory);
 
-module.exports = { key, STEP_MS, stepFloor, tieRank, chooseTarget, beyondHome, hitsFor, yieldTenths, pausedIds, factoryLimit,
+module.exports = { key, STEP_MS, stepFloor, tieRank, chooseTarget, stillTarget, beyondHome, hitsFor, yieldTenths, pausedIds, factoryLimit,
   hitsPerSecond: speed => (rules.HITS_PER_BLOCK / E.baseBlockSeconds) * speed };

@@ -41,15 +41,23 @@ function renderGuide({ maps = [] } = {}) {
       most prices are a number of work-hours times W(L) at the map's level.</p>`);
 
   sections.push(`<h2 id="upgrades">Upgrades</h2>
-    <p>Each upgrade climbs 10 tiers of <b>${E.stepsPerTier} steps</b> each, from v0 to vmax. Tier N runs from a<sub>N−1</sub> to a<sub>N</sub>,
-      where <b>a<sub>N</sub> = v0 × (vmax ÷ v0)^(N/10)</b>, each step the same ratio. Each step costs 2^(1/${E.stepsPerTier}) times the one before,
-      and a whole tier N costs <b>c_u × ${n(3600 / E.baseBlockSeconds, 0)} × 2^(N−1)</b> squares, so prices rise smoothly and never change. Tier 1 is
-      open from the start; tier N's steps can be bought once you've mined a level-N block somewhere. On a map of level L an upgrade works
-      at most at a<sub>L</sub>, the end of tier L. Values can be fractions: Growth 1.4 means 1 new block and a 40% chance of a second.</p>`
-    + Object.entries(economy.tiers).map(([key, u]) => `<h3>${esc(u.name)}</h3><p>${esc(u.about)} (c_u = ${n(u.cu)})</p>`
-      + table(['Tier', 'From', 'To (end of the tier)', 'First step (squares)', 'Whole tier (squares)'], Array.from({ length: catalog.TIER_COUNT }, (_, i) =>
-        [i + 1, unitText(catalog.anchor(key, i), u.unit), unitText(catalog.anchor(key, i + 1), u.unit),
-          n(catalog.fromTenths(catalog.stepCostTenths(key, i * E.stepsPerTier + 1)), 1), n(catalog.fromTenths(catalog.tierCostTenths(key, i + 1)), 1)]))).join(''));
+    <p>Each upgrade has tiers, each bought in <b>S</b> small steps. Tier 1 runs from its start to its max; every later tier runs from the end of
+      the one before to <b>m</b> times that (m, the multiplier per tier, is 2 for every upgrade now):</p>
+    <p class="formula">lo<sub>1</sub> = start; lo<sub>N</sub> = max<sub>1</sub> × m^(N−2); hi<sub>N</sub> = max<sub>1</sub> × m^(N−1)</p>
+    <p>Early steps in a tier give the most (the gain curve g), and early steps cost the least (the price curve c):</p>
+    <p class="formula">Value after step j of tier N = lo<sub>N</sub> + (hi<sub>N</sub> − lo<sub>N</sub>) × ln(1 + g·j/S) ÷ ln(1 + g)</p>
+    <p class="formula">Price of step j of tier N = T × W(N) × ln(1 + c·j/S) ÷ Σ<sub>i=1..S</sub> ln(1 + c·i/S) squares</p>
+    <p>So a whole tier N costs exactly <b>T × W(N)</b>, where T is the tier cost in work-hours, and prices never change. Tier 1 is open from
+      the start; tier N's steps can be bought once you've mined a level-N block somewhere. <b>Upgrades work by the block:</b> on a level-L
+      block every upgrade works at most at hi<sub>L</sub>, the end of tier L. That covers your Click Power and Repair on it, Earnings and
+      Growth when you mine it, its owner's Defense, and Factory Speed and Yield on it. Values can be fractions: Growth 1.4 means 1 new block
+      and a 40% chance of a second.</p>`
+    + Object.entries(economy.tiers).map(([key, u]) => `<h3>${esc(u.name)}</h3><p>${esc(u.about)}. ${u.tiers} tiers of ${u.steps} steps; T = ${n(u.tierWh)} work-hours,
+      c = ${n(u.priceCurve)}, g = ${n(u.gainCurve)}.</p>`
+      + table(['Tier', 'From', 'To (end of the tier)', 'First step (squares)', 'Last step (squares)', 'Whole tier (squares)'], Array.from({ length: u.tiers }, (_, i) =>
+        [i + 1, unitText(catalog.lo(key, i + 1), u.unit), unitText(catalog.hi(key, i + 1), u.unit),
+          n(catalog.fromTenths(catalog.stepCostTenths(key, i * u.steps + 1)), 1), n(catalog.fromTenths(catalog.stepCostTenths(key, (i + 1) * u.steps)), 1),
+          n(catalog.fromTenths(catalog.tierCostTenths(key, i + 1)), 1)]))).join(''));
 
   const factoryPrice = k => catalog.fromTenths(catalog.priceTenths(catalog.CATALOG.get('building:factory'), { L: 1, n: k }));
   sections.push(`<h2 id="factories">Factories</h2>
@@ -63,10 +71,12 @@ function renderGuide({ maps = [] } = {}) {
       ${[1, 2, 3, 4, 5].map(k => `#${k}: ${n(factoryPrice(k), 1)}`).join(', ')}.</p>`);
 
   sections.push(`<h2 id="walls">Walls</h2>
-    <p>Build → Wall, then tap near the edge of your land: a wall goes on an outer side of one of your blocks (at most ${E.maxWallsPerBlock}
-      per block, on different sides). Someone who can only reach that block through walls must break a wall first:
-      <b>${n(E.wallStrength)} × H</b> hits. You can't claim across your own wall. Walls last until the block is taken or you use Demolition.</p>
-    <p class="formula">Wall price = ${n(E.wallPaybackHours)} × ${n(E.wallStrength)} × H ÷ ${n(E.hitsPerSquare)} squares</p>`);
+    <p>Build → Wall, then tap the outer sides of your blocks where you want walls: each shows faintly until you press ✓, which builds them
+      all (tap one again to drop it). At most ${E.maxWallsPerBlock} per block, on different sides. Someone who can only reach that block
+      through walls must break a wall first: <b>${n(E.wallStrength)} × H</b> hits. You can't claim across your own wall. Walls last until the
+      block is taken or you use Demolition.</p>
+    <p class="formula">Price of each wall = ${n(E.wallPriceWh)} × W(the block's level) × max(1, √(walls you own on this map) ÷ 2) squares</p>
+    <p>The walls you own are counted before the batch, so every wall in one batch has the same multiplier.</p>`);
 
   sections.push(`<h2 id="items">Items</h2>`
     + table(['Item', 'What it does', 'Price at level 1', 'Formula'], economy.items.filter(i => i.enabled).map(i => [i.name, i.description,

@@ -496,13 +496,13 @@ async function buySteps(pool, playerId, upgrade, from, count) {
   return tx(pool, async c => {
     const { rows: [p] } = await c.query('SELECT upgrade_steps, highest_level, squares FROM players WHERE id = $1 FOR UPDATE', [playerId]);
     if (!p) return { error: 'No such player' };
-    const have = p.upgrade_steps[upgrade] ?? 0, top = catalog.TIER_COUNT * catalog.STEPS();
+    const have = p.upgrade_steps[upgrade] ?? 0, top = catalog.topStep(upgrade), tierOf = s => catalog.tierOfStep(upgrade, s);
     if (from !== have) return { error: 'Already bought', steps: p.upgrade_steps };
     if (have >= top) return { error: 'This upgrade is at its top' };
     const next = have + 1;
-    if (!catalog.tierUnlocked(catalog.tierOfStep(next), p.highest_level)) return { error: `Mine a level-${catalog.tierOfStep(next)} block to unlock` };
+    if (!catalog.tierUnlocked(tierOf(next), p.highest_level)) return { error: `Mine a level-${tierOf(next)} block to unlock` };
     // How many: up to `count` (or as many as the balance allows), never past what is unlocked or the top.
-    const limit = Math.min(top, p.highest_level * catalog.STEPS(), count === 'max' ? top : have + count);
+    const limit = Math.min(top, p.highest_level * catalog.STEPS(upgrade), count === 'max' ? top : have + count);
     let n = 0, cost = 0;
     const balance = Number(p.squares);
     while (have + n < limit) {
@@ -762,25 +762,32 @@ async function removeFactory(c, mapId, x, y) {
   await c.query('UPDATE map_cells SET factory_id = NULL WHERE map_id = $1 AND x = $2 AND y = $3', [mapId, x, y]);
   await c.query('DELETE FROM factories WHERE map_id = $1 AND x = $2 AND y = $3', [mapId, x, y]);
 }
-const factoryStep = now => Math.floor(now / (catalog.E.tickSeconds * 1000)) * catalog.E.tickSeconds * 1000;
+const factoryStep = now => Math.floor(now / 1000) * 1000;   // factories.js steps: one second (loop 18)
 Object.assign(module.exports, { buildFactory, wakeFactory, saveFactories, factoryMaps, removeFactory });
 
 // ---------- Walls (loop 16) ----------
-// Builds a wall on one side of the player's block for `price` tenths (player row and block locked). `hits`: what it
-// takes to break (w x H). Returns { walls, squares } or { error }.
-function buildWall(pool, { mapId, playerId, x, y, side, price, hits, max }) {
+// Builds a batch of walls (loop 18) for `price` tenths in all, all or nothing: player row and blocks locked.
+// walls: [{ x, y, side, hits }] (hits: what each takes to break, w x H). Returns { cells: [{ x, y, walls }], squares }
+// or { error }.
+function buildWalls(pool, { mapId, playerId, walls, price, max }) {
   return tx(pool, async c => {
     await c.query('SELECT 1 FROM players WHERE id = $1 FOR UPDATE', [playerId]);
-    const { rows: [cell] } = await c.query('SELECT owner_id, walls, listing_id FROM map_cells WHERE map_id = $1 AND x = $2 AND y = $3 FOR UPDATE', [mapId, x, y]);
-    if (!cell || String(cell.owner_id) !== String(playerId)) return { error: 'Only on your own land' };
-    if (cell.listing_id) return { error: 'Not on land for sale' };
-    if (cell.walls.some(w => w.side === side)) return { error: 'There is a wall there already' };
-    if (cell.walls.length >= max) return { error: `At most ${max} walls on one block` };
-    const paid = await spend(c, playerId, price, 'build:wall');
+    const byBlock = new Map();
+    for (const w of walls) (byBlock.get(w.x + ',' + w.y) ?? byBlock.set(w.x + ',' + w.y, []).get(w.x + ',' + w.y)).push(w);
+    const cells = [];
+    for (const list of byBlock.values()) {
+      const { x, y } = list[0];
+      const { rows: [cell] } = await c.query('SELECT owner_id, walls, listing_id FROM map_cells WHERE map_id = $1 AND x = $2 AND y = $3 FOR UPDATE', [mapId, x, y]);
+      if (!cell || String(cell.owner_id) !== String(playerId)) return { error: 'Only on your own land' };
+      if (cell.listing_id) return { error: 'Not on land for sale' };
+      if (list.some(w => cell.walls.some(o => o.side === w.side))) return { error: 'There is a wall there already' };
+      if (cell.walls.length + list.length > max) return { error: `At most ${max} walls on one block` };
+      cells.push({ x, y, walls: [...cell.walls, ...list.map(w => ({ side: w.side, hits: w.hits }))] });
+    }
+    const paid = await spend(c, playerId, price, walls.length === 1 ? 'build:wall' : `build:wall x${walls.length}`);
     if (paid.error) return paid;
-    const walls = [...cell.walls, { side, hits }];
-    await c.query('UPDATE map_cells SET walls = $4 WHERE map_id = $1 AND x = $2 AND y = $3', [mapId, x, y, JSON.stringify(walls)]);
-    return { walls, squares: paid.squares };
+    for (const cell of cells) await c.query('UPDATE map_cells SET walls = $4 WHERE map_id = $1 AND x = $2 AND y = $3', [mapId, cell.x, cell.y, JSON.stringify(cell.walls)]);
+    return { cells, squares: paid.squares };
   });
 }
 // Removes one wall (broken, or Demolition inside its transaction: pass the client).
@@ -788,7 +795,11 @@ async function removeWall(c, mapId, x, y, side) {
   await c.query(`UPDATE map_cells SET walls = COALESCE((SELECT jsonb_agg(w) FROM jsonb_array_elements(walls) w WHERE w->>'side' <> $4), '[]')
     WHERE map_id = $1 AND x = $2 AND y = $3`, [mapId, x, y, side]);
 }
-Object.assign(module.exports, { buildWall, removeWall });
+// Removes every wall on a block (Demolition, inside its transaction).
+async function clearWalls(c, mapId, x, y) {
+  await c.query("UPDATE map_cells SET walls = '[]' WHERE map_id = $1 AND x = $2 AND y = $3", [mapId, x, y]);
+}
+Object.assign(module.exports, { buildWalls, removeWall, clearWalls });
 
 // ---------- The land market (loop 16) ----------
 // Whether a player may trade land: an account at least `minDays` old.
@@ -974,18 +985,19 @@ async function itemsFor(pool, playerId) {
       nextAt: recent.length ? recent[0].used_at.getTime() + i.perMinutes * 60000 : null };
   });
 }
-// Buys an item for `price` tenths, in one transaction with the player row locked (a double tap pays once).
-function buyItem(pool, playerId, item, price) {
+// Buys an item for `price` tenths (each; a consumable may come `qty` at a time), in one transaction with the player
+// row locked (a double tap pays once).
+function buyItem(pool, playerId, item, price, qty = 1) {
   return tx(pool, async c => {
     const { rows: [p] } = await c.query('SELECT squares FROM players WHERE id = $1 FOR UPDATE', [playerId]);
     if (!p) return { error: 'Claim a block first' };
     if (!item.consumable && (await c.query('SELECT 1 FROM player_items WHERE player_id = $1 AND item_id = $2', [playerId, item.id])).rowCount) return { error: 'You already own this item' };
-    const paid = await spend(c, playerId, price, 'item:' + item.id);
+    const paid = await spend(c, playerId, price * qty, 'item:' + item.id + (qty > 1 ? ` x${qty}` : ''));
     if (paid.error) return paid;
     if (item.consumable) {
-      const { rows: [inv] } = await c.query(`INSERT INTO player_inventory (player_id, item_id, count) VALUES ($1, $2, 1)
-        ON CONFLICT (player_id, item_id) DO UPDATE SET count = player_inventory.count + 1 RETURNING count`, [playerId, item.id]);
-      return { squares: paid.squares, price, count: inv.count };
+      const { rows: [inv] } = await c.query(`INSERT INTO player_inventory (player_id, item_id, count) VALUES ($1, $2, $3)
+        ON CONFLICT (player_id, item_id) DO UPDATE SET count = player_inventory.count + $3 RETURNING count`, [playerId, item.id, qty]);
+      return { squares: paid.squares, price: price * qty, count: inv.count };
     }
     await c.query('INSERT INTO player_items (player_id, item_id) VALUES ($1, $2)', [playerId, item.id]);
     return { squares: paid.squares, price };
@@ -993,17 +1005,17 @@ function buyItem(pool, playerId, item, price) {
 }
 // Uses an owned item if a use is free (checked with the player row locked, so two devices can't both use the last
 // one). `apply(c)` runs in the same transaction (e.g. the terrain change); a refusal from it rolls everything back.
-// Returns { ok, usesLeft, nextAt } or { error, nextAt }.
-function useItem(pool, playerId, item, mapId, apply = async () => null) {
+// Returns { ok, usesLeft, nextAt } or { error, nextAt }. `n`: how many of a consumable this takes (Demolition: one a block).
+function useItem(pool, playerId, item, mapId, apply = async () => null, n = 1) {
   return tx(pool, async c => {
     await c.query('SELECT 1 FROM players WHERE id = $1 FOR UPDATE', [playerId]);
     // A consumable: one from the inventory, used up.
     if (item.consumable) {
-      const { rows: [inv] } = await c.query('UPDATE player_inventory SET count = count - 1 WHERE player_id = $1 AND item_id = $2 AND count > 0 RETURNING count', [playerId, item.id]);
-      if (!inv) return { error: `You have no ${item.name} left` };
+      const { rows: [inv] } = await c.query('UPDATE player_inventory SET count = count - $3 WHERE player_id = $1 AND item_id = $2 AND count >= $3 RETURNING count', [playerId, item.id, n]);
+      if (!inv) return { error: n === 1 ? `You have no ${item.name} left` : `Not enough ${item.name}: this needs ${n}` };
       const refused = await apply(c);
       if (refused) throw Object.assign(new Error(refused), { refusal: true });
-      await c.query('INSERT INTO item_uses (player_id, item_id, map_id) VALUES ($1, $2, $3)', [playerId, item.id, mapId]);
+      await c.query('INSERT INTO item_uses (player_id, item_id, map_id) SELECT $1, $2, $3 FROM generate_series(1, $4)', [playerId, item.id, mapId, n]);
       return { ok: true, count: inv.count, usesLeft: inv.count, nextAt: null };
     }
     if (!(await c.query('SELECT 1 FROM player_items WHERE player_id = $1 AND item_id = $2', [playerId, item.id])).rowCount) return { error: "You don't own this item" };

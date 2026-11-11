@@ -383,9 +383,10 @@ async function buySkin(s, button) {
 // ---------- Upgrades ----------
 const num = v => (Math.round(v * 100) / 100).toLocaleString(undefined, { minimumFractionDigits: Number.isInteger(v) ? 1 : 0, maximumFractionDigits: 2 });
 const plural = (v, word) => `${word}${v === 1 ? '' : 's'}`;
-// Upgrades (loop 17): 10 tiers of stepsPerTier steps each. Each card: what it does, "Tier 1 · step 12/90", the value
-// now → after the next step, Buy (that step's price) and Buy max (as many steps as you can afford, one purchase),
-// and every tier's end value and total cost. On a map, an upgrade works at most at the end of the map's level's tier.
+// Upgrades (loop 17, new curves in loop 18): tiers of S steps each, from the Upgrades tab. Each card: what it does,
+// "Tier 1 · step 12/90", the value now → after the next step, Buy (that step's price) and Buy max (as many steps as
+// you can afford, one purchase), and every tier's range and total cost. On a level-L block, an upgrade works at most
+// at the end of tier L.
 const UPGRADE_LOOKS = {
   clickPower: { color: 'var(--orange)', icon: '<path d="M4 0h2v3h2v1H7v1H6v1H5v1H4v1H3V5H1V4h1V3h1V2h1z" fill="#0f131a"/>' },
   defense: { color: 'var(--blue)', icon: '<path d="M0 0h8v4H7v2H6v1H5v1H3V7H2V6H1V4H0z" fill="#0f131a"/>' },
@@ -402,11 +403,13 @@ const tierText = (v, unit, d = v < 10 ? 2 : 1) => {
   if (Number(v.toFixed(d)) === 1) unit = unit.replace(/blocks$/, 'block');   // "1 new block"
   return /^x /.test(unit) ? `×${n} ${unit.slice(2)}` : `${n} ${unit}`;
 };
-// The value after s steps, from the anchors (the same formula as the server's catalog.stepValue).
-const stepValue = (a, s, S) => {
-  if (s <= 0) return a[0];
-  const N = Math.min(a.length - 1, Math.ceil(s / S)), j = s - (N - 1) * S;
-  return a[N - 1] * (a[N] / a[N - 1]) ** (Math.min(j, S) / S);
+// The value after s steps (the same formula as the server's catalog.stepValue): tier N runs from its range's
+// `from` to `to` along a log curve, lo + (hi - lo) x ln(1 + g j/S) / ln(1 + g).
+const stepValue = (up, s) => {
+  const S = up.steps, n = Math.min(Math.max(0, s), up.tiers.length * S);
+  if (n <= 0) return up.start;
+  const t = up.tiers[Math.ceil(n / S) - 1], j = n - (t.tier - 1) * S;
+  return t.from + (t.to - t.from) * Math.log(1 + up.gain * j / S) / Math.log(1 + up.gain);
 };
 
 let upgradeData = null;
@@ -419,46 +422,47 @@ fills.upgrades = async () => {
   setNum($('upg-squares'), squares);
 };
 function drawUpgradeCards(list) {
-  const u = upgradeData, S = u.stepsPerTier, top = 10 * S;
+  const u = upgradeData;
   list.replaceChildren(...u.list.map(up => {
+    const S = up.steps, top = up.tiers.length * S;
     const look = UPGRADE_LOOKS[up.key] ?? { color: 'var(--raised)', icon: '' };
-    const owned = u.steps[up.key] ?? 0, cap = u.mapLevel * S, working = Math.min(owned, cap), next = u.prices[up.key];
+    const owned = u.steps[up.key] ?? 0, next = u.prices[up.key];
     const tier = Math.max(1, Math.ceil(owned / S)), step = owned === 0 ? 0 : owned - (tier - 1) * S;
     const card = document.createElement('div');
     card.className = 'card upg';
     card.innerHTML = `<div class="top"><div class="ic"><svg class="pix" width="20" height="20" viewBox="0 0 8 8" aria-hidden="true">${look.icon}</svg></div>`
       + '<div style="display: flex; flex-direction: column"><span class="t"></span><span class="d"></span></div></div>'
       + '<div class="pips" aria-hidden="true"></div><div class="stat"><span></span><span></span></div><p class="cap note" hidden></p>'
-      + '<details class="levels-box"><summary>All 10 tiers</summary><ul class="levels"></ul></details>'
+      + `<details class="levels-box"><summary>All ${up.tiers.length} tiers</summary><ul class="levels"></ul></details>`
       + '<div class="buy-row"><button class="btn buy-one" type="button"></button><button class="btn buy-max" type="button">Buy max</button></div>';
     card.querySelector('.ic').style.background = look.color;
     card.querySelector('.t').textContent = up.name;
     card.querySelector('.t').dataset.info = up.key;   // info.js
     card.querySelector('.d').textContent = up.about;
-    // 10 pips, one per tier: filled as far as the steps go; the part above this map's cap dimmed.
+    // One pip per tier, filled as far as the steps go.
     card.querySelector('.pips').replaceChildren(...up.tiers.map(t => {
       const p = document.createElement('span'), lo = (t.tier - 1) * S, fill = Math.max(0, Math.min(1, (owned - lo) / S));
       p.className = 'pip';
       p.style.background = `linear-gradient(90deg, ${look.color} ${fill * 100}%, transparent ${fill * 100}%)`;
-      if (lo >= cap && owned > lo) p.style.opacity = '0.35';
       return p;
     }));
     const [lv, eff] = card.querySelectorAll('.stat span');
-    lv.textContent = owned >= top ? 'Tier 10 · max' : `Tier ${owned === 0 ? 1 : tier} · step ${step}/${S}`;
-    const now = stepValue(up.anchors, working, S);
+    lv.textContent = owned >= top ? `Tier ${up.tiers.length} · max` : `Tier ${owned === 0 ? 1 : tier} · step ${step}/${S}`;
+    const now = stepValue(up, owned);
     // As many decimals as it takes to see what the next step adds (a step is small: x1.0026 pay).
     let d = now < 10 ? 2 : 1;
     while (next && d < 4 && now.toFixed(d) === next.value.toFixed(d)) d++;
     eff.textContent = next ? `${tierText(now, up.unit, d)} → ${tierText(next.value, up.unit, d)}` : tierText(now, up.unit);
-    if (working < owned) {
+    // Past tier 1: on a lower-level block it works at most at the end of that block's level's tier.
+    if (owned > S) {
       const c = card.querySelector('.cap');
       c.hidden = false;
-      c.textContent = `Working at the end of tier ${u.mapLevel} on this map (level ${u.mapLevel}): ${tierText(stepValue(up.anchors, cap, S), up.unit)}`;
+      c.textContent = `In full on level-${tier}+ blocks. On a level-L block, at most the end of tier L (level 1: ${tierText(up.tiers[0].to, up.unit)}).`;
     }
     card.querySelector('.levels').replaceChildren(...up.tiers.map(t => {
       const li = document.createElement('li');
       li.className = t.tier === tier ? 'cur' : '';
-      li.textContent = `Tier ${t.tier}: up to ${tierText(t.value, up.unit)} · ${S} steps, ${fmtSq(t.cost)} squares in all`;
+      li.textContent = `Tier ${t.tier}: ${tierText(t.from, up.unit)} to ${tierText(t.to, up.unit)} · ${S} steps, ${fmtSq(t.cost)} squares in all`;
       return li;
     }));
     // The buttons: the next step, or why not; Buy max.

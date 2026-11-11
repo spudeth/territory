@@ -33,7 +33,8 @@ Every rule in the game, in plain English. This file is updated whenever a rule c
 - One tap counts as your Click Power in hits (see Upgrades).
 - **Your first block** on a map must be an empty block. It can be anywhere.
 - **After that**, you can only hit blocks that touch your territory up, down, left or right, and never across your own wall. Those blocks can be empty or owned by someone else.
-- Tapping your own block does nothing at all: no message, no sound (players often tap once more after a claim).
+- **Repair (loop 18):** tapping your own block while someone has cracked it takes off hits equal to your Click Power (capped at the block's level; Super Click counts), like mining in reverse. Free. At 0 the crack is gone, and an attacker carries on from what is left. Cracked walls on it are not repaired (OPEN Q37).
+- Tapping your own undamaged block does nothing at all: no message, no sound (players often tap once more after a claim).
 - **Only one player's progress counts.** If someone else hits a block, their hits start over from zero and yours are gone.
 - **Cracks fade:** 1 hit of progress for every 60 seconds since the last hit (Game Rules: `crackFadeSeconds`, `crackFadeHits`). A factory's progress never fades.
 - **Nothing is wasted:** hit power to spare from the tap that takes a block counts toward the next block you hit.
@@ -56,11 +57,11 @@ Every rule in the game, in plain English. This file is updated whenever a rule c
 
 Seven upgrades, from the Upgrades tab: Click Power, Earnings, Defense, Growth, Factory Speed, Factory Lifetime, Factory Yield. The Upgrades tile on the welcome screen opens the Upgrades screen.
 
-- **Anchors:** a_N = v0 × (vmax ÷ v0)^(N/10) for N = 0 to 10, so a_0 = v0 (where everyone starts) and a_10 = vmax.
-- **Steps:** each tier has `Economy: stepsPerTier` (90) steps. Tier N's steps climb from a_(N−1) to a_N in equal ratios. Values can be fractions: Click Power and Defense keep the spare-hit carry-over; for Growth the fractional part is the chance of one more block (1.4 = 1 block and a 40% chance of a second; the roll is seeded by the map, so the same claims grow the same way).
-- **Costs:** within tier N each step costs 2^(1/stepsPerTier) times the one before, and the whole tier totals c_u × 1,200 × 2^(N−1) squares, so tier N+1's first step costs twice tier N's first step, with no jump at the boundary. Prices are fixed forever.
+- **Tiers (loop 18):** each upgrade's row on the Upgrades tab gives its tier 1 start, tier 1 max, multiplier per tier m, number of tiers, steps per tier S, tier cost T (work-hours), price curve c and gain curve g. Tier N runs from lo_N to hi_N: lo_1 = start, lo_N = max1 × m^(N−2) for N ≥ 2, hi_N = max1 × m^(N−1). Everyone starts at the tier 1 start.
+- **Steps:** a player owns a number of steps per upgrade; their s-th step is step j = s − (N−1) × S of tier N = ceil(s ÷ S). The value after step j of tier N is lo_N + (hi_N − lo_N) × ln(1 + g·j/S) ÷ ln(1 + g): early steps in a tier give the most. Values can be fractions: Click Power and Defense keep the spare-hit carry-over; for Growth the fractional part is the chance of one more block (1.4 = 1 block and a 40% chance of a second; the roll is seeded by the map, so the same claims grow the same way).
+- **Costs:** step j of tier N costs T × W(N) × ln(1 + c·j/S) ÷ Σ(i = 1..S) ln(1 + c·i/S) squares, W(N) = 1,200 × 2^(N−1), so a whole tier costs exactly T × W(N). In tenths, each step is the running total (rounded down) minus the one before, so the tier adds up exactly and no step is off by more than a tenth. Check (Click Power, the Charts tab): step 1 = 9.7, step 90 = 234.5, tier 1 = 14,400, tier 2 step 1 = 19.4; the value after step 10 = 3.709, after step 90 = 10, after tier 2 = 20. Prices are fixed forever.
 - **Unlocking:** tier 1 is open from the start. Tier N's steps can be bought once you have first-claimed a block of level N or higher, on any map. Locked steps say "Mine a level-N block to unlock".
-- **The cap:** on a map of level L, an upgrade works at most at a_L, the end of tier L. The card says so.
+- **The cap is the block's level:** anything acting on a level-L block uses each upgrade at most at hi_L, the end of tier L: your Click Power (and Repair) on it, your Earnings and Growth when you mine it, its owner's Defense against you, and a factory's Speed and Yield on its target. A factory's Lifetime uses the level of the block it stands on. The card says so once you're past tier 1.
 - **Buying:** each card shows "Tier 1 · step 12/90", the value now → after the next step, **Buy** (that step's price) and **Buy max** (as many steps as you can afford, in one purchase, never past what's unlocked). Each purchase is one transaction with your row locked, so a double tap or two devices never buy twice. It works from the next tap on every device and map. Guests can buy; their steps stay when they make an account.
 - **Click Power:** hits per tap. **Earnings:** multiplies pay. **Defense:** multiplies the hits others need for your blocks. **Growth:** new map blocks per brand-new block. **Factory Speed, Lifetime, Yield:** see Factories.
 - Super Click multiplies your effective Click Power by 10 for 5 seconds.
@@ -70,26 +71,27 @@ Seven upgrades, from the Upgrades tab: Click Power, Earnings, Defense, Growth, F
 The welcome screen's tiles are Marketplace, Upgrades (its own screen), Awards and Profile. The Marketplace has tabs: Skins, Items and Land.
 
 - **Skins** cost their rarity's work-hours × W(L) (Skin Rarity tab; flags are Rare). Owning more never changes the price.
-- **Items** are priced from the Items tab: `PV` = P × V × W(L), or `Hours` × W(L). Super Click and the Terraformer are bought once and used a few times an hour. **Demolition** is used up: each one bought adds one; use it from the item bar on one of your factories or walls, confirm, and it's gone with no refund. It is the only way to remove a factory or a wall.
+- **Items** are priced from the Items tab: `PV` = P × V × W(L), or `Hours` × W(L). Super Click and the Terraformer are bought once and used a few times an hour. **Demolition** is used up, and can be bought singly or in batches (a − / + picker on the Items tab, 1 to 100 at a time, each at the full price). Use it from the item bar (loop 18): tap your blocks to pick them (each turns red; tap again to drop it; you can't pick more blocks than you have Demolitions), then ✓: everything built on each block (its walls and factory) is gone, no refund. One Demolition per block with something on it; blocks with nothing on them use none. It is the only way to remove a factory or a wall.
 
 ## Building
 
-The **Build** button (under the leaderboard) has Factory, Wall, Sell land, and Wake up (only while one of your factories is selected by press and hold). A tool that can't be used now says why as soon as it's picked, before any ghost (for example "You need 20 blocks for your first factory (you have 9)."). While a tool is active, map taps only place: they never attack or claim. Pick a building, tap a block: a see-through ghost shows there (green, or red with the reason), tap another block to move it, ✓ buys, ✗ cancels.
+The **Build** button (under the leaderboard) has Factory, Wall and Sell land (loop 18: Wake up is only on a factory's info card). A tool that can't be used now says why as soon as it's picked, before any ghost (for example "You need 20 blocks for your first factory (you have 9)."). While a tool is active, map taps only place: they never attack or claim. Pick a building, tap a block: a see-through ghost shows there (green, or red with the reason), tap another block to move it, ✓ buys, ✗ cancels.
 
 ### Factories
 
 - Only on your own non-water block, one per block, not on land for sale. You may have floor(blocks owned ÷ `factoryBlocksPerFactory`) on a map; if your land drops below that, your newest factories pause until you're back above it.
 - **Price** of your nth factory (n = how many you have + 1) = `factoryBuildPaybackHours` × `factoryValuePerHour` × W(L) × `factoryBuildGrowth`^(n−1).
-- **Mining** happens on the server tick (`tickSeconds`), even while the owner is away, only while the factory is awake: hits per second = (`hitsPerBlock` ÷ `baseBlockSeconds`) × Factory Speed. Its target is the empty, non-water block touching your land closest to it (ties in a fixed seeded order), checked again every step; with none, it idles. Outside its home square (`factoryAreaSize` wide, centred on it) each block of distance adds `factoryDistancePenaltyWh` × W(L) × `hitsPerSquare` hits.
+- **Mining** (loop 18: hit by hit) goes on even while the owner is away, only while the factory is awake. A factory picks its target and hits it until it is taken, one whole hit at a time: hits per second = (`hitsPerBlock` ÷ `baseBlockSeconds`) × Factory Speed (capped at the target block's level), so 1 hit every 6 seconds at 0.05; the fraction of a hit carries over. Everyone watching the map sees each hit as it happens (the server runs watched maps every second; the tick catches up the rest and saves). Its target is the empty, non-water block touching your land closest to it (ties in a fixed seeded order), chosen again each minute, after each block it takes, and when the target stops being one; with none, it idles. Outside its home square (`factoryAreaSize` wide, centred on it) each block of distance adds `factoryDistancePenaltyWh` × W(L) × `hitsPerSquare` hits.
 - Factory hits are the same hits and cracks as a player's, but their progress never fades. Your own taps add to it; anyone else's hit resets it.
 - A finished block becomes yours, counts toward the map's mined total, grows the map with your Growth, pays you Factory Yield squares (never more than the block's normal pay; Earnings doesn't apply) and can unlock tiers.
-- **Lifetime:** after building or waking, a factory works for Factory Lifetime hours, then sleeps (grey, "Zzz"). Wake up is in its info card, or the Build menu while it's selected. There is no wake-all.
-- The free server sleeps: every tick catches up on all the time since the last one, in steps aligned to the clock, so factories give the same result whether the server stayed awake or not. A factory is destroyed when its block is taken.
+- **Lifetime:** after building or waking, a factory works for Factory Lifetime hours, then sleeps (grey, "Zzz"). Wake up is on its info card (press and hold the factory). There is no wake-all. The card also shows its **output**: new blocks an hour at its current target (its hits an hour ÷ that block's hits), "when awake" while it sleeps or is paused.
+- The free server sleeps: every tick catches up on all the time since the last one, in one-second steps aligned to the clock, so factories give the same result whether the server stayed awake or not. A factory is destroyed when its block is taken.
 
 ### Walls
 
-- Tap near the edge of your land: the wall snaps to the nearest outer side of one of your blocks (a side facing a square you don't own). At most `maxWallsPerBlock` (2) per block, on different sides, so corners work. Not on land for sale.
-- **Price** = `wallPaybackHours` × `wallStrength` × H ÷ `hitsPerSquare` squares.
+- **Placing (loop 18):** Build → Wall, then tap the edges of your land: each tap snaps to the nearest outer side of one of your blocks (a side facing a square you don't own) and a wall shows there at half strength. Tap more sides to add; tap a faint one again to drop it; a side where a wall can't go shows nothing. The bar shows how many and the total price; ✓ builds them all in one purchase (all or nothing), ✗ cancels. At most `maxWallsPerBlock` (2) per block, on different sides, so corners work. Not on land for sale.
+- **Price** of each wall = `wallPriceWh` (0.01) × W(L of its block) × max(1, √(walls you own on this map) ÷ 2) squares, counting the walls you owned before the batch, so the whole batch has one multiplier.
+- **Look:** solid, thicker than the territory border and drawn over it, with a shadow along its inner edge (30% of the border's thickness, in the border's colour 50% darker).
 - An attacker who can only reach a walled block through walled sides hits a **wall first**: it needs `wallStrength` × H hits, cracks and fades like a block, and is destroyed when it breaks.
 - You can never claim or attack across your own wall ("Your wall is in the way").
 - Walls go when their block is taken; otherwise they stay until Demolition removes them.
@@ -166,12 +168,16 @@ Xoren can run these with `npm run admin` (see ADMIN.md). Each is recorded in the
 - **Deleting an account** empties the player's blocks everywhere, erases their login and personal data, frees their name, and keeps only an anonymous row for the squares ledger.
 - **Squares** given or taken by an admin go through the ledger like any other change; a balance never goes below 0.
 
+## Phones
+
+- On phones (narrower than 600 or lower than 500 CSS pixels) the territory border is 60% thinner (loop 18).
+
 ## Sound and music
 
 - Every sound effect is made in code (`public/sfx.js`); Xoren picked one option per sound on the sound test page (`public/audio.js`, `PICKS`).
 - Your own sounds always play at full volume. Another player's taps, claims and new blocks play only when they're near what you're looking at: quieter further from the middle of the screen, silent past about one screen away, and coming from the left or right speaker by where they are. (Game Rules: `soundHearingDistance` and `soundOthersVolume`)
 - At most 6 sounds play at once; other players' sounds are skipped past that, your own never are. (Game Rules: `soundMaxAtOnce`)
-- Music: "Keep your dream alive!" (CC0, see CREDITS.md) loops quietly once you first tap or click; browsers don't allow sound before that. Default volumes: sound effects 70%, music 25%. (Game Rules: `defaultEffectsVolume` and `defaultMusicVolume`)
+- Music: "Keep your dream alive!" (CC0, see CREDITS.md) loops quietly once you first tap or click; browsers don't allow sound before that. Coming back to the game (from another app or the lock screen): if music is on but its audio clock isn't moving, the audio is made again and the station starts over; if the phone won't allow it without a touch, the next touch starts it. Default volumes: sound effects 70%, music 25%. (Game Rules: `defaultEffectsVolume` and `defaultMusicVolume`)
 - Menu > Settings > Sound has a slider and a mute button for each, saved on that device.
 
 ## Tutorial and tips

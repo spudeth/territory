@@ -1,6 +1,8 @@
 // ---------- Items (loop 14) ----------
-// The Items screen (buy), the item bar on the game screen (use, with uses and timers), Super Click's countdown,
-// and the Terraformer's tap-a-block-then-pick-a-terrain flow. Limits are enforced on the server.
+// The Items screen (buy; used-up items in any number, loop 18), the item bar on the game screen (use, with uses and
+// timers), Super Click's countdown, the Terraformer's tap-a-block-then-pick-a-terrain flow, and Demolition's
+// tap-blocks-then-✓ (loop 18). Limits are enforced on the server.
+let demolishing = new Set();   // "x,y": blocks picked for Demolition (shown red; game.js draws them)
 (function () {
   const ICONS = {
     clickMultiplier: '<svg class="pix" width="26" height="26" viewBox="0 0 8 8" aria-hidden="true"><path d="M4 0h3L5 3h2L2 8l1-4H1z" fill="#0f131a"/></svg>',
@@ -37,14 +39,35 @@
       if (i.owned && !i.consumable) act.innerHTML = '<span style="color: var(--green); font-weight: 600">Owned</span>';
       else {
         if (i.consumable) act.append(Object.assign(document.createElement('span'), { className: 'have', textContent: `You have ${i.count}` }));
-        const b = document.createElement('button'), short = i.price - squares;
+        const b = document.createElement('button');
         b.type = 'button';
         b.className = 'btn buy';
-        b.disabled = short > 0;
-        b.innerHTML = short > 0 ? `Need ${fmtNeed(short)} more` : `Buy ${fmtSq(i.price)} <img class="sq-icon" src="icons/square.svg" width="14" height="14" alt="squares">`;
+        // Used-up items: how many to buy, 1 to 100 (− and +; no keyboard).
+        let qty = 1;
+        const show = () => {
+          const short = i.price * qty - squares;
+          b.disabled = short > 0;
+          b.innerHTML = short > 0 ? `Need ${fmtNeed(short)} more`
+            : `Buy${qty > 1 ? ' ' + qty : ''} ${fmtSq(i.price * qty)} <img class="sq-icon" src="icons/square.svg" width="14" height="14" alt="squares">`;
+          if (n) n.textContent = qty;
+        };
+        let n = null;
+        if (i.consumable) {
+          const pick = Object.assign(document.createElement('div'), { className: 'qty' });
+          const step = (d, label) => {
+            const x = Object.assign(document.createElement('button'), { type: 'button', className: 'btn', textContent: label });
+            x.setAttribute('aria-label', d < 0 ? 'One fewer' : 'One more');
+            x.addEventListener('click', () => { qty = Math.min(100, Math.max(1, qty + d)); show(); });
+            return x;
+          };
+          n = Object.assign(document.createElement('span'), { className: 'n' });
+          pick.append(step(-1, '−'), n, step(1, '+'));
+          act.append(pick);
+        }
+        show();
         b.addEventListener('click', async () => {
           b.disabled = true;
-          const r = await ask('buyItem', { item: i.id });
+          const r = await ask('buyItem', { item: i.id, ...(qty > 1 ? { qty } : {}) });
           if (r.error) { b.disabled = false; return toast(r.need ? `${r.error}: ${r.need} more needed` : r.error); }
           gameAudio.play('purchase');
           squares = r.squares;
@@ -93,43 +116,55 @@
     gameAudio.play('achievement');
   }
 
-  // ---------- Demolition: tap your factory or wall, then confirm (no refund) ----------
-  async function demolishAt(item, c) {
-    const info = await ask('inspect', c);
-    if (info.error) return toast(info.error);
-    const mine = info.owner && String(info.owner.pid) === String(me);
-    const SIDES = { n: 'top', e: 'right', s: 'bottom', w: 'left' };
-    const choices = !mine ? [] : [...(info.factory ? [['factory', null, 'Remove the factory']] : []),
-      ...(info.walls ?? []).map(w => ['wall', w.side, `Remove the ${SIDES[w.side]} wall`])];
-    if (!choices.length) { $('terra-msg').textContent = 'No factory or wall of yours there. Tap another block.'; return; }
-    $('terra-msg').textContent = 'Removed for good, no refund:';
-    $('terra-choices').replaceChildren(...choices.map(([target, side, label]) => {
-      const b = Object.assign(document.createElement('button'), { type: 'button', className: 'btn', textContent: label });
-      b.style.width = 'auto';
-      b.addEventListener('click', async () => {
-        const r = await ask('useItem', { item: item.id, x: c.x, y: c.y, target, side });
-        if (r.error) return toast(r.error);
-        gameAudio.play('wipe');
-        stopPicking();
-      });
-      return b;
-    }));
+  // ---------- Demolition (loop 18): tap your blocks (each turns red; tap again to drop it), then ✓ ----------
+  // Everything built on each goes (walls, factory), no refund. One Demolition per block with something on it; you
+  // can't pick more blocks than you have Demolitions.
+  const builtHere = k => factories.has(k) || !!walls.get(k)?.length;
+  function demolishMsg(item) {
+    const used = [...demolishing].filter(builtHere).length;
+    $('terra-msg').textContent = demolishing.size
+      ? `${demolishing.size} picked · uses ${used} · you have ${item.count}`
+      : `Tap your blocks to clear what's built on them (you have ${item.count})`;
+    ok.disabled = !used;
+  }
+  const ok = Object.assign(document.createElement('button'), { type: 'button', className: 'btn icon-btn', textContent: '✓' });
+  ok.setAttribute('aria-label', 'Demolish');
+  ok.addEventListener('click', async () => {
+    const item = picking;
+    if (!item || item.effect !== 'demolish') return;
+    ok.disabled = true;
+    const r = await ask('useItem', { item: item.id, blocks: [...demolishing].map(k => k.split(',').map(Number)) });
+    if (r.error) { ok.disabled = false; return toast(r.error); }
+    gameAudio.play('wipe');
+    toast(`Cleared ${r.cleared} ${r.cleared === 1 ? 'block' : 'blocks'}`, 'good');
+    stopPicking();
+  });
+  function demolishTap(item, c) {
+    const k = key(c.x, c.y);
+    if (cells.get(k) !== me) { $('terra-msg').textContent = 'Only your own blocks'; return; }
+    if (demolishing.has(k)) demolishing.delete(k);
+    else if (demolishing.size >= item.count) { $('terra-msg').textContent = `You have ${item.count} ${item.name}: drop one first`; draw(); return; }
+    else demolishing.add(k);
+    demolishMsg(item);
+    draw();
   }
 
   // ---------- Terraformer: tap a block, then pick a terrain ----------
   function startPicking(i) {
     picking = i;
-    $('terra-msg').textContent = i.effect === 'demolish' ? 'Tap one of your factories or walls' : 'Tap one of your blocks, or an empty one next to your land';
-    $('terra-choices').replaceChildren();
+    demolishing = new Set();
+    $('terra-msg').textContent = 'Tap one of your blocks, or an empty one next to your land';
+    $('terra-choices').replaceChildren(...(i.effect === 'demolish' ? [ok] : []));
+    if (i.effect === 'demolish') demolishMsg(i);
     $('terra-pick').hidden = false;
     drawBar();
   }
-  function stopPicking() { picking = null; $('terra-pick').hidden = true; drawBar(); }
+  function stopPicking() { picking = null; demolishing = new Set(); $('terra-pick').hidden = true; drawBar(); draw(); }
   $('terra-cancel').addEventListener('click', stopPicking);
   window.itemTap = c => {
     if (!picking) return false;
     const item = picking;
-    if (item.effect === 'demolish') { demolishAt(item, c); return true; }
+    if (item.effect === 'demolish') { demolishTap(item, c); return true; }
     $('terra-msg').textContent = 'Pick the new terrain (gold can\'t be made)';
     $('terra-choices').replaceChildren(...TERRAINS.map(t => {
       const b = document.createElement('button');

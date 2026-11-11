@@ -1,4 +1,4 @@
-# Xoren's checklist: Loop 16, the Economy Update
+# Xoren's checklist: Loops 16-18, the Economy Update
 
 Everything is on the `iterate` branch, one commit per phase, each passing the full test suite. Nothing has been merged
 to main, and nothing has touched the production database. Work down the list in order.
@@ -11,7 +11,9 @@ to main, and nothing has touched the production database. Work down the list in 
 - [x] **Q29** The new and changed texts: the "i" popups, the tutorial line, GAME-RULES.md and the Game Guide. Read them and tell Cody what to change.
 - [ ] **Q30** Placeholder art in `public/art/`: factory, factory asleep, wall, for-sale marker, level shades, Build / Marketplace / Demolition / info card icons. Replace any file with the same name to change it.
 - [ ] Earlier ones still open: Q23 (info text, loop 15), Q24 (Mention sound), Q25 (privacy page review).
-- [ ] **Q31** (Bob) The "Buy N upgrade steps" achievement rows (CSV in the log): put them on the Achievements tab, or the next sync puts the tier wording back.
+- [ ] **Q31** (Bob) The "Buy N upgrade steps" achievement rows (CSV in the log): put them on the Achievements tab, or the next sync puts the tier wording back. (Still the old rows on 2026-11-11.)
+- [ ] **Q32-Q35, Q37, Q38** (Bob, loop 18): Economy rows (add wallPriceWh, delete stepsPerTier and wallPaybackHours), the Glossary for the new math, Factory Lifetime's level, "walls you own" per map, repair and cracked walls, Demolition's Items text. Each has Cody's recommendation in the log.
+- [ ] **Q36** (you) The Upgrades card's new line past tier 1: "In full on level-N+ blocks. On a level-L block, at most the end of tier L (level 1: ×10 hits per tap)." Approve or reword.
 
 ## 2. The sheet (done by Bob, synced and checked clean on 2026-11-11)
 
@@ -23,7 +25,7 @@ to main, and nothing has touched the production database. Work down the list in 
 
 ## 3. Merge (GitHub)
 
-- [ ] Open one pull request `iterate` → `main` and merge it (it holds Loop 15 Phase 7, Loop 16 Phases 1-9 and the fixes from your phone test). Render deploys and applies the database changes 018-024 by itself on start.
+- [ ] Open one pull request `iterate` → `main` and merge it (it holds Loop 15 Phase 7, Loop 16 Phases 1-9, Loop 17 and Loop 18). Loop 18 adds no database changes. Render deploys and applies the database changes 018-024 by itself on start.
 - [ ] Watch the Render log for "Applied migrations: … 024_upgrade_steps.sql" and no errors.
 
 ## 4. Render settings
@@ -54,8 +56,12 @@ Old upgrade levels mean nothing in the tier system, so reset straight after the 
 - [ ] Squares show as whole numbers; Settings → Show tenths shows one decimal.
 - [ ] The top-left card shows the map's level and a bar.
 - [ ] Press and hold a block: the info card opens (a quick tap still attacks).
-- [ ] Build → Factory with 20+ blocks → tap your block → green ghost → ✓. It mines on its own (about a block a minute at the start).
-- [ ] Build → Wall near an edge of your land: it snaps to the edge. Two on one corner block.
+- [ ] Build → Factory with 20+ blocks → tap your block → green ghost → ✓. Watch it: its target cracks one hit every 6 seconds (about a block a minute at the start).
+- [ ] Press and hold the factory: the card shows Output (new blocks an hour) and Wake up. The Build menu has no Wake up any more.
+- [ ] Build → Wall: tap several edges of your land: each shows a faint wall; tap one again and it goes; tapping an inside edge shows nothing. The bar shows the count and total; ✓ builds them all.
+- [ ] Built walls look solid, sit over the border, and have a thin dark shadow on their inner side. The territory border is thinner than before on the phone.
+- [ ] Let someone crack one of your blocks, then tap it: the crack shrinks with each tap, for free.
 - [ ] Build → Sell land (needs an account 3+ days old): pick connected blocks, set a price, ✓; a for-sale marker appears.
 - [ ] The Game Guide link next to Privacy and Terms opens /guide.
-- [ ] Buy a Demolition and remove a factory or a wall from the item bar.
+- [ ] Items tab: Demolition has − / +; buy 3 at once. Item bar → Demolition: tap your blocks (they turn red; tap again to drop), ✓: their walls and factories are gone, one Demolition per block that had something.
+- [ ] Music after switching apps and after locking: it comes back by itself, or at the latest on your next tap.

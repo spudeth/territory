@@ -52,37 +52,47 @@ test('hardness and pay at each level and terrain: pay tracks hits (1 square per 
   assert.equal(catalog.payTenths(10, 1.292), 12, 'Earnings applies, rounded down');
 });
 
-test('upgrades in steps: anchors a_N = v0 x (vmax/v0)^(N/10); stepsPerTier geometric steps per tier; costs one smooth curve; the cap is a_L', () => {
-  const S = catalog.E.stepsPerTier, near = (a, b, msg) => assert.ok(Math.abs(a - b) < 1e-9 * Math.max(1, b), `${msg}: ${a} vs ${b}`);
+test('upgrades (loop 18): tier ranges, log-curve values and prices, the Charts tab numbers, and the cap by block level', () => {
+  const near = (a, b, msg, eps = 1e-9) => assert.ok(Math.abs(a - b) < eps * Math.max(1, Math.abs(b)), `${msg}: ${a} vs ${b}`);
+  const sq = t => catalog.fromTenths(t), S = catalog.STEPS('clickPower');
   assert.equal(S, 90);
-  near(catalog.anchor('clickPower', 0), 1, 'a_0 = v0');
-  near(catalog.anchor('clickPower', 10), 512, 'a_10 = vmax');
-  near(catalog.anchor('clickPower', 5), 512 ** 0.5, 'a_5');
-  near(catalog.anchor('growth', 10), 6, 'Growth is geometric now');
+  // Ranges: lo_1 = start, lo_N = max1 x m^(N-2), hi_N = max1 x m^(N-1).
+  near(catalog.lo('clickPower', 1), 1, 'lo_1 = start');
+  near(catalog.hi('clickPower', 1), 10, 'hi_1 = max1');
+  near(catalog.lo('clickPower', 2), 10, 'lo_2 = max1');
+  near(catalog.hi('clickPower', 2), 20, 'hi_2');
+  near(catalog.hi('clickPower', 10), 10 * 2 ** 9, 'hi_10');
+  near(catalog.hi('factorySpeed', 1), 0.1, 'factory speed tier 1 max');
+  // The Charts tab (clickPower): prices and values.
+  assert.equal(sq(catalog.stepCostTenths('clickPower', 1)), 9.7);
+  assert.equal(sq(catalog.stepCostTenths('clickPower', 90)), 234.5);
+  assert.equal(sq(catalog.tierCostTenths('clickPower', 1)), 14400);
+  assert.equal(sq(catalog.stepCostTenths('clickPower', 91)), 19.4, 'tier 2 step 1');
+  near(catalog.stepValue('clickPower', 1), 1.373, 'after step 1', 1e-3);
+  near(catalog.stepValue('clickPower', 10), 3.709, 'after step 10', 1e-3);
+  near(catalog.stepValue('clickPower', 90), 10, 'after step 90');
+  near(catalog.stepValue('clickPower', 180), 20, 'after tier 2');
   near(catalog.stepValue('clickPower', 0), 1, 'no steps: the start');
-  near(catalog.stepValue('clickPower', S), catalog.anchor('clickPower', 1), 'the end of tier 1 is a_1');
-  near(catalog.stepValue('clickPower', S + 45), catalog.anchor('clickPower', 1) * (catalog.anchor('clickPower', 2) / catalog.anchor('clickPower', 1)) ** 0.5, 'half way through tier 2');
-  near(catalog.stepValue('clickPower', 10 * S), 512, 'the top');
-  for (let s = 1; s <= 10 * S; s++) assert.ok(catalog.stepValue('clickPower', s) > catalog.stepValue('clickPower', s - 1), `step ${s} goes up`);
-  assert.equal(catalog.tierOfStep(0), 1);
-  assert.equal(catalog.tierOfStep(S), 1);
-  assert.equal(catalog.tierOfStep(S + 1), 2);
-  // Costs: each step 2^(1/S) times the one before; tier N totals about c_u x 1200 x 2^(N-1); tier N+1's first step is twice tier N's.
-  const r = 2 ** (1 / S);
+  for (let s = 1; s <= catalog.topStep('clickPower'); s++) assert.ok(catalog.stepValue('clickPower', s) > catalog.stepValue('clickPower', s - 1), `step ${s} goes up`);
+  // Each tier adds up exactly to tierWh x W(N); steps rise within a tier.
   for (const N of [1, 2, 5, 10]) {
-    const total = catalog.fromTenths(catalog.tierCostTenths('clickPower', N)), want = 4 * 1200 * 2 ** (N - 1);
-    assert.ok(Math.abs(total - want) / want < 0.002, `tier ${N}: ${total} vs ${want}`);
+    let t = 0;
+    for (let s = (N - 1) * S + 1; s <= N * S; s++) t += catalog.stepCostTenths('clickPower', s);
+    assert.equal(t, catalog.tierCostTenths('clickPower', N), `tier ${N} adds up`);
+    assert.equal(sq(t), 12 * 1200 * 2 ** (N - 1), `tier ${N} = T x W(N)`);
   }
-  assert.ok(Math.abs(catalog.stepCostTenths('clickPower', S + 1) / catalog.stepCostTenths('clickPower', 1) - 2) < 0.01, 'twice the first step of the tier before');
-  assert.ok(Math.abs(catalog.stepCostTenths('clickPower', 2) / catalog.stepCostTenths('clickPower', 1) - r) < 0.01, 'no jump between steps');
-  assert.ok(Math.abs(catalog.stepCostTenths('clickPower', S + 1) / catalog.stepCostTenths('clickPower', S) - r) < 0.01, 'no jump at a tier boundary');
-  // Unlocks and the cap.
+  for (let s = 2; s <= S; s++) assert.ok(catalog.stepCostTenths('clickPower', s) >= catalog.stepCostTenths('clickPower', s - 1), `step ${s} costs no less`);
+  assert.equal(catalog.tierOfStep('clickPower', 0), 1);
+  assert.equal(catalog.tierOfStep('clickPower', S), 1);
+  assert.equal(catalog.tierOfStep('clickPower', S + 1), 2);
+  // Unlocks, and the cap: on a level-L block, at most hi_L.
   assert.equal(catalog.tierUnlocked(1, 1), true, 'tier 1 is open from the start');
   assert.equal(catalog.tierUnlocked(3, 2), false);
   assert.equal(catalog.tierUnlocked(3, 3), true);
-  assert.equal(catalog.effectiveSteps(5 * S, 2), 2 * S, 'on a level-2 map: at most the end of tier 2');
-  assert.equal(catalog.effectiveSteps(30, 5), 30);
-  near(catalog.effectiveValues({ clickPower: 5 * S }, 2).clickPower, catalog.anchor('clickPower', 2), 'works at a_2 on a level-2 map');
+  assert.equal(catalog.effectiveSteps('clickPower', 5 * S, 2), 2 * S, 'on a level-2 block: at most the end of tier 2');
+  assert.equal(catalog.effectiveSteps('clickPower', 30, 5), 30);
+  near(catalog.effectiveValues({ clickPower: 5 * S }, 2).clickPower, 20, 'works at hi_2 on a level-2 block');
+  near(catalog.effectiveValues({ clickPower: 5 * S }, 1).clickPower, 10, 'and at hi_1 on a level-1 block');
   near(catalog.effectiveValues({}, 1).defense, 1, 'no steps: the start');
 });
 
@@ -95,7 +105,12 @@ test('every pricing rule: PV, Hours, Step, Factory, Wall; skins by rarity hours 
   const factory = catalog.CATALOG.get('building:factory');
   assert.equal(catalog.priceTenths(factory, { L: 1, n: 1 }), catalog.toTenths(48 * 0.05 * 1200));
   assert.equal(catalog.priceTenths(factory, { L: 1, n: 3 }), catalog.toTenths(48 * 0.05 * 1200 * 1.15 ** 2));
-  assert.equal(catalog.priceTenths(catalog.CATALOG.get('building:wall'), { H: 20 }), catalog.toTenths(1 * 2 * 20 / 10), 'P_a x w x H / hitsPerSquare');
+  // Walls (loop 18): wallPriceWh x W(L) x max(1, sqrt(walls owned) / 2).
+  const wall = catalog.CATALOG.get('building:wall');
+  assert.equal(catalog.priceTenths(wall, { L: 1, owned: 0 }), 120, '0.01 x 1200 = 12 squares');
+  assert.equal(catalog.priceTenths(wall, { L: 1, owned: 4 }), 120, 'up to 4 walls owned: no extra');
+  assert.equal(catalog.priceTenths(wall, { L: 1, owned: 16 }), 240, '16 owned: x2');
+  assert.equal(catalog.priceTenths(wall, { L: 3, owned: 100 }), catalog.toTenths(0.01 * 4800 * 5), 'level 3, 100 owned: x5');
   assert.equal(catalog.skinPriceTenths({ id: 'stripes', rarity: 'Common' }, 1), catalog.toTenths(0.3333 * 1200));
   assert.equal(catalog.skinPriceTenths({ id: 'flag-jp', rarity: 'Ultra Rare' }, 2), catalog.toTenths(1 * 2400), 'flags are Rare');
   assert.throws(() => catalog.priceTenths({ key: 'x', pricing: 'Nope' }, {}), /no pricing rule/);

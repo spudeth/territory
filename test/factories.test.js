@@ -70,7 +70,7 @@ before(async () => {
 });
 after(async () => { for (const s of sockets) s.disconnect(); game.io.close(); await db.drop(); });
 const player = auth => { const s = connectPlayer(url, auth); sockets.push(s); return s; };
-const STEP = fac.STEP_MS();
+const STEP = 60000;   // a minute (factories work in one-second steps inside each tick)
 const T0 = fac.stepFloor(Date.now()) - 6 * 3600000;   // six hours ago, on a step boundary
 
 // A seeded map with a player owning `n` blocks in its top rows (claimed in order); returns { id, pid, token }.
@@ -109,7 +109,7 @@ test('building: on your own land, priced P_F x V_F x W(L) x g^(n-1); one per fac
   assert.deepEqual(await s.ask('build', { kind: 'factory', x: 0, y: 0 }), { ok: true, squares: price / 10 });
   const f = await built;
   assert.equal(f.owner, pid);
-  assert.ok(Math.abs(f.awakeUntil - Date.now() - catalog.anchor('factoryLifetime', 0) * 3600000) < 60000, 'awake for Factory Lifetime hours');
+  assert.ok(Math.abs(f.awakeUntil - Date.now() - catalog.tierValue('factoryLifetime', 0) * 3600000) < 60000, 'awake for Factory Lifetime hours');
   assert.deepEqual(await s.ask('build', { kind: 'factory', x: 1, y: 0 }), { error: `Own ${E.factoryBlocksPerFactory} more blocks for another factory (you have ${E.factoryBlocksPerFactory}).` });
   assert.equal((await s.ask('buildInfo')).factory.price, catalog.priceTenths(catalog.CATALOG.get('building:factory'), { L: 1, n: 2 }) / 10, 'the next costs g times more');
   const card = await s.ask('inspect', { x: 0, y: 0 });
@@ -185,9 +185,30 @@ test('a factory is destroyed when its block is taken; Demolition removes one for
   const s = player({ token });
   await onMap(s, id);
   await s.ask('buyItem', { item: 'demolition' });
-  assert.deepEqual(await s.ask('useItem', { item: 'demolition', x: 2, y: 0, target: 'factory' }), { error: 'There is no factory there' });
-  const r = await s.ask('useItem', { item: 'demolition', x: 1, y: 0, target: 'factory' });
-  assert.equal(r.ok, true);
+  // Its block and a bare one: only the block with the factory uses a Demolition.
+  const r = await s.ask('useItem', { item: 'demolition', blocks: [[1, 0], [2, 0]] });
+  assert.deepEqual([r.ok, r.cleared, r.count], [true, 1, 0]);
   assert.equal(await db.count('SELECT count(*) FROM factories WHERE map_id = $1', [id]), 0);
   assert.equal((await s.ask('inspect', { x: 1, y: 0 })).factory, undefined);
+});
+
+test('live (loop 18): someone watching sees each factory hit as it happens, one every 6 seconds at tier 1; its card shows blocks an hour', async () => {
+  const n = E.factoryBlocksPerFactory;
+  const { id, pid, token } = await landed('Live', n);
+  const start = fac.stepFloor(Date.now()) - 60000;
+  await factoryAt(id, pid, 5, 1, start, 1);
+  await pool.query("UPDATE map_cells SET terrain = 'grass' WHERE map_id = $1", [id]);   // every block 10 hits
+  const s = player({ token });
+  await onMap(s, id);
+  const seen = [];
+  s.on('hit', d => seen.push(d));
+  for (let sec = 1; sec <= 30; sec++) await game.liveFactories(start + sec * 1000);
+  await new Promise(r => setTimeout(r, 200));
+  const H = rules.HITS_PER_BLOCK, shares = seen.map(d => d.p);
+  assert.equal(seen.length, 5, `30 seconds at 1/6 hit a second: 5 hits (${JSON.stringify(shares)})`);
+  assert.deepEqual(shares, [1, 2, 3, 4, 5].map(h => h / H), 'one hit at a time, each shown');
+  assert.ok(seen.every(d => d.x === seen[0].x && d.y === seen[0].y), 'all on its one target');
+  // Its info card shows its output: 600 hits an hour on 10-hit blocks = 60 new blocks an hour.
+  const card = await s.ask('inspect', { x: 5, y: 1 });
+  assert.ok(Math.abs(card.factory.perHour - 60) < 1e-6, String(card.factory.perHour));
 });

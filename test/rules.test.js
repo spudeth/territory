@@ -83,11 +83,11 @@ test('upgrade values: Click Power multiplies each click, Defense multiplies hits
   assert.equal(rules.firstClaimTenths(none, 'gold'), 10 + rules.GOLD_BONUS_SQUARES * 10, 'gold: plus the bonus');
   assert.equal(rules.firstClaimTenths(none, 'grass', 3), 40, 'a level-3 block: 4x the hits, 4x the pay');
   assert.equal(rules.growthBlocks({ growth: 3 }), 3);
-  // On a map: each tier is capped at the map's level.
-  const S = catalog.E.stepsPerTier, eff = catalog.effectiveValues({ clickPower: 5 * S, earnings: 2 * S }, 2);
-  assert.ok(Math.abs(eff.clickPower - catalog.anchor('clickPower', 2)) < 1e-9, 'the end of tier 5 works at the end of tier 2 on a level-2 map');
+  // On a block: each upgrade is capped at the end of the block's level's tier (loop 18).
+  const S = catalog.STEPS('clickPower'), eff = catalog.effectiveValues({ clickPower: 5 * S, earnings: 2 * S }, 2);
+  assert.ok(Math.abs(eff.clickPower - catalog.hi('clickPower', 2)) < 1e-9, 'the end of tier 5 works at the end of tier 2 on a level-2 block');
   assert.equal(eff.defense, 1, 'no steps bought: the start');
-  assert.ok(Math.abs(catalog.effectiveValues({ clickPower: 5 * S }, 9).clickPower - catalog.anchor('clickPower', 5)) < 1e-9, 'in full on a level-9 map');
+  assert.ok(Math.abs(catalog.effectiveValues({ clickPower: 5 * S }, 9).clickPower - catalog.hi('clickPower', 5)) < 1e-9, 'in full on a level-9 block');
   // Growth: the fractional part is the chance of one more block.
   assert.equal(rules.growthBlocks({ growth: 1.4 }, 0.39), 2, '1.4: a second block 40% of the time');
   assert.equal(rules.growthBlocks({ growth: 1.4 }, 0.41), 1);

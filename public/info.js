@@ -10,7 +10,7 @@ const INFO = {
   factorySpeed: 'How fast your factories mine. Tier 1 is a twentieth of a player; each tier doubles it.',
   factoryLifetime: 'How many hours a factory works after you wake it, before it falls asleep.',
   factoryYield: 'Squares a factory earns for each block it mines, never more than the block\'s own pay.',
-  tiers: 'Each upgrade has 10 tiers of 90 steps. Tier 1 is open from the start; tier N\'s steps unlock once you\'ve mined a level-N block anywhere. On a map, upgrades work at most at the end of that map\'s level\'s tier.',
+  tiers: 'Each upgrade has 10 tiers of 90 steps. Tier 1 is open from the start; tier N\'s steps unlock once you\'ve mined a level-N block anywhere. Upgrades work by the block: on a level-L block, at most at the end of tier L.',
   mapLevel: 'A map\'s level rises as its blocks are mined: level 2 once as many blocks are mined as it started with, then at 3x, 7x… Each level doubles how hard new blocks are and what they pay.',
   factories: 'A factory mines the closest empty block next to your land, even while you\'re away. One per 20 blocks you own. Wake it from its info card when it sleeps. Each block it mines pays its Factory Yield.',
   walls: 'A wall on an outer edge of your land makes attackers break it before they can hit the block behind it. Up to 2 per block. You can\'t claim across your own wall, and only Demolition removes it.',
@@ -22,7 +22,7 @@ const INFO = {
   skinPrices: 'A skin costs a set number of work-hours for its rarity, in squares at this map\'s level, so prices are fair at every level. Flags are Rare.',
   secrets: 'Secret achievements stay hidden as ??? until you find them. Each one is a small surprise.',
   rank: 'Ranks count on busy maps only: at least 10 players with blocks, and you need 100 blocks yourself. Ties count against you.',
-  items: 'Abilities are bought once and are yours for good; each can be used a few times an hour, on any map. Demolition is used up: each one removes one of your factories or walls, with no refund.',
+  items: 'Abilities are bought once and are yours for good; each can be used a few times an hour, on any map. Demolition is used up, bought one or many at a time: each one clears everything built on one of your blocks (walls and factory), with no refund.',
   online: 'A green dot means the player has the game open right now.',
   starring: 'Star one pattern and one art skin as your favorites. They show at the top here and on your profile.',
 };

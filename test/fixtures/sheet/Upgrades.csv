@@ -1,8 +1,8 @@
-Key,Name,Type,Tier 1 value (v0),Tier 10 value (vmax),Step,c_u (work-hours),Unit,What it does
-clickPower,Click Power,Income,1,512,geometric,4,x hits per tap,Each tap counts as this many hits
-earnings,Earnings,Income,1,10,geometric,6,x pay,Multiplies the squares you earn from mining a new block
-defense,Defense,Protection,1,6,geometric,3,x hardness,Others need this many times the hits to take your blocks
-growth,Growth,Map,1,6,geometric,3,new blocks,How many new map blocks appear when you mine a new block
-factorySpeed,Factory Speed,Income,0.05,25.6,geometric,4,x a base player,"How fast your factories mine, compared with a base player (0.05 = 1/20)"
-factoryLifetime,Factory Lifetime,Income,4,24,geometric,2,hours awake,How long a factory works after you wake it up
-factoryYield,Factory Yield,Income,1,512,geometric,4,squares per block,"Squares a factory earns per block it mines, never more than the block's normal pay"
+Key,Name,Type,Tier 1 start,Tier 1 max,Multiplier per tier,Tiers,Steps per tier,Tier cost (work hours),Price curve,Gain curve,Unit,What it does
+clickPower,Click Power,Income,1,10,2,10,90,12,9,9,x hits per tap,Each tap counts as this many hits
+earnings,Earnings,Income,1,2,2,10,90,12,9,9,x pay,Multiplies the squares you earn from mining a new block
+defense,Defense,Protection,1,2,2,10,90,12,9,9,x hardness,Others need this many times the hits to take your blocks
+growth,Growth,Map,1,2,2,10,90,12,9,9,new blocks,How many new map blocks appear when you mine a new block
+factorySpeed,Factory Speed,Income,0.05,0.1,2,10,90,12,9,9,x a base player,"How fast your factories mine, compared with a base player (0.05 = 1/20)"
+factoryLifetime,Factory Lifetime,Income,4,8,2,10,90,12,9,9,hours awake,How long a factory works after you wake it up
+factoryYield,Factory Yield,Income,1,2,2,10,90,12,9,9,squares per block,"Squares a factory earns per block it mines, never more than the block's normal pay"
