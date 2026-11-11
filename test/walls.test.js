@@ -150,3 +150,32 @@ test('walls in a batch (loop 18): all or nothing; one price multiplier from the 
   await new Promise(r => setTimeout(r, 100));
   assert.deepEqual(got.map(d => [d.x, d.y, d.walls.map(w => w.side).join('')]).sort(), [[3, 3, 'nw'], [4, 3, 'n']]);
 });
+
+test('repair (loop 18): a tap on your own cracked block takes off your Click Power in hits, free; an undamaged one stays silent', async () => {
+  const id = await store.createMap(pool, { name: 'Repairs', width: 4, height: 1 });
+  await pool.query("UPDATE map_cells SET terrain = 'grass' WHERE map_id = $1", [id]);
+  const a = await newGuest(pool, id, 0, 0), b = await newGuest(pool, id, 1, 0);
+  await pool.query('UPDATE players SET squares = 1000 WHERE id = $1', [a.playerId]);
+  const sa = player({ token: a.token }), sb = player({ token: b.token });
+  await onMap(sa, id);
+  await onMap(sb, id);
+  const H = rules.HITS_PER_BLOCK;
+  for (let i = 0; i < 3; i++) sb.emit('hit', { x: 0, y: 0 });
+  await sa.next('hit', d => d.x === 0 && d.y === 0 && Math.abs(d.p - 3 / H) < 1e-9);
+  sa.emit('hit', { x: 0, y: 0 });
+  await sa.next('hit', d => d.x === 0 && d.y === 0 && Math.abs(d.p - 2 / H) < 1e-9);
+  sa.emit('hit', { x: 0, y: 0 });
+  sa.emit('hit', { x: 0, y: 0 });
+  await sa.next('hit', d => d.x === 0 && d.y === 0 && d.p === 0);
+  // Undamaged now: a tap does nothing at all, and repairs never cost anything.
+  const seen = [];
+  sa.on('hit', d => seen.push(d));
+  sa.on('denied', d => seen.push(d));
+  sa.emit('hit', { x: 0, y: 0 });
+  await new Promise(r => setTimeout(r, 300));
+  assert.deepEqual(seen, []);
+  assert.equal(Number((await pool.query('SELECT squares FROM players WHERE id = $1', [a.playerId])).rows[0].squares), 1000);
+  // The attacker carries on from the repaired crack, not from where they were.
+  sb.emit('hit', { x: 0, y: 0 });
+  await sb.next('hit', d => d.x === 0 && d.y === 0 && Math.abs(d.p - 1 / H) < 1e-9);
+});

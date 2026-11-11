@@ -988,9 +988,13 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
       if (map.claiming.has(k)) return;   // taps still arriving while the claim is being saved don't count
       const error = checkHit(map, me.pid, x, y);
       if (error) {
-        // Tapping your own block does nothing at all (players tap once more after a claim all the time); it only
-        // counts toward the Poke secret.
-        if (error === 'You already own this block') { if (++session.pokes === 50) totals.best(me.pid, 'secret:poke', 1); return; }
+        // Your own block: if someone has cracked it, the tap repairs it (loop 18). If not, it does nothing at all
+        // (players tap once more after a claim all the time); it only counts toward the Poke secret.
+        if (error === 'You already own this block') {
+          if (map.hits.has(k)) return repair(x, y);
+          if (++session.pokes === 50) totals.best(me.pid, 'secret:poke', 1);
+          return;
+        }
         return socket.emit('denied', error);
       }
       if (!me.pid) session.visitorTaps++;   // counted once the first claim makes them a player
@@ -1041,6 +1045,21 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
         clearCrack(x, y);
       });
     });
+
+    // Repair (loop 18): a tap on your own cracked block takes off hits equal to your Click Power (capped at the
+    // block's level; Super Click counts), like mining in reverse. Free. At 0 the crack is gone.
+    function repair(x, y) {
+      const k = key(x, y), now = Date.now();
+      decay(map, k, map.hits.get(k), now);
+      const h = map.hits.get(k);
+      if (!h) return;
+      totals.bump(me.pid, 'taps');
+      const boost = superClicks.get(String(me.pid));
+      h.n -= rules.hitPower(tiersOn(upgrades, map.birth.get(k) ?? 1)) * (boost && boost.until > now ? boost.value : 1);
+      if (h.n > 1e-9) return io.to(map.room).emit('hit', { x, y, p: share(h) });
+      map.hits.delete(k);
+      io.to(map.room).emit('hit', { x, y, p: 0 });
+    }
 
     function hitWall(x, y, side) {
       const k = key(x, y), kw = k + '|' + side, now = Date.now(), wall = map.walls.get(k).find(w => w.side === side);

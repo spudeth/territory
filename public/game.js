@@ -560,7 +560,8 @@ function pointerEnd(e) {
     if (tagHit) openProfile(tagHit.owner);   // exactly the tag; the block around it still attacks
     else if (c && window.buildTap?.(c, e.clientX, e.clientY)) { /* placing a building (build.js) */ }
     else if (c && window.itemTap?.(c)) { /* the Terraformer took this tap (items.js) */ }
-    else if (c && !(me && cells.get(key(c.x, c.y)) === me)) {
+    // Someone else's block or an empty one: a hit. Your own: only if it's cracked (a repair); otherwise nothing at all.
+    else if (c && (!(me && cells.get(key(c.x, c.y)) === me) || hits.has(key(c.x, c.y)))) {
       socket.emit('hit', c);
       gameAudio.play('tap');
       myTaps.set(key(c.x, c.y), Date.now());

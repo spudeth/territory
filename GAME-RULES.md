@@ -33,7 +33,8 @@ Every rule in the game, in plain English. This file is updated whenever a rule c
 - One tap counts as your Click Power in hits (see Upgrades).
 - **Your first block** on a map must be an empty block. It can be anywhere.
 - **After that**, you can only hit blocks that touch your territory up, down, left or right, and never across your own wall. Those blocks can be empty or owned by someone else.
-- Tapping your own block does nothing at all: no message, no sound (players often tap once more after a claim).
+- **Repair (loop 18):** tapping your own block while someone has cracked it takes off hits equal to your Click Power (capped at the block's level; Super Click counts), like mining in reverse. Free. At 0 the crack is gone, and an attacker carries on from what is left. Cracked walls on it are not repaired (OPEN Q37).
+- Tapping your own undamaged block does nothing at all: no message, no sound (players often tap once more after a claim).
 - **Only one player's progress counts.** If someone else hits a block, their hits start over from zero and yours are gone.
 - **Cracks fade:** 1 hit of progress for every 60 seconds since the last hit (Game Rules: `crackFadeSeconds`, `crackFadeHits`). A factory's progress never fades.
 - **Nothing is wasted:** hit power to spare from the tap that takes a block counts toward the next block you hit.
