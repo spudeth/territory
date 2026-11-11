@@ -55,6 +55,8 @@ function tierValue(key, N) {
 const tierCostTenths = (key, N) => toTenths(economy.tiers[key].cu * W(N));
 // The tier an upgrade works at on a map: min(owned tier, the map's level).
 const effectiveTier = (owned, mapLevel) => Math.max(1, Math.min(owned | 0 || 1, mapLevel | 0 || 1));
+// What each upgrade gives a player with these tiers ({ key: tier }, missing = 1) on a map of level L.
+const effectiveValues = (tiers, L) => Object.fromEntries(Object.keys(economy.tiers).map(k => [k, tierValue(k, effectiveTier(tiers?.[k] ?? 1, L))]));
 // Whether tier N can be bought: the player has first-claimed a block of level N or higher somewhere.
 const tierUnlocked = (N, highestLevel) => (highestLevel | 0) >= N;
 
@@ -89,5 +91,6 @@ const CATALOG = buildCatalog();
 // A skin's price in tenths: its rarity's hours x W(L). Flags are Rare.
 const skinPriceTenths = (skin, L) => toTenths(skinHours(skin.id?.startsWith('flag-') ? 'Rare' : skin.rarity) * W(L));
 
-module.exports = { E, TIER_COUNT, TENTHS, toTenths, fromTenths, wholeSquares, level, levelStart, levelProgress, W, hardness, payTenths,
-  tierValue, tierCostTenths, effectiveTier, tierUnlocked, PRICING, priceTenths, CATALOG, skinPriceTenths, skinHours };
+const CATALOG_TIERS = economy.tiers;   // the upgrades, from the Upgrades tab: { key: { name, type, v0, vmax, step, cu, unit, about } }
+module.exports = { E, TIER_COUNT, CATALOG_TIERS, TENTHS, toTenths, fromTenths, wholeSquares, level, levelStart, levelProgress, W, hardness, payTenths,
+  tierValue, tierCostTenths, effectiveTier, effectiveValues, tierUnlocked, PRICING, priceTenths, CATALOG, skinPriceTenths, skinHours };

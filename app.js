@@ -19,7 +19,9 @@ const { createEmail } = require('./email');
 const { guestName, guestNames, checkName } = require('./names');
 
 const { key } = rules;
-const upgradesOf = row => ({ clickPower: row.click_power, defense: row.defense, earnings: row.earnings, growth: row.growth });
+// A player's upgrade tiers ({ key: tier }, missing = 1). What they give on a map: tiersOn(tiers, map).
+const upgradesOf = row => ({ ...(row.tiers ?? {}) });
+const tiersOn = (tiers, map) => catalog.effectiveValues(tiers, map.level());
 
 // Behind Render the socket address is a proxy's. Cloudflare (in front of every public Render service) sets
 // CF-Connecting-IP and overwrites any value the visitor sends, so prefer it. X-Forwarded-For is only a fallback:
@@ -211,9 +213,16 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
     const info = { x, y, terrain, level, hardness: H, owner: owner && { pid: owner, name: map.players.get(owner)?.name ?? null } };
     if (terrain === 'water') info.water = true;
     else if (owner === null) info.pay = catalog.fromTenths(rules.firstClaimTenths(upgrades, terrain, level));
-    else if (String(owner) !== String(pid)) info.hits = rules.hitsNeeded(map.players.get(owner)?.upgrades ?? rules.NO_UPGRADES, terrain, level);
+    else if (String(owner) !== String(pid)) info.hits = rules.hitsNeeded(tiersOn(map.players.get(owner)?.upgrades, map), terrain, level);
     return info;
   }
+
+  // Every upgrade with all its tiers: [{ key, name, type, unit, about, tiers: [{ tier, value, cost }] }] (cost in
+  // squares; tier 1 costs nothing). Upgrade tier prices never change, so this is worked out once.
+  let upgradeListCache = null;
+  const upgradeList = () => (upgradeListCache ??= Object.entries(catalog.CATALOG_TIERS).map(([key, u]) => ({ key, name: u.name, type: u.type, unit: u.unit, about: u.about,
+    tiers: Array.from({ length: catalog.TIER_COUNT }, (_, i) => ({ tier: i + 1, value: catalog.tierValue(key, i + 1),
+      cost: i ? catalog.fromTenths(catalog.tierCostTenths(key, i + 1)) : 0 })) })));
 
   // A first claim on a map (by a player or a factory): its mined count goes up; everyone there sees the level's
   // progress (the level is worked out from mined and E).
@@ -232,7 +241,8 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
     const [values, progress, played] = await Promise.all([totals.values(pid), store.achievementProgress(pool, pid), store.mapsPlayed(pool, pid)]);
     const out = { ...values, owned: progress.best.owned, bestSquare: progress.best.bestSquare, bestLine: progress.best.bestLine,
       mapsPlayed: played, achievements: progress.earned.filter(e => knownIds.has(e.id)).length };
-    for (const [k, v] of Object.entries(levels)) out['level:' + k] = v;
+    for (const k of Object.keys(catalog.CATALOG_TIERS)) out['level:' + k] = levels[k] ?? 1;   // each upgrade's tier
+    out.tiers = Object.keys(catalog.CATALOG_TIERS).reduce((n, k) => n + (levels[k] ?? 1) - 1, 0);   // tiers bought in all
     if (account) out.account = 1;
     return { values: out, earned: progress.earned };
   }
@@ -438,7 +448,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
         return socket.disconnect(true);
       }
       me = player ? { pid: player.id, name: player.name, account: !!player.auth_user_id, renameAt: renameAt(player.name_changed_at), squares: Number(player.squares),
-          tutorial: player.tutorial, showTenths: player.show_tenths }
+          tutorial: player.tutorial, showTenths: player.show_tenths, highest: player.highest_level }
         : { pid: null, name: guestName(), account: false, renameAt: null, squares: 0, tutorial: null, showTenths: false };
       upgrades = player ? upgradesOf(player) : rules.NO_UPGRADES;
       if (upgraded) renamed(me.pid, me.name);   // the guest's old name was showing to everyone
@@ -542,10 +552,11 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
       const st = stats.afterClaim(me.pid ? statsOf(map, me.pid) : stats.empty(),
         { owns, x, y, owned: (map.counts.get(me.pid) || 0) + 1, from });
       const ground = map.terrainAt(x, y);
-      const earn = rules.firstClaimTenths(upgrades, ground, map.birth.get(k) ?? 1);
+      const level = map.birth.get(k) ?? 1, eff = tiersOn(upgrades, map);
+      const earn = rules.firstClaimTenths(eff, ground, level);
       const r = await store.claimBlock(pool, { mapId: map.id, x, y, from, playerId: me.pid, newGuest,
-        color: joining ? color : null, coverage, skin, earn, grow: rules.growthBlocks(upgrades), stats: st.stats,
-        birth: catalog.level(map.mined + 1, map.base) });
+        color: joining ? color : null, coverage, skin, earn, grow: rules.growthBlocks(eff), stats: st.stats,
+        birth: catalog.level(map.mined + 1, map.base), level });
       if (r.conflict) {
         // Another server got there first (e.g. during a deploy). Resync this block for everyone.
         setOwner(map, k, await store.cellOwner(pool, map.id, x, y));
@@ -594,6 +605,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
         balanceChanged(me.pid, r.squares);
       }
       if (r.squares === null && from === null) mapMined(map);
+      if (from === null && level > (me.highest ?? 1)) { me.highest = level; totals.best(me.pid, 'highestLevel', level); }
       claimStats({ x, y, k, from, ground, grown: r.grown.length, earned: r.squares !== null ? catalog.fromTenths(earn) : 0, joinedMap: r.joinedMap });
     }
 
@@ -670,14 +682,14 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
       if (h) decay(map, k, h, now);
       h = map.hits.get(k);
       const owner = map.cells.get(k);
-      const need = rules.hitsNeeded(owner ? map.players.get(owner)?.upgrades ?? rules.NO_UPGRADES : null, map.terrainAt(x, y), map.birth.get(k) ?? 1);
+      const need = rules.hitsNeeded(owner ? tiersOn(map.players.get(owner)?.upgrades, map) : null, map.terrainAt(x, y), map.birth.get(k) ?? 1);
       // Hit power left over from the tap that took the last block counts toward the next one, so a higher Click
       // Power level never wastes power (GAME-RULES.md).
       if (h?.by !== by) { map.hits.set(k, h = { by, n: session.spare }); session.spare = 0; }
       h.at = now;
       h.need = need;
       const boost = superClicks.get(String(me.pid));   // Super Click: x value until it runs out
-      h.n += rules.hitPower(upgrades) * (boost && boost.until > now ? boost.value : 1);
+      h.n += rules.hitPower(tiersOn(upgrades, map)) * (boost && boost.until > now ? boost.value : 1);
       if (!rules.isTaken(h.n, need)) return io.to(map.room).emit('hit', { x, y, p: share(h) });
 
       session.spare = Math.max(0, h.n - need);
@@ -789,7 +801,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
       const pid = other ?? me.pid;
       if (!pid) return reply({ list: shown(new Set()), earned: [], values: {} });
       try {
-        const theirs = other ? (await pool.query('SELECT click_power, defense, earnings, growth, auth_user_id FROM players WHERE id = $1', [other])).rows[0] : null;
+        const theirs = other ? (await pool.query('SELECT tiers, highest_level, auth_user_id FROM players WHERE id = $1', [other])).rows[0] : null;
         const levels = theirs ? upgradesOf(theirs) : upgrades, account = theirs ? !!theirs.auth_user_id : me.account;
         const { values, earned: rows } = await progressValues(pid, levels, account);
         reply({ list: shown(new Set(rows.map(e => e.id))), earned: rows, values });
@@ -797,13 +809,13 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
     });
 
     // The Upgrades screen: this player's levels and what each level does, from rules.js.
+    // tiers: { key: tier owned } (missing = 1); highest: the highest block level they've ever first-claimed (unlocks);
+    // mapLevel: this map's level, the cap on every upgrade here. list: each upgrade from the Upgrades tab with all
+    // 10 tiers' values and costs (squares; tier 1 is free).
     socket.on('upgrades', (...args) => {
       const reply = args.at(-1);   // with or without an argument before it
       if (typeof reply !== 'function') return;
-      reply({ levels: upgrades, hitsPerBlock: rules.HITS_PER_BLOCK,
-        // { clickPower: [{ level, value, cost }, …], … } from the sheet; Defense shown as it works (scaled, top x2)
-        upgrades: { ...rules.UPGRADES, defense: rules.UPGRADES.defense.map(l => ({ ...l, value: rules.defenseScaled(l.value) })) },
-        balance: catalog.fromTenths(me.squares) }); // the exact balance, so "Need X more" is right with tenths
+      reply({ tiers: upgrades, highest: me.highest ?? 1, mapLevel: map.level(), list: upgradeList(), balance: catalog.fromTenths(me.squares) });
     });
 
     // Saves this player's tutorial progress: { step: id or null, done, tips: [ids] }. Visitors keep theirs in
@@ -990,23 +1002,23 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
       }
     });
 
-    // Buys the next level of an upgrade with squares: { upgrade, level } where level is the one the player
-    // sees (so a double tap can't buy twice). Guests may buy. Answers with { levels, squares, balance } or
-    // { error, need }. The new level works straight away on every device and map.
+    // Buys a tier: { upgrade, tier } where tier is the next one (so a double tap can't buy two). Guests may buy.
+    // Answers { tiers, squares, balance } or { error, need }. It works at once on every device and map (up to
+    // each map's level).
     socket.on('buyUpgrade', async (p, reply) => {
       if (typeof reply !== 'function') return;
       if (!me.pid) return reply({ error: 'Claim a block first' });
-      if (!p || !(p.upgrade in rules.UPGRADES) || !Number.isInteger(p.level)) return reply({ error: 'Unknown upgrade' });
+      if (!p || !(p.upgrade in catalog.CATALOG_TIERS) || !Number.isInteger(p.tier)) return reply({ error: 'Unknown upgrade' });
       if (buying) return reply({ error: 'One purchase at a time' });
       buying = true;
       try {
-        const r = await store.buyUpgrade(pool, me.pid, p.upgrade, p.level, rules.UPGRADES[p.upgrade]);
+        const r = await store.buyTier(pool, me.pid, p.upgrade, p.tier);
         if (r.error) return reply({ error: r.error, need: r.need === undefined ? undefined : catalog.fromTenths(r.need) });
-        upgradesChanged(me.pid, { ...upgrades, [p.upgrade]: r.level }, r.squares);
+        upgradesChanged(me.pid, r.tiers, r.squares);
         totals.bump(me.pid, 'purchases');
-        totals.bump(me.pid, 'squaresSpent', rules.UPGRADES[p.upgrade][r.level].cost);
-        totals.best(me.pid, 'level:' + p.upgrade, r.level);
-        reply({ levels: upgrades, squares: catalog.fromTenths(r.squares), balance: catalog.fromTenths(r.squares) });
+        totals.bump(me.pid, 'squaresSpent', catalog.fromTenths(catalog.tierCostTenths(p.upgrade, p.tier)));
+        totals.best(me.pid, 'level:' + p.upgrade, p.tier);
+        reply({ tiers: upgrades, squares: catalog.fromTenths(r.squares), balance: catalog.fromTenths(r.squares) });
       } catch (err) {
         console.error(`PURCHASE FAILED (player ${me.pid}, ${p.upgrade}): ${err.message}`);
         reply({ error: 'Could not buy that. Try again.' });

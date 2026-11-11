@@ -24,7 +24,7 @@ async function spend(c, playerId, price, reason) {
 const FREED = "owner_id = NULL, claimed_at = NULL, walls = '[]', factory_id = NULL, listing_id = NULL";
 
 const hashToken = token => crypto.createHash('sha256').update(token).digest();
-const PLAYER = 'p.id, p.name, p.last_map_id, p.auth_user_id, p.name_changed_at, p.click_power, p.defense, p.earnings, p.growth, p.squares, p.tutorial, p.show_tenths';
+const PLAYER = 'p.id, p.name, p.last_map_id, p.auth_user_id, p.name_changed_at, p.tiers, p.highest_level, p.squares, p.tutorial, p.show_tenths';
 
 // Only a real string can be a token, so values like {} or "__proto__" never match a player.
 async function findPlayerByToken(pool, token) {
@@ -107,7 +107,7 @@ async function loadMap(pool, mapId) {
   if (!map) return null;
   const [cells, players, stats] = await Promise.all([
     pool.query('SELECT x, y, owner_id, birth_level, terrain, walls, factory_id, listing_id FROM map_cells WHERE map_id = $1', [mapId]),
-    pool.query('SELECT s.player_id, p.name, s.color, s.skin_id, s.coverage, s.unlocked, s.wipe_floor, p.click_power, p.defense, p.earnings, p.growth FROM player_map_settings s JOIN players p ON p.id = s.player_id WHERE s.map_id = $1', [mapId]),
+    pool.query('SELECT s.player_id, p.name, s.color, s.skin_id, s.coverage, s.unlocked, s.wipe_floor, p.tiers FROM player_map_settings s JOIN players p ON p.id = s.player_id WHERE s.map_id = $1', [mapId]),
     pool.query('SELECT * FROM player_map_stats WHERE map_id = $1', [mapId]),
   ]);
   const overrides = cells.rows.filter(c => c.terrain !== null).map(({ x, y, terrain }) => ({ x, y, terrain }));
@@ -198,7 +198,8 @@ class Conflict extends Error {}
 //   { playerId, name, joinedMap, grown: [{x, y}, …] (empty unless a first claim), squares: new exact balance | null }.
 //   grow:     blocks a first claim adds to the map (rules.growthBlocks: 1, or more with the Growth upgrade)
 //   birth:    the level those new blocks are born at (the map's level after this claim)
-async function claimBlock(pool, { mapId, x, y, from, playerId, newGuest, color, coverage = 'tile', skin = 'default', grow = 1, birth = 1, earn = 10,
+//   level:    the claimed block's own level (a first claim can raise the player's highest level, for tier unlocks)
+async function claimBlock(pool, { mapId, x, y, from, playerId, newGuest, color, coverage = 'tile', skin = 'default', grow = 1, birth = 1, level = 1, earn = 10,
   stats = null }) {
   try {
     return await tx(pool, async c => {
@@ -243,6 +244,7 @@ async function claimBlock(pool, { mapId, x, y, from, playerId, newGuest, color, 
       let squares = null;
       if (from === null) {
         await c.query('UPDATE maps SET mined = mined + 1 WHERE id = $1', [mapId]);
+        if (level > 1) await c.query('UPDATE players SET highest_level = GREATEST(highest_level, $2) WHERE id = $1', [playerId, level]);
         for (let i = 0; i < grow; i++) { const g = await growMap(c, mapId, birth); if (g) grown.push({ ...g, l: birth }); }
         if (earn > 0) squares = (await c.query(EARN, [mapId, playerId, x, y, earn])).rows[0]?.balance_after ?? null;
       }
@@ -475,60 +477,22 @@ async function saveTutorial(pool, playerId, progress) {
   await pool.query('UPDATE players SET tutorial = $2 WHERE id = $1', [playerId, JSON.stringify(progress)]);
 }
 
-// Brings players' stored upgrade levels in line with `upgrades` (rules.UPGRADES, from data/economy.json).
-// Stored levels refer to the tables last applied; if those differ, each stored level moves to the lowest new
-// level at least as strong (economy.remapLevel), every move is recorded in level_remaps, and the new tables are
-// recorded. Run at startup, before players connect. Returns [{ upgrade, from, to, players }] for the log.
-const UPGRADE_COLUMNS = { clickPower: 'click_power', defense: 'defense', earnings: 'earnings', growth: 'growth' };
-function applyEconomy(pool, upgrades) {
-  const { remapLevel } = require('./economy');
+// Buys tier N of one upgrade (N = the tier after the one they have), in one transaction with the player row
+// locked, so two taps or two devices can never buy it twice. Tier N needs a level-N block first-claimed somewhere.
+// Returns { tiers, squares } or { error, need? } (need: tenths short).
+async function buyTier(pool, playerId, upgrade, N) {
   return tx(pool, async c => {
-    await c.query('INSERT INTO economy_applied (upgrades) VALUES ($1) ON CONFLICT DO NOTHING', [JSON.stringify(upgrades)]);
-    const { rows: [applied] } = await c.query('SELECT upgrades FROM economy_applied FOR UPDATE');
-    const moves = [];
-    for (const [upgrade, column] of Object.entries(UPGRADE_COLUMNS)) {
-      const before = applied.upgrades[upgrade] ?? [{ level: 0, value: 1, cost: 0 }], after = upgrades[upgrade];
-      if (JSON.stringify(before) === JSON.stringify(after)) continue;
-      const { rows } = await c.query(`SELECT DISTINCT ${column} AS level FROM players WHERE ${column} > 0`);
-      const map = rows.map(r => [r.level, remapLevel(before, after, r.level)]).filter(([a, b]) => a !== b);
-      if (!map.length) continue;
-      // One statement, so a player moved from 1 to 3 is never moved again by a 3 -> 5 step.
-      const { rows: moved } = await c.query(
-        `WITH m (old_level, new_level) AS (SELECT * FROM unnest($1::int[], $2::int[])),
-              u AS (UPDATE players p SET ${column} = m.new_level FROM m WHERE p.${column} = m.old_level
-                    RETURNING p.id, m.old_level, m.new_level)
-         INSERT INTO level_remaps (player_id, upgrade, old_level, new_level) SELECT id, $3, old_level, new_level FROM u
-         RETURNING old_level, new_level`,
-        [map.map(m => m[0]), map.map(m => m[1]), upgrade]);
-      for (const [from, to] of map) {
-        const players = moved.filter(r => r.old_level === from).length;
-        if (players) moves.push({ upgrade, from, to, players });
-      }
-    }
-    await c.query('UPDATE economy_applied SET upgrades = $1, applied_at = now()', [JSON.stringify(upgrades)]);
-    return moves;
-  });
-}
-
-// Buys the next level of one upgrade with squares, in one transaction: the player's row is locked, so two
-// purchases at the same moment (two taps, two tabs) take turns and can never spend the same squares twice.
-//   levels: the upgrade's table (rules.UPGRADES[upgrade]); expected: the level the player saw when tapping,
-//   so a repeated tap for a level already bought is refused instead of buying the next one too.
-// Returns { level, squares } (the new level and exact balance) or { error, need? } (need: squares short).
-async function buyUpgrade(pool, playerId, upgrade, expected, levels) {
-  const column = UPGRADE_COLUMNS[upgrade];
-  if (!column) return { error: 'Unknown upgrade' };
-  return tx(pool, async c => {
-    const { rows: [p] } = await c.query(`SELECT squares, ${column} AS level FROM players WHERE id = $1 FOR UPDATE`, [playerId]);
+    const { rows: [p] } = await c.query('SELECT tiers, highest_level FROM players WHERE id = $1 FOR UPDATE', [playerId]);
     if (!p) return { error: 'No such player' };
-    if (p.level !== expected) return { error: 'Already bought', level: p.level, squares: Number(p.squares) };
-    const next = levels[p.level + 1];
-    if (!next) return { error: 'This upgrade is at its maximum' };
-    // Compared in the database, so fractions are exact.
-    const paid = await spend(c, playerId, catalog.toTenths(next.cost), `upgrade:${upgrade}:${next.level}`);
+    const have = p.tiers[upgrade] ?? 1;
+    if (N !== have + 1) return { error: N <= have ? 'Already bought' : 'Buy the tiers in order', tiers: p.tiers };
+    if (N > catalog.TIER_COUNT) return { error: 'This upgrade is at its top tier' };
+    if (!catalog.tierUnlocked(N, p.highest_level)) return { error: `Mine a level-${N} block to unlock` };
+    const paid = await spend(c, playerId, catalog.tierCostTenths(upgrade, N), `upgrade:${upgrade}:${N}`);
     if (paid.error) return paid;
-    await c.query(`UPDATE players SET ${column} = ${column} + 1 WHERE id = $1`, [playerId]);
-    return { level: next.level, squares: paid.squares };
+    const tiers = { ...p.tiers, [upgrade]: N };
+    await c.query('UPDATE players SET tiers = $2 WHERE id = $1', [playerId, tiers]);
+    return { tiers, squares: paid.squares };
   });
 }
 
@@ -538,7 +502,7 @@ async function logTapLimits(pool, entries) {
     [entries.map(e => e[0]), entries.map(e => e[1])]);
 }
 
-Object.assign(module.exports, { skinsFor, buySkin, starSkin, starSlot, achievementProgress, saveTutorial, applyEconomy, buyUpgrade, logTapLimits });
+Object.assign(module.exports, { skinsFor, buySkin, starSkin, starSlot, achievementProgress, saveTutorial, buyTier, logTapLimits });
 
 // ---------- Admin (npm run admin; admin.js) ----------
 
@@ -632,7 +596,7 @@ function deleteAccount(pool, playerId) {
     const { rows: maps } = await c.query('SELECT DISTINCT map_id FROM map_cells WHERE owner_id = $1', [playerId]);
     await c.query('UPDATE map_cells SET ' + FREED + ' WHERE owner_id = $1', [playerId]);
     for (const t of ['player_tokens', 'player_map_settings', 'player_map_stats', 'player_achievements', 'player_skins',
-      'level_remaps', 'tap_limit_log', 'bans', 'player_totals', 'player_lives', 'player_items', 'item_uses', 'email_consent_log']) {
+      'tap_limit_log', 'bans', 'player_totals', 'player_lives', 'player_items', 'item_uses', 'email_consent_log']) {
       await c.query(`DELETE FROM ${t} WHERE player_id = $1`, [playerId]);
     }
     await c.query('DELETE FROM player_links WHERE account_id = $1 OR guest_id = $1', [playerId]);
@@ -641,7 +605,7 @@ function deleteAccount(pool, playerId) {
         [playerId, -Number(p.squares)]);
     }
     await c.query(`UPDATE players SET email_updates = false, unsubscribe_token = NULL, name = 'deleted' || id, auth_user_id = NULL, name_changed_at = NULL, last_map_id = NULL,
-      squares = 0, click_power = 0, defense = 0, earnings = 0, growth = 0, tutorial = '{}', deleted_at = now() WHERE id = $1`, [playerId]);
+      squares = 0, tiers = '{}', highest_level = 1, tutorial = '{}', deleted_at = now() WHERE id = $1`, [playerId]);
     // Neon Auth keeps its users in this same database; deleting the user removes their sessions and logins too.
     let authDeleted = false;
     if (p.auth_user_id && (await c.query("SELECT to_regclass('neon_auth.user') AS t")).rows[0].t) {
@@ -666,7 +630,7 @@ function resetProgress(pool, playerId) {
     const { rows: maps } = await c.query(`SELECT map_id FROM map_cells WHERE owner_id = $1
       UNION SELECT map_id FROM player_map_settings WHERE player_id = $1 UNION SELECT map_id FROM player_map_stats WHERE player_id = $1`, [playerId]);
     await c.query('UPDATE map_cells SET ' + FREED + ' WHERE owner_id = $1', [playerId]);
-    for (const t of ['player_map_settings', 'player_map_stats', 'player_achievements', 'level_remaps', 'player_totals', 'player_lives']) {
+    for (const t of ['player_map_settings', 'player_map_stats', 'player_achievements', 'player_totals', 'player_lives']) {
       await c.query(`DELETE FROM ${t} WHERE player_id = $1`, [playerId]);
     }
     await c.query("DELETE FROM player_skins WHERE player_id = $1 AND source <> 'purchase'", [playerId]);
@@ -674,7 +638,7 @@ function resetProgress(pool, playerId) {
       await c.query("INSERT INTO square_ledger (player_id, delta, balance_after, reason) VALUES ($1, $2, 0, 'progress reset')",
         [playerId, -Number(p.squares)]);
     }
-    await c.query('UPDATE players SET squares = 0, click_power = 0, defense = 0, earnings = 0, growth = 0 WHERE id = $1', [playerId]);
+    await c.query("UPDATE players SET squares = 0, tiers = '{}', highest_level = 1 WHERE id = $1", [playerId]);
     return { maps: maps.map(r => r.map_id) };
   });
 }

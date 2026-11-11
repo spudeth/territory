@@ -252,25 +252,3 @@ test('the database pays squares exactly as rules.earnsSquares says, over random 
   assert.ok(await db.count('SELECT count(*) FROM map_wipes WHERE map_id = $1', [id]) >= 2, 'the run included wipes');
 });
 
-test('a new sync moves stored upgrade levels so nobody gets weaker, all at once, and records each move', async () => {
-  const lv = values => [{ level: 0, value: 1, cost: 0 }, ...values.map((value, i) => ({ level: i + 1, value, cost: i + 1 }))];
-  const none = lv([]), old = { clickPower: lv([1.5, 2, 3]), defense: none, earnings: none, growth: none };
-  await pool.query('DELETE FROM economy_applied');
-  assert.deepEqual(await store.applyEconomy(pool, old), [], 'first run: nothing to move, the tables are recorded');
-  const ids = [];
-  for (const level of [0, 1, 2, 3, 1]) {
-    ids.push((await pool.query('INSERT INTO players (name, click_power) VALUES ($1, $2) RETURNING id', ['Remap ' + ids.length, level])).rows[0].id);
-  }
-  const next = { ...old, clickPower: lv([1.2, 1.4, 1.6, 1.8, 2, 2.5, 3, 3.5]) };
-  const moves = await store.applyEconomy(pool, next);
-  assert.deepEqual(moves.sort((a, b) => a.from - b.from), [
-    { upgrade: 'clickPower', from: 1, to: 3, players: 2 },
-    { upgrade: 'clickPower', from: 2, to: 5, players: 1 },
-    { upgrade: 'clickPower', from: 3, to: 7, players: 1 },
-  ]);
-  const { rows } = await pool.query('SELECT id, click_power FROM players WHERE id = ANY($1)', [ids]);
-  const level = new Map(rows.map(r => [r.id, r.click_power]));
-  assert.deepEqual(ids.map(id => level.get(id)), [0, 3, 5, 7, 3], 'the one at 1 went to 3, and was not moved again by 3 -> 7');
-  assert.equal(await db.count('SELECT count(*) FROM level_remaps WHERE player_id = ANY($1)', [ids]), 4);
-  assert.deepEqual(await store.applyEconomy(pool, next), [], 'run again: nothing moves twice');
-});

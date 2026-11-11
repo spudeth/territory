@@ -7,21 +7,6 @@
 const economy = require('./data/economy.json');
 const catalog = require('./catalog');
 const R = economy.rules;
-const values = upgrade => economy.upgrades[upgrade].map(l => l.value);   // effect at each level, from level 0
-// Xoren: the top Earnings level costs 10,000 squares (the sheet had over 100,000). The cost curve is flattened in
-// log space so level 1 keeps its price and every level still costs more than the one before.
-const EARNINGS_TOP_COST = 10000;
-function earningsCosts(levels) {
-  const first = levels[1].cost, top = levels.at(-1).cost;
-  if (top <= EARNINGS_TOP_COST) return levels;
-  const k = Math.log(EARNINGS_TOP_COST / first) / Math.log(top / first);
-  let prev = 0;
-  return levels.map(l => l.level === 0 ? l : { ...l, cost: (prev = Math.max(prev + 1, Math.round(first * (l.cost / first) ** k))) });
-}
-const DEFENSE_TOP = 6;   // Xoren: twice as hard as the sheet's x3
-const defenseTop = economy.upgrades.defense.at(-1).value;
-const defenseScaled = v => (defenseTop > 1 ? 1 + (v - 1) * (DEFENSE_TOP - 1) / (defenseTop - 1) : v);
-
 const settings = {
   // Claiming
   HITS_PER_BLOCK: R.hitsPerBlock,               // hits needed to take any block, empty or owned, before upgrades
@@ -36,16 +21,6 @@ const settings = {
   RENAME_COOLDOWN_MINUTES: R.renameWaitMinutes, // wait between name changes
   MAX_TAPS_PER_SECOND: R.maxTapsPerSecond,      // anti-bot: taps per player per second beyond this are ignored
   NAME_MAX_LENGTH: R.nameMaxLength,             // longest name (the database allows at most 15)
-
-  // Upgrades. Each player has a level for each (0 = none). These tables give the effect at each level, starting
-  // at level 0; a level past the end of a table uses its last entry. UPGRADES has the costs too.
-  UPGRADES: { ...economy.upgrades, earnings: earningsCosts(economy.upgrades.earnings) },   // { clickPower: [{ level, value, cost }, …], … }
-  CLICK_POWER_MULTIPLIER: values('clickPower'), // Click Power: how many hits one click counts as (1.2 = +20%)
-  // Defense: multiplies the hits others need to take your blocks. Xoren: the top level is x6 (twice the sheet's x3),
-  // whatever the sheet's top value; every level is scaled the same way, so stored levels never move.
-  DEFENSE_MULTIPLIER: values('defense').map(defenseScaled),
-  EARNINGS_MULTIPLIER: values('earnings'),      // Earnings: multiplies squares per first claim, fractions kept
-  GROWTH_BLOCKS: values('growth'),              // Growth: map blocks a brand-new claim creates (whole numbers)
 
   // Name labels: an owner's name shows on their territory once it covers this share of the screen.
   NAME_LABEL_SHARE: R.nameLabelShare,
@@ -102,31 +77,33 @@ function hitError(map, pid, x, y) {
   return near ? null : 'You can only take blocks next to your territory';
 }
 
-// A player's upgrade levels. Visitors and new players have none.
-const NO_UPGRADES = Object.freeze({ clickPower: 0, defense: 0, earnings: 0, growth: 0 });
-const effect = (table, level) => table[Math.min(Math.max(0, level | 0), table.length - 1)];
+// A player's upgrades as they work on a map: { clickPower, defense, earnings, growth, … } values
+// (catalog.effectiveValues: each tier capped at the map's level). Visitors and new players are at tier 1:
+// NO_UPGRADES, and any value missing counts as tier 1's.
+const NO_UPGRADES = Object.freeze({});
+const value = (eff, key) => eff?.[key] ?? catalog.tierValue(key, 1);
 
 // A block's hardness H: hits to mine it = hitsPerBlock x 2^(birth level - 1) x its terrain factor
 // (settings.TERRAIN_HITS; grass, or no terrain, is 1). A block keeps the level it was born at.
 const hardness = (terrain = 'grass', birth = 1) => catalog.hardness(settings.HITS_PER_BLOCK, birth, settings.TERRAIN_HITS[terrain] ?? 1);
-// Hits needed to take a block owned by `owner` (upgrade levels like NO_UPGRADES; null for an empty block):
+// Hits needed to take a block owned by `owner` (their upgrade values on this map; null for an empty block):
 // its hardness, times the owner's Defense.
-const hitsNeeded = (owner, terrain = 'grass', birth = 1) => hardness(terrain, birth) * (owner ? effect(settings.DEFENSE_MULTIPLIER, owner.defense) : 1);
+const hitsNeeded = (owner, terrain = 'grass', birth = 1) => hardness(terrain, birth) * (owner ? value(owner, 'defense') : 1);
 
 // How many hits one click by `attacker` counts as: their Click Power. Progress is kept as a fraction.
-const hitPower = attacker => effect(settings.CLICK_POWER_MULTIPLIER, attacker?.clickPower);
+const hitPower = attacker => value(attacker, 'clickPower');
 
-// Map blocks a brand-new claim by a player with these levels creates: their Growth (1 with no upgrade).
-const growthBlocks = upgrades => effect(settings.GROWTH_BLOCKS, upgrades?.growth);
+// Map blocks a brand-new claim by a player with these upgrade values creates: their Growth (1 at tier 1).
+const growthBlocks = upgrades => value(upgrades, 'growth');
 
 // Whether `progress` hits are enough to take a block needing `needed` (allowing for rounding, so 10 x 0.1 is 1).
 const isTaken = (progress, needed) => progress >= needed - 1e-9;
 
-// Tenths a player with these upgrade levels earns for the first claim of a block (its terrain and birth level), if
+// Tenths a player with these upgrade values earns for the first claim of a block (its terrain and birth level), if
 // the wipe rule allows it (earnsSquares): H x 10 / hitsPerSquare x Earnings, rounded down, plus the gold bonus.
 // Pay tracks hits exactly, so income doesn't depend on level or terrain, only on upgrades.
 const firstClaimTenths = (upgrades, terrain = 'grass', birth = 1) => catalog.payTenths(hardness(terrain, birth),
-  effect(settings.EARNINGS_MULTIPLIER, upgrades?.earnings), terrain === 'gold' ? settings.GOLD_BONUS_SQUARES : 0);
+  value(upgrades, 'earnings'), terrain === 'gold' ? settings.GOLD_BONUS_SQUARES : 0);
 
 // The balance players see, from a balance in tenths: whole squares only, rounded down.
 const shownSquares = balance => catalog.wholeSquares(balance);
@@ -154,5 +131,5 @@ const earnsSquares = (ownedAfterClaim, wipeFloor) => ownedAfterClaim > wipeFloor
 const wipeFloorAfterWipe = (wipeFloor, ownedAtWipe) => Math.max(wipeFloor, ownedAtWipe);
 
 // The rules read the numbers from this same object, so tests can try other dial values.
-module.exports = Object.assign(settings, { key, NEIGHBORS, defenseScaled, NO_UPGRADES, hitError, hardness, hitsNeeded, hitPower, growthBlocks, isTaken,
+module.exports = Object.assign(settings, { key, NEIGHBORS, NO_UPGRADES, hitError, hardness, hitsNeeded, hitPower, growthBlocks, isTaken,
   firstClaimTenths, shownSquares, decayCrack, tapAllowed, earnsSquares, wipeFloorAfterWipe });

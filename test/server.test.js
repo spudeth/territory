@@ -3,6 +3,13 @@ const assert = require('node:assert/strict');
 const http = require('http');
 const { createGame } = require('../app');
 const rules = require('../rules');
+const catalog = require('../catalog');
+// Sets one upgrade's tier values for a test (as a list:, tier 1 first; everyone is at tier 1 on a level-1 map).
+function useTiers(t, key, list) {
+  const saved = catalog.CATALOG_TIERS[key];
+  t.after(() => { catalog.CATALOG_TIERS[key] = saved; });
+  catalog.CATALOG_TIERS[key] = { ...saved, step: 'list', list: [...list, ...Array(10 - list.length).fill(list.at(-1))] };
+}
 const store = require('../store');
 const { testDb, connectPlayer } = require('./helpers');
 
@@ -265,16 +272,13 @@ test('a wipe unlocks color, skin and coverage on that map only, until the next c
 });
 
 test("upgrades: Click Power and Defense multiply hits (Bob's example: 17 clicks), Earnings keeps fractions", async t => {
-  const keys = ['CLICK_POWER_MULTIPLIER', 'DEFENSE_MULTIPLIER', 'EARNINGS_MULTIPLIER'], saved = keys.map(k => rules[k]);
-  t.after(() => keys.forEach((k, i) => { rules[k] = saved[i]; }));
   const a = player();
   await a.welcome;
   a.take(16, 25);
   const you = await a.next('you');
   a.disconnect();
-  rules.EARNINGS_MULTIPLIER = [1, 1.5];
-  rules.CLICK_POWER_MULTIPLIER = [1, 2.5];
-  await pool.query('UPDATE players SET click_power = 1, earnings = 1 WHERE id = $1', [you.pid]);
+  useTiers(t, 'earnings', [1.5]);
+  useTiers(t, 'clickPower', [2.5]);
   const b = player({ token: you.token });
   await b.welcome;
   for (let i = 0; i < 4; i++) b.emit('hit', { x: 17, y: 25 });   // 4 clicks of 2.5
@@ -286,8 +290,8 @@ test("upgrades: Click Power and Defense multiply hits (Bob's example: 17 clicks)
   assert.deepEqual(ledger.map(r => [Number(r.delta), Number(r.balance_after)]), [[10, 10], [15, 25]], 'in tenths');
 
   // Everyone's Defense doubles and Click Power is 1.2 for all: 20 hits to take their block, 17 clicks.
-  rules.CLICK_POWER_MULTIPLIER = [1.2];
-  rules.DEFENSE_MULTIPLIER = [2];
+  useTiers(t, 'clickPower', [1.2]);
+  useTiers(t, 'defense', [2]);
   const c = player();
   await c.welcome;
   for (let i = 0; i < 9; i++) c.emit('hit', { x: 18, y: 25 });   // Defense never applies to empty blocks: 9 clicks
@@ -307,9 +311,9 @@ test('menu screens: skins, upgrades and achievement progress come from the real 
   assert.deepEqual(skinList[0], { id: 'default', name: 'Default', kind: 'default', rarity: 'Common', price: 0, collection: 'Basic', owned: true });
   assert.equal(skinList.length, 1 + rules.SKINS.filter(s => s.enabled).length, 'the catalog from the sheet');
   assert.ok(skinList.slice(1).every(s => !s.owned), 'a visitor owns only the plain look');
-  assert.deepEqual(await a.ask('upgrades'), { levels: rules.NO_UPGRADES, hitsPerBlock: rules.HITS_PER_BLOCK,
-    balance: 0,
-    upgrades: { ...rules.UPGRADES, defense: rules.UPGRADES.defense.map(l => ({ ...l, value: rules.defenseScaled(l.value) })) } });
+  const upg = await a.ask('upgrades');
+  assert.deepEqual([upg.tiers, upg.highest, upg.mapLevel, upg.balance], [{}, 1, 1, 0]);
+  assert.deepEqual(upg.list.map(u => u.key), Object.keys(catalog.CATALOG_TIERS), 'every upgrade from the Upgrades tab');
   const none = await a.ask('achievements');
   assert.equal(none.list.length, 300);
   assert.deepEqual([none.earned, none.values], [[], {}], 'a visitor has nothing yet');
@@ -349,17 +353,14 @@ test('tutorial progress: new players start fresh, saved on the server, back on r
   assert.deepEqual((await player({ token: them.token }).welcome).me.tutorial, {}, 'a brand-new player has no progress yet');
 });
 
-test("Growth: a brand-new claim adds as many map blocks as the player's Growth level gives", async t => {
-  const saved = rules.GROWTH_BLOCKS;
-  t.after(() => { rules.GROWTH_BLOCKS = saved; });
+test("Growth: a brand-new claim adds as many map blocks as the player's Growth tier gives", async t => {
   const a = player();
   await a.welcome;
   a.take(26, 31);
   const you = await a.next('you');
   await a.next('grow');
   a.disconnect();
-  rules.GROWTH_BLOCKS = [1, 3];
-  await pool.query('UPDATE players SET growth = 1 WHERE id = $1', [you.pid]);
+  useTiers(t, 'growth', [3]);
   const b = player({ token: you.token });
   await b.welcome;
   const before = await cellCount();

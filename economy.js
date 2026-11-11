@@ -3,8 +3,6 @@
 // rules.js reads it. The game never reads the sheet itself.
 
 // The upgrade tabs and the columns read from each (other columns are the sheet's own working).
-const UPGRADE_TABS = { clickPower: 'Click Power', defense: 'Defense', earnings: 'Earnings', growth: 'Growth' };
-const UPGRADE_COLUMNS = ['Level', 'Value after', 'Cost (squares)'];
 const RULES_TAB = 'Game Rules';
 const RULES_COLUMNS = ['Key', 'Value', 'What it means'];
 const ACHIEVEMENTS_TAB = 'Achievements';
@@ -60,7 +58,8 @@ const ECONOMY_KEYS = {
 // The stats an achievement can use: the ones the game counts (achievements.js has what each one means).
 // bestRank counts down: a threshold of 3 means "#3 or better".
 const STATS = ['claims', 'owned', 'bestSquare', 'bestLine', 'taken', 'lost', 'taps', 'squaresEarned', 'squaresSpent', 'purchases',
-  'level:clickPower', 'level:defense', 'level:earnings', 'level:growth', 'terrain:sand', 'terrain:forest', 'terrain:stone', 'terrain:gold',
+  'level:clickPower', 'level:defense', 'level:earnings', 'level:growth', 'level:factorySpeed', 'level:factoryLifetime',
+  'level:factoryYield', 'tiers', 'highestLevel', 'terrain:sand', 'terrain:forest', 'terrain:stone', 'terrain:gold',
   'mapsPlayed', 'daysPlayed', 'bestStreak', 'bestRank', 'reignMinutes', 'wipes', 'hoursPlayed', 'sessionClaims', 'bestDayClaims',
   'chatMessages', 'squaresHeld', 'growthBlocks', 'mapGrown', 'renames', 'account', 'tutorialDone', 'achievements', 'secrets',
   'secret:castaway', 'secret:witching', 'secret:leet', 'secret:revenge', 'secret:poke', 'secret:treehugger', 'secret:speedrun',
@@ -355,25 +354,6 @@ function validate(tabs, { hasFile = () => true } = {}) {
   return errors.length ? { economy: null, errors, warnings } : { economy: { rules, achievements, ...parts }, errors, warnings };
 }
 
-// Option B: a stored level under the old table becomes the lowest new level whose value is at least the old
-// value, so nobody gets weaker. If no new level is that strong, the top level.
-function remapLevel(oldLevels, newLevels, level) {
-  const old = oldLevels[Math.min(Math.max(0, level | 0), oldLevels.length - 1)].value;
-  const found = newLevels.find(l => l.value >= old - 1e-9);
-  return (found ?? newLevels.at(-1)).level;
-}
-
-// Every stored level that would change, per upgrade: { clickPower: [[old, new], …], … }.
-function remapTable(oldUpgrades, newUpgrades) {
-  const out = {};
-  for (const key of Object.keys(newUpgrades)) {
-    const before = oldUpgrades?.[key] ?? [{ level: 0, value: 1, cost: 0 }];
-    out[key] = before.map(l => [l.level, remapLevel(before, newUpgrades[key], l.level)]).filter(([a, b]) => a !== b);
-  }
-  return out;
-}
-
-// What changed between two economies, in plain English, one line each.
 function describeChanges(before, after) {
   const lines = [];
   const fmt = n => typeof n === 'number' ? n.toLocaleString('en-US', { maximumFractionDigits: 6 }) : JSON.stringify(n);
@@ -418,4 +398,4 @@ function describeChanges(before, after) {
   return lines.length ? lines : ['No changes.'];
 }
 
-module.exports = { ECONOMY_TAB, TIERS_TAB, RARITY_TAB, GLOSSARY_TAB, TIER_KEYS, TIER_COUNT, ECONOMY_KEYS, RETIRED_RULES, PRICINGS, UPGRADE_TABS, RULES_TAB, ACHIEVEMENTS_TAB, SKINS_TAB, ITEMS_TAB, ITEM_EFFECTS, SKIN_KINDS, RARITIES, skinFiles, STATS, TABS, RULE_KEYS, parseCsv, parseNumber, validate, remapLevel, remapTable, describeChanges };
+module.exports = { ECONOMY_TAB, TIERS_TAB, RARITY_TAB, GLOSSARY_TAB, TIER_KEYS, TIER_COUNT, ECONOMY_KEYS, RETIRED_RULES, PRICINGS, RULES_TAB, ACHIEVEMENTS_TAB, SKINS_TAB, ITEMS_TAB, ITEM_EFFECTS, SKIN_KINDS, RARITIES, skinFiles, STATS, TABS, RULE_KEYS, parseCsv, parseNumber, validate, describeChanges };

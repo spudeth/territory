@@ -103,6 +103,7 @@ function restoreTables(pool, tables) {
       order.push(t);
     };
     all.forEach(visit);
+    await c.query('SET CONSTRAINTS ALL DEFERRED');   // foreign keys that point both ways (players, maps) are checked at commit
     await c.query(`TRUNCATE ${all.map(t => `"${t}"`).join(', ')} RESTART IDENTITY`);
     const counts = {};
     for (const t of order) {

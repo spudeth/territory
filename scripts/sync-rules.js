@@ -45,9 +45,8 @@ async function main() {
 
   const out = arg('out') ?? OUT;
   const before = fs.existsSync(out) ? JSON.parse(fs.readFileSync(out, 'utf8')) : null;
-  // A tab missing from the sheet keeps its part of the current file (Skins, Items and the loop 16 tabs). The old
-  // upgrade level tables are no longer in the sheet; they stay until the tier upgrades replace them.
-  for (const part of ['skins', 'items', 'economy', 'tiers', 'skinRarity', 'glossary', 'upgrades']) if (!next[part] && before?.[part]) next[part] = before[part];
+  // A tab missing from the sheet keeps its part of the current file (Skins, Items and the loop 16 tabs).
+  for (const part of ['skins', 'items', 'economy', 'tiers', 'skinRarity', 'glossary']) if (!next[part] && before?.[part]) next[part] = before[part];
   if (!next.skins) next.skins = [];
   if (!next.items) next.items = [];
   console.log('Changes:');
