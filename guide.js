@@ -1,6 +1,7 @@
 // The Game Guide (loop 16): a public page at /guide, no login, built from data/economy.json every time it's
 // asked for, so it always shows the numbers the game uses. Same look as the privacy and terms pages (page.css).
 const catalog = require('./catalog');
+const upgrades = require('./upgrades');
 const rules = require('./rules');
 const economy = require('./data/economy.json');
 
@@ -11,6 +12,7 @@ const table = (head, rows) => `<div class="scroll"><table><thead><tr>${head.map(
 const unitText = (v, unit) => (/^x /.test(unit) ? `×${n(v)} ${unit.slice(2)}` : `${n(v)} ${unit}`);
 
 function renderGuide({ maps = [] } = {}) {
+  const shown = new Set(upgrades.available(require('./variables').declared()));   // upgrades whose variable exists (loop 19)
   const E = catalog.E, L = Array.from({ length: E.maxLevel }, (_, i) => i + 1);
   const terrains = Object.entries(rules.TERRAIN_HITS);
   const sections = [];
@@ -52,12 +54,12 @@ function renderGuide({ maps = [] } = {}) {
       block every upgrade works at most at hi<sub>L</sub>, the end of tier L. That covers your Click Power and Repair on it, Earnings and
       Growth when you mine it, its owner's Defense, and Factory Speed and Yield on it. Values can be fractions: Growth 1.4 means 1 new block
       and a 40% chance of a second.</p>`
-    + Object.entries(economy.tiers).map(([key, u]) => `<h3>${esc(u.name)}</h3><p>${esc(u.about)}. ${u.tiers} tiers of ${u.steps} steps; T = ${n(u.tierWh)} work-hours,
+    + Object.entries(economy.tiers).filter(([key]) => shown.has(key)).map(([key, u]) => `<h3>${esc(u.name)}</h3><p>${esc(u.about)}. ${u.tiers} tiers of ${u.steps} steps; T = ${n(u.tierWh)} work-hours,
       c = ${n(u.priceCurve)}, g = ${n(u.gainCurve)}.</p>`
       + table(['Tier', 'From', 'To (end of the tier)', 'First step (squares)', 'Last step (squares)', 'Whole tier (squares)'], Array.from({ length: u.tiers }, (_, i) =>
-        [i + 1, unitText(catalog.lo(key, i + 1), u.unit), unitText(catalog.hi(key, i + 1), u.unit),
-          n(catalog.fromTenths(catalog.stepCostTenths(key, i * u.steps + 1)), 1), n(catalog.fromTenths(catalog.stepCostTenths(key, (i + 1) * u.steps)), 1),
-          n(catalog.fromTenths(catalog.tierCostTenths(key, i + 1)), 1)]))).join(''));
+        [i + 1, unitText(upgrades.lo(key, i + 1), u.unit), unitText(upgrades.hi(key, i + 1), u.unit),
+          n(catalog.fromTenths(upgrades.stepCostTenths(key, i * u.steps + 1)), 1), n(catalog.fromTenths(upgrades.stepCostTenths(key, (i + 1) * u.steps)), 1),
+          n(catalog.fromTenths(upgrades.tierCostTenths(key, i + 1)), 1)]))).join(''));
 
   const factoryPrice = k => catalog.fromTenths(catalog.priceTenths(catalog.CATALOG.get('building:factory'), { L: 1, n: k }));
   sections.push(`<h2 id="factories">Factories</h2>

@@ -15,16 +15,16 @@ W(L),Work index,Squares one work-hour is worth at level L,"W(L) = (3600 / baseBl
 P,Payback hours,How long an object takes to repay its price,,Each object's row
 V,Value per hour,Work-hours an object gives (or forces an attacker to spend) per hour,,Each object's row
 Price,Universal price,The price of anything with a V,Price = P x V x W(L),Formula
-N,Tier,"Upgrade tier, 1 to 10. Everyone starts at tier 1",,Each player
-N,Tier,"Upgrade tier, 1 to 10. Tier 1 is open from the start; each tier is bought in stepsPerTier small steps",,Each player
-a_N,Tier end value,"What an upgrade gives once all of tier N's steps are bought (a_0 = v0, a_10 = vmax)",a_N = v0 x (vmax / v0)^(N/10),Upgrades tab
-c_u,Upgrade weight,How many work-hours an upgrade is worth,,Upgrades tab
-Tier cost,Tier price,"Total price of all of tier N's steps. Each step costs a little more than the one before (x 2^(1/stepsPerTier)), so tier N+1 starts at twice tier N's first step","c_u x 1,200 x 2^(N-1)",Formula; Economy stepsPerTier
-Effective tier,Tier in use,Your upgrades work at most at the level of the map you're on,"min(your tier, map level)",Rule
+N,Tier,"Upgrade tier, 1 to 10. Tier 1 is open from the start; each tier is bought in S small steps",,Each player; Upgrades tab Steps per tier
+"lo_N, hi_N",Tier range,What an upgrade gives at the start and the end of tier N. Every tier max is the last one times the multiplier,lo_1 = Tier 1 start; lo_N = Tier 1 max x m^(N-2); hi_N = Tier 1 max x m^(N-1),Upgrades tab
+Step value,Value after step s,"Big gains on the first steps, flattening toward the tier max",lo_N + (hi_N - lo_N) x ln(1 + g x s / S) / ln(1 + g),Upgrades tab Gain curve (g)
+Step price,Price of step s,"Cheap at first, then rising and flattening toward the end of the tier",T x W(N) x ln(1 + c x s / S) / sum of ln(1 + c x j / S) for j = 1 to S,Upgrades tab Price curve (c)
+T,Tier cost,"Work-hours to buy all of one tier's steps, priced at that tier's level",T x W(N) squares,Upgrades tab Tier cost
+Effective tier,Tier in use,Your upgrades work at most up to the level of the block you act on,"min(your tier, the block's level)",Rule
 Build_n,Factory price,Price of your nth factory,P_F x V_F x W(L) x g^(n-1),Economy factory rows
 Factory speed,Factory hits,Hits a factory adds per second,(hitsPerBlock / baseBlockSeconds) x Factory Speed value,Upgrades tab
 Distance penalty,Factory distance,Extra hits when a factory's target lies outside its home square (d = blocks outside it),d x factoryDistancePenaltyWh x W(L) x hitsPerSquare,Economy tab
 Wall hits,Wall strength,Hits to break a wall,w x H,Economy wallStrength
-Wall price,Wall price,Price of one wall,P_a x w x H / hitsPerSquare,Economy tab
+Wall price,Wall price,Price of one wall; the same for every wall in a batch,"wallPriceWh x W(L of the block) x max(1, sqrt(walls you own on this map) / 2)",Economy wallPriceWh
 Skin price,Skin price,Price of a skin,rarity hours x W(L),Skin Rarity tab
 Market fee,Market fee,Share of each land sale destroyed,price x marketFee,Economy tab

@@ -6,15 +6,5 @@ maxLevel,10,level,Highest map level. Level L starts after (2^(L-1) - 1) x E bloc
 maxBaseBlocksOnline,50000,blocks,"Largest E allowed when creating a map on the live game, until the database is upgraded. Local test maps have no limit"
 tickSeconds,60,seconds,"How often the server runs timed things (factories, item timers)"
 inspectHoldMs,400,milliseconds,How long you press and hold a block to open its info card
-factoryBlocksPerFactory,20,blocks,You may own 1 factory for every this many blocks you own
-factoryBuildPaybackHours,48,hours,P_F: payback hours used in a factory's build price
-factoryValuePerHour,0.05,work-hours/hour,"V_F: value one base factory gives per hour, used in its build price"
-factoryBuildGrowth,1.15,x,g: each factory you own makes the next one cost this much more
-factoryAreaSize,5,blocks,"A factory's home square is this many blocks wide, centered on it (5 = 25 blocks)"
-factoryDistancePenaltyWh,0.0005,work-hours,Extra work a factory needs for each block of distance its target lies outside its home square
-wallStrength,2,x hardness,w: hits to break a wall = w x the block's hardness H
-wallPaybackHours,1,hours,P_a: wall price = P_a x w x H / hitsPerSquare squares
-maxWallsPerBlock,2,walls,"Most walls one block can have, each on a different outer side (2 lets you build corners)"
 marketFee,0.05,share,Share of every land sale destroyed (a money sink)
 marketMinAccountDays,3,days,An account must be at least this old to list or buy land
-stepsPerTier,90,steps,Every upgrade tier is bought in this many small steps. Tier N's steps climb from the end of tier N-1 to the end of tier N

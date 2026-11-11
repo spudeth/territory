@@ -5,6 +5,7 @@ const rules = require('./rules');
 const terrain = require('./public/terrain');
 const { accountNames } = require('./names');
 const catalog = require('./catalog');
+const upgrades = require('./upgrades');
 
 // The one purchase step every purchase uses: takes `price` tenths from the player (their row must already be
 // locked by the caller's transaction) and writes the ledger. Returns { squares: new balance in tenths } or
@@ -496,22 +497,22 @@ async function buySteps(pool, playerId, upgrade, from, count) {
   return tx(pool, async c => {
     const { rows: [p] } = await c.query('SELECT upgrade_steps, highest_level, squares FROM players WHERE id = $1 FOR UPDATE', [playerId]);
     if (!p) return { error: 'No such player' };
-    const have = p.upgrade_steps[upgrade] ?? 0, top = catalog.topStep(upgrade), tierOf = s => catalog.tierOfStep(upgrade, s);
+    const have = p.upgrade_steps[upgrade] ?? 0, top = upgrades.topStep(upgrade), tierOf = s => upgrades.tierOfStep(upgrade, s);
     if (from !== have) return { error: 'Already bought', steps: p.upgrade_steps };
     if (have >= top) return { error: 'This upgrade is at its top' };
     const next = have + 1;
-    if (!catalog.tierUnlocked(tierOf(next), p.highest_level)) return { error: `Mine a level-${tierOf(next)} block to unlock` };
+    if (!upgrades.tierUnlocked(tierOf(next), p.highest_level)) return { error: `Mine a level-${tierOf(next)} block to unlock` };
     // How many: up to `count` (or as many as the balance allows), never past what is unlocked or the top.
-    const limit = Math.min(top, p.highest_level * catalog.STEPS(upgrade), count === 'max' ? top : have + count);
+    const limit = Math.min(top, p.highest_level * upgrades.STEPS(upgrade), count === 'max' ? top : have + count);
     let n = 0, cost = 0;
     const balance = Number(p.squares);
     while (have + n < limit) {
-      const c1 = catalog.stepCostTenths(upgrade, have + n + 1);
+      const c1 = upgrades.stepCostTenths(upgrade, have + n + 1);
       if (count === 'max' && cost + c1 > balance) break;
       cost += c1;
       n++;
     }
-    if (!n) return { error: 'Not enough squares', need: catalog.stepCostTenths(upgrade, next) - balance };
+    if (!n) return { error: 'Not enough squares', need: upgrades.stepCostTenths(upgrade, next) - balance };
     const paid = await spend(c, playerId, cost, `upgrade:${upgrade}:${have + 1}-${have + n}`);
     if (paid.error) return paid;
     const steps = { ...p.upgrade_steps, [upgrade]: have + n };

@@ -7,6 +7,7 @@ const { createGame } = require('../app');
 const rules = require('../rules');
 const store = require('../store');
 const catalog = require('../catalog');
+const upgrades = require('../upgrades');
 const { testDb, connectPlayer } = require('./helpers');
 
 let db, pool, game, url;
@@ -47,9 +48,9 @@ const balanceOf = async pid => Number((await pool.query('SELECT squares FROM pla
 const ledgerOf = async pid => (await pool.query(
   "SELECT delta, balance_after, reason FROM square_ledger WHERE player_id = $1 AND reason LIKE 'upgrade:%' ORDER BY id", [pid]))
   .rows.map(r => [Number(r.delta) / 10, Number(r.balance_after) / 10, r.reason]);
-const S = catalog.STEPS('clickPower');
-const STEP1 = catalog.stepCostTenths('clickPower', 1) / 10;   // the first step's price, squares
-const sumSteps = (key, from, to) => { let t = 0; for (let s = from; s <= to; s++) t += catalog.stepCostTenths(key, s); return t / 10; };
+const S = upgrades.STEPS('clickPower');
+const STEP1 = upgrades.stepCostTenths('clickPower', 1) / 10;   // the first step's price, squares
+const sumSteps = (key, from, to) => { let t = 0; for (let s = from; s <= to; s++) t += upgrades.stepCostTenths(key, s); return t / 10; };
 
 test('steps: tier 1 is open from the start; exactly a step\'s price buys it; a tenth short is refused; the screen shows tier and step', async () => {
   const short = await guestWith(STEP1 - 0.1);
@@ -64,7 +65,7 @@ test('steps: tier 1 is open from the start; exactly a step\'s price buys it; a t
   const cp = screen.list.find(u => u.key === 'clickPower');
   assert.deepEqual([cp.start, cp.max1, cp.mult, cp.gain, cp.steps, cp.tiers.length], [1, 10, 2, 9, 90, 10], 'what the screen needs for any step\'s value');
   assert.deepEqual(cp.tiers[1], { tier: 2, from: 10, to: 20, cost: 28800 });
-  assert.deepEqual(screen.prices.clickPower, { value: catalog.stepValue('clickPower', 2), price: catalog.stepCostTenths('clickPower', 2) / 10, tier: 1 });
+  assert.deepEqual(screen.prices.clickPower, { value: upgrades.stepValue('clickPower', 2), price: upgrades.stepCostTenths('clickPower', 2) / 10, tier: 1 });
   assert.equal(screen.list.length, 7, 'all seven upgrades from the Upgrades tab');
   assert.deepEqual(await g.s.ask('buyUpgrade', { upgrade: 'clickPower', from: 0, count: 1 }), { error: 'Already bought' }, 'a repeated tap is refused');
 });

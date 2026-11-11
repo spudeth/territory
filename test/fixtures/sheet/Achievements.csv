@@ -94,47 +94,47 @@ earned-50k,Treasury,Earning,squaresEarned,50000,,"Earn 50,000 squares by claimin
 earned-100k,Square Tycoon,Earning,squaresEarned,100000,,"Earn 100,000 squares by claiming blocks",400
 earned-250k,Mega Mogul,Earning,squaresEarned,250000,,"Earn 250,000 squares by claiming blocks",1000
 earned-500k,Infinite Wallet,Earning,squaresEarned,500000,,"Earn 500,000 squares by claiming blocks",2000
-spent-10,Window Shopper,Spending,squaresSpent,10,,Spend 10 squares on upgrades,0.1
-spent-100,First Splurge,Spending,squaresSpent,100,,Spend 100 squares on upgrades,0.4
-spent-500,Shopaholic,Spending,squaresSpent,500,,Spend 500 squares on upgrades,2
-spent-1k,Big Spender,Spending,squaresSpent,1000,,"Spend 1,000 squares on upgrades",4
-spent-5k,High Roller,Spending,squaresSpent,5000,,"Spend 5,000 squares on upgrades",20
-spent-10k,Spree,Spending,squaresSpent,10000,,"Spend 10,000 squares on upgrades",40
-spent-50k,Splurge Lord,Spending,squaresSpent,50000,,"Spend 50,000 squares on upgrades",200
-spent-100k,Bottomless Pockets,Spending,squaresSpent,100000,,"Spend 100,000 squares on upgrades",400
-spent-500k,Market Maker,Spending,squaresSpent,500000,,"Spend 500,000 squares on upgrades",2000
-spent-1m,All In,Spending,squaresSpent,1000000,,"Spend 1,000,000 squares on upgrades",4000
-bought-1,First Upgrade,Upgrades,purchases,1,,Buy 1 upgrade level,0.1
-bought-5,Tinkerer,Upgrades,purchases,5,,Buy 5 upgrade levels,0.5
-bought-10,Mechanic,Upgrades,purchases,10,,Buy 10 upgrade levels,2.1
-bought-25,Engineer,Upgrades,purchases,25,,Buy 25 upgrade levels,15
-bought-50,Inventor,Upgrades,purchases,50,,Buy 50 upgrade levels,75
-bought-100,Mad Scientist,Upgrades,purchases,100,,Buy 100 upgrade levels,300
-bought-150,Overclocked,Upgrades,purchases,150,,Buy 150 upgrade levels,800
-bought-200,Nearly Maxed,Upgrades,purchases,200,,Buy 200 upgrade levels,1500
-bought-225,Fully Loaded,Upgrades,purchases,225,,Buy 225 upgrade levels,2000
-clickpower-1,Stronger Taps,Upgrade levels,level:clickPower,1,,Reach Click Power level 1,0.1
-clickpower-5,Iron Finger,Upgrade levels,level:clickPower,5,,Reach Click Power level 5,0.5
-clickpower-10,Steel Finger,Upgrade levels,level:clickPower,10,,Reach Click Power level 10,1.4
-clickpower-25,Diamond Finger,Upgrade levels,level:clickPower,25,,Reach Click Power level 25,8.5
-clickpower-50,Thunder Finger,Upgrade levels,level:clickPower,50,,Reach Click Power level 50,100
-clickpower-70,Max Power,Upgrade levels,level:clickPower,70,,Reach Click Power level 70,750
-defense-1,Fence Builder,Upgrade levels,level:defense,1,,Reach Defense level 1,0.5
-defense-5,Wall Raiser,Upgrade levels,level:defense,5,,Reach Defense level 5,3
-defense-10,Fortified,Upgrade levels,level:defense,10,,Reach Defense level 10,7.9
-defense-25,Bastion,Upgrade levels,level:defense,25,,Reach Defense level 25,50
-defense-50,Impenetrable,Upgrade levels,level:defense,50,,Reach Defense level 50,600
-earnings-1,Side Hustle,Upgrade levels,level:earnings,1,,Reach Earnings level 1,0.1
-earnings-5,Day Trader,Upgrade levels,level:earnings,5,,Reach Earnings level 5,0.2
-earnings-10,Investor,Upgrade levels,level:earnings,10,,Reach Earnings level 10,0.6
-earnings-25,Banker,Upgrade levels,level:earnings,25,,Reach Earnings level 25,3.6
-earnings-50,Tycoon,Upgrade levels,level:earnings,50,,Reach Earnings level 50,40
-earnings-100,Golden Goose,Upgrade levels,level:earnings,100,,Reach Earnings level 100,5000
-growth-1,Green Thumb,Upgrade levels,level:growth,1,,Reach Growth level 1,4.6
-growth-2,Gardener,Upgrade levels,level:growth,2,,Reach Growth level 2,15
-growth-3,Landscaper,Upgrade levels,level:growth,3,,Reach Growth level 3,30
-growth-4,Terraformer,Upgrade levels,level:growth,4,,Reach Growth level 4,75
-growth-5,World Grower,Upgrade levels,level:growth,5,,Reach Growth level 5,150
+spent-10,Window Shopper,Spending,squaresSpent,10,,Spend 10 squares,0.1
+spent-100,First Splurge,Spending,squaresSpent,100,,Spend 100 squares,0.4
+spent-500,Shopaholic,Spending,squaresSpent,500,,Spend 500 squares,2
+spent-1k,Big Spender,Spending,squaresSpent,1000,,"Spend 1,000 squares",4
+spent-5k,High Roller,Spending,squaresSpent,5000,,"Spend 5,000 squares",20
+spent-10k,Spree,Spending,squaresSpent,10000,,"Spend 10,000 squares",40
+spent-50k,Splurge Lord,Spending,squaresSpent,50000,,"Spend 50,000 squares",200
+spent-100k,Bottomless Pockets,Spending,squaresSpent,100000,,"Spend 100,000 squares",400
+spent-500k,Market Maker,Spending,squaresSpent,500000,,"Spend 500,000 squares",2000
+spent-1m,All In,Spending,squaresSpent,1000000,,"Spend 1,000,000 squares",4000
+bought-1,First Upgrade,Upgrades,purchases,1,,Buy 1 upgrade step,0.5
+bought-5,Tinkerer,Upgrades,purchases,270,,Buy 270 upgrade steps,1074.4
+bought-10,Mechanic,Upgrades,purchases,450,,Buy 450 upgrade steps,2448.8
+bought-25,Engineer,Upgrades,purchases,900,,Buy 900 upgrade steps,7188.8
+bought-50,Inventor,Upgrades,purchases,1800,,"Buy 1,800 upgrade steps",28177.5
+bought-100,Mad Scientist,Upgrades,purchases,2700,,"Buy 2,700 upgrade steps",84132.6
+bought-150,Overclocked,Upgrades,purchases,3600,,"Buy 3,600 upgrade steps",234606.9
+bought-200,Nearly Maxed,Upgrades,purchases,4500,,"Buy 4,500 upgrade steps",645506.6
+bought-225,Fully Loaded,Upgrades,purchases,6300,,"Buy all 6,300 upgrade steps",5155919.7
+clickpower-1,Stronger Taps,Upgrade levels,level:clickPower,2,,Reach Click Power tier 2,480
+clickpower-5,Iron Finger,Upgrade levels,level:clickPower,4,,Reach Click Power tier 4,1920
+clickpower-10,Steel Finger,Upgrade levels,level:clickPower,6,,Reach Click Power tier 6,7680
+clickpower-25,Diamond Finger,Upgrade levels,level:clickPower,8,,Reach Click Power tier 8,30720
+clickpower-50,Thunder Finger,Upgrade levels,level:clickPower,9,,Reach Click Power tier 9,61440
+clickpower-70,Max Power,Upgrade levels,level:clickPower,10,,Reach Click Power tier 10,122880
+defense-1,Fence Builder,Upgrade levels,level:defense,2,,Reach Defense tier 2,360
+defense-5,Wall Raiser,Upgrade levels,level:defense,4,,Reach Defense tier 4,1440
+defense-10,Fortified,Upgrade levels,level:defense,6,,Reach Defense tier 6,5760
+defense-25,Bastion,Upgrade levels,level:defense,8,,Reach Defense tier 8,23040
+defense-50,Impenetrable,Upgrade levels,level:defense,10,,Reach Defense tier 10,92160
+earnings-1,Side Hustle,Upgrade levels,level:earnings,2,,Reach Earnings tier 2,720
+earnings-5,Day Trader,Upgrade levels,level:earnings,4,,Reach Earnings tier 4,2880
+earnings-10,Investor,Upgrade levels,level:earnings,6,,Reach Earnings tier 6,11520
+earnings-25,Banker,Upgrade levels,level:earnings,8,,Reach Earnings tier 8,46080
+earnings-50,Tycoon,Upgrade levels,level:earnings,9,,Reach Earnings tier 9,92160
+earnings-100,Golden Goose,Upgrade levels,level:earnings,10,,Reach Earnings tier 10,184320
+growth-1,Green Thumb,Upgrade levels,level:growth,2,,Reach Growth tier 2,360
+growth-2,Gardener,Upgrade levels,level:growth,4,,Reach Growth tier 4,1440
+growth-3,Landscaper,Upgrade levels,level:growth,6,,Reach Growth tier 6,5760
+growth-4,Terraformer,Upgrade levels,level:growth,8,,Reach Growth tier 8,23040
+growth-5,World Grower,Upgrade levels,level:growth,10,,Reach Growth tier 10,92160
 sand-1,Beachcomber,Terrain,terrain:sand,1,,Claim 1 sand block,0.2
 sand-5,Sandcastle,Terrain,terrain:sand,5,,Claim 5 sand blocks,1
 sand-10,Dune Walker,Terrain,terrain:sand,10,,Claim 10 sand blocks,2

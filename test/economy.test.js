@@ -22,18 +22,21 @@ test('the saved sheet passes and reads every tab as shown; retired Game Rules ke
   assert.deepEqual(errors, []);
   assert.deepEqual(warnings, ['Game Rules: "squaresPerFirstClaim" is retired and ignored; the row can be deleted',
     'Game Rules: "newMapBlocks" is retired and ignored; the row can be deleted',
-    'Economy: "wallPaybackHours" is retired and ignored; the row can be deleted', 'Economy: "stepsPerTier" is retired and ignored; the row can be deleted',
-    'Economy: no row for "wallPriceWh" yet; keeping the value in data/economy.json']);
+    'Upgrades: no "Variable" column yet; using the variables agreed in Q39']);
   assert.equal(e.rules.hitsPerBlock, 10);
   assert.equal(e.rules.squaresPerFirstClaim, undefined);
   assert.equal(e.achievements.length, 300);
   assert.deepEqual(e.achievements[0], { id: 'first-block', name: 'First Block', category: 'Claiming', stat: 'claims', threshold: 1, secret: false, description: 'Claim 1 empty block', reward: 0.5 });
   assert.equal(e.economy.defaultBaseBlocks, 431649);
   assert.equal(e.economy.marketFee, 0.05);
-  // Loop 18: stepsPerTier and wallPaybackHours are retired (warned, ignored); wallPriceWh isn't on the sheet yet (warned).
-  assert.deepEqual(Object.keys(e.economy).sort(), Object.keys(economy.ECONOMY_KEYS).filter(k => !economy.NEW_ECONOMY.includes(k)).sort());
-  assert.deepEqual(Object.keys(e.tiers), economy.TIER_KEYS);
-  assert.deepEqual(e.tiers.clickPower, { name: 'Click Power', type: 'Income', start: 1, max1: 10, mult: 2, tiers: 10, steps: 90, tierWh: 12, priceCurve: 9, gainCurve: 9,
+  // Loop 19: Economy, Walls and Factories are read into one part; each key once, on its own tab.
+  assert.deepEqual(Object.keys(e.economy).sort(), Object.keys(economy.ECONOMY_KEYS).sort());
+  assert.deepEqual([e.economy.wallPriceWh, e.economy.factoryAreaSize, economy.homeTab('wallStrength'), economy.homeTab('factoryAreaSize'), economy.homeTab('marketFee')],
+    [0.01, 5, 'Walls', 'Factories', 'Economy']);
+  assert.deepEqual(Object.keys(e.tiers), ['clickPower', 'earnings', 'defense', 'growth', 'factorySpeed', 'factoryLifetime', 'factoryYield']);
+  assert.deepEqual(Object.values(e.tiers).map(u => u.variable), ['clickPower', 'earnings', 'defense', 'growth', 'factories.speed', 'factories.lifetime', 'factories.yield'],
+    'no Variable column yet: the names agreed in Q39');
+  assert.deepEqual(e.tiers.clickPower, { name: 'Click Power', type: 'Income', variable: 'clickPower', start: 1, max1: 10, mult: 2, tiers: 10, steps: 90, tierWh: 12, priceCurve: 9, gainCurve: 9,
     unit: 'x hits per tap', about: 'Each tap counts as this many hits' });
   assert.deepEqual([e.tiers.factorySpeed.start, e.tiers.factorySpeed.max1], [0.05, 0.1]);
   assert.deepEqual(e.items.map(i => [i.id, i.pricing, i.consumable]), [['superClick', 'PV', false], ['terraformer', 'PV', false], ['demolition', 'Hours', true]]);
@@ -58,7 +61,7 @@ test('a missing tab, or the first tab returned in its place, is refused by name;
   for (const part of ['economy', 'tiers', 'items', 'skinRarity', 'glossary']) assert.equal(r.economy[part], undefined, part);
 });
 
-test('the Economy tab: unknown, missing, twice, out of range, not whole and not a number are refused by cell', () => {
+test('the Economy, Walls and Factories tabs: unknown, missing, twice, on the wrong tab, out of range, not whole and not a number are refused by cell', () => {
   const tab = saved().Economy;
   const row = k => economy.parseCsv(tab).findIndex(r => r[0] === k);
   const check = (csv, expected) => {
@@ -72,7 +75,22 @@ test('the Economy tab: unknown, missing, twice, out of range, not whole and not 
   check(setCell(tab, row('marketFee'), 1, '1.5'), `Economy, cell B${row('marketFee') + 1} ("Value"): marketFee must be between 0 and 1, not 1.5`);
   check(setCell(tab, row('defaultBaseBlocks'), 1, '1.5'), `Economy, cell B${row('defaultBaseBlocks') + 1} ("Value"): defaultBaseBlocks must be a whole number, not 1.5`);
   check(setCell(tab, row('baseBlockSeconds'), 1, 'three'), `Economy, cell B${row('baseBlockSeconds') + 1} ("Value"): "three" is not a number (baseBlockSeconds)`);
-  check(setCell(tab, row('factoryAreaSize'), 1, '4'), 'Economy: factoryAreaSize must be odd, so the factory is in the middle (not 4)');
+  // The walls' and factories' own tabs.
+  const fac = saved().Factories, frow = k => economy.parseCsv(fac).findIndex(r => r[0] === k);
+  const checkTab = (name, csv, expected) => {
+    const tabs = saved();
+    tabs[name] = csv;
+    assert.ok(errorsWith(tabs).includes(expected), `${expected}\n  got: ${errorsWith(tabs).join(' | ')}`);
+  };
+  checkTab('Factories', setCell(fac, frow('factoryAreaSize'), 1, '4'), 'Factories: factoryAreaSize must be odd, so the factory is in the middle (not 4)');
+  checkTab('Factories', setCell(fac, frow('factoryAreaSize'), 0, 'wallStrength'), `Factories, cell A${frow('factoryAreaSize') + 1} ("Key"): "wallStrength" belongs on the Walls tab`);
+  checkTab('Factories', setCell(fac, frow('factoryAreaSize'), 0, 'factoryAreaSise'), 'Factories: no row for "factoryAreaSize"');
+  // An older sheet with a factory key still on Economy: accepted, but not on both.
+  checkTab('Economy', tab + '\nfactoryAreaSize,5,blocks,old row', `Factories, cell A${frow('factoryAreaSize') + 1} ("Key"): "factoryAreaSize" appears twice (also on Economy)`);
+  const old = saved();
+  old.Economy = tab + '\n' + economy.parseCsv(fac).slice(1).map(r => r.map(c => JSON.stringify(c)).join(',')).join('\n');
+  delete old.Factories;
+  assert.deepEqual(economy.validate(old).errors, [], 'factory rows on the Economy tab of an older sheet');
 });
 
 test('the Upgrades tab: unknown upgrades, bad numbers and missing rows are refused by cell', () => {
@@ -83,8 +101,8 @@ test('the Upgrades tab: unknown upgrades, bad numbers and missing rows are refus
     tabs.Upgrades = csv;
     assert.ok(errorsWith(tabs).includes(expected), `${expected}\n  got: ${errorsWith(tabs).join(' | ')}`);
   };
-  check(setCell(tab, row('defense'), 0, 'armor'), `Upgrades, cell A${row('defense') + 1} ("Key"): unknown upgrade "armor" (one of: ${economy.TIER_KEYS.join(', ')})`);
-  check(setCell(tab, row('defense'), 0, 'armor'), 'Upgrades: no row for "defense"');
+  check(setCell(tab, row('defense'), 0, 'arm or'), `Upgrades, cell A${row('defense') + 1} ("Key"): "arm or" must be letters and digits, starting with a letter`);
+  check(setCell(tab, row('defense'), 3, '2'), `Upgrades, cell D${row('defense') + 1} ("Tier 1 start"): 2 must equal the base of "defense" (1)`);
   check(setCell(tab, row('defense'), 4, '0.5'), `Upgrades, cell E${row('defense') + 1} ("Tier 1 max"): 0.5 must be at least the tier 1 start (1)`);
   check(setCell(tab, row('earnings'), 5, '0.5'), `Upgrades, cell F${row('earnings') + 1} ("Multiplier per tier"): Multiplier per tier must be between 1 and 1000, not 0.5`);
   check(setCell(tab, row('growth'), 6, '2.5'), `Upgrades, cell G${row('growth') + 1} ("Tiers"): Tiers must be a whole number, not 2.5`);
@@ -198,4 +216,20 @@ test('the Achievements tab: bad rows are named by cell; a missing tab is refused
   const missing = saved();
   delete missing['Achievements'];
   assert.deepEqual(errorsWith(missing), ['Achievements: the tab is missing']);
+});
+
+test('the Upgrades tab\'s Variable column (loop 19): any upgrade is a row; one variable each; unknown variables are warned, not refused', () => {
+  const rows = economy.parseCsv(saved().Upgrades);
+  const withVar = vars => rows.map((r, i) => [...r, i === 0 ? 'Variable' : vars[i - 1]].map(c => JSON.stringify(c)).join(',')).join('\n');
+  const run = vars => { const tabs = saved(); tabs.Upgrades = withVar(vars); return economy.validate(tabs); };
+  const Q39 = ['clickPower', 'earnings', 'defense', 'growth', 'factories.speed', 'factories.lifetime', 'factories.yield'];
+  const ok = run(Q39);
+  assert.deepEqual(ok.errors, []);
+  assert.ok(!ok.warnings.some(w => w.includes('Variable')), 'no warning once the column is there');
+  assert.equal(ok.economy.tiers.factorySpeed.variable, 'factories.speed');
+  const twice = run(['clickPower', 'clickPower', ...Q39.slice(2)]);
+  assert.ok(twice.errors.includes(`Upgrades, cell N3 ("Variable"): "clickPower" is already changed by clickPower`), twice.errors.join(' | '));
+  const unknown = run([...Q39.slice(0, 6), 'robots.speed']);
+  assert.deepEqual(unknown.errors, []);
+  assert.ok(unknown.warnings.includes('Upgrades: "factoryYield" changes "robots.speed", which no installed plug-in has; it won\'t show until one does'));
 });

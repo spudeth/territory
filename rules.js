@@ -6,6 +6,7 @@
 
 const economy = require('./data/economy.json');
 const catalog = require('./catalog');
+const upgrades = require('./upgrades');
 const R = economy.rules;
 const settings = {
   // Claiming
@@ -120,10 +121,10 @@ function wallRefusal(map, pid, x, y, side) {
 }
 
 // A player's upgrades as they work on a block: { clickPower, defense, earnings, growth, … } values
-// (catalog.effectiveValues: capped at the end of the block's level's tier). Visitors and new players have no steps:
+// (upgrades.effectiveValues: capped at the end of the block's level's tier). Visitors and new players have no steps:
 // NO_UPGRADES, and any value missing counts as the tier 1 start.
 const NO_UPGRADES = Object.freeze({});
-const value = (eff, key) => eff?.[key] ?? catalog.tierValue(key, 0);   // the tier 1 start, before any step
+const value = (eff, name) => upgrades.value(eff, name);   // a variable's value, or its base before any step
 
 // A block's hardness H: hits to mine it = hitsPerBlock x 2^(birth level - 1) x its terrain factor
 // (settings.TERRAIN_HITS; grass, or no terrain, is 1). A block keeps the level it was born at.

@@ -1,7 +1,14 @@
 # Territory: core and plug-ins (Loop 19, Phase 0)
 
-Status: **proposal, waiting for Bob's approval.** No code has changed yet. Questions are at the end (Q39-Q47), each with
-Cody's recommendation.
+Status: **approved** by Bob and Xoren (2026-11-11), with Q39-Q47 as recommended. Progress: Phase 1 (baseline,
+docs/PERF.md) and Phase 2 (the core host) are done; the plug-ins move in Phases 3-7.
+
+**Built in Phase 2:** `plugins.js` (the server host: reads each plugin.json, runs the hooks, starts each server.js
+with the api, serves only its browser files and look/), `variables.js` (the core's four variables and each
+plug-in's), `upgrades.js` (the upgrade engine, moved from catalog.js, keyed by variable), `public/plugins.js` (the
+browser host: Plugins.add, the hooks, loading plug-in code after the first map draw), and the Build menu as a core
+piece (`addBuildTool` in `public/build.js`; the factory parts went to `public/factories.js` until Phase 5). The sheet
+sync reads the Walls and Factories tabs and the Upgrades tab's Variable column (Q39's names until the column exists).
 
 ## The goal in one paragraph
 

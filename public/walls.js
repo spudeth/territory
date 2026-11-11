@@ -59,6 +59,8 @@ let wallPreview = new Map();  // "x,y|side" -> { x, y, side }: the batch being p
     done: r => (r.built === 1 ? 'Wall built' : `${r.built} walls built`),
   };
 
+  addBuildTool({ id: 'wall', order: 20, label: 'Wall', sub: () => BUILD_KINDS.wall.sub(), start: info => startPlacing('wall', info) });
+
   socket.on('welcome', data => {
     walls = new Map((data.walls ?? []).map(([x, y, w]) => [key(x, y), w]));
     wallCracks = new Map();

@@ -325,7 +325,9 @@ function render() {
     ctx.restore();
   }
 
-  drawBuilt(ctx, X, Y, r0, r1, c0, c1);   // factories, walls, for-sale markers and the build ghost (build.js)
+  const view = { X, Y, r0, r1, c0, c1, dpr, border, borderOf: o => border * skins.borderTexels(lookOf(o).kind) };
+  Plugins.run('drawUnder', ctx, view);   // plug-ins: factories and the like, under the territory borders
+  drawBuilt(ctx, X, Y, r0, r1, c0, c1);   // for-sale markers and the build ghost (build.js)
 
   // Zoomed in: the level of each block above level 1, small, in its corner.
   if (scale >= LEVEL_NUMBER_SCALE && levels.size) {
@@ -385,6 +387,7 @@ function render() {
 
   // Walls on top of the borders, solid, each with its shadow (walls.js).
   window.drawWalls?.(ctx, X, Y, r0, r1, c0, c1, o => border * skins.borderTexels(lookOf(o).kind));
+  Plugins.run('drawOver', ctx, view);    // plug-ins: over the borders
   // Blocks picked for Demolition: the whole block red (items.js).
   if (typeof demolishing !== 'undefined' && demolishing.size) {
     for (const k of demolishing) {
@@ -579,6 +582,7 @@ function pointerEnd(e) {
     if (tagHit) openProfile(tagHit.owner);   // exactly the tag; the block around it still attacks
     else if (c && window.buildTap?.(c, e.clientX, e.clientY)) { /* placing a building (build.js) */ }
     else if (c && window.itemTap?.(c)) { /* the Terraformer took this tap (items.js) */ }
+    else if (c && Plugins.first('tap', c, e.clientX, e.clientY)) { /* a plug-in's tool took this tap (loop 19) */ }
     // Someone else's block or an empty one: a hit. Your own: only if it's cracked (a repair); otherwise nothing at all.
     else if (c && (!(me && cells.get(key(c.x, c.y)) === me) || hits.has(key(c.x, c.y)))) {
       socket.emit('hit', c);
@@ -707,6 +711,9 @@ socket.on('welcome', data => {
   loadProgress(data.me.tutorial);   // coach.js
   afterWelcome();   // menu.js: the setup screen if this map's look isn't chosen yet
   resumeTutorial(); // coach.js: carry on where they left off
+  // Plug-ins (loop 19): their part of the welcome; their code loads once the map has been drawn.
+  Plugins.welcome(data);
+  requestAnimationFrame(() => requestAnimationFrame(() => Plugins.load(data.plugins)));
 });
 
 // After a visitor's first claim the server creates their player and hands over the secret token.

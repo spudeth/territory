@@ -57,7 +57,7 @@ let inspecting = null;   // the block on the card, { x, y }, or null
     x.setAttribute('aria-label', 'Close');
     x.addEventListener('click', closeInspect);
     head.append(x);
-    card.replaceChildren(head, ...inspectSections.map(f => f(info)).filter(Boolean));
+    card.replaceChildren(head, ...inspectSections.map(f => f(info)).filter(Boolean), ...Plugins.collect('infoCard', info).filter(Boolean));   // plug-ins add theirs (loop 19)
   };
   window.closeInspect = () => { inspecting = null; card.hidden = true; };
   addEventListener('keydown', e => { if (e.key === 'Escape' && !card.hidden) closeInspect(); });
