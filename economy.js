@@ -3,8 +3,6 @@
 // rules.js reads it. The game never reads the sheet itself.
 
 // The upgrade tabs and the columns read from each (other columns are the sheet's own working).
-const UPGRADE_TABS = { clickPower: 'Click Power', defense: 'Defense', earnings: 'Earnings', growth: 'Growth' };
-const UPGRADE_COLUMNS = ['Level', 'Value after', 'Cost (squares)'];
 const RULES_TAB = 'Game Rules';
 const RULES_COLUMNS = ['Key', 'Value', 'What it means'];
 const ACHIEVEMENTS_TAB = 'Achievements';
@@ -16,28 +14,63 @@ const RARITIES = ['Common', 'Rare', 'Ultra Rare', 'Legendary'];
 // The image files every skin needs, under public/: one block, and the large one for Full area coverage.
 const skinFiles = key => [`skins/${key}.png`, `skins/${key}-large.png`];
 const ITEMS_TAB = 'Items';
-const ITEM_COLUMNS = ['Key', 'Name', 'Description', 'Price', 'Uses', 'Per (minutes)', 'Effect', 'Value', 'Duration (seconds)', 'Enabled'];
 // The kinds of effect the game knows (a new kind needs code; a new item of a known kind needs only a row).
-const ITEM_EFFECTS = ['clickMultiplier', 'terraform'];
-const TABS = [...Object.values(UPGRADE_TABS), RULES_TAB, ACHIEVEMENTS_TAB, SKINS_TAB, ITEMS_TAB];
+const ITEM_EFFECTS = ['clickMultiplier', 'terraform', 'demolish'];
+const int = (min, max = Infinity) => ({ integer: true, min, max });
+const num = (min, max = Infinity) => ({ integer: false, min, max });
+// Loop 16: the new economy tabs. Each is optional in the sheet: a missing tab keeps its part of data/economy.json.
+const ECONOMY_TAB = 'Economy', TIERS_TAB = 'Upgrades', RARITY_TAB = 'Skin Rarity', GLOSSARY_TAB = 'Glossary';
+const ECONOMY_COLUMNS = ['Key', 'Value', 'Unit', 'What it means'];
+const TIER_COLUMNS = ['Key', 'Name', 'Type', 'Tier 1 value (v0)', 'Tier 10 value (vmax)', 'Step', 'c_u (work-hours)', 'Unit', 'What it does'];
+const NEW_ITEM_COLUMNS = ['Key', 'Name', 'Description', 'Effect', 'Effect value', 'Duration (seconds)', 'Uses', 'Per (minutes)', 'Consumable',
+  'Pricing', 'V (work-hours/hour)', 'P (payback hours)', 'Hours', 'Enabled'];
+const RARITY_COLUMNS = ['Rarity', 'Work-hours', 'What it means'];
+const GLOSSARY_COLUMNS = ['Symbol', 'Name', 'What it means', 'Formula', 'Where the number lives'];
+// The upgrades the code has an effect for (a new one needs a handler in catalog.js; its numbers are a row).
+const TIER_KEYS = ['clickPower', 'earnings', 'defense', 'growth', 'factorySpeed', 'factoryLifetime', 'factoryYield'];
+const PRICINGS = ['PV', 'Hours'];   // how an item's price is worked out (catalog.js)
+const TIER_COUNT = 10;
+const TABS = [RULES_TAB, ACHIEVEMENTS_TAB, SKINS_TAB, ITEMS_TAB, ECONOMY_TAB, TIERS_TAB, RARITY_TAB, GLOSSARY_TAB];
+// Old tabs the sync no longer reads (loop 16): Inputs, Summary, Click Power, Defense, Earnings, Growth.
+// Game Rules keys still allowed but ignored, with a warning.
+const RETIRED_RULES = ['squaresPerFirstClaim', 'newMapBlocks'];
+const ECONOMY_KEYS = {
+  baseBlockSeconds: num(0.1, 3600),
+  hitsPerSquare: num(0.1, 1e6),
+  defaultBaseBlocks: int(1, 1e9),
+  maxLevel: int(1, 30),
+  maxBaseBlocksOnline: int(1, 1e9),
+  tickSeconds: num(1, 3600),
+  inspectHoldMs: int(50, 5000),
+  factoryBlocksPerFactory: int(1, 1e6),
+  factoryBuildPaybackHours: num(0, 1e6),
+  factoryValuePerHour: num(0, 1e6),
+  factoryBuildGrowth: num(1, 100),
+  factoryAreaSize: int(1, 101),
+  factoryDistancePenaltyWh: num(0, 1e6),
+  wallStrength: num(0, 1e6),
+  wallPaybackHours: num(0, 1e6),
+  maxWallsPerBlock: int(0, 4),
+  marketFee: num(0, 1),
+  marketMinAccountDays: num(0, 3650),
+};
 
 // The stats an achievement can use: the ones the game counts (achievements.js has what each one means).
 // bestRank counts down: a threshold of 3 means "#3 or better".
 const STATS = ['claims', 'owned', 'bestSquare', 'bestLine', 'taken', 'lost', 'taps', 'squaresEarned', 'squaresSpent', 'purchases',
-  'level:clickPower', 'level:defense', 'level:earnings', 'level:growth', 'terrain:sand', 'terrain:forest', 'terrain:stone', 'terrain:gold',
+  'level:clickPower', 'level:defense', 'level:earnings', 'level:growth', 'level:factorySpeed', 'level:factoryLifetime',
+  'level:factoryYield', 'tiers', 'highestLevel', 'terrain:sand', 'terrain:forest', 'terrain:stone', 'terrain:gold',
   'mapsPlayed', 'daysPlayed', 'bestStreak', 'bestRank', 'reignMinutes', 'wipes', 'hoursPlayed', 'sessionClaims', 'bestDayClaims',
   'chatMessages', 'squaresHeld', 'growthBlocks', 'mapGrown', 'renames', 'account', 'tutorialDone', 'achievements', 'secrets',
   'secret:castaway', 'secret:witching', 'secret:leet', 'secret:revenge', 'secret:poke', 'secret:treehugger', 'secret:speedrun',
   'secret:comeback', 'secret:helloworld', 'secret:wipedout'];
 
 // Every Game Rules key, with the values it may take.
-const int = (min, max = Infinity) => ({ integer: true, min, max });
-const num = (min, max = Infinity) => ({ integer: false, min, max });
 const RULE_KEYS = {
   hitsPerBlock: int(1, 1000),
   crackFadeSeconds: num(1, 86400),
   crackFadeHits: num(0.01, 1000),
-  squaresPerFirstClaim: num(0, 1e6),
+  squaresPerFirstClaim: num(0, 1e6),   // retired (loop 16): allowed, ignored
   guestsPerIp: int(1, 10000),
   guestWindowMinutes: num(1, 100000),
   renameWaitMinutes: num(0, 100000),
@@ -45,9 +78,10 @@ const RULE_KEYS = {
   nameMaxLength: int(1, 15),          // the database allows at most 15
   newMapWidth: int(1, 1000),
   newMapHeight: int(1, 1000),
-  newMapBlocks: int(1, 1000000),
+  newMapBlocks: int(1, 1000000),       // retired (loop 16): allowed, ignored
   rankMinPlayers: int(2, 100000),
   rankMinBlocks: int(1, 1000000),
+  mailingAddress: { text: true },   // the email footer's postal address (US anti-spam law); blank = nothing is sent
   terrainScale: num(2, 1000),
   waterShare: num(0, 0.6),
   sandShare: num(0, 0.6),
@@ -119,31 +153,9 @@ function validate(tabs, { hasFile = () => true } = {}) {
     return { rows: rows.slice(1), at };
   }
 
-  const upgrades = {};
-  for (const [key, tab] of Object.entries(UPGRADE_TABS)) {
-    const t = table(tab, UPGRADE_COLUMNS);
-    if (!t) continue;
-    if (!t.rows.length) { errors.push(`${tab}: no levels below the header row`); continue; }
-    const levels = [{ level: 0, value: 1, cost: 0 }];   // level 0: no upgrade, free (1 block for Growth)
-    t.rows.forEach((r, i) => {
-      const row = i + 1, [level, value, cost] = t.at.map((c, j) => {
-        const raw = r[c] ?? '', n = parseNumber(raw);
-        if (raw.trim() === '') errors.push(`${where(tab, c, row, UPGRADE_COLUMNS[j])}: blank`);
-        else if (n === null) errors.push(`${where(tab, c, row, UPGRADE_COLUMNS[j])}: "${raw}" is not a number`);
-        return n;
-      });
-      if (level === null || value === null || cost === null) return;
-      const prev = levels.at(-1);
-      if (level !== prev.level + 1) errors.push(`${where(tab, t.at[0], row, 'Level')}: expected level ${prev.level + 1}, found ${level}`);
-      if (!(value > prev.value)) errors.push(`${where(tab, t.at[1], row, 'Value after')}: ${value} must be more than the level before (${prev.value})`);
-      if (prev.level > 0 && !(cost > prev.cost)) errors.push(`${where(tab, t.at[2], row, 'Cost (squares)')}: ${cost} must be more than the level before (${prev.cost})`);
-      if (!(cost > 0)) errors.push(`${where(tab, t.at[2], row, 'Cost (squares)')}: ${cost} must be more than 0`);
-      if (key === 'growth' && !Number.isInteger(value)) errors.push(`${where(tab, t.at[1], row, 'Value after')}: ${value} must be a whole number of blocks`);
-      levels.push({ level: prev.level + 1, value, cost });
-    });
-    upgrades[key] = levels;
-  }
-
+  // The old per-upgrade level tabs are no longer read (loop 16); data/economy.json keeps their tables until
+  // the tier upgrades replace them.
+  const warnings = [];
   const rules = {}, seen = new Set();
   const t = table(RULES_TAB, RULES_COLUMNS);
   if (t) {
@@ -156,6 +168,7 @@ function validate(tabs, { hasFile = () => true } = {}) {
       if (seen.has(k)) return errors.push(`${where(RULES_TAB, kc, row, 'Key')}: "${k}" appears twice`);
       seen.add(k);
       if (!(r[dc] ?? '').trim()) errors.push(`${where(RULES_TAB, dc, row, 'What it means')}: blank`);
+      if (spec.text) { rules[k] = raw.trim(); return; }   // a text value; may be blank
       const n = parseNumber(raw);
       if (raw.trim() === '') return errors.push(`${where(RULES_TAB, vc, row, 'Value')}: blank (${k})`);
       if (n === null) return errors.push(`${where(RULES_TAB, vc, row, 'Value')}: "${raw}" is not a number (${k})`);
@@ -165,7 +178,8 @@ function validate(tabs, { hasFile = () => true } = {}) {
       }
       rules[k] = n;
     });
-    for (const k of Object.keys(RULE_KEYS)) if (!seen.has(k)) errors.push(`${RULES_TAB}: no row for "${k}"`);
+    for (const k of RETIRED_RULES) if (seen.has(k)) { warnings.push(`${RULES_TAB}: "${k}" is retired and ignored; the row can be deleted`); delete rules[k]; }
+    for (const k of Object.keys(RULE_KEYS)) if (!seen.has(k) && !RETIRED_RULES.includes(k)) errors.push(`${RULES_TAB}: no row for "${k}"`);
   }
   // Achievements: one row each. Secret: "yes" hides it until earned (blank or "no" otherwise).
   const achievements = [], keys = new Set();
@@ -218,87 +232,170 @@ function validate(tabs, { hasFile = () => true } = {}) {
       skins.push({ id: key, name, kind, rarity, price, collection, enabled: /^yes$/i.test(enabled) });
     });
   }
-  // Items: like skins, kept from data/economy.json while the sheet has no Items tab.
-  const items = [], itemKeys = new Set();
-  const itemsTab = typeof tabs[ITEMS_TAB] === 'string' && parseCsv(tabs[ITEMS_TAB])[0]?.some(c => c.trim() === 'Effect');
-  const it = itemsTab ? table(ITEMS_TAB, ITEM_COLUMNS) : null;
-  if (it) {
-    it.rows.forEach((r, i) => {
-      const row = i + 1, cell = j => (r[it.at[j]] ?? '').trim(), at = j => where(ITEMS_TAB, it.at[j], row, ITEM_COLUMNS[j]);
-      const [key, name, description, rawPrice, rawUses, rawPer, effect, rawValue, rawDuration, enabled] = ITEM_COLUMNS.map((c, j) => cell(j));
-      const n = j => parseNumber(cell(j)), bad = [];
-      if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(key)) bad.push(`${at(0)}: "${key}" must be lower-case letters, digits and dashes`);
-      else if (itemKeys.has(key)) bad.push(`${at(0)}: "${key}" appears twice`);
-      itemKeys.add(key);
-      if (!name) bad.push(`${at(1)}: blank`);
-      if (!description) bad.push(`${at(2)}: blank`);
-      for (const [j, min, whole] of [[3, 1, true], [4, 1, true], [5, 1, false], [7, 0, false], [8, 0, false]]) {
-        const v = n(j);
-        if (v === null || v < min || (whole && !Number.isInteger(v))) bad.push(`${at(j)}: "${cell(j)}" must be ${whole ? 'a whole number' : 'a number'}, ${min} or more`);
-      }
-      if (!ITEM_EFFECTS.includes(effect)) bad.push(`${at(6)}: unknown effect "${effect}" (one of: ${ITEM_EFFECTS.join(', ')})`);
-      if (!/^(yes|no)$/i.test(enabled)) bad.push(`${at(9)}: "${enabled}" must be yes or no`);
-      if (bad.length) return errors.push(...bad);
-      items.push({ id: key, name, description, price: n(3), uses: n(4), perMinutes: n(5), effect, value: n(7), seconds: n(8), enabled: /^yes$/i.test(enabled) });
+  // The loop 16 tabs. Each one found by its header row; a missing one is left out, and the sync keeps that part
+  // of data/economy.json.
+  const has = (tab, col) => typeof tabs[tab] === 'string' && parseCsv(tabs[tab])[0]?.some(c => c.trim() === col);
+  const num1 = (tab, c, row, header, raw, spec, k) => {
+    const n = parseNumber(raw);
+    if (raw.trim() === '') { errors.push(`${where(tab, c, row, header)}: blank${k ? ` (${k})` : ''}`); return null; }
+    if (n === null) { errors.push(`${where(tab, c, row, header)}: "${raw}" is not a number${k ? ` (${k})` : ''}`); return null; }
+    if (spec.integer && !Number.isInteger(n)) { errors.push(`${where(tab, c, row, header)}: ${k ?? header} must be a whole number, not ${n}`); return null; }
+    if (n < spec.min || n > spec.max) {
+      errors.push(`${where(tab, c, row, header)}: ${k ?? header} must be ${spec.max === Infinity ? `at least ${spec.min}` : `between ${spec.min} and ${spec.max}`}, not ${n}`);
+      return null;
+    }
+    return n;
+  };
+  let economyRules = null;
+  const ec = has(ECONOMY_TAB, 'Unit') && has(ECONOMY_TAB, 'Key') ? table(ECONOMY_TAB, ECONOMY_COLUMNS) : null;
+  if (ec) {
+    economyRules = {};
+    const seenE = new Set();
+    ec.rows.forEach((r, i) => {
+      const row = i + 1, [kc, vc] = ec.at, k = (r[kc] ?? '').trim();
+      if (!k) return errors.push(`${where(ECONOMY_TAB, kc, row, 'Key')}: blank`);
+      const spec = ECONOMY_KEYS[k];
+      if (!spec) return errors.push(`${where(ECONOMY_TAB, kc, row, 'Key')}: unknown key "${k}"`);
+      if (seenE.has(k)) return errors.push(`${where(ECONOMY_TAB, kc, row, 'Key')}: "${k}" appears twice`);
+      seenE.add(k);
+      const n = num1(ECONOMY_TAB, vc, row, 'Value', r[vc] ?? '', spec, k);
+      if (n !== null) economyRules[k] = n;
+    });
+    for (const k of Object.keys(ECONOMY_KEYS)) if (!seenE.has(k)) errors.push(`${ECONOMY_TAB}: no row for "${k}"`);
+    if (economyRules.factoryAreaSize % 2 === 0) errors.push(`${ECONOMY_TAB}: factoryAreaSize must be odd, so the factory is in the middle (not ${economyRules.factoryAreaSize})`);
+  }
+  // Upgrades: one row per upgrade, 10 tiers each. Step "geometric" (v0 to vmax) or "list:" with 10 values.
+  let tiers = null;
+  const tu = has(TIERS_TAB, 'Step') ? table(TIERS_TAB, TIER_COLUMNS) : null;
+  if (tu) {
+    tiers = {};
+    tu.rows.forEach((r, i) => {
+      const row = i + 1, cell = j => (r[tu.at[j]] ?? '').trim(), at = j => where(TIERS_TAB, tu.at[j], row, TIER_COLUMNS[j]);
+      const key = cell(0);
+      if (!TIER_KEYS.includes(key)) return errors.push(`${at(0)}: unknown upgrade "${key}" (one of: ${TIER_KEYS.join(', ')})`);
+      if (tiers[key]) return errors.push(`${at(0)}: "${key}" appears twice`);
+      if (!cell(1)) errors.push(`${at(1)}: blank`);
+      const v0 = num1(TIERS_TAB, tu.at[3], row, TIER_COLUMNS[3], cell(3), num(0.000001));
+      const vmax = num1(TIERS_TAB, tu.at[4], row, TIER_COLUMNS[4], cell(4), num(0.000001));
+      const cu = num1(TIERS_TAB, tu.at[6], row, TIER_COLUMNS[6], cell(6), num(0));
+      let step = cell(5), list = null;
+      if (/^list:/i.test(step)) {
+        list = step.slice(5).split(',').map(s => parseNumber(s));
+        if (list.length !== TIER_COUNT || list.some(n => n === null)) { errors.push(`${at(5)}: a list needs ${TIER_COUNT} numbers, e.g. list:1,2,2,3,3,4,4,5,5,6`); list = null; }
+        else if (list.some((n, j) => j && n < list[j - 1])) errors.push(`${at(5)}: the list must never go down`);
+        step = 'list';
+      } else if (step !== 'geometric') errors.push(`${at(5)}: "${step}" must be geometric or list:…`);
+      if (v0 !== null && vmax !== null && vmax < v0) errors.push(`${at(4)}: ${vmax} must be at least the tier 1 value (${v0})`);
+      tiers[key] = { name: cell(1), type: cell(2), v0, vmax, step, ...(list ? { list } : {}), cu, unit: cell(7), about: cell(8) };
+    });
+    for (const k of TIER_KEYS) if (!tiers[k] && !errors.some(e => e.includes(`"${k}"`))) errors.push(`${TIERS_TAB}: no row for "${k}"`);
+  }
+  // Items: one row each. Pricing PV (P x V x W(L)) or Hours (Hours x W(L)).
+  let newItems = null;
+  const ni = has(ITEMS_TAB, 'Pricing') ? table(ITEMS_TAB, NEW_ITEM_COLUMNS) : null;
+  if (ni) {
+    newItems = [];
+    const ids = new Set();
+    ni.rows.forEach((r, i) => {
+      const row = i + 1, cell = j => (r[ni.at[j]] ?? '').trim(), at = j => where(ITEMS_TAB, ni.at[j], row, NEW_ITEM_COLUMNS[j]);
+      const opt = (j, spec) => cell(j) === '' ? null : num1(ITEMS_TAB, ni.at[j], row, NEW_ITEM_COLUMNS[j], cell(j), spec);
+      const before = errors.length;
+      const key = cell(0);
+      if (!/^[a-zA-Z0-9]+(-[a-zA-Z0-9]+)*$/.test(key)) errors.push(`${at(0)}: "${key}" must be letters, digits and dashes`);
+      else if (ids.has(key)) errors.push(`${at(0)}: "${key}" appears twice`);
+      ids.add(key);
+      if (!cell(1)) errors.push(`${at(1)}: blank`);
+      if (!cell(2)) errors.push(`${at(2)}: blank`);
+      const effect = cell(3);
+      if (!ITEM_EFFECTS.includes(effect)) errors.push(`${at(3)}: unknown effect "${effect}" (one of: ${ITEM_EFFECTS.join(', ')})`);
+      const value = opt(4, num(0)), seconds = opt(5, num(0)), uses = opt(6, int(1, 1000)), per = opt(7, num(1));
+      if (!/^(yes|no)$/i.test(cell(8))) errors.push(`${at(8)}: "${cell(8)}" must be yes or no`);
+      const consumable = /^yes$/i.test(cell(8));
+      if (!consumable && (uses === null || per === null)) errors.push(`${at(6)}: a reusable item needs Uses and Per (minutes)`);
+      const pricing = cell(9);
+      if (!PRICINGS.includes(pricing)) errors.push(`${at(9)}: "${pricing}" must be ${PRICINGS.join(' or ')}`);
+      const V = opt(10, num(0)), P = opt(11, num(0)), hours = opt(12, num(0));
+      if (pricing === 'PV' && (V === null || P === null)) errors.push(`${at(10)}: PV pricing needs V and P`);
+      if (pricing === 'Hours' && hours === null) errors.push(`${at(12)}: Hours pricing needs Hours`);
+      if (!/^(yes|no)$/i.test(cell(13))) errors.push(`${at(13)}: "${cell(13)}" must be yes or no`);
+      if (errors.length > before) return;
+      newItems.push({ id: key, name: cell(1), description: cell(2), effect, value: value ?? 0, seconds: seconds ?? 0, uses: uses ?? 1,
+        perMinutes: per ?? 0, consumable, pricing, V, P, hours, enabled: /^yes$/i.test(cell(13)) });
     });
   }
-  return errors.length ? { economy: null, errors } : { economy: { rules, upgrades, achievements, ...(skinsTab ? { skins } : {}), ...(itemsTab ? { items } : {}) }, errors };
-}
-
-// Option B: a stored level under the old table becomes the lowest new level whose value is at least the old
-// value, so nobody gets weaker. If no new level is that strong, the top level.
-function remapLevel(oldLevels, newLevels, level) {
-  const old = oldLevels[Math.min(Math.max(0, level | 0), oldLevels.length - 1)].value;
-  const found = newLevels.find(l => l.value >= old - 1e-9);
-  return (found ?? newLevels.at(-1)).level;
-}
-
-// Every stored level that would change, per upgrade: { clickPower: [[old, new], …], … }.
-function remapTable(oldUpgrades, newUpgrades) {
-  const out = {};
-  for (const key of Object.keys(newUpgrades)) {
-    const before = oldUpgrades?.[key] ?? [{ level: 0, value: 1, cost: 0 }];
-    out[key] = before.map(l => [l.level, remapLevel(before, newUpgrades[key], l.level)]).filter(([a, b]) => a !== b);
+  // Skin Rarity: work-hours per rarity (a skin's price = hours x W(L)).
+  let skinRarity = null;
+  const sr = has(RARITY_TAB, 'Work-hours') ? table(RARITY_TAB, RARITY_COLUMNS) : null;
+  if (sr) {
+    skinRarity = {};
+    sr.rows.forEach((r, i) => {
+      const row = i + 1, rarity = (r[sr.at[0]] ?? '').trim();
+      if (!RARITIES.includes(rarity)) return errors.push(`${where(RARITY_TAB, sr.at[0], row, 'Rarity')}: "${rarity}" must be ${RARITIES.join(', ')}`);
+      if (rarity in skinRarity) return errors.push(`${where(RARITY_TAB, sr.at[0], row, 'Rarity')}: "${rarity}" appears twice`);
+      const h = num1(RARITY_TAB, sr.at[1], row, 'Work-hours', r[sr.at[1]] ?? '', num(0.0001));
+      if (h !== null) skinRarity[rarity] = h;
+    });
+    for (const k of RARITIES) if (!(k in skinRarity) && !errors.some(e => e.startsWith(RARITY_TAB))) errors.push(`${RARITY_TAB}: no row for "${k}"`);
   }
-  return out;
+  // Glossary: shown in full in the Game Guide.
+  let glossary = null;
+  const gl = has(GLOSSARY_TAB, 'Symbol') ? table(GLOSSARY_TAB, GLOSSARY_COLUMNS) : null;
+  if (gl) {
+    glossary = [];
+    gl.rows.forEach((r, i) => {
+      const [symbol, name, meaning, formula, home] = gl.at.map(c => (r[c] ?? '').trim());
+      if (!symbol) return errors.push(`${where(GLOSSARY_TAB, gl.at[0], i + 1, 'Symbol')}: blank`);
+      if (!meaning) return errors.push(`${where(GLOSSARY_TAB, gl.at[2], i + 1, 'What it means')}: blank`);
+      glossary.push({ symbol, name, meaning, formula, home });
+    });
+  }
+  const parts = { ...(skinsTab ? { skins } : {}), ...(newItems ? { items: newItems } : {}), ...(economyRules ? { economy: economyRules } : {}),
+    ...(tiers ? { tiers } : {}), ...(skinRarity ? { skinRarity } : {}), ...(glossary ? { glossary } : {}) };
+  return errors.length ? { economy: null, errors, warnings } : { economy: { rules, achievements, ...parts }, errors, warnings };
 }
 
-// What changed between two economies, in plain English, one line each.
 function describeChanges(before, after) {
   const lines = [];
-  const fmt = n => Number(n).toLocaleString('en-US', { maximumFractionDigits: 6 });
-  for (const k of Object.keys(RULE_KEYS)) {
-    const a = before?.rules?.[k], b = after.rules[k];
-    if (a === undefined) lines.push(`${k}: set to ${fmt(b)}`);
-    else if (a !== b) lines.push(`${k}: ${fmt(a)} → ${fmt(b)}`);
+  const fmt = n => typeof n === 'number' ? n.toLocaleString('en-US', { maximumFractionDigits: 6 }) : JSON.stringify(n);
+  // Key-value parts: Game Rules and Economy.
+  for (const [part, keys] of [['rules', Object.keys(RULE_KEYS).filter(k => !RETIRED_RULES.includes(k))], ['economy', Object.keys(ECONOMY_KEYS)]]) {
+    if (!after[part]) continue;
+    for (const k of keys) {
+      const a = before?.[part]?.[k], b = after[part][k];
+      if (b === undefined) continue;
+      if (a === undefined) lines.push(`${k}: set to ${fmt(b)}`);
+      else if (a !== b) lines.push(`${k}: ${fmt(a)} → ${fmt(b)}`);
+    }
   }
-  for (const [key, tab] of Object.entries(UPGRADE_TABS)) {
-    const a = before?.upgrades?.[key] ?? [{ level: 0, value: 1, cost: 0 }], b = after.upgrades[key];
-    const parts = [];
-    if (a.length !== b.length) parts.push(`${a.length - 1} → ${b.length - 1} levels`);
-    const cost = l => l?.cost, value = l => l?.value;
-    if (cost(a[1]) !== cost(b[1])) parts.push(`level 1 cost ${a[1] ? fmt(a[1].cost) : 'none'} → ${fmt(b[1].cost)}`);
-    if (value(a.at(-1)) !== value(b.at(-1))) parts.push(`top value ${fmt(a.at(-1).value)} → ${fmt(b.at(-1).value)}`);
-    const changed = b.slice(1).filter((l, i) => a[i + 1] && (a[i + 1].cost !== l.cost || a[i + 1].value !== l.value)).length;
-    if (changed) parts.push(`${changed} existing level${changed === 1 ? '' : 's'} changed`);
-    if (parts.length) lines.push(`${tab}: ${parts.join('; ')}`);
+  for (const k of RETIRED_RULES) if (before?.rules?.[k] !== undefined && after.rules?.[k] === undefined) lines.push(`${k}: retired (no longer used)`);
+  // Upgrade tiers: what changed in each row.
+  for (const [k, b] of Object.entries(after.tiers ?? {})) {
+    const a = before?.tiers?.[k];
+    if (!a) { lines.push(`${b.name}: added (tier 1 ${fmt(b.v0)}, tier 10 ${fmt(b.vmax)}, c_u ${fmt(b.cu)})`); continue; }
+    const parts = ['v0', 'vmax', 'step', 'cu'].filter(f => JSON.stringify(a[f]) !== JSON.stringify(b[f])).map(f => `${f} ${fmt(a[f])} → ${fmt(b[f])}`);
+    if (JSON.stringify(a.list) !== JSON.stringify(b.list)) parts.push(`list ${a.list?.join(',') ?? 'none'} → ${b.list?.join(',') ?? 'none'}`);
+    if (parts.length) lines.push(`${b.name}: ${parts.join('; ')}`);
   }
-  for (const [key, moves] of Object.entries(remapTable(before?.upgrades, after.upgrades))) {
-    if (moves.length) lines.push(`${UPGRADE_TABS[key]}: stored levels move ${moves.map(([a, b]) => `${a}→${b}`).join(', ')} (so nobody gets weaker)`);
+  // Rows by id: achievements, skins, items; the skin rarity hours; the glossary.
+  const rows = (label, a = [], b) => {
+    if (!b) return;
+    const was = new Map(a.map(d => [d.id ?? d.symbol, JSON.stringify(d)])), now = new Map(b.map(d => [d.id ?? d.symbol, JSON.stringify(d)]));
+    const added = [...now.keys()].filter(k => !was.has(k)), removed = [...was.keys()].filter(k => !now.has(k));
+    const changed = [...now.keys()].filter(k => was.has(k) && was.get(k) !== now.get(k));
+    if (added.length || removed.length || changed.length) {
+      lines.push(`${label}: ${now.size} in all; ${added.length} added, ${removed.length} removed, ${changed.length} changed`
+        + (removed.length && removed.length <= 10 ? ` (removed: ${removed.join(', ')})` : ''));
+    }
+  };
+  rows('Achievements', before?.achievements, after.achievements);
+  rows('Skins', before?.skins, after.skins);
+  rows('Items', before?.items, after.items);
+  rows('Glossary', before?.glossary, after.glossary);
+  for (const [r, h] of Object.entries(after.skinRarity ?? {})) {
+    const a = before?.skinRarity?.[r];
+    if (a !== h) lines.push(`${r} skins: ${a === undefined ? 'set to' : `${fmt(a)} →`} ${fmt(h)} work-hours`);
   }
-  const was = new Map((before?.achievements ?? []).map(d => [d.id, JSON.stringify(d)]));
-  const now = new Map((after.achievements ?? []).map(d => [d.id, JSON.stringify(d)]));
-  const added = [...now.keys()].filter(k => !was.has(k)), removed = [...was.keys()].filter(k => !now.has(k));
-  const changed = [...now.keys()].filter(k => was.has(k) && was.get(k) !== now.get(k));
-  if (added.length || removed.length || changed.length) {
-    lines.push(`Achievements: ${now.size} in all; ${added.length} added, ${removed.length} removed, ${changed.length} changed`
-      + (removed.length ? ` (removed: ${removed.join(', ')})` : ''));
-  }
-  const hadSkins = new Map((before?.skins ?? []).map(d => [d.id, JSON.stringify(d)]));
-  const nowSkins = after.skins ?? [];
-  const newSkins = nowSkins.filter(d => !hadSkins.has(d.id)).length, changedSkins = nowSkins.filter(d => hadSkins.has(d.id) && hadSkins.get(d.id) !== JSON.stringify(d)).length;
-  if (newSkins || changedSkins || hadSkins.size !== nowSkins.length) lines.push(`Skins: ${nowSkins.length} in all; ${newSkins} added, ${changedSkins} changed`);
   return lines.length ? lines : ['No changes.'];
 }
 
-module.exports = { UPGRADE_TABS, RULES_TAB, ACHIEVEMENTS_TAB, SKINS_TAB, ITEMS_TAB, ITEM_EFFECTS, SKIN_KINDS, RARITIES, skinFiles, STATS, TABS, RULE_KEYS, parseCsv, parseNumber, validate, remapLevel, remapTable, describeChanges };
+module.exports = { ECONOMY_TAB, TIERS_TAB, RARITY_TAB, GLOSSARY_TAB, TIER_KEYS, TIER_COUNT, ECONOMY_KEYS, RETIRED_RULES, PRICINGS, RULES_TAB, ACHIEVEMENTS_TAB, SKINS_TAB, ITEMS_TAB, ITEM_EFFECTS, SKIN_KINDS, RARITIES, skinFiles, STATS, TABS, RULE_KEYS, parseCsv, parseNumber, validate, describeChanges };

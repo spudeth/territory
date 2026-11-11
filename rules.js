@@ -5,31 +5,15 @@
 // tests check both agree.
 
 const economy = require('./data/economy.json');
+const catalog = require('./catalog');
 const R = economy.rules;
-const values = upgrade => economy.upgrades[upgrade].map(l => l.value);   // effect at each level, from level 0
-// Xoren: the top Earnings level costs 10,000 squares (the sheet had over 100,000). The cost curve is flattened in
-// log space so level 1 keeps its price and every level still costs more than the one before.
-const EARNINGS_TOP_COST = 10000;
-function earningsCosts(levels) {
-  const first = levels[1].cost, top = levels.at(-1).cost;
-  if (top <= EARNINGS_TOP_COST) return levels;
-  const k = Math.log(EARNINGS_TOP_COST / first) / Math.log(top / first);
-  let prev = 0;
-  return levels.map(l => l.level === 0 ? l : { ...l, cost: (prev = Math.max(prev + 1, Math.round(first * (l.cost / first) ** k))) });
-}
-const DEFENSE_TOP = 6;   // Xoren: twice as hard as the sheet's x3
-const defenseTop = economy.upgrades.defense.at(-1).value;
-const defenseScaled = v => (defenseTop > 1 ? 1 + (v - 1) * (DEFENSE_TOP - 1) / (defenseTop - 1) : v);
-
 const settings = {
   // Claiming
   HITS_PER_BLOCK: R.hitsPerBlock,               // hits needed to take any block, empty or owned, before upgrades
   CRACK_DECAY_SECONDS: R.crackFadeSeconds,      // crack progress fades by CRACK_DECAY_HITS for every this many seconds…
   CRACK_DECAY_HITS: R.crackFadeHits,            // …since the block was last hit
 
-  // Squares (the currency)
-  SQUARES_PER_FIRST_CLAIM: R.squaresPerFirstClaim,   // squares for claiming an empty block, before upgrades (and only beyond the wipe floor)
-  SQUARE_DECIMALS: 6,                           // code constant: balances keep fractions to this many places, like the database column
+  // Squares (the currency) are kept in whole tenths (catalog.js); pay for a first claim is catalog.payTenths.
 
   // Players
   GUESTS_PER_IP: R.guestsPerIp,                 // new guest players one network may create…
@@ -38,27 +22,18 @@ const settings = {
   MAX_TAPS_PER_SECOND: R.maxTapsPerSecond,      // anti-bot: taps per player per second beyond this are ignored
   NAME_MAX_LENGTH: R.nameMaxLength,             // longest name (the database allows at most 15)
 
-  // Upgrades. Each player has a level for each (0 = none). These tables give the effect at each level, starting
-  // at level 0; a level past the end of a table uses its last entry. UPGRADES has the costs too.
-  UPGRADES: { ...economy.upgrades, earnings: earningsCosts(economy.upgrades.earnings) },   // { clickPower: [{ level, value, cost }, …], … }
-  CLICK_POWER_MULTIPLIER: values('clickPower'), // Click Power: how many hits one click counts as (1.2 = +20%)
-  // Defense: multiplies the hits others need to take your blocks. Xoren: the top level is x6 (twice the sheet's x3),
-  // whatever the sheet's top value; every level is scaled the same way, so stored levels never move.
-  DEFENSE_MULTIPLIER: values('defense').map(defenseScaled),
-  EARNINGS_MULTIPLIER: values('earnings'),      // Earnings: multiplies squares per first claim, fractions kept
-  GROWTH_BLOCKS: values('growth'),              // Growth: map blocks a brand-new claim creates (whole numbers)
-
   // Name labels: an owner's name shows on their territory once it covers this share of the screen.
   NAME_LABEL_SHARE: R.nameLabelShare,
 
   // New maps made with npm run create-map, unless given a size
   NEW_MAP_WIDTH: R.newMapWidth,
   NEW_MAP_HEIGHT: R.newMapHeight,
-  NEW_MAP_BLOCKS: R.newMapBlocks,
+  NEW_MAP_BLOCKS: catalog.E.defaultBaseBlocks,  // E for a new map made without --base (the Economy tab)
   // Terrain (public/terrain.js): the world's shares, and hits per terrain as a multiple of the normal number.
   TERRAIN: { scale: R.terrainScale, water: R.waterShare, sand: R.sandShare, forest: R.forestShare, stone: R.stoneShare, gold: R.goldShare },
   TERRAIN_HITS: { grass: 1, sand: R.sandHits, forest: R.forestHits, stone: R.stoneHits, gold: R.goldHits },
   GOLD_BONUS_SQUARES: R.goldBonusSquares,
+  MAX_WALLS: catalog.E.maxWallsPerBlock,   // walls one block may have, on different sides (2: corners)
 
   // Sound (sent to the browser): most at once, how far others are heard, their volume, defaults for a new device
   SOUND: { maxAtOnce: R.soundMaxAtOnce, hearing: R.soundHearingDistance, othersVolume: R.soundOthersVolume,
@@ -72,7 +47,8 @@ const settings = {
   ITEMS: economy.items ?? [],
   // Rank and reign achievements count only on maps where at least this many players own blocks.
   RANK_MIN_PLAYERS: R.rankMinPlayers,
-  RANK_MIN_BLOCKS: R.rankMinBlocks,   // …and only for a player with at least this many blocks there
+  RANK_MIN_BLOCKS: R.rankMinBlocks,
+  MAILING_ADDRESS: R.mailingAddress ?? '',   // the email footer; blank = no email is sent (email.js)   // …and only for a player with at least this many blocks there
 
   // Per-map look, chosen on the first claim on a map and locked until a wipe (code constants, not numbers)
   COVERAGES: ['tile', 'stretch'], // how a skin covers a territory: per block, or one image over the full area (the first is the default)
@@ -98,37 +74,81 @@ function hitError(map, pid, x, y) {
   const owner = map.cells.get(k);
   if (pid && owner === pid) return 'You already own this block';
   if (!pid || !map.counts.get(pid)) return owner ? 'Your first block must be unclaimed' : null;
-  const near = NEIGHBORS.some(([dx, dy]) => map.cells.get(key(x + dx, y + dy)) === pid);
-  return near ? null : 'You can only take blocks next to your territory';
+  const adj = adjacentSides(map, pid, x, y);
+  if (!adj.length) return 'You can only take blocks next to your territory';
+  if (!openSides(map, pid, x, y, adj).length) return 'Your wall is in the way';
+  return null;
 }
 
-// A player's upgrade levels. Visitors and new players have none.
-const NO_UPGRADES = Object.freeze({ clickPower: 0, defense: 0, earnings: 0, growth: 0 });
-const effect = (table, level) => table[Math.min(Math.max(0, level | 0), table.length - 1)];
+// Whether blocks ([[x, y], …]) are all connected side to side (a land listing must be one piece).
+function connected(blocks) {
+  if (!blocks.length) return false;
+  const left = new Set(blocks.map(([x, y]) => key(x, y))), queue = [blocks[0]];
+  left.delete(key(...blocks[0]));
+  while (queue.length) {
+    const [x, y] = queue.pop();
+    for (const [dx, dy] of NEIGHBORS) if (left.delete(key(x + dx, y + dy))) queue.push([x + dx, y + dy]);
+  }
+  return left.size === 0;
+}
 
-// Hits needed to take a block owned by `owner` (upgrade levels like NO_UPGRADES; null for an empty block):
-// HITS_PER_BLOCK, times the owner's Defense.
-// Terrain (sand, forest, stone, gold) multiplies it too: settings.TERRAIN_HITS; grass, or no terrain, is 1.
-const hitsNeeded = (owner, terrain = 'grass') => settings.HITS_PER_BLOCK * (owner ? effect(settings.DEFENSE_MULTIPLIER, owner.defense) : 1)
-  * (settings.TERRAIN_HITS[terrain] ?? 1);
+// ---------- Walls (loop 16) ----------
+// A block's sides: n (up), e, s, w. map.walls: "x,y" -> [{ side, hits }] (at most maxWallsPerBlock, on different sides).
+const SIDES = { n: [0, -1], e: [1, 0], s: [0, 1], w: [-1, 0] };
+const OPPOSITE = { n: 's', s: 'n', e: 'w', w: 'e' };
+const hasWall = (map, x, y, side) => !!map.walls?.get(key(x, y))?.some(w => w.side === side);
+// The sides of (x, y) that touch `pid`'s land ('n': the block above is theirs).
+const adjacentSides = (map, pid, x, y) => Object.keys(SIDES).filter(s => map.cells.get(key(x + SIDES[s][0], y + SIDES[s][1])) === pid);
+// Of those, the ones not blocked by `pid`'s own wall on their side: nobody claims or attacks across their own wall.
+const openSides = (map, pid, x, y, adj = adjacentSides(map, pid, x, y)) =>
+  adj.filter(s => !hasWall(map, x + SIDES[s][0], y + SIDES[s][1], OPPOSITE[s]));
+// When every way `pid` can reach (x, y) runs through the owner's walls, their hit goes to a wall first: its side.
+function wallFirst(map, pid, x, y) {
+  const open = openSides(map, pid, x, y);
+  return open.length && open.every(s => hasWall(map, x, y, s)) ? open[0] : null;
+}
+// Where a wall can go: a side of your block facing a square you don't own (outer sides only). Returns a refusal or null.
+function wallRefusal(map, pid, x, y, side) {
+  if (!(side in SIDES)) return 'Pick a side';
+  if (map.cells.get(key(x, y)) !== pid) return 'Only on your own land';
+  if (map.cells.get(key(x + SIDES[side][0], y + SIDES[side][1])) === pid) return 'Walls go on the edge of your land';
+  const walls = map.walls?.get(key(x, y)) ?? [];
+  if (walls.some(w => w.side === side)) return 'There is a wall there already';
+  if (walls.length >= settings.MAX_WALLS) return `At most ${settings.MAX_WALLS} walls on one block`;
+  if (map.listings?.has(key(x, y))) return 'Not on land for sale';
+  return null;
+}
+
+// A player's upgrades as they work on a map: { clickPower, defense, earnings, growth, … } values
+// (catalog.effectiveValues: each tier capped at the map's level). Visitors and new players are at tier 1:
+// NO_UPGRADES, and any value missing counts as tier 1's.
+const NO_UPGRADES = Object.freeze({});
+const value = (eff, key) => eff?.[key] ?? catalog.tierValue(key, 1);
+
+// A block's hardness H: hits to mine it = hitsPerBlock x 2^(birth level - 1) x its terrain factor
+// (settings.TERRAIN_HITS; grass, or no terrain, is 1). A block keeps the level it was born at.
+const hardness = (terrain = 'grass', birth = 1) => catalog.hardness(settings.HITS_PER_BLOCK, birth, settings.TERRAIN_HITS[terrain] ?? 1);
+// Hits needed to take a block owned by `owner` (their upgrade values on this map; null for an empty block):
+// its hardness, times the owner's Defense.
+const hitsNeeded = (owner, terrain = 'grass', birth = 1) => hardness(terrain, birth) * (owner ? value(owner, 'defense') : 1);
 
 // How many hits one click by `attacker` counts as: their Click Power. Progress is kept as a fraction.
-const hitPower = attacker => effect(settings.CLICK_POWER_MULTIPLIER, attacker?.clickPower);
+const hitPower = attacker => value(attacker, 'clickPower');
 
-// Map blocks a brand-new claim by a player with these levels creates: their Growth (1 with no upgrade).
-const growthBlocks = upgrades => effect(settings.GROWTH_BLOCKS, upgrades?.growth);
+// Map blocks a brand-new claim by a player with these upgrade values creates: their Growth (1 at tier 1).
+const growthBlocks = upgrades => value(upgrades, 'growth');
 
 // Whether `progress` hits are enough to take a block needing `needed` (allowing for rounding, so 10 x 0.1 is 1).
 const isTaken = (progress, needed) => progress >= needed - 1e-9;
 
-// Squares a player with these upgrade levels earns for one first claim, if the wipe rule allows it
-// (earnsSquares). Fractions are kept, to SQUARE_DECIMALS places.
-const roundSquares = n => Math.round(n * 10 ** settings.SQUARE_DECIMALS) / 10 ** settings.SQUARE_DECIMALS;
-const squaresForFirstClaim = upgrades =>
-  roundSquares(settings.SQUARES_PER_FIRST_CLAIM * effect(settings.EARNINGS_MULTIPLIER, upgrades?.earnings));
+// Tenths a player with these upgrade values earns for the first claim of a block (its terrain and birth level), if
+// the wipe rule allows it (earnsSquares): H x 10 / hitsPerSquare x Earnings, rounded down, plus the gold bonus.
+// Pay tracks hits exactly, so income doesn't depend on level or terrain, only on upgrades.
+const firstClaimTenths = (upgrades, terrain = 'grass', birth = 1) => catalog.payTenths(hardness(terrain, birth),
+  value(upgrades, 'earnings'), terrain === 'gold' ? settings.GOLD_BONUS_SQUARES : 0);
 
-// The balance players see: whole squares only, rounded down.
-const shownSquares = balance => Math.floor(Number(balance) + 1e-9);
+// The balance players see, from a balance in tenths: whole squares only, rounded down.
+const shownSquares = balance => catalog.wholeSquares(balance);
 
 // Crack fading. `crack` is { n: hits so far (may be a fraction), at: when it last changed (ms) }. Returns the
 // crack `now`: CRACK_DECAY_HITS fewer per `decayMs` passed, never below 0, with `at` moved on by the whole
@@ -153,5 +173,5 @@ const earnsSquares = (ownedAfterClaim, wipeFloor) => ownedAfterClaim > wipeFloor
 const wipeFloorAfterWipe = (wipeFloor, ownedAtWipe) => Math.max(wipeFloor, ownedAtWipe);
 
 // The rules read the numbers from this same object, so tests can try other dial values.
-module.exports = Object.assign(settings, { key, NEIGHBORS, roundSquares, defenseScaled, NO_UPGRADES, hitError, hitsNeeded, hitPower, growthBlocks, isTaken,
-  squaresForFirstClaim, shownSquares, decayCrack, tapAllowed, earnsSquares, wipeFloorAfterWipe });
+module.exports = Object.assign(settings, { key, NEIGHBORS, NO_UPGRADES, hitError, connected, SIDES, OPPOSITE, hasWall, adjacentSides, openSides, wallFirst, wallRefusal, hardness, hitsNeeded, hitPower, growthBlocks, isTaken,
+  firstClaimTenths, shownSquares, decayCrack, tapAllowed, earnsSquares, wipeFloorAfterWipe });

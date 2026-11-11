@@ -86,7 +86,14 @@ async function main(argv, io) {
       body.tables = JSON.parse(fs.readFileSync(file, 'utf8')).tables;
     }
     if (p.spec.kind === 'read') {
-      for (const line of (await call('run', body)).lines) print(line);
+      const r = await call('run', body);
+      for (const line of r.lines) print(line);
+      if (r.file) {   // e.g. email-list's CSV
+        const dir = io.exportsDir ?? path.join(ROOT, 'exports');
+        fs.mkdirSync(dir, { recursive: true });
+        fs.writeFileSync(path.join(dir, r.file.name), r.file.content);
+        print(`Saved ${path.relative(process.cwd(), path.join(dir, r.file.name))}`);
+      }
       return 0;
     }
 

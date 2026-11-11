@@ -6,6 +6,10 @@ const { Server } = require('socket.io');
 const store = require('./store');
 const { adminRouter, bannedMessage } = require('./admin');
 const rules = require('./rules');
+const catalog = require('./catalog');
+const { createTicker } = require('./ticker');
+const fac = require('./factories');
+const { renderGuide } = require('./guide');
 const chat = require('./chat');
 const terrain = require('./public/terrain');
 // How each skin is drawn, for the browser: { id: 'pattern' | 'art' }.
@@ -13,10 +17,13 @@ const SKIN_KINDS = Object.fromEntries(rules.SKINS.map(s => [s.id, s.kind]));
 const stats = require('./stats');
 const achievements = require('./achievements');
 const { createTotals } = require('./totals');
+const { createEmail } = require('./email');
 const { guestName, guestNames, checkName } = require('./names');
 
 const { key } = rules;
-const upgradesOf = row => ({ clickPower: row.click_power, defense: row.defense, earnings: row.earnings, growth: row.growth });
+// A player's upgrade tiers ({ key: tier }, missing = 1). What they give on a map: tiersOn(tiers, map).
+const upgradesOf = row => ({ ...(row.tiers ?? {}) });
+const tiersOn = (tiers, map) => catalog.effectiveValues(tiers, map.level());
 
 // Behind Render the socket address is a proxy's. Cloudflare (in front of every public Render service) sets
 // CF-Connecting-IP and overwrites any value the visitor sends, so prefer it. X-Forwarded-For is only a fallback:
@@ -40,7 +47,7 @@ function guestLimiter(limit, windowMs) {
 //   auth:      from createAuth(), or null to run with guests only
 //   publicUrl: the site's address (https://territory.sarl); requests for any other host, such as www or
 //              the onrender.com address, are sent there. Unset locally.
-function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPerIp = rules.GUESTS_PER_IP, crackDecayMs = rules.CRACK_DECAY_SECONDS * 1000,
+function createGame(pool, { startTicker = false, email = createEmail(), achievementList = achievements.DEFINITIONS, guestsPerIp = rules.GUESTS_PER_IP, crackDecayMs = rules.CRACK_DECAY_SECONDS * 1000,
   auth = null, publicUrl = null, tapsPerSecond = null, tapLogMs = 60 * 1000, adminKey = null } = {}) {
   // adminKey: the secret npm run admin must send (ADMIN_KEY); without it, admin commands are off.
   // The server counts as production when it has a publicUrl; admin commands then need --prod.
@@ -57,7 +64,28 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
   // The IP address the server sees for you, to check the per-IP guest limit works behind the custom domain.
   app.get('/api/ip', (req, res) => res.json({ ip: clientIp(req.headers, req.socket.remoteAddress) }));
   if (auth) app.use(auth.router);
-  app.use('/admin', adminRouter({ pool, key: adminKey, production: !!publicUrl, hooks: adminHooks() }));
+  // The one-click unsubscribe link from every email: no login needed (loop 15).
+  // The Game Guide: public, built from data/economy.json on every visit (guide.js).
+  app.get('/guide', async (req, res) => {
+    try {
+      const { rows } = await pool.query("SELECT name, base_blocks::float AS base FROM maps WHERE type = 'official' ORDER BY id");
+      res.type('html').send(renderGuide({ maps: rows }));
+    } catch (err) {
+      console.error(`GUIDE FAILED: ${err.message}`);
+      res.status(500).type('text').send('The guide could not load. Try again in a moment.');
+    }
+  });
+
+  app.get('/unsubscribe', async (req, res) => {
+    const r = await store.unsubscribeByToken(pool, req.query.t).catch(() => null);
+    if (r?.email) email.sync(r.email, false).catch(err => console.error(`AUDIENCE SYNC FAILED: ${err.message}`));
+    res.status(r ? 200 : 404).type('html').send(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Territory</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Pixelify+Sans:wght@400;600&display=swap">
+<style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0f131a;color:#f2f4f8;font:17px 'Pixelify Sans',system-ui;padding:16px;box-sizing:border-box}
+div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12,4px 4px 0 3px #0a0d12;text-align:center}h1{font:14px/1.6 'Press Start 2P',monospace;color:#f7c948;margin:0 0 12px}a{color:#f7c948}</style>
+<div><h1>${r ? "YOU'RE UNSUBSCRIBED" : 'LINK NOT FOUND'}</h1><p>${r ? "You won't get any more update emails from Territory. You can join again any time in Settings." : 'This unsubscribe link is not valid. You can turn emails off in Settings.'}</p><p><a href="/">Back to the game</a></p></div>`);
+  });
+  app.use('/admin', adminRouter({ pool, key: adminKey, production: !!publicUrl, hooks: adminHooks(), email }));
   // Browsers check every file for a newer version (a quick "not modified" when unchanged), so after an update
   // nobody keeps running old game code from their cache. Also serves /privacy and /terms.
   app.use(express.static(__dirname + '/public', { extensions: ['html'], setHeaders: res => res.setHeader('Cache-Control', 'no-cache') }));
@@ -95,17 +123,38 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
         // terrainAt(x, y): a seeded map's terrain (public/terrain.js); maps without a seed are all grass.
         // White maps never have terrain, even with a seed (one was made with a random seed by mistake).
         const world = m.seed && m.style !== 'white' ? terrain.makeWorld(m.seed, rules.TERRAIN) : null;
-        // Terraformer changes (terrain_overrides) win over the seed's terrain.
+        // Terraformer changes (a block's own terrain) win over the seed's terrain.
         const overrides = new Map(m.overrides.map(o => [key(o.x, o.y), o.terrain]));
-        const map = { id: m.id, name: m.name, style: m.style, seed: m.seed, overrides,
+        // base: E (its starting size, fixed forever); mined: first claims so far. Level: catalog.level(mined, base).
+        const map = { id: m.id, name: m.name, style: m.style, seed: m.seed, overrides, base: m.base, mined: m.mined,
+          level: () => catalog.level(map.mined, map.base),
           terrainAt: (x, y) => overrides.get(key(x, y)) ?? (world ? world.at(x, y) : 'grass'),
-          room: 'map:' + m.id, cells: new Map(), counts: new Map(),
+          room: 'map:' + m.id, cells: new Map(), counts: new Map(), birth: new Map(), walls: new Map(),   // birth: "x,y" -> level, when above 1; walls: "x,y" -> [{ side, hits }]
           players: new Map(m.players.map(p => [p.player_id, { name: p.name, color: p.color, skin: p.skin_id, coverage: p.coverage,
             unlocked: p.unlocked, wipeFloor: p.wipe_floor, upgrades: upgradesOf(p) }])),
           hits: new Map(), claiming: new Set(), queue: Promise.resolve() };
         for (const c of m.cells) {
           map.cells.set(key(c.x, c.y), c.owner_id);
+          if (c.birth_level > 1) map.birth.set(key(c.x, c.y), c.birth_level);
+          if (c.walls?.length) map.walls.set(key(c.x, c.y), c.walls);
           if (c.owner_id) map.counts.set(c.owner_id, (map.counts.get(c.owner_id) || 0) + 1);
+        }
+        // Factories: "x,y" -> { id, owner, x, y, built, awake (ms), processed (ms), target }. Their saved progress is
+        // a crack on the target, tagged `factory` (it never fades).
+        map.listings = new Map();
+        map.listingInfo = new Map();
+        for (const l of m.listings) {
+          const info = { id: l.id, seller: l.seller_id, price: Number(l.price), created: Number(l.created), blocks: l.xs.map((x, i) => [x, l.ys[i]]) };
+          map.listingInfo.set(l.id, info);
+          for (const [x, y] of info.blocks) map.listings.set(key(x, y), l.id);
+        }
+        map.factories = new Map();
+        for (const r of m.factories) {
+          const f = { id: r.id, owner: r.owner_id, x: r.x, y: r.y, built: Number(r.built), awake: Number(r.awake), processed: Number(r.processed),
+            target: r.target_x === null ? null : { x: r.target_x, y: r.target_y } };
+          map.factories.set(key(r.x, r.y), f);
+          if (f.target && r.progress > 0) map.hits.set(key(f.target.x, f.target.y), { by: f.owner, n: r.progress, at: Date.now(), factory: true,
+            need: fac.hitsFor(map, f.target.x, f.target.y, f.x, f.y, map.level()) });
         }
         // Stats as saved, with squares and lines recomputed from the map in case they are behind.
         map.stats = new Map(m.stats.map(r => [r.player_id, { ownedMax: r.owned_max, firstClaims: r.first_claims,
@@ -176,16 +225,240 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
     queued.then(() => { if (checks.get(pid) === queued) checks.delete(pid); });
   });
 
+  // The server tick (ticker.js): factories and timers, caught up after every sleep.
+  const ticker = createTicker(pool, { seconds: catalog.E.tickSeconds });
+
   // Lifetime totals (totals.js), checked like any other stat.
   const totals = createTotals(pool, { onStat: (pid, name, value) => events.emit('stat', { pid, name, value }) });
 
   // A player's balance changed (claims, purchases, rewards, admin): every device, and the Saving achievements.
   function balanceChanged(pid, balance) {
     for (const s of io.sockets.sockets.values()) if (String(s.data.me?.pid) === String(pid)) s.data.me.squares = balance;
-    io.to('player:' + pid).emit('squares', rules.shownSquares(balance));
+    io.to('player:' + pid).emit('squares', catalog.fromTenths(balance));
     totals.best(pid, 'squaresHeld', rules.shownSquares(balance));
     if (rules.shownSquares(balance) === 1337) totals.best(pid, 'secret:leet', 1);
   }
+
+  // A block as the info card shows it, for player `pid` (with `upgrades`): coordinates, terrain, level and
+  // hardness; its pay if mined, or the hits to take it; its owner. Later phases add walls, factories, listings.
+  function blockInfo(map, x, y, pid, upgrades) {
+    const k = key(x, y), owner = map.cells.get(k) ?? null, terrain = map.terrainAt(x, y), level = map.birth.get(k) ?? 1;
+    const H = rules.hardness(terrain, level);
+    const info = { x, y, terrain, level, hardness: H, owner: owner && { pid: owner, name: map.players.get(owner)?.name ?? null } };
+    if (terrain === 'water') info.water = true;
+    else if (owner === null) info.pay = catalog.fromTenths(rules.firstClaimTenths(upgrades, terrain, level));
+    else if (String(owner) !== String(pid)) info.hits = rules.hitsNeeded(tiersOn(map.players.get(owner)?.upgrades, map), terrain, level);
+    const f = map.factories.get(k);
+    if (f) info.factory = { ...factoryOut(map, f), mine: String(f.owner) === String(pid), target: f.target };
+    if (map.walls.has(k)) info.walls = map.walls.get(k).map(w => ({ ...w }));
+    if (map.listings.has(k)) info.listing = { ...listingOut(map, map.listingInfo.get(map.listings.get(k))), mine: String(map.listingInfo.get(map.listings.get(k)).seller) === String(pid) };
+    // Someone else's walled block: a wall comes first when every way in runs through one.
+    if (pid && owner !== null && String(owner) !== String(pid)) { const side = rules.wallFirst(map, pid, x, y); if (side) info.wallFirst = side; }
+    return info;
+  }
+
+  // Every upgrade with all its tiers: [{ key, name, type, unit, about, tiers: [{ tier, value, cost }] }] (cost in
+  // squares; tier 1 costs nothing). Upgrade tier prices never change, so this is worked out once.
+  let upgradeListCache = null;
+  const upgradeList = () => (upgradeListCache ??= Object.entries(catalog.CATALOG_TIERS).map(([key, u]) => ({ key, name: u.name, type: u.type, unit: u.unit, about: u.about,
+    tiers: Array.from({ length: catalog.TIER_COUNT }, (_, i) => ({ tier: i + 1, value: catalog.tierValue(key, i + 1),
+      cost: i ? catalog.fromTenths(catalog.tierCostTenths(key, i + 1)) : 0 })) })));
+
+  // ---------- Factories (loop 16; the rules are in factories.js) ----------
+  const ownerValues = (map, owner) => catalog.effectiveValues(map.players.get(owner)?.upgrades, map.level());
+  const ownFactories = (map, owner) => [...map.factories.values()].filter(f => String(f.owner) === String(owner));
+  // The owner's newest factories pause while their land is below the limit.
+  const pausedOn = (map, owner) => fac.pausedIds(ownFactories(map, owner).map(f => ({ id: f.id, builtAt: f.built })), map.counts.get(owner) || 0);
+  const factoryOut = (map, f) => ({ x: f.x, y: f.y, owner: f.owner, awakeUntil: f.awake, paused: pausedOn(map, f.owner).has(f.id) });
+  function dropFactory(map, k) {
+    const f = map.factories.get(k);
+    if (!f) return;
+    map.factories.delete(k);
+    io.to(map.room).emit('factory', { x: f.x, y: f.y, gone: true });
+  }
+  // Why a factory can't go on (x, y) for `pid`, or null.
+  function factoryRefusal(map, pid, x, y) {
+    const k = key(x, y);
+    if (map.cells.get(k) !== pid) return 'Only on your own land';
+    if (map.terrainAt(x, y) === 'water') return 'Not on water';
+    if (map.factories.has(k)) return 'There is a factory here already';
+    if (map.listings?.has(k)) return 'Not on land for sale';
+    return null;
+  }
+  // What the Build menu needs to know: factories owned here, the limit, the next one's price, blocks still needed.
+  function factoryInfo(map, pid) {
+    const n = ownFactories(map, pid).length, owned = map.counts.get(pid) || 0, limit = fac.factoryLimit(owned);
+    return { count: n, limit, price: catalog.fromTenths(catalog.priceTenths(catalog.CATALOG.get('building:factory'), { L: map.level(), n: n + 1 })),
+      needBlocks: Math.max(0, (n + 1) * catalog.E.factoryBlocksPerFactory - owned) };
+  }
+  // What can be built: { kind: async (map, pid, request) -> answer }. Walls add themselves.
+  const builders = {
+    async factory(map, pid, { x, y }) {
+      const refusal = factoryRefusal(map, pid, x, y);
+      if (refusal) return { error: refusal };
+      const info = factoryInfo(map, pid);
+      if (info.count >= info.limit) return { error: `Own ${info.needBlocks} more blocks for another factory` };
+      const price = catalog.toTenths(info.price), awakeMs = ownerValues(map, pid).factoryLifetime * 3600000;
+      const r = await store.buildFactory(pool, { mapId: map.id, playerId: pid, x, y, price, limit: info.limit, awakeMs });
+      if (r.error) return { error: r.error, ...(r.need !== undefined ? { need: catalog.fromTenths(r.need) } : {}) };
+      const now = Date.now(), f = { id: r.id, owner: pid, x, y, built: now, awake: now + awakeMs, processed: fac.stepFloor(now), target: null };
+      map.factories.set(key(x, y), f);
+      balanceChanged(pid, r.squares);
+      totals.bump(pid, 'squaresSpent', info.price);
+      io.to(map.room).emit('factory', factoryOut(map, f));
+      return { ok: true, squares: catalog.fromTenths(r.squares) };
+    },
+  };
+
+  // A wall on one side of your block: P_a x w x H / hitsPerSquare; it takes w x H hits to break.
+  builders.wall = async (map, pid, { x, y, side }) => {
+    const refusal = rules.wallRefusal(map, pid, x, y, side);
+    if (refusal) return { error: refusal };
+    const H = rules.hardness(map.terrainAt(x, y), map.birth.get(key(x, y)) ?? 1);
+    const price = catalog.priceTenths(catalog.CATALOG.get('building:wall'), { H }), hits = catalog.E.wallStrength * H;
+    const r = await store.buildWall(pool, { mapId: map.id, playerId: pid, x, y, side, price, hits, max: rules.MAX_WALLS });
+    if (r.error) return { error: r.error, ...(r.need !== undefined ? { need: catalog.fromTenths(r.need) } : {}) };
+    map.walls.set(key(x, y), r.walls);
+    balanceChanged(pid, r.squares);
+    totals.bump(pid, 'squaresSpent', catalog.fromTenths(price));
+    io.to(map.room).emit('walls', { x, y, walls: r.walls });
+    return { ok: true, squares: catalog.fromTenths(r.squares) };
+  };
+  // A wall's price on (x, y), for the ghost (squares).
+  const wallPrice = (map, x, y) => catalog.fromTenths(catalog.priceTenths(catalog.CATALOG.get('building:wall'), { H: rules.hardness(map.terrainAt(x, y), map.birth.get(key(x, y)) ?? 1) }));
+  // A wall broke (or was demolished): gone from the block, for everyone.
+  function dropWall(map, x, y, side, broken) {
+    const k = key(x, y), rest = (map.walls.get(k) ?? []).filter(w => w.side !== side);
+    if (rest.length) map.walls.set(k, rest); else map.walls.delete(k);
+    map.hits.delete(k + '|' + side);
+    io.to(map.room).emit('walls', { x, y, walls: rest, ...(broken ? { broken: side } : {}) });
+  }
+
+  // ---------- The land market ----------
+  // A listing as players see it: size, price (squares), seller, the levels of its blocks, its blocks.
+  function listingOut(map, l) {
+    const levels = l.blocks.map(([x, y]) => map.birth.get(key(x, y)) ?? 1);
+    return { id: l.id, seller: { pid: l.seller, name: map.players.get(l.seller)?.name ?? null }, price: catalog.fromTenths(l.price), size: l.blocks.length,
+      levels: [Math.min(...levels), Math.max(...levels)], blocks: l.blocks };
+  }
+  // A listing ends (cancelled, attacked, a block lost): in memory and for everyone. The database is done already
+  // when a block was freed or taken; cancelling saves it.
+  function dropListing(map, id) {
+    const l = map.listingInfo.get(id);
+    if (!l) return;
+    map.listingInfo.delete(id);
+    for (const [x, y] of l.blocks) map.listings.delete(key(x, y));
+    io.to(map.room).emit('listing', { id, gone: true });
+  }
+  async function cancelListingNow(map, id) {
+    if (!map.listingInfo.has(id)) return;
+    await store.cancelListing(pool, id);
+    dropListing(map, id);
+  }
+
+  // A factory took (x, y): the same claim as a player's, paying its owner Factory Yield (capped at the block's pay).
+  async function factoryClaim(map, f, x, y) {
+    const owner = f.owner, k = key(x, y), eff = ownerValues(map, owner), level = map.birth.get(k) ?? 1;
+    const r = await store.claimBlock(pool, { mapId: map.id, x, y, from: null, playerId: owner, newGuest: null, color: null,
+      grow: rules.growthBlocks(eff), birth: catalog.level(map.mined + 1, map.base), level, earn: fac.yieldTenths(eff.factoryYield, map, x, y) });
+    if (r.conflict) {
+      setOwner(map, k, await store.cellOwner(pool, map.id, x, y));
+      io.to(map.room).emit('claim', { x, y, pid: map.cells.get(k) });
+      return false;
+    }
+    setOwner(map, k, owner);
+    io.to(map.room).emit('claim', { x, y, pid: owner });
+    for (const g of r.grown) {
+      map.cells.set(key(g.x, g.y), null);
+      if (g.l > 1) map.birth.set(key(g.x, g.y), g.l);
+      io.to(map.room).emit('grow', g);
+    }
+    mapMined(map);
+    if (r.squares !== null) balanceChanged(owner, r.squares);
+    statChanged(map, owner, 'owned', map.counts.get(owner));
+    totals.bump(owner, 'claims');
+    if (level > 1) for (const s of io.sockets.sockets.values()) if (String(s.data.me?.pid) === String(owner) && (s.data.me.highest ?? 1) < level) s.data.me.highest = level;
+    return true;
+  }
+  // `secs` of work by factory f: hits on its target (closest first), claiming each block it finishes.
+  async function factoryWork(map, f, secs) {
+    let budget = fac.hitsPerSecond(ownerValues(map, f.owner).factorySpeed) * secs;
+    while (budget > 1e-9) {
+      const t = fac.chooseTarget(map, f.owner, f.x, f.y, `${map.seed}:${f.x},${f.y}`);   // ties: the same seeded order every time
+      f.target = t;
+      if (!t) return;   // nothing to mine: it idles
+      const k = key(t.x, t.y), need = fac.hitsFor(map, t.x, t.y, f.x, f.y, map.level());
+      let h = map.hits.get(k);
+      if (!h || h.by !== f.owner) h = { by: f.owner, n: 0 };   // another player's progress doesn't count
+      Object.assign(h, { factory: true, need, at: Date.now() });
+      if (h.n + budget + 1e-9 < need) {
+        h.n += budget;
+        map.hits.set(k, h);
+        io.to(map.room).emit('hit', { x: t.x, y: t.y, p: share(h) });
+        return;
+      }
+      budget -= Math.max(0, need - h.n);
+      map.hits.delete(k);
+      if (!(await factoryClaim(map, f, t.x, t.y))) return;
+    }
+  }
+  // Brings every factory on a map up to `until` (a step boundary), one step at a time in time order, so a long
+  // sleep gives exactly what ticking every step would. Saves where each got to.
+  async function runFactories(map, until) {
+    const STEP = fac.STEP_MS(), list = [...map.factories.values()].sort((a, b) => a.id - b.id), changed = new Set();
+    const behind = () => list.filter(f => map.factories.get(key(f.x, f.y)) === f && f.processed < until);
+    let t = Math.min(...behind().map(f => f.processed));
+    while (t < until) {
+      const now = behind();
+      if (!now.length) break;
+      // Asleep factories skip ahead: nothing happens until they're woken.
+      for (const f of now) if (f.awake <= f.processed) { f.processed = until; changed.add(f); }
+      for (const f of now) {
+        if (f.processed !== t || map.factories.get(key(f.x, f.y)) !== f) continue;
+        const secs = Math.max(0, Math.min(t + STEP, f.awake) - t) / 1000;
+        if (secs > 0 && !pausedOn(map, f.owner).has(f.id) && map.players.has(f.owner)) await factoryWork(map, f, secs);
+        f.processed = t + STEP;
+        changed.add(f);
+      }
+      t += STEP;
+    }
+    await store.saveFactories(pool, [...changed].filter(f => map.factories.get(key(f.x, f.y)) === f).map(f => {
+      const h = f.target && map.hits.get(key(f.target.x, f.target.y));
+      return { id: f.id, processed: f.processed, tx: f.target?.x ?? null, ty: f.target?.y ?? null, progress: h?.factory && h.by === f.owner ? h.n : 0 };
+    }));
+    for (const f of list) if (map.factories.get(key(f.x, f.y)) === f) io.to(map.room).emit('factory', factoryOut(map, f));
+  }
+  // The tick: every map with factories still to bring up to date (loaded if it isn't).
+  ticker.on(async function factoriesTick(from, to) {
+    const until = fac.stepFloor(to);
+    for (const id of await store.factoryMaps(pool, until)) {
+      const map = await getMap(id);
+      if (map) await serial(map, () => runFactories(map, until));
+    }
+  });
+
+  // What Demolition can remove: { target: { check(map, x, y, side) -> refusal or null, remove(client, map, x, y, side)
+  // in the item's transaction, removed(map, x, y, side) after } }. Factories and walls add themselves.
+  const demolishers = {
+    wall: {
+      check: (map, x, y, side) => (rules.hasWall(map, x, y, side) ? null : 'There is no wall there'),
+      remove: (c, map, x, y, side) => store.removeWall(c, map.id, x, y, side),
+      removed: (map, x, y, side) => dropWall(map, x, y, side, false),
+    },
+    factory: {
+      check: (map, x, y) => (map.factories.has(key(x, y)) ? null : 'There is no factory there'),
+      remove: (c, map, x, y) => store.removeFactory(c, map.id, x, y),
+      removed: (map, x, y) => dropFactory(map, key(x, y)),
+    },
+  };
+
+  // A first claim on a map (by a player or a factory): its mined count goes up; everyone there sees the level's
+  // progress (the level is worked out from mined and E).
+  function mapMined(map) {
+    map.mined++;
+    io.to(map.room).emit('mapMined', map.mined);
+  }
+
 
   // Every stat an achievement can use, as it stands now: lifetime totals, upgrade levels, records on any map,
   // maps played, achievements earned. For the Achievements screen, and to catch up on connecting.
@@ -193,7 +466,8 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
     const [values, progress, played] = await Promise.all([totals.values(pid), store.achievementProgress(pool, pid), store.mapsPlayed(pool, pid)]);
     const out = { ...values, owned: progress.best.owned, bestSquare: progress.best.bestSquare, bestLine: progress.best.bestLine,
       mapsPlayed: played, achievements: progress.earned.filter(e => knownIds.has(e.id)).length };
-    for (const [k, v] of Object.entries(levels)) out['level:' + k] = v;
+    for (const k of Object.keys(catalog.CATALOG_TIERS)) out['level:' + k] = levels[k] ?? 1;   // each upgrade's tier
+    out.tiers = Object.keys(catalog.CATALOG_TIERS).reduce((n, k) => n + (levels[k] ?? 1) - 1, 0);   // tiers bought in all
     if (account) out.account = 1;
     return { values: out, earned: progress.earned };
   }
@@ -233,8 +507,30 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
     return run;
   }
 
+  // A sale: the block changes hands with what's built on it (setOwner would clear it).
+  function transferOwner(map, k, pid) {
+    const old = map.cells.get(k);
+    if (old) map.counts.set(old, map.counts.get(old) - 1);
+    map.counts.set(pid, (map.counts.get(pid) || 0) + 1);
+    map.cells.set(k, pid);
+    map.hits.delete(k);
+  }
+  function dropListingQuiet(map, id) {
+    const l = map.listingInfo.get(id);
+    if (!l) return;
+    map.listingInfo.delete(id);
+    for (const [x, y] of l.blocks) map.listings.delete(key(x, y));
+  }
+
   function setOwner(map, k, pid) {
     const old = map.cells.get(k);
+    if (old !== pid && map.factories?.has(k)) dropFactory(map, k);
+    if (old !== pid && map.listings?.has(k)) dropListing(map, map.listings.get(k));
+    if (old !== pid && map.walls?.has(k)) {
+      map.walls.delete(k);
+      const [x, y] = k.split(',').map(Number);
+      io.to(map.room).emit('walls', { x, y, walls: [] });
+    }
     if (old) map.counts.set(old, map.counts.get(old) - 1);
     if (pid) map.counts.set(pid, (map.counts.get(pid) || 0) + 1);
     map.cells.set(k, pid);
@@ -245,13 +541,14 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
 
   // Cracks fade (rules.decayCrack). Tells everyone when progress is lost.
   function decay(map, k, h, now) {
+    if (h.factory) return;   // a factory's progress never fades (its hits can be hours apart)
     const d = rules.decayCrack(h, now, crackDecayMs);
     if (!d.lost) return;
     h.n = d.n;
     h.at = d.at;
     if (!h.n) map.hits.delete(k);
-    const [x, y] = k.split(',').map(Number);
-    io.to(map.room).emit('hit', { x, y, p: share(h) });
+    const [at, side] = k.split('|'), [x, y] = at.split(',').map(Number);
+    io.to(map.room).emit('hit', { x, y, ...(side ? { side } : {}), p: share(h) });
   }
   const sweep = setInterval(() => {
     const now = Date.now();
@@ -319,11 +616,11 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       },
       squaresChanged: balanceChanged,
       // After a restore: forget every loaded map and disconnect everyone, who reconnect to the restored game.
-      reloadAll() {
+      reloadAll(message = 'The game was restored from a backup. Reload the page to keep playing.') {
         maps.clear();
         loaded.clear();
         for (const s of io.sockets.sockets.values()) {
-          s.emit('notice', { kind: 'restored', message: 'The game was restored from a backup. Reload the page to keep playing.' });
+          s.emit('notice', { kind: 'restored', message });
           s.disconnect(true);
         }
       },
@@ -398,9 +695,9 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
         socket.emit('notice', { kind: 'banned', message: bannedMessage(ban) });
         return socket.disconnect(true);
       }
-      me = player ? { pid: player.id, name: player.name, account: !!player.auth_user_id, renameAt: renameAt(player.name_changed_at), squares: player.squares,
-          tutorial: player.tutorial }
-        : { pid: null, name: guestName(), account: false, renameAt: null, squares: 0, tutorial: null };
+      me = player ? { pid: player.id, name: player.name, account: !!player.auth_user_id, renameAt: renameAt(player.name_changed_at), squares: Number(player.squares),
+          tutorial: player.tutorial, showTenths: player.show_tenths, highest: player.highest_level }
+        : { pid: null, name: guestName(), account: false, renameAt: null, squares: 0, tutorial: null, showTenths: false };
       upgrades = player ? upgradesOf(player) : rules.NO_UPGRADES;
       if (upgraded) renamed(me.pid, me.name);   // the guest's old name was showing to everyone
       map = (player?.last_map_id && await getMap(player.last_map_id)) || await getMap(await getDefaultMapId());
@@ -449,9 +746,11 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       coverage = mine?.coverage ?? rules.COVERAGES[0];
       socket.emit('welcome', {
         // locked: color, skin and coverage are set here; wipeFloor: see the wipe rule; squares: whole squares
-        me: { ...me, color, skin, coverage, locked: lockedHere(), wipeFloor: mine?.wipeFloor ?? 0, squares: rules.shownSquares(me.squares) },
+        me: { ...me, color, skin, coverage, locked: lockedHere(), wipeFloor: mine?.wipeFloor ?? 0, squares: catalog.fromTenths(me.squares) },
+        level: { ...catalog.levelProgress(map.mined, map.base), base: map.base, max: catalog.E.maxLevel },
         choices: { colors: rules.COLORS, coverages: rules.COVERAGES },
         hitsPerBlock: rules.HITS_PER_BLOCK,
+        inspectHoldMs: catalog.E.inspectHoldMs,
         settings: { nameLabelShare: rules.NAME_LABEL_SHARE, nameMaxLength: rules.NAME_MAX_LENGTH, sound: rules.SOUND, terrain: rules.TERRAIN,
           skinKinds: SKIN_KINDS,
           skinAnimated: rules.SKINS.filter(s => s.rarity === 'Legendary').map(s => s.id) },   // drawn from <id>-anim.png, 4 frames   // how to draw each skin: pattern (in the owner's color) or art
@@ -459,11 +758,16 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
         upgraded: false, loginFailed: false,      // see `flags`
         ...flags,
         map: { id: map.id, name: map.name, style: map.style, seed: map.seed },
-        cells: [...map.cells].map(([k, owner]) => [...k.split(',').map(Number), owner]),
+        // [x, y, owner] or [x, y, owner, birth level] for blocks above level 1
+        cells: [...map.cells].map(([k, owner]) => { const b = map.birth.get(k); return b ? [...k.split(',').map(Number), owner, b] : [...k.split(',').map(Number), owner]; }),
         players: Object.fromEntries([...map.players].map(([pid, { upgrades, ...shown }]) => [pid, shown])),
-        hits: [...map.hits].map(([k, h]) => [...k.split(',').map(Number), share(h)]),
+        hits: [...map.hits].filter(([k]) => !k.includes('|')).map(([k, h]) => [...k.split(',').map(Number), share(h)]),   // not walls' cracks
         chat: chats.get(map.id) ?? [],
         terrain: [...map.overrides].map(([k, t]) => [...k.split(',').map(Number), t]),   // Terraformer changes
+        factories: [...map.factories.values()].map(f => factoryOut(map, f)),
+        walls: [...map.walls].map(([k, w]) => [...k.split(',').map(Number), w]),
+        listings: [...map.listingInfo.values()].map(l => listingOut(map, l)),
+        build: { blocksPerFactory: catalog.E.factoryBlocksPerFactory, maxWallsPerBlock: catalog.E.maxWallsPerBlock, areaSize: catalog.E.factoryAreaSize },
       });
     }
     // upgraded: the guest profile just became an account; the browser can forget its guest token
@@ -500,9 +804,11 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       const st = stats.afterClaim(me.pid ? statsOf(map, me.pid) : stats.empty(),
         { owns, x, y, owned: (map.counts.get(me.pid) || 0) + 1, from });
       const ground = map.terrainAt(x, y);
-      const earn = rules.squaresForFirstClaim(upgrades) + (ground === 'gold' ? rules.GOLD_BONUS_SQUARES : 0);
+      const level = map.birth.get(k) ?? 1, eff = tiersOn(upgrades, map);
+      const earn = rules.firstClaimTenths(eff, ground, level);
       const r = await store.claimBlock(pool, { mapId: map.id, x, y, from, playerId: me.pid, newGuest,
-        color: joining ? color : null, coverage, skin, earn, grow: rules.growthBlocks(upgrades), stats: st.stats });
+        color: joining ? color : null, coverage, skin, earn, grow: rules.growthBlocks(eff), stats: st.stats,
+        birth: catalog.level(map.mined + 1, map.base), level });
       if (r.conflict) {
         // Another server got there first (e.g. during a deploy). Resync this block for everyone.
         setOwner(map, k, await store.cellOwner(pool, map.id, x, y));
@@ -540,15 +846,19 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       }
       for (const g of r.grown) {   // one new block, or more with Growth
         map.cells.set(key(g.x, g.y), null);
+        if (g.l > 1) map.birth.set(key(g.x, g.y), g.l);
         io.to(map.room).emit('grow', g);
       }
       if (r.squares !== null) {
         // Whole squares this claim mined, for the rising-square animation (rewards don't animate).
         const mined = rules.shownSquares(r.squares) - rules.shownSquares(me.squares);
         if (mined > 0) socket.emit('mined', { x, y, count: mined });
+        if (from === null) mapMined(map);
         balanceChanged(me.pid, r.squares);
       }
-      claimStats({ x, y, k, from, ground, grown: r.grown.length, earned: r.squares !== null ? earn : 0, joinedMap: r.joinedMap });
+      if (r.squares === null && from === null) mapMined(map);
+      if (from === null && level > (me.highest ?? 1)) { me.highest = level; totals.best(me.pid, 'highestLevel', level); }
+      claimStats({ x, y, k, from, ground, grown: r.grown.length, earned: r.squares !== null ? catalog.fromTenths(earn) : 0, joinedMap: r.joinedMap });
     }
 
     // What a claim counts toward: lifetime totals, records, rank, and the secrets.
@@ -617,6 +927,15 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
         }
       }
 
+      // Any attack on a listed block ends the listing.
+      if (map.listings.has(k) && map.cells.get(k) !== me.pid) {
+        const here = map, id = map.listings.get(k);
+        serial(here, () => cancelListingNow(here, id)).catch(err => console.error(`LISTING CANCEL FAILED (${id}): ${err.message}`));
+      }
+      // Every way in runs through the owner's walls: the hit goes to a wall first (it needs w x H hits).
+      const wallSide = me.pid && rules.wallFirst(map, me.pid, x, y);
+      if (wallSide) return hitWall(x, y, wallSide);
+
       // Progress only counts while the same player keeps hitting the block, and fades when they stop.
       // Each click adds the player's Click Power; the owner's Defense sets the hits needed.
       const by = me.pid ?? 'visitor:' + socket.id, now = Date.now();
@@ -624,14 +943,14 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       if (h) decay(map, k, h, now);
       h = map.hits.get(k);
       const owner = map.cells.get(k);
-      const need = rules.hitsNeeded(owner ? map.players.get(owner)?.upgrades ?? rules.NO_UPGRADES : null, map.terrainAt(x, y));
+      const need = rules.hitsNeeded(owner ? tiersOn(map.players.get(owner)?.upgrades, map) : null, map.terrainAt(x, y), map.birth.get(k) ?? 1);
       // Hit power left over from the tap that took the last block counts toward the next one, so a higher Click
       // Power level never wastes power (GAME-RULES.md).
       if (h?.by !== by) { map.hits.set(k, h = { by, n: session.spare }); session.spare = 0; }
       h.at = now;
       h.need = need;
       const boost = superClicks.get(String(me.pid));   // Super Click: x value until it runs out
-      h.n += rules.hitPower(upgrades) * (boost && boost.until > now ? boost.value : 1);
+      h.n += rules.hitPower(tiersOn(upgrades, map)) * (boost && boost.until > now ? boost.value : 1);
       if (!rules.isTaken(h.n, need)) return io.to(map.room).emit('hit', { x, y, p: share(h) });
 
       session.spare = Math.max(0, h.n - need);
@@ -644,6 +963,26 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
         clearCrack(x, y);
       });
     });
+
+    function hitWall(x, y, side) {
+      const k = key(x, y), kw = k + '|' + side, now = Date.now(), wall = map.walls.get(k).find(w => w.side === side);
+      let h = map.hits.get(kw);
+      if (h) decay(map, kw, h, now);
+      h = map.hits.get(kw);
+      if (h?.by !== me.pid) map.hits.set(kw, h = { by: me.pid, n: 0 });
+      h.at = now;
+      h.need = wall.hits;
+      const boost = superClicks.get(String(me.pid));
+      h.n += rules.hitPower(tiersOn(upgrades, map)) * (boost && boost.until > now ? boost.value : 1);
+      if (!rules.isTaken(h.n, h.need)) return io.to(map.room).emit('hit', { x, y, side, p: share(h) });
+      map.hits.delete(kw);
+      const here = map;
+      serial(here, async () => {
+        if (!rules.hasWall(here, x, y, side)) return;
+        await store.removeWall(pool, here.id, x, y, side);
+        dropWall(here, x, y, side, true);
+      }).catch(err => console.error(`WALL BREAK FAILED (map ${here.id}, ${kw}): ${err.message}`));
+    }
 
     // Clears this player's whole territory on this map, and unlocks their color, skin and coverage here.
     socket.on('wipe', () => {
@@ -673,7 +1012,14 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       const text = chat.cleanMessage(raw);
       if (!text) return reply({ error: 'Type a message first' });
       lastChat.set(me.pid, now);
-      const msg = { pid: me.pid, name: me.name, text, at: now };
+      // @-mentions (loop 15): only real names of players on this map, at most 3 per message.
+      const lower = text.toLowerCase(), mentions = [];
+      for (const [pid, p] of [...map.players].sort((a, b) => b[1].name.length - a[1].name.length)) {
+        if (mentions.length < 3 && p.name && lower.includes('@' + p.name.toLowerCase()) && !mentions.some(m => m.name.toLowerCase().includes(p.name.toLowerCase()))) {
+          mentions.push({ pid, name: p.name });
+        }
+      }
+      const msg = { pid: me.pid, name: me.name, text, at: now, mentions };
       const list = chats.get(map.id) ?? [];
       list.push(msg);
       if (list.length > chat.HISTORY) list.shift();
@@ -731,21 +1077,26 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       const shown = got => achievementList.map(d => d.secret && !got.has(d.id)
         ? { id: d.id, name: '???', category: d.category, secret: true, stat: null, threshold: 1, reward: null, description: 'A secret achievement' }
         : { id: d.id, name: d.name, category: d.category, secret: d.secret, stat: d.stat, threshold: d.threshold, reward: d.reward, description: d.description });
-      if (!me.pid) return reply({ list: shown(new Set()), earned: [], values: {} });
+      // Another player's (read-only, from their profile): { pid } before the reply.
+      const other = args.length > 1 && args[0]?.pid && String(args[0].pid) !== String(me.pid) ? args[0].pid : null;
+      const pid = other ?? me.pid;
+      if (!pid) return reply({ list: shown(new Set()), earned: [], values: {} });
       try {
-        const { values, earned: rows } = await progressValues(me.pid, upgrades, me.account);
+        const theirs = other ? (await pool.query('SELECT tiers, highest_level, auth_user_id FROM players WHERE id = $1', [other])).rows[0] : null;
+        const levels = theirs ? upgradesOf(theirs) : upgrades, account = theirs ? !!theirs.auth_user_id : me.account;
+        const { values, earned: rows } = await progressValues(pid, levels, account);
         reply({ list: shown(new Set(rows.map(e => e.id))), earned: rows, values });
       } catch { reply({ error: 'Could not load achievements. Try again.' }); }
     });
 
     // The Upgrades screen: this player's levels and what each level does, from rules.js.
+    // tiers: { key: tier owned } (missing = 1); highest: the highest block level they've ever first-claimed (unlocks);
+    // mapLevel: this map's level, the cap on every upgrade here. list: each upgrade from the Upgrades tab with all
+    // 10 tiers' values and costs (squares; tier 1 is free).
     socket.on('upgrades', (...args) => {
       const reply = args.at(-1);   // with or without an argument before it
       if (typeof reply !== 'function') return;
-      reply({ levels: upgrades, hitsPerBlock: rules.HITS_PER_BLOCK, squaresPerClaim: rules.SQUARES_PER_FIRST_CLAIM,
-        // { clickPower: [{ level, value, cost }, …], … } from the sheet; Defense shown as it works (scaled, top x2)
-        upgrades: { ...rules.UPGRADES, defense: rules.UPGRADES.defense.map(l => ({ ...l, value: rules.defenseScaled(l.value) })) },
-        balance: Number(me.squares) }); // the exact balance, so "Need X more" is right with fractions
+      reply({ tiers: upgrades, highest: me.highest ?? 1, mapLevel: map.level(), list: upgradeList(), balance: catalog.fromTenths(me.squares) });
     });
 
     // Saves this player's tutorial progress: { step: id or null, done, tips: [ids] }. Visitors keep theirs in
@@ -767,26 +1118,43 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
     });
 
     let buying = false;   // one purchase at a time per connection (skins and upgrades)
+    // Prices at the level of the map this player is on (catalog.js); answers carry squares, not tenths.
+    const itemPrice = item => catalog.priceTenths(catalog.CATALOG.get('item:' + item.id), { L: map.level() });
+    const squaresOut = r => ({ ...r, ...(r.need !== undefined ? { need: catalog.fromTenths(r.need) } : {}) });
+
+    // Settings > Show tenths: one decimal place everywhere (remembered per player).
+    socket.on('showTenths', async (on, reply) => {
+      if (typeof reply !== 'function') return;
+      if (!me.pid) return reply({ error: 'Claim a block first' });
+      try {
+        await store.setShowTenths(pool, me.pid, !!on);
+        me.showTenths = !!on;
+        reply({ on: !!on });
+      } catch { reply({ error: 'Could not save that. Try again.' }); }
+    });
     // Items (loop 14): the list with what this player owns and how many uses are left.
     socket.on('items', async (...args) => {
       const reply = args.at(-1);
       if (typeof reply !== 'function') return;
-      try { reply({ list: await store.itemsFor(pool, me.pid), balance: Number(me.squares) }); } catch { reply({ error: 'Could not load items. Try again.' }); }
+      try {
+        const list = (await store.itemsFor(pool, me.pid)).map(i => ({ ...i, price: catalog.fromTenths(itemPrice(i)) }));
+        reply({ list, balance: catalog.fromTenths(me.squares) });
+      } catch { reply({ error: 'Could not load items. Try again.' }); }
     });
     socket.on('buyItem', async (p, reply) => {
       if (typeof reply !== 'function') return;
       if (!me.pid) return reply({ error: 'Claim a block first' });
-      const item = rules.ITEMS.find(i => i.id === p?.item && i.enabled);
+      const item = rules.ITEMS.find(i => i.id === p?.item && i.enabled && i.effect in store.USABLE);
       if (!item) return reply({ error: 'That item is not for sale' });
       if (buying) return reply({ error: 'One purchase at a time' });
       buying = true;
       try {
-        const r = await store.buyItem(pool, me.pid, item);
-        if (r.error) return reply(r);
+        const r = await store.buyItem(pool, me.pid, item, itemPrice(item));
+        if (r.error) return reply(squaresOut(r));
         balanceChanged(me.pid, r.squares);
-        totals.bump(me.pid, 'squaresSpent', item.price);
+        totals.bump(me.pid, 'squaresSpent', catalog.fromTenths(r.price));
         io.to('player:' + me.pid).emit('itemsChanged');
-        reply({ squares: rules.shownSquares(r.squares), balance: r.squares });
+        reply({ squares: catalog.fromTenths(r.squares), balance: catalog.fromTenths(r.squares), ...(r.count !== undefined ? { count: r.count } : {}) });
       } catch (err) {
         console.error(`ITEM PURCHASE FAILED (player ${me.pid}, ${p?.item}): ${err.message}`);
         reply({ error: 'Could not buy that. Try again.' });
@@ -809,6 +1177,21 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
             io.to('player:' + me.pid).emit('superClick', { until, value: item.value });
           }
           return done(r);
+        }
+        // Demolition: removes one of your factories or walls (what can be removed: `demolishers`), no refund.
+        if (item.effect === 'demolish') {
+          const { x, y, target, side } = p;
+          const d = demolishers[target];
+          if (!Number.isInteger(x) || !Number.isInteger(y) || !d) return reply({ error: 'Pick one of your factories or walls' });
+          await serial(here, async () => {
+            if (here.cells.get(key(x, y)) !== me.pid) return reply({ error: 'Only your own factories and walls' });
+            const refusal = d.check(here, x, y, side);
+            if (refusal) return reply({ error: refusal });
+            const r = await store.useItem(pool, me.pid, item, here.id, c => d.remove(c, here, x, y, side));
+            if (r.ok) d.removed(here, x, y, side);
+            done(r);
+          });
+          return;
         }
         if (item.effect === 'terraform') {
           const { x, y, terrain } = p;
@@ -838,6 +1221,181 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       }
     });
 
+    // A player's profile ({ pid }): see store.profile. Achievements as the list's names (known ids only), and
+    // whether they have the game open right now.
+    // Builds on this map: { kind: 'factory' | 'wall', x, y, side? }. Answers { ok, squares } or { error, need? }.
+    socket.on('build', async (p, reply) => {
+      if (typeof reply !== 'function') return;
+      if (!me.pid) return reply({ error: 'Claim a block first' });
+      const b = builders[p?.kind];
+      if (!b || !Number.isInteger(p.x) || !Number.isInteger(p.y)) return reply({ error: 'Pick something to build and a block' });
+      if (buying) return reply({ error: 'One purchase at a time' });
+      buying = true;
+      const here = map;
+      try { await serial(here, async () => reply(await b(here, me.pid, p))); } catch (err) {
+        console.error(`BUILD FAILED (player ${me.pid}, ${p.kind}): ${err.message}`);
+        reply({ error: 'Could not build that. Try again.' });
+      } finally { buying = false; }
+    });
+    // The Build menu's numbers for this player here.
+    socket.on('buildInfo', (...args) => {
+      const reply = args.at(-1);
+      if (typeof reply !== 'function') return;
+      const at = args.length > 1 && Number.isInteger(args[0]?.x) && Number.isInteger(args[0]?.y) ? args[0] : null;
+      reply({ factory: me.pid ? factoryInfo(map, me.pid) : null, balance: catalog.fromTenths(me.squares),
+        ...(at && map.cells.has(key(at.x, at.y)) ? { wallPrice: wallPrice(map, at.x, at.y) } : {}) });
+    });
+    // ---------- The land market ----------
+    // Lists connected blocks of yours: { blocks: [[x, y]], price } (squares). Accounts at least marketMinAccountDays old.
+    socket.on('listLand', async (p, reply) => {
+      if (typeof reply !== 'function') return;
+      if (!me.pid) return reply({ error: 'Claim a block first' });
+      const blocks = Array.isArray(p?.blocks) ? p.blocks.filter(b => Array.isArray(b) && Number.isInteger(b[0]) && Number.isInteger(b[1])) : [];
+      const price = catalog.toTenths(Number(p?.price));
+      if (!blocks.length || blocks.length !== p.blocks.length || blocks.length > 10000) return reply({ error: 'Pick some of your blocks' });
+      if (new Set(blocks.map(b => key(...b))).size !== blocks.length) return reply({ error: 'Pick each block once' });
+      if (!(price > 0) || price > 1e15) return reply({ error: 'Enter a price above 0' });
+      if (!rules.connected(blocks)) return reply({ error: 'The blocks must be connected side to side' });
+      const here = map;
+      try {
+        await serial(here, async () => {
+          if (blocks.some(b => here.cells.get(key(...b)) !== me.pid)) return reply({ error: 'Only your own blocks' });
+          if (blocks.some(b => here.listings.has(key(...b)))) return reply({ error: 'Some of those blocks are already for sale' });
+          const r = await store.createListing(pool, { mapId: here.id, sellerId: me.pid, blocks, price, minDays: catalog.E.marketMinAccountDays });
+          if (r.error) return reply(r);
+          const l = { id: r.id, seller: me.pid, price, created: Date.now(), blocks };
+          here.listingInfo.set(r.id, l);
+          for (const b of blocks) here.listings.set(key(...b), r.id);
+          io.to(here.room).emit('listing', listingOut(here, l));
+          reply({ ok: true, id: r.id });
+        });
+      } catch (err) {
+        console.error(`LISTING FAILED (player ${me.pid}): ${err.message}`);
+        reply({ error: 'Could not list that. Try again.' });
+      }
+    });
+    socket.on('cancelListing', async (p, reply) => {
+      if (typeof reply !== 'function') return;
+      const here = map, l = here.listingInfo.get(p?.id);
+      if (!l || String(l.seller) !== String(me.pid)) return reply({ error: 'Not your listing' });
+      try { await serial(here, () => cancelListingNow(here, l.id)); reply({ ok: true }); } catch { reply({ error: 'Could not cancel it. Try again.' }); }
+    });
+    // The Land tab: every listing on this map.
+    socket.on('landList', (...args) => {
+      const reply = args.at(-1);
+      if (typeof reply !== 'function') return;
+      reply({ list: [...map.listingInfo.values()].map(l => ({ ...listingOut(map, l), mine: String(l.seller) === String(me.pid) })), balance: catalog.fromTenths(me.squares) });
+    });
+    // Buys a listing: { id }. Everything moves to the buyer in one transaction.
+    socket.on('buyLand', async (p, reply) => {
+      if (typeof reply !== 'function') return;
+      if (!me.pid) return reply({ error: 'Claim a block first' });
+      if (buying) return reply({ error: 'One purchase at a time' });
+      const here = map, l = here.listingInfo.get(p?.id);
+      if (!l) return reply({ error: 'That land is no longer for sale' });
+      buying = true;
+      try {
+        await serial(here, async () => {
+          const mine = here.players.get(me.pid);
+          const look = { color: mine?.color ?? color, skin: mine?.skin ?? 'default', coverage: mine?.coverage ?? rules.COVERAGES[0] };
+          const r = await store.buyListing(pool, { id: l.id, buyerId: me.pid, fee: catalog.E.marketFee, minDays: catalog.E.marketMinAccountDays, look });
+          if (r.error) return reply({ error: r.error, ...(r.need !== undefined ? { need: catalog.fromTenths(r.need) } : {}) });
+          if (r.joined || !mine) {
+            here.players.set(me.pid, { name: me.name, ...look, unlocked: false, wipeFloor: 0, upgrades });
+            io.to(here.room).emit('player', { pid: me.pid, name: me.name, ...look });
+          }
+          // The sale: listing gone, then the blocks (with their factories and walls) change hands.
+          dropListingQuiet(here, l.id);
+          io.to(here.room).emit('listing', { id: l.id, gone: true, sold: true });
+          for (const [x, y] of r.blocks) {
+            const k = key(x, y), f = here.factories.get(k);
+            if (f) f.owner = me.pid;
+            transferOwner(here, k, me.pid);
+            io.to(here.room).emit('claim', { x, y, pid: me.pid, sold: true });
+            if (f) io.to(here.room).emit('factory', factoryOut(here, f));
+          }
+          balanceChanged(me.pid, r.buyerSquares);
+          balanceChanged(r.seller, r.sellerSquares);
+          statChanged(here, me.pid, 'owned', here.counts.get(me.pid));
+          statChanged(here, r.seller, 'owned', here.counts.get(r.seller) || 0);
+          totals.bump(me.pid, 'squaresSpent', catalog.fromTenths(r.price));
+          reply({ ok: true, blocks: r.blocks.length, squares: catalog.fromTenths(r.buyerSquares) });
+        });
+      } catch (err) {
+        console.error(`LAND PURCHASE FAILED (player ${me.pid}, ${p?.id}): ${err.message}`);
+        reply({ error: 'Could not buy that. Try again.' });
+      } finally { buying = false; }
+    });
+
+    // Wakes one of your factories: { x, y }. It works for its Factory Lifetime hours from now.
+    socket.on('wakeFactory', async (p, reply) => {
+      if (typeof reply !== 'function') return;
+      const here = map, f = p && here.factories.get(key(p.x, p.y));
+      if (!f || String(f.owner) !== String(me.pid)) return reply({ error: 'Not your factory' });
+      try {
+        await serial(here, async () => {
+          const now = Date.now(), awakeMs = ownerValues(here, f.owner).factoryLifetime * 3600000;
+          await store.wakeFactory(pool, f.id, f.owner, awakeMs, now);
+          f.awake = now + awakeMs;
+          f.processed = Math.max(f.processed, fac.stepFloor(now));
+          io.to(here.room).emit('factory', factoryOut(here, f));
+          reply({ ok: true, awakeUntil: f.awake });
+        });
+      } catch { reply({ error: 'Could not wake it. Try again.' }); }
+    });
+
+    // The info card (press and hold, or right-click, a block): { x, y } -> what's there. Never anything private.
+    socket.on('inspect', (p, reply) => {
+      if (typeof reply !== 'function') return;
+      if (!p || !Number.isInteger(p.x) || !Number.isInteger(p.y)) return reply({ error: 'Unknown block' });
+      const k = key(p.x, p.y);
+      if (!map.cells.has(k)) return reply({ error: 'There is no block there' });
+      reply(blockInfo(map, p.x, p.y, me.pid, upgrades));
+    });
+
+    socket.on('profile', async (p, reply) => {
+      if (typeof reply !== 'function') return;
+      try {
+        const pr = await store.profile(pool, p?.pid ?? me.pid);
+        if (!pr) return reply({ error: 'No such player' });
+        const known = pr.earned.filter(id => knownIds.has(id));
+        const online = [...io.sockets.sockets.values()].some(s => String(s.data.me?.pid) === String(pr.id) && s.data.visible);
+        reply({ id: pr.id, name: pr.name, account: pr.account, squares: pr.squares, color: pr.color, online, since: pr.created_at,
+          map: pr.map, blocks: pr.blocks, rank: pr.rank, best: pr.best, stars: { pattern: pr.star_pattern, art: pr.star_art },
+          achievements: { earned: known.length, total: achievementList.length,
+            recent: known.slice(0, 5).map(id => achievementList.find(d => d.id === id)).map(d => ({ id: d.id, name: d.name, description: d.description })) } });
+      } catch (err) {
+        console.error(`PROFILE FAILED (${p?.pid}): ${err.message}`);
+        reply({ error: 'Could not load that profile. Try again.' });
+      }
+    });
+
+    // Email updates (accounts only): { on, source } sets it ('signup' or 'settings'); with no data, answers { on, account }.
+    socket.on('emailUpdates', async (p, ...rest) => {
+      const reply = typeof p === 'function' ? p : rest.at(-1);
+      if (typeof reply !== 'function') return;
+      if (!me.pid) return reply({ on: false, account: false });
+      try {
+        if (typeof p !== 'object' || p === null || typeof p.on !== 'boolean') return reply(await store.emailUpdates(pool, me.pid));
+        const r = await store.setEmailUpdates(pool, me.pid, p.on, p.source === 'signup' ? 'signup' : 'settings');
+        if (r.error) return reply(r);
+        email.sync(r.email, r.on).catch(err => console.error(`AUDIENCE SYNC FAILED: ${err.message}`));
+        reply({ on: r.on });
+      } catch (err) {
+        console.error(`EMAIL UPDATES FAILED (player ${me.pid}): ${err.message}`);
+        reply({ error: 'Could not save that. Try again.' });
+      }
+    });
+
+    // Stars an owned skin ({ skin, on }): one pattern and one Rare-or-better art skin per player, saved on the server.
+    socket.on('starSkin', async (p, reply) => {
+      if (typeof reply !== 'function') return;
+      if (!me.pid) return reply({ error: 'Claim a block first' });
+      const skin = rules.SKINS.find(s => s.id === p?.skin);
+      if (!skin) return reply({ error: 'Unknown skin' });
+      try { reply(await store.starSkin(pool, me.pid, skin, !!p.on)); } catch { reply({ error: 'Could not save that. Try again.' }); }
+    });
+
     // Buys a skin with squares: { skin: id }. Answers { squares, balance } or { error, need }. Owned skins work on
     // every map; a guest's carry over when they make an account (it's the same player).
     socket.on('buySkin', async (p, reply) => {
@@ -848,11 +1406,11 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       if (buying) return reply({ error: 'One purchase at a time' });
       buying = true;
       try {
-        const r = await store.buySkin(pool, me.pid, skin);
-        if (r.error) return reply(r);
+        const r = await store.buySkin(pool, me.pid, skin, catalog.skinPriceTenths(skin, map.level()));
+        if (r.error) return reply(squaresOut(r));
         balanceChanged(me.pid, r.squares);
-        totals.bump(me.pid, 'squaresSpent', r.price);
-        reply({ squares: rules.shownSquares(r.squares), balance: r.squares });
+        totals.bump(me.pid, 'squaresSpent', catalog.fromTenths(r.price));
+        reply({ squares: catalog.fromTenths(r.squares), balance: catalog.fromTenths(r.squares) });
       } catch (err) {
         console.error(`SKIN PURCHASE FAILED (player ${me.pid}, ${p?.skin}): ${err.message}`);
         reply({ error: 'Could not buy that. Try again.' });
@@ -861,23 +1419,23 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
       }
     });
 
-    // Buys the next level of an upgrade with squares: { upgrade, level } where level is the one the player
-    // sees (so a double tap can't buy twice). Guests may buy. Answers with { levels, squares, balance } or
-    // { error, need }. The new level works straight away on every device and map.
+    // Buys a tier: { upgrade, tier } where tier is the next one (so a double tap can't buy two). Guests may buy.
+    // Answers { tiers, squares, balance } or { error, need }. It works at once on every device and map (up to
+    // each map's level).
     socket.on('buyUpgrade', async (p, reply) => {
       if (typeof reply !== 'function') return;
       if (!me.pid) return reply({ error: 'Claim a block first' });
-      if (!p || !(p.upgrade in rules.UPGRADES) || !Number.isInteger(p.level)) return reply({ error: 'Unknown upgrade' });
+      if (!p || !(p.upgrade in catalog.CATALOG_TIERS) || !Number.isInteger(p.tier)) return reply({ error: 'Unknown upgrade' });
       if (buying) return reply({ error: 'One purchase at a time' });
       buying = true;
       try {
-        const r = await store.buyUpgrade(pool, me.pid, p.upgrade, p.level, rules.UPGRADES[p.upgrade]);
-        if (r.error) return reply({ error: r.error, need: r.need });
-        upgradesChanged(me.pid, { ...upgrades, [p.upgrade]: r.level }, r.squares);
+        const r = await store.buyTier(pool, me.pid, p.upgrade, p.tier);
+        if (r.error) return reply({ error: r.error, need: r.need === undefined ? undefined : catalog.fromTenths(r.need) });
+        upgradesChanged(me.pid, r.tiers, r.squares);
         totals.bump(me.pid, 'purchases');
-        totals.bump(me.pid, 'squaresSpent', rules.UPGRADES[p.upgrade][r.level].cost);
-        totals.best(me.pid, 'level:' + p.upgrade, r.level);
-        reply({ levels: upgrades, squares: rules.shownSquares(r.squares), balance: r.squares });
+        totals.bump(me.pid, 'squaresSpent', catalog.fromTenths(catalog.tierCostTenths(p.upgrade, p.tier)));
+        totals.best(me.pid, 'level:' + p.upgrade, p.tier);
+        reply({ tiers: upgrades, squares: catalog.fromTenths(r.squares), balance: catalog.fromTenths(r.squares) });
       } catch (err) {
         console.error(`PURCHASE FAILED (player ${me.pid}, ${p.upgrade}): ${err.message}`);
         reply({ error: 'Could not buy that. Try again.' });
@@ -890,7 +1448,7 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
     socket.on('skins', async (...args) => {
       const reply = args.at(-1);   // with or without an argument before it
       if (typeof reply !== 'function') return;
-      try { reply(await store.skinsFor(pool, me.pid)); } catch { reply([]); }
+      try { reply(await store.skinsFor(pool, me.pid, map.level())); } catch { reply([]); }
     });
 
     // The maps this player can go to, with their place on each (store.mapsFor). Answers with an array.
@@ -938,7 +1496,8 @@ function createGame(pool, { achievementList = achievements.DEFINITIONS, guestsPe
     });
   });
 
-  return { server, io, events, totals };
+  if (startTicker) ticker.start();
+  return { server, io, events, totals, ticker };
 }
 
 module.exports = { createGame };

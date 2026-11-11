@@ -135,10 +135,10 @@ Sly Wolf now has 91.5 squares.
 npm run admin -- unban "Sly Wolf" --prod
 ```
 
-**create-map**: makes a new map. Its **seed** (any text) decides its terrain (water, sand, forest, stone, gold), its starting island (newMapBlocks from the Game Rules tab) and how it grows: the same seed always makes the same map. Leave `--seed` out for a random one. `--width` and `--height` make a rectangle instead.
+**create-map**: makes a new map. Its **seed** (any text) decides its terrain (water, sand, forest, stone, gold), its starting island and how it grows: the same seed always makes the same map. Leave `--seed` out for a random one. `--base` sets **E**, its starting size in blocks, fixed forever (default `defaultBaseBlocks` on the Economy tab; the live game refuses more than `maxBaseBlocksOnline`; locally there is no limit). `--width` and `--height` make a rectangle instead (E = width x height).
 ```
 npm run admin -- create-map Snowfield --seed "frosty hills" --prod
-npm run admin -- create-map "Tiny Isle" --prod
+npm run admin -- create-map "Tiny Isle" --base 20000 --prod
 ```
 
 ### Big changes (you type the name, and a backup is saved first)
@@ -170,6 +170,12 @@ This will:
 Type Grass to go ahead (anything else stops): Grass
 Backup saved: backups/prod-2026-10-28T20-02-11-120Z-before-wipe-map.json (3,212 rows)
 Grass: emptied 412 blocks of 23 players; the map has 1,024 blocks.
+```
+
+**economy-reset** (loop 16, run once after merging the Economy Update): clears every owned block, every map's level, all squares, upgrade tiers, items, factories, walls and land listings, and makes each official map again from its seed and E. Keeps accounts, names, owned skins, stars and earned achievements. The preview lists each map with its seed and E; type `CONFIRM`. A backup is taken first.
+
+```
+npm run admin -- economy-reset --prod
 ```
 
 **wipe-all-maps**: the same, for every map. To confirm, type `ALL MAPS`.

@@ -7,7 +7,27 @@ const menu = $('menu');
 const fills = {};     // view name -> function that fills the view in just before it shows
 let view = null;      // the view showing, or null when the menu is closed
 
+// The Marketplace: one screen with tabs (Upgrades, Skins, Items, Land), each the screen it always was.
+const MARKET_TABS = [['upgrades', 'Upgrades'], ['skins', 'Skins'], ['items', 'Items'], ['land', 'Land']];
+let marketTab = 'upgrades';
+for (const [v] of MARKET_TABS) {
+  const bar = document.createElement('div');
+  bar.className = 'tabs market-tabs';
+  bar.setAttribute('role', 'tablist');
+  bar.setAttribute('aria-label', 'Marketplace');
+  bar.replaceChildren(...MARKET_TABS.map(([t, label]) => {
+    const b = Object.assign(document.createElement('button'), { type: 'button', textContent: label });
+    b.setAttribute('role', 'tab');
+    b.setAttribute('aria-selected', t === v);
+    b.addEventListener('click', () => { if (t !== v) show(t); });
+    return b;
+  }));
+  menu.querySelector(`[data-view="${v}"] .head`).after(bar);
+}
 function show(name) {
+  if (name === 'market') name = marketTab;
+  if (MARKET_TABS.some(([t]) => t === name)) marketTab = name;
+  if (name !== 'achievements' && typeof achTarget !== 'undefined') achTarget = null;
   if (name === 'main') return closeMenu();   // the old menu hub: the welcome screen is underneath now
   if (menu.hidden) gameAudio.play('menuOpen');
   for (const v of menu.querySelectorAll('[data-view]')) v.hidden = v.dataset.view !== name;
@@ -16,6 +36,7 @@ function show(name) {
   $('menu-error').textContent = '';
   menu.classList.toggle('strong', name === 'wipe' || name === 'reset' || name === 'setup');
   menu.classList.toggle('bare', name === 'wipe' || name === 'reset');
+  menu.classList.toggle('sheet', name === 'profile');   // phones: a sheet from the bottom
   menu.hidden = false;
   view = name;
   fills[name]?.();
@@ -51,7 +72,7 @@ fills.main = () => {
   $('hub-name').textContent = myName;
   $('hub-tag').textContent = myAccount ? 'ACCOUNT' : me ? 'GUEST' : 'VISITOR';
   $('hub-map').textContent = mapInfo?.name ?? '';
-  $('hub-squares').textContent = squares;
+  $('hub-squares').textContent = fmtSq(squares);
   const offerLogin = !myAccount && accountsOn;
   $('hub-login').hidden = $('hub-login-note').hidden = !offerLogin;
   $('hub-off').hidden = accountsOn;
@@ -97,7 +118,7 @@ $('wipe-go').addEventListener('click', () => {
 
 // ---------- Reset all progress ----------
 fills.reset = () => {
-  $('reset-squares').textContent = `${squares} square${squares === 1 ? '' : 's'}`;
+  $('reset-squares').textContent = `${fmtSq(squares)} square${squares === 1 ? '' : 's'}`;
   $('reset-word').value = '';
   $('reset-go').disabled = true;
 };
@@ -283,7 +304,7 @@ fills.skins = async () => {
 };
 function drawSkins() {
   $('skins-owned').textContent = `${skinList.filter(s => s.owned).length} owned`;
-  $('skins-squares').textContent = squares;
+  $('skins-squares').textContent = fmtSq(squares);
   $('skins-tabs').replaceChildren(...[...Object.keys(SKIN_TABS), 'Owned'].map(name => {
     const b = document.createElement('button');
     b.type = 'button';
@@ -297,11 +318,13 @@ function drawSkins() {
   // A search looks through every skin; otherwise the tab picks them.
   const shown = skinList.filter(s => q ? s.name.toLowerCase().includes(q) : skinTab === 'Owned' ? s.owned : SKIN_TABS[skinTab].includes(s.rarity));
   const groups = new Map();
-  for (const s of shown) (groups.get(s.collection) ?? groups.set(s.collection, []).get(s.collection)).push(s);
+  if (skinTab === 'Owned' && !q && shown.some(s => s.starred)) groups.set('★ Starred', shown.filter(s => s.starred));   // only here
+  for (const s of shown) if (!(skinTab === 'Owned' && !q && s.starred)) (groups.get(s.collection) ?? groups.set(s.collection, []).get(s.collection)).push(s);
   $('catalog').replaceChildren(...[...groups].flatMap(([collection, list]) => {
     const title = document.createElement('div');
     title.className = 'cat-title';
     title.textContent = `${collection.toUpperCase()} (${list.length})`;
+    if (collection === '★ Starred' || (skinTab === 'Owned' && collection === [...groups.keys()][0])) title.dataset.info = 'starring';
     const grid = document.createElement('div');
     grid.className = 'catalog';
     for (const s of list) {
@@ -314,13 +337,27 @@ function drawSkins() {
       t.querySelector('.rar').classList.add(s.rarity.replace(/ /g, '-'));   // 'Ultra Rare' has a space
       if (s.owned) {
         t.insertAdjacentHTML('beforeend', '<span class="pr" style="color: var(--green)">Owned</span>');
+        if (skinTab === 'Owned' && s.starrable) {   // star one pattern and one art skin (tap again to remove)
+          const star = document.createElement('button');
+          star.type = 'button';
+          star.className = 'btn star' + (s.starred ? ' on' : '');
+          star.setAttribute('aria-pressed', s.starred);
+          star.setAttribute('aria-label', (s.starred ? 'Unstar ' : 'Star ') + s.name);
+          star.textContent = '★';
+          star.addEventListener('click', async () => {
+            const r = await ask('starSkin', { skin: s.id, on: !s.starred });
+            if (r.error) return fail(r.error);
+            fills.skins();
+          });
+          t.append(star);
+        }
       } else {
         const b = document.createElement('button');
         b.type = 'button';
         b.className = 'btn buy';
         const short = s.price - squares;
         b.disabled = short > 0;
-        b.innerHTML = short > 0 ? `Need ${short.toLocaleString()} more` : `${s.price.toLocaleString()} <img class="sq-icon" src="icons/square.svg" width="12" height="12" alt="squares">`;
+        b.innerHTML = short > 0 ? `Need ${fmtNeed(short)} more` : `${fmtSq(s.price)} <img class="sq-icon" src="icons/square.svg" width="12" height="12" alt="squares">`;
         b.addEventListener('click', () => buySkin(s, b));
         t.append(b);
       }
@@ -346,24 +383,23 @@ async function buySkin(s, button) {
 // ---------- Upgrades ----------
 const num = v => (Math.round(v * 100) / 100).toLocaleString(undefined, { minimumFractionDigits: Number.isInteger(v) ? 1 : 0, maximumFractionDigits: 2 });
 const plural = (v, word) => `${word}${v === 1 ? '' : 's'}`;
-// Each upgrade's effect at a level and what it means, shown as "+40% → +50% more powerful clicks": the real change,
-// never a rounded count of clicks. Growth stays a count of blocks.
-const pct = v => `+${Math.round((v - 1) * 1000) / 10}%`;
-const UPGRADES = [
-  { key: 'clickPower', name: 'Click Power', about: 'Each click counts as more hits', color: 'var(--orange)',
-    icon: '<path d="M4 0h2v3h2v1H7v1H6v1H5v1H4v1H3V5H1V4h1V3h1V2h1z" fill="#0f131a"/>',
-    effect: v => [pct(v), 'more powerful clicks'] },
-  { key: 'defense', name: 'Defense', about: 'Others need more hits to take your blocks', color: 'var(--blue)',
-    icon: '<path d="M0 0h8v4H7v2H6v1H5v1H3V7H2V6H1V4H0z" fill="#0f131a"/>',
-    effect: v => [pct(v), 'more hits needed to take your blocks'] },
-  { key: 'earnings', name: 'Earnings', about: 'More squares per brand-new block', color: 'var(--text)',
-    icon: '<path d="M0 4h3v4H0zM5 4h3v4H5zM2 0h4v3H2z" fill="#0f131a"/>',
-    effect: v => [pct(v), 'more squares per new block'] },
-  { key: 'growth', name: 'Growth', about: 'More new map blocks per brand-new block', color: 'var(--green)',
-    icon: '<path d="M3 0h2v3h3v2H5v3H3V5H0V3h3z" fill="#0f131a"/>',
-    effect: v => [v, 'new map ' + plural(v, 'block') + ' per claim'] },
-];
-const show2 = n => typeof n === 'string' ? n : num(n).replace(/\.0$/, '');   // 4 rather than 4.0 in "5 → 4"
+// Upgrades are tiers 1-10 (loop 16). Each card: what it does, the tier owned, the value it works at on this map
+// (capped at the map's level), all 10 tiers with their costs, and the next tier's button (or why not).
+const UPGRADE_LOOKS = {
+  clickPower: { color: 'var(--orange)', icon: '<path d="M4 0h2v3h2v1H7v1H6v1H5v1H4v1H3V5H1V4h1V3h1V2h1z" fill="#0f131a"/>' },
+  defense: { color: 'var(--blue)', icon: '<path d="M0 0h8v4H7v2H6v1H5v1H3V7H2V6H1V4H0z" fill="#0f131a"/>' },
+  earnings: { color: 'var(--text)', icon: '<path d="M0 4h3v4H0zM5 4h3v4H5zM2 0h4v3H2z" fill="#0f131a"/>' },
+  growth: { color: 'var(--green)', icon: '<path d="M3 0h2v3h3v2H5v3H3V5H0V3h3z" fill="#0f131a"/>' },
+  factorySpeed: { color: 'var(--yellow)', icon: '<path d="M0 8V3l2 1V3l2 1V3l2 1V0h2v8z" fill="#0f131a"/>' },
+  factoryLifetime: { color: 'var(--teal)', icon: '<path d="M2 0h4v1H5v1h1v1h1v4H6v1H2V7H1V3h1V2h1V1H2zM4 3v2h2V4H5V3z" fill="#0f131a"/>' },
+  factoryYield: { color: 'var(--pink)', icon: '<path d="M0 8V3l2 1V3l2 1V3l2 1V0h2v8zM3 6h2v1H3z" fill="#0f131a"/>' },
+};
+// A value with its unit: "x2 hits per tap", "3 new blocks", "4.5 hours awake".
+const tierText = (v, unit) => {
+  const n = Number(v.toFixed(v < 10 ? 2 : 1)).toLocaleString();
+  if (v === 1) unit = unit.replace(/blocks$/, 'block');   // "1 new block"
+  return /^x /.test(unit) ? `×${n} ${unit.slice(2)}` : `${n} ${unit}`;
+};
 
 let upgradeData = null;
 fills.upgrades = async () => {
@@ -371,78 +407,78 @@ fills.upgrades = async () => {
   if (view !== 'upgrades') return;
   if (u.error) return fail(u.error);
   upgradeData = u;
-  drawUpgrades();
-  $('upg-squares').textContent = squares;
+  drawUpgradeCards($('upgrade-list'));
+  $('upg-squares').textContent = fmtSq(squares);
 };
-function drawUpgrades() {
+function drawUpgradeCards(list) {
   const u = upgradeData;
-  $('upgrade-list').replaceChildren(...UPGRADES.map(up => {
-    const levels = u.upgrades[up.key], top = levels.length - 1;
-    const level = Math.min(Math.max(0, u.levels[up.key] | 0), top), next = levels[level + 1];
+  list.replaceChildren(...u.list.map(up => {
+    const look = UPGRADE_LOOKS[up.key] ?? { color: 'var(--raised)', icon: '' };
+    const owned = u.tiers[up.key] ?? 1, working = Math.min(owned, u.mapLevel), next = up.tiers[owned];   // tiers[owned] is tier owned + 1
     const card = document.createElement('div');
     card.className = 'card upg';
-    card.innerHTML = `<div class="top"><div class="ic"><svg class="pix" width="20" height="20" viewBox="0 0 8 8" aria-hidden="true">${up.icon}</svg></div>`
+    card.innerHTML = `<div class="top"><div class="ic"><svg class="pix" width="20" height="20" viewBox="0 0 8 8" aria-hidden="true">${look.icon}</svg></div>`
       + '<div style="display: flex; flex-direction: column"><span class="t"></span><span class="d"></span></div></div>'
-      + '<div class="pips" aria-hidden="true"></div><div class="bar" hidden><div></div></div><div class="stat"><span></span><span></span></div>'
-      + '<details class="levels-box"><summary></summary><ul class="levels"></ul></details>'
+      + '<div class="pips" aria-hidden="true"></div><div class="stat"><span></span><span></span></div><p class="cap note" hidden></p>'
+      + '<details class="levels-box"><summary>All 10 tiers</summary><ul class="levels"></ul></details>'
       + '<button class="btn" type="button"></button>';
-    card.querySelector('.ic').style.background = up.color;
+    card.querySelector('.ic').style.background = look.color;
     card.querySelector('.t').textContent = up.name;
+    card.querySelector('.t').dataset.info = up.key;   // info.js
     card.querySelector('.d').textContent = up.about;
-    // Pips for a few levels, a bar for many.
-    const pips = card.querySelector('.pips'), bar = card.querySelector('.bar');
-    pips.replaceChildren(...levels.slice(1).map((_, i) => {
+    // 10 pips: owned tiers filled; ones above this map's level dimmed (they don't work here).
+    card.querySelector('.pips').replaceChildren(...up.tiers.map(t => {
       const p = document.createElement('span');
       p.className = 'pip';
-      if (i < level) p.style.background = up.color;
+      if (t.tier <= owned) p.style.background = look.color;
+      if (t.tier <= owned && t.tier > working) p.style.opacity = '0.35';
       return p;
     }));
-    pips.hidden = top < 1 || top > 20;
-    bar.hidden = top <= 20;
-    bar.firstElementChild.style.cssText = `width: ${level / (top || 1) * 100}%; background: ${up.color}`;
-    // "Level 3" and "10 → 9 clicks per block", or "… · MAX" at the top.
     const [lv, eff] = card.querySelectorAll('.stat span');
-    lv.textContent = `Level ${level}${top ? ` of ${top}` : ''}`;
-    const [now, unit] = up.effect(levels[level].value, u);
-    eff.textContent = next ? `${show2(now)} → ${show2(up.effect(next.value, u)[0])} ${unit}` : `${show2(now)} ${unit}`;
-    // Every level, with its effect and cost.
-    card.querySelector('summary').textContent = `All ${top} levels`;
-    card.querySelector('.levels-box').hidden = top < 1;
-    card.querySelector('.levels').replaceChildren(...levels.slice(1).map(l => {
+    lv.textContent = `Tier ${owned} of ${up.tiers.length}`;
+    const now = up.tiers[working - 1].value;
+    eff.textContent = next ? `${tierText(now, up.unit)} → ${tierText(next.value, up.unit)}` : tierText(now, up.unit);
+    // Capped: the map's level limits every upgrade here.
+    if (working < owned) {
+      const cap = card.querySelector('.cap');
+      cap.hidden = false;
+      cap.textContent = `Tier ${owned}, working at tier ${working} on this map (level ${u.mapLevel})`;
+    }
+    card.querySelector('.levels').replaceChildren(...up.tiers.map(t => {
       const li = document.createElement('li');
-      li.className = l.level === level ? 'cur' : '';
-      const [n, what] = up.effect(l.value, u);
-      li.textContent = `Level ${l.level}: ${show2(n)} ${what} · ${l.cost.toLocaleString()} squares`;
+      li.className = t.tier === owned ? 'cur' : '';
+      li.textContent = `Tier ${t.tier}: ${tierText(t.value, up.unit)} · ${t.cost ? `${fmtSq(t.cost)} squares` : 'free'}`;
       return li;
     }));
-    // The button: buy the next level, or why not.
+    // The button: the next tier, or why not.
     const btn = card.querySelector('.btn');
-    btn.style.cssText = `background: ${up.color}; color: var(--well)`;
-    if (!next) { btn.disabled = true; btn.textContent = top ? 'MAX' : 'No levels yet'; }
+    btn.style.cssText = `background: ${look.color}; color: var(--well)`;
+    const price = n => `<img class="sq-icon" src="icons/square.svg" width="16" height="16" alt="squares"> ${fmtSq(n)}`;
+    if (!next) { btn.disabled = true; btn.textContent = 'MAX'; }
+    else if (u.highest < next.tier) { btn.disabled = true; btn.textContent = `Mine a level-${next.tier} block to unlock`; }
     else if (u.balance + 1e-9 >= next.cost) {
-      btn.innerHTML = `Upgrade · <img class="sq-icon" src="icons/square.svg" width="16" height="16" alt="squares"> ${next.cost.toLocaleString()}`;
-      btn.addEventListener('click', () => buy(up, level, btn));
+      btn.innerHTML = `Tier ${next.tier} · ${price(next.cost)}`;
+      btn.addEventListener('click', () => buyTier(up, next.tier, btn));
     } else {
       btn.disabled = true;
-      btn.innerHTML = `<img class="sq-icon" src="icons/square.svg" width="16" height="16" alt="squares"> ${next.cost.toLocaleString()} · Need ${Math.ceil(next.cost - u.balance - 1e-9).toLocaleString()} more`;
+      btn.innerHTML = `${price(next.cost)} · Need ${fmtNeed(next.cost - u.balance)} more`;
     }
     return card;
   }));
 }
-async function buy(up, level, btn) {
+async function buyTier(up, tier, btn) {
   btn.disabled = true;   // one tap, one purchase (the server refuses repeats too)
-  const r = await ask('buyUpgrade', { upgrade: up.key, level });
+  const r = await ask('buyUpgrade', { upgrade: up.key, tier });
   if (r.error) {
-    toast(r.need ? `${r.error}: need ${Math.ceil(r.need - 1e-9)} more` : r.error);
-    return fills.upgrades();
+    toast(r.need ? `${r.error}: need ${fmtNeed(r.need)} more` : r.error);
+    return fills[view]?.();
   }
   gameAudio.play('purchase');
-  Object.assign(upgradeData, { levels: r.levels, balance: r.balance });
+  Object.assign(upgradeData, { tiers: r.tiers, balance: r.balance });
   squares = r.squares;
   updateUI();
-  $('upg-squares').textContent = squares;
-  toast(`${up.name} level ${r.levels[up.key]}`, 'good');
-  if (view === 'upgrades') drawUpgrades();
+  toast(`${up.name} tier ${tier}`, 'good');
+  fills[view]?.();
 }
 
 // ---------- Achievements ----------
@@ -465,6 +501,7 @@ function drawAchievements() {
     card.className = 'ach-cat' + (done === tiers.length ? ' got' : '');
     card.innerHTML = '<div class="ach-head"><span class="t"></span><span class="n"></span></div>';
     card.querySelector('.t').textContent = category;
+    if (tiers.every(a => a.secret)) card.querySelector('.t').dataset.info = 'secrets';
     card.querySelector('.n').textContent = `${done} / ${tiers.length}`;
     if (tiers.every(a => a.secret)) {
       // Secrets: each on its own line.
@@ -506,8 +543,9 @@ function drawAchievements() {
   }));
 }
 for (const b of $('ach-filter').children) b.addEventListener('click', () => { achFilter = b.dataset.filter; if (achData) drawAchievements(); });
+let achTarget = null;   // another player's id when opened from their profile (read-only)
 fills.achievements = async () => {
-  const r = await ask('achievements');
+  const r = await (achTarget ? ask('achievements', { pid: achTarget }) : ask('achievements'));
   if (view !== 'achievements') return;
   if (r.error) return fail(r.error);
   achData = r;

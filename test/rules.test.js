@@ -2,6 +2,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const rules = require('../rules');
+const catalog = require('../catalog');
 
 // A map from rows of text: '.' empty, a letter is that player's block, ' ' is outside the map.
 function grid(...rows) {
@@ -55,7 +56,7 @@ test('defaults: 10 hits for any block, 1 hit per click, 1 square, fade of 1 hit 
   assert.equal(rules.hitsNeeded(null), 10);
   assert.equal(rules.hitsNeeded(rules.NO_UPGRADES), 10);
   assert.equal(rules.hitPower(rules.NO_UPGRADES), 1);
-  assert.equal(rules.squaresForFirstClaim(rules.NO_UPGRADES), 1);
+  assert.equal(rules.firstClaimTenths(rules.NO_UPGRADES), 10, '1 square, in tenths');
   assert.equal(rules.CRACK_DECAY_SECONDS, 60);
   assert.equal(rules.CRACK_DECAY_HITS, 1);
 });
@@ -67,47 +68,33 @@ const clicks = (attacker, owner) => {
   return c;
 };
 
-test('upgrades: Click Power multiplies each click, Defense multiplies hits needed, Earnings keeps fractions', t => {
-  const saved = ['CLICK_POWER_MULTIPLIER', 'DEFENSE_MULTIPLIER', 'EARNINGS_MULTIPLIER', 'HITS_PER_BLOCK', 'SQUARES_PER_FIRST_CLAIM']
-    .map(k => [k, rules[k]]);
-  t.after(() => { for (const [k, v] of saved) rules[k] = v; });
-  const none = rules.NO_UPGRADES, lv = (clickPower, defense, earnings) => ({ clickPower, defense, earnings });
-
-  // With the synced tables, level 0 is no upgrade.
-  assert.equal(clicks(none, none), 10);
-  assert.equal(rules.squaresForFirstClaim(none), 1);
-  assert.equal(clicks(null, null), 10, 'a visitor with no levels');
-
-  // Tables that do nothing: levels make no difference.
-  rules.CLICK_POWER_MULTIPLIER = [1];
-  rules.DEFENSE_MULTIPLIER = [1];
-  rules.EARNINGS_MULTIPLIER = [1];
-  assert.equal(clicks(lv(5, 5, 5), lv(5, 5, 5)), 10);
-  assert.equal(rules.squaresForFirstClaim(lv(5, 5, 5)), 1);
-
-  rules.CLICK_POWER_MULTIPLIER = [1, 1.2, 2];
-  rules.DEFENSE_MULTIPLIER = [1, 1.5, 2];
-  rules.EARNINGS_MULTIPLIER = [1, 1.5, 1.1];
-  assert.equal(clicks(lv(1, 0, 0), lv(0, 2, 0)), 17, "Bob's example: Click Power 1.2 against Defense x2 is 20 hits, 17 clicks");
-  assert.equal(rules.hitsNeeded(lv(0, 2, 0)), 20);
-  assert.equal(clicks(lv(1, 0, 0), null), 9, '10 / 1.2 = 8.33, so 9 clicks; Defense never applies to empty blocks');
-  assert.equal(clicks(lv(2, 0, 0), lv(0, 1, 0)), 8, '15 hits at 2 per click');
-  assert.equal(clicks(lv(9, 0, 0), null), 5, 'past the table uses the last entry');
-  assert.equal(clicks(none, lv(0, -3, 0)), 10, 'a bad level counts as 0');
-  rules.CLICK_POWER_MULTIPLIER = [0.1];
-  assert.equal(clicks(none, null), 100, 'fractions add up exactly: 100 x 0.1 is 10');
-
-  assert.equal(rules.squaresForFirstClaim(lv(0, 0, 1)), 1.5, 'fractions are kept');
-  assert.equal(rules.squaresForFirstClaim(lv(0, 0, 2)), 1.1);
-  rules.SQUARES_PER_FIRST_CLAIM = 3;
-  assert.equal(rules.squaresForFirstClaim(lv(0, 0, 2)), 3.3, 'rounded to 6 places, not 3.3000000000000003');
+test('upgrade values: Click Power multiplies each click, Defense multiplies hits needed, Earnings keeps tenths', () => {
+  const none = rules.NO_UPGRADES;
+  assert.equal(clicks(none, none), 10, 'tier 1 everywhere: no change');
+  assert.equal(rules.firstClaimTenths(none), 10);
+  assert.equal(clicks(null, null), 10, 'a visitor');
+  assert.equal(clicks({ clickPower: 1.2 }, { defense: 2 }), 17, "Bob's example: Click Power 1.2 against Defense x2 is 20 hits, 17 clicks");
+  assert.equal(rules.hitsNeeded({ defense: 2 }), 20);
+  assert.equal(clicks({ clickPower: 1.2 }, null), 9, '10 / 1.2 = 8.33, so 9 clicks; Defense never applies to empty blocks');
+  assert.equal(clicks({ clickPower: 0.1 }, null), 100, 'fractions add up exactly: 100 x 0.1 is 10');
+  assert.equal(rules.firstClaimTenths({ earnings: 1.5 }), 15, 'tenths are kept');
+  assert.equal(rules.firstClaimTenths({ earnings: 1.19 }), 11, '11.9 tenths rounds down to 11');
+  assert.equal(rules.firstClaimTenths(none, 'sand'), 5, 'sand: half the hits, half the pay');
+  assert.equal(rules.firstClaimTenths(none, 'gold'), 10 + rules.GOLD_BONUS_SQUARES * 10, 'gold: plus the bonus');
+  assert.equal(rules.firstClaimTenths(none, 'grass', 3), 40, 'a level-3 block: 4x the hits, 4x the pay');
+  assert.equal(rules.growthBlocks({ growth: 3 }), 3);
+  // On a map: each tier is capped at the map's level.
+  const eff = catalog.effectiveValues({ clickPower: 5, earnings: 2 }, 2);
+  assert.ok(Math.abs(eff.clickPower - 2) < 1e-9, 'tier 5 Click Power works at tier 2 on a level-2 map');
+  assert.equal(eff.defense, 1, 'tiers not bought are tier 1');
+  assert.ok(Math.abs(catalog.effectiveValues({ clickPower: 5 }, 9).clickPower - 16) < 1e-9, 'tier 5 in full on a level-9 map');
 });
 
-test('players see whole squares, rounded down', () => {
+test('players see whole squares, rounded down, from a balance in tenths', () => {
   assert.equal(rules.shownSquares(0), 0);
-  assert.equal(rules.shownSquares(2.999999), 2);
-  assert.equal(rules.shownSquares('3.000000'), 3, 'as the database returns it');
-  assert.equal(rules.shownSquares(3.3), 3);
+  assert.equal(rules.shownSquares(29), 2);
+  assert.equal(rules.shownSquares('30'), 3, 'as the database returns it (bigint as a string)');
+  assert.equal(rules.shownSquares(33), 3);
 });
 
 test('tap-rate limit: a burst up to the rate, then the rate per second', () => {

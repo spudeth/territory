@@ -64,7 +64,7 @@
     { id: 'range', on: 'denied:range', title: 'Out of range',
       text: 'You can only claim blocks touching your land: up, down, left or right. The lit-up blocks are in range.' },
     { id: 'square', on: 'squares', title: 'Your first square',
-      text: 'You earn squares for claiming brand-new blocks. Soon you can spend them on skins and more.' },
+      text: 'You earn squares for mining brand-new blocks. Spend them in the Marketplace on upgrades, skins, items and land.' },
     { id: 'achievement', on: 'achievement', title: 'Your first achievement',
       text: 'See them all, and what comes next, in Menu > Achievements.' },
   ];

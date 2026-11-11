@@ -645,3 +645,85 @@ body.welcome #itembar, body.zooming #itembar { opacity: 0; pointer-events: none;
   padding: 10px; display: flex; flex-direction: column; gap: 8px; align-items: center; max-width: calc(100% - 32px); }
 #terra-choices { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
 #terra-choices button { width: 48px; height: 48px; padding: 0; border: 3px solid var(--ink); image-rendering: pixelated; background-size: cover; cursor: pointer; }
+.catalog .star { min-height: 36px; font-size: 18px; color: var(--muted); background: var(--raised); }
+.catalog .star.on { color: var(--well); background: var(--gold); }
+
+/* ---------- Profiles (loop 15) ---------- */
+.pf-stats { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 8px 14px; font-size: 16px; }
+.pf-stats dt { color: var(--muted); }
+.pf-stats dd { margin: 0; text-align: right; font-weight: 600; }
+.pf-recent { list-style: none; margin: 0 0 6px; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 15px; }
+.pf-recent li span { color: var(--muted); font-size: 13px; margin-left: 6px; }
+.pf-stars { display: grid; grid-template-columns: repeat(2, minmax(0, 120px)); gap: 12px; }
+.pf-stars canvas { width: 100%; aspect-ratio: 1; image-rendering: pixelated; border: 3px solid var(--ink); display: block; }
+.pf-stars span { font-size: 14px; }
+.pf-online { font-size: 13px; color: #2fd35b; }
+.pf-online::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #2fd35b; margin-right: 5px; }
+#w-name { cursor: pointer; }
+/* Phones: the profile slides up from the bottom as a sheet (close with X or a swipe down). */
+@media (max-width: 699px) {
+  #menu.sheet .panel { top: auto; max-height: 85%; border-radius: 0; animation: sheet-up .25s ease-out; }
+  @keyframes sheet-up { from { transform: translateY(100%); } to { transform: none; } }
+}
+
+/* ---------- "i" buttons (loop 15, info.js) ---------- */
+.info-btn { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; margin: -12px -10px -12px -4px; padding: 0;
+  background: none; border: 0; cursor: pointer; vertical-align: middle; }
+.info-btn span { width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; font: 8px var(--title); color: var(--well);
+  background: var(--soft); box-shadow: 0 0 0 2px var(--ink); }
+#info-pop { position: fixed; z-index: 70; max-width: min(300px, calc(100% - 24px)); padding: 10px 12px; background: var(--panel); color: var(--text);
+  font-size: 15px; line-height: 1.35; box-shadow: 0 0 0 3px var(--ink), 4px 4px 0 3px var(--ink); }
+
+/* ---------- @-mentions (loop 15) ---------- */
+#chat-log .mention { color: var(--gold); font-weight: 600; }
+#chat-log li.mentions-me { box-shadow: inset 3px 0 0 var(--gold); background: rgba(247, 201, 72, .14); }
+#chat-mention { list-style: none; margin: 0; padding: 4px; width: 100%; background: var(--panel); box-shadow: 0 0 0 2px var(--ink); max-height: 180px; overflow-y: auto; }
+#chat-mention li { padding: 8px 10px; font-size: 15px; cursor: pointer; }
+#chat-mention li.on, #chat-mention li:hover { background: var(--raised); }
+
+.check { display: flex; align-items: flex-start; gap: 8px; font-size: 15px; color: var(--soft); cursor: pointer; }
+.check input { accent-color: var(--gold); width: 18px; height: 18px; margin-top: 1px; flex: none; }
+
+/* ---------- Loop 16: map level (HUD) and the block info card ---------- */
+#me .lvl { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); margin-top: 2px; }
+#me .lvl-bar { width: 56px; height: 6px; background: var(--raised, #2a2f3a); border: 1px solid #0f131a; }
+#me .lvl-bar i { display: block; height: 100%; width: 0; background: var(--gold, #ffd34d); }
+#inspect { position: fixed; z-index: 40; left: 50%; bottom: 16px; transform: translateX(-50%); width: min(340px, calc(100vw - 32px));
+  max-height: 60vh; overflow: auto; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+#inspect[hidden] { display: none; }
+#inspect .ic-head { display: flex; align-items: center; gap: 8px; font-family: "Press Start 2P", monospace; font-size: 11px; }
+#inspect .ic-head span { flex: 1; }
+#inspect .ic-head .icon-btn { min-width: 44px; min-height: 44px; }
+#inspect .ic-row { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; padding: 2px 0; }
+#inspect .ic-row span { color: var(--muted); }
+#inspect .ic-sec { border-top: 1px solid rgba(255,255,255,0.08); padding-top: 6px; }
+#inspect .ic-sec .btn { margin-top: 6px; width: 100%; }
+#inspect .ic-sec.hl { outline: 2px solid var(--gold, #ffd34d); outline-offset: 2px; }
+
+/* ---------- Loop 16: the Marketplace tabs ---------- */
+.market-tabs { margin-bottom: 4px; }
+.item-card .act .have { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; text-align: right; }
+
+/* ---------- Loop 16: Build ---------- */
+#board .build-btn { width: 100%; margin-top: 8px; min-height: 44px; gap: 6px; font-size: 13px; }
+#build-menu { position: fixed; z-index: 45; right: 16px; top: 50%; transform: translateY(-50%); width: min(280px, calc(100vw - 32px));
+  display: flex; flex-direction: column; gap: 8px; padding: 10px; }
+#build-menu[hidden] { display: none; }
+#build-menu .btn { flex-direction: column; align-items: flex-start; min-height: 48px; text-align: left; }
+#build-menu .btn small { font-size: 11px; color: var(--muted); font-weight: normal; }
+#build-bar { position: fixed; z-index: 45; left: 50%; bottom: 16px; transform: translateX(-50%); display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; width: min(420px, calc(100vw - 32px)); }
+#build-bar[hidden] { display: none; }
+#build-bar #build-msg { flex: 1; font-size: 14px; }
+#build-bar #build-msg.bad { color: var(--red, #ff4d4d); }
+#build-bar .icon-btn { min-width: 44px; min-height: 44px; font-size: 18px; }
+#sell-bar { position: fixed; z-index: 45; left: 50%; bottom: 16px; transform: translateX(-50%); display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; width: min(460px, calc(100vw - 32px)); }
+#sell-bar[hidden] { display: none; }
+#sell-bar #sell-msg { flex: 1; font-size: 14px; }
+#sell-bar #sell-msg.bad { color: var(--red, #ff4d4d); }
+#sell-bar input { width: 96px; min-height: 44px; }
+#sell-bar .icon-btn { min-width: 44px; min-height: 44px; font-size: 18px; }
+/* The loop 16 floating cards sit over the map: a solid panel, like the HUD. */
+#inspect, #build-menu, #build-bar, #sell-bar { background: var(--panel); color: var(--text); }
+#me .lvl { pointer-events: auto; }

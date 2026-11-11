@@ -2,8 +2,6 @@ const os = require('os');
 const { createPool, waitForDb, migrate } = require('./db');
 const { createGame } = require('./app');
 const { createAuth } = require('./auth');
-const store = require('./store');
-const rules = require('./rules');
 
 // Locally, Neon writes DATABASE_URL to .env.local (or .env). Real environment variables win.
 for (const f of ['.env.local', '.env', '.env.admin']) {   // .env.admin: ADMIN_KEY for npm run admin
@@ -23,15 +21,12 @@ const pool = createPool(process.env.DATABASE_URL);
   await waitForDb(pool);
   const applied = await migrate(pool);
   console.log(applied.length ? `Applied migrations: ${applied.join(', ')}` : 'Database schema is up to date.');
-  // Upgrade tables from a new sync: move stored levels so nobody gets weaker (store.applyEconomy).
-  const moves = await store.applyEconomy(pool, rules.UPGRADES);
-  for (const m of moves) console.log(`Upgrade levels moved: ${m.upgrade} ${m.from} -> ${m.to} (${m.players} player${m.players === 1 ? '' : 's'})`);
 
   // Accounts need NEON_AUTH_BASE_URL (written by Neon) and NEON_AUTH_COOKIE_SECRET. Without them, guests only.
   const auth = createAuth({ baseUrl: process.env.NEON_AUTH_BASE_URL, cookieSecret: process.env.NEON_AUTH_COOKIE_SECRET });
   console.log(auth ? 'Accounts are on.' : 'NEON_AUTH_BASE_URL is not set, so accounts are off and everyone plays as a guest.');
 
-  const { server } = createGame(pool, { auth, publicUrl: process.env.PUBLIC_URL || null, adminKey: process.env.ADMIN_KEY || null });
+  const { server } = createGame(pool, { startTicker: true, auth, publicUrl: process.env.PUBLIC_URL || null, adminKey: process.env.ADMIN_KEY || null });
   console.log(process.env.ADMIN_KEY ? 'Admin commands are on.' : 'ADMIN_KEY is not set, so admin commands are off.');
   server.on('error', err => {
     if (err.code !== 'EADDRINUSE') throw err;

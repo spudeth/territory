@@ -13,6 +13,7 @@ newMapHeight,32,Height in blocks of a new map made with the admin script
 newMapBlocks,10240,Blocks in a new map made with create-map (its starting shape comes from its seed)
 rankMinPlayers,10,Rank and reign achievements count only on maps where at least this many players own blocks
 rankMinBlocks,100,"…and only for a player with at least this many blocks there (ties count against you)"
+mailingAddress,"2212 W 5th Ave, Gary, IN 46404",The postal address in the footer of every email (US anti-spam law); blank = no email is sent
 terrainScale,28,"Terrain: how many blocks across a typical lake, forest or hill is"
 waterShare,0.12,Terrain: share of the world that is water (can't be claimed; natural borders)
 sandShare,0.07,Terrain: share that is sand (around water)

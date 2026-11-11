@@ -10,7 +10,8 @@
     button: 'A', denied: 'B', wipe: 'A', spawn: 'C',
     purchase: 'A',     // purchase: option A until Xoren picks (Q10)
     steal: 'A',        // steal: option A until Xoren picks (Q14)
-    death: 'A' };      // death: option A until Xoren picks (Q20)
+    death: 'A',        // death: option A until Xoren picks (Q20)
+    mention: 'A' };    // mention: option A until Xoren picks (Q24)
   // The music stations (CREDITS.md). The first plays at the start; Change station picks another at random.
   const MUSIC = ['music/calm-ambient-1.mp3', 'music/keep-your-dream-alive.mp3', 'music/heavenly-loop.mp3',
     'music/outer-space-loop.mp3'];   // the first is the default station (Xoren: Calm Ambient)

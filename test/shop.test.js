@@ -1,4 +1,4 @@
-// Buying upgrades with squares, guest-to-account carry-over and the tap-rate limit (the dev database, a
+// Buying upgrade tiers with squares, guest-to-account carry-over and the tap-rate limit (the dev database, a
 // throwaway schema).
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const { createGame } = require('../app');
 const rules = require('../rules');
 const store = require('../store');
+const catalog = require('../catalog');
 const { testDb, connectPlayer } = require('./helpers');
 
 let db, pool, game, url;
@@ -26,113 +27,96 @@ after(async () => {
 const player = (auth, at = url) => { const s = connectPlayer(at, auth); sockets.push(s); return s; };
 const at = (x, y) => d => d.x === x && d.y === y;
 
-// Upgrade tables for a test: the costs (rules.UPGRADES) and the effects (the *_MULTIPLIER tables) together,
-// as one sync would set them. Restored afterwards.
-const lv = (values, costs) => [{ level: 0, value: 1, cost: 0 }, ...values.map((value, i) => ({ level: i + 1, value, cost: costs[i] }))];
-const EFFECT = { clickPower: 'CLICK_POWER_MULTIPLIER', defense: 'DEFENSE_MULTIPLIER', earnings: 'EARNINGS_MULTIPLIER', growth: 'GROWTH_BLOCKS' };
-function useTable(t, upgrade, levels) {
-  const saved = [rules.UPGRADES, rules[EFFECT[upgrade]]];
-  t.after(() => { [rules.UPGRADES, rules[EFFECT[upgrade]]] = saved; });
-  rules.UPGRADES = { ...rules.UPGRADES, [upgrade]: levels };
-  rules[EFFECT[upgrade]] = levels.map(l => l.value);
-}
-
-// A guest with a block, holding `balance` squares exactly. Resolves with { s, pid, token }.
+// A guest with a block, holding `balance` squares exactly (tenths allowed). Resolves with { s, pid, token, y }.
 let row = 0;
-async function guestWith(balance) {
+async function guestWith(balance, { highest = 1, mapId = null } = {}) {
   const s = player(), y = row++;
   await s.welcome;
+  if (mapId) { await s.ask('switchMap', mapId); await s.next('welcome', d => d.map.id === mapId); }
   s.take(0, y);
   const { pid, token } = await s.next('you');
   await s.next('claim', at(0, y));
-  await pool.query('UPDATE players SET squares = $2 WHERE id = $1', [pid, balance]);
+  await pool.query('UPDATE players SET squares = $2, highest_level = $3 WHERE id = $1', [pid, Math.round(balance * 10), highest]);   // squares -> tenths
   const fresh = player({ token });   // a new connection sees the new balance
-  await fresh.welcome;
+  const w = await fresh.welcome;
+  if (mapId && w.map.id !== mapId) { await fresh.ask('switchMap', mapId); await fresh.next('welcome', d => d.map.id === mapId); }
   return { s: fresh, pid, token, y };
 }
-const levelOf = async (pid, column = 'click_power') => (await pool.query(`SELECT ${column} AS l FROM players WHERE id = $1`, [pid])).rows[0].l;
-const balanceOf = async pid => Number((await pool.query('SELECT squares FROM players WHERE id = $1', [pid])).rows[0].squares);
+const tiersOf = async pid => (await pool.query('SELECT tiers FROM players WHERE id = $1', [pid])).rows[0].tiers;
+const balanceOf = async pid => Number((await pool.query('SELECT squares FROM players WHERE id = $1', [pid])).rows[0].squares) / 10;   // tenths -> squares
 const ledgerOf = async pid => (await pool.query(
   "SELECT delta, balance_after, reason FROM square_ledger WHERE player_id = $1 AND reason LIKE 'upgrade:%' ORDER BY id", [pid]))
-  .rows.map(r => [Number(r.delta), Number(r.balance_after), r.reason]);
+  .rows.map(r => [Number(r.delta) / 10, Number(r.balance_after) / 10, r.reason]);
+const COST2 = catalog.tierCostTenths('clickPower', 2) / 10;   // c_u x 1200 x 2 = 9,600 squares
 
-test('buying at exactly the cost works; one square short is refused; fractions count exactly', async t => {
-  useTable(t, 'clickPower', lv([1.5, 2], [22, 40]));
-  const exact = await guestWith(22);
-  assert.deepEqual(await exact.s.ask('buyUpgrade', { upgrade: 'clickPower', level: 0 }),
-    { levels: { ...rules.NO_UPGRADES, clickPower: 1 }, squares: 0, balance: 0 });
-  assert.equal(await levelOf(exact.pid), 1);
-  assert.deepEqual(await ledgerOf(exact.pid), [[-22, 0, 'upgrade:clickPower:1']]);
-
-  const short = await guestWith(21);
-  assert.deepEqual(await short.s.ask('buyUpgrade', { upgrade: 'clickPower', level: 0 }), { error: 'Not enough squares', need: 1 });
-  assert.equal(await levelOf(short.pid), 0);
-  assert.equal(await balanceOf(short.pid), 21, 'nothing taken');
-
-  const half = await guestWith(21.5);
-  assert.deepEqual(await half.s.ask('buyUpgrade', { upgrade: 'clickPower', level: 0 }), { error: 'Not enough squares', need: 0.5 });
-  const over = await guestWith(22.25);
-  const r = await over.s.ask('buyUpgrade', { upgrade: 'clickPower', level: 0 });
-  assert.deepEqual([r.squares, r.balance], [0, 0.25], 'shows 0, keeps the quarter');
-  assert.equal(await balanceOf(over.pid), 0.25);
-  assert.deepEqual(await over.s.ask('upgrades').then(u => u.balance), 0.25, 'the Upgrades screen gets the exact balance');
+test('a tier is locked until a block of its level is first-claimed; then exactly the cost works; a tenth short is refused', async () => {
+  const locked = await guestWith(COST2);
+  assert.deepEqual(await locked.s.ask('buyUpgrade', { upgrade: 'clickPower', tier: 2 }), { error: 'Mine a level-2 block to unlock' });
+  const short = await guestWith(COST2 - 0.1, { highest: 2 });
+  assert.deepEqual(await short.s.ask('buyUpgrade', { upgrade: 'clickPower', tier: 2 }), { error: 'Not enough squares', need: 0.1 });
+  assert.equal(await balanceOf(short.pid), COST2 - 0.1, 'nothing taken');
+  const g = await guestWith(COST2 + 0.5, { highest: 2 });
+  const r = await g.s.ask('buyUpgrade', { upgrade: 'clickPower', tier: 2 });
+  assert.deepEqual(r, { tiers: { clickPower: 2 }, squares: 0.5, balance: 0.5 });
+  assert.deepEqual(await tiersOf(g.pid), { clickPower: 2 });
+  assert.deepEqual(await ledgerOf(g.pid), [[-COST2, 0.5, 'upgrade:clickPower:2']]);
+  const screen = await g.s.ask('upgrades');
+  assert.deepEqual([screen.tiers, screen.highest, screen.mapLevel], [{ clickPower: 2 }, 2, 1]);
+  const cp = screen.list.find(u => u.key === 'clickPower');
+  assert.equal(cp.tiers.length, 10);
+  assert.deepEqual(cp.tiers[0], { tier: 1, value: 1, cost: 0 });
+  assert.equal(cp.tiers[1].cost, COST2);
+  assert.equal(screen.list.length, 7, 'all seven upgrades from the Upgrades tab');
 });
 
-test('two purchases at the same moment: only one is paid for, from two devices or a double tap', async t => {
-  useTable(t, 'defense', lv([1.5, 2], [30, 30]));
-  const g = await guestWith(45);   // enough for one level, not two
+test('two purchases at the same moment: only one is paid for, from two devices or a double tap', async () => {
+  const g = await guestWith(COST2 * 3, { highest: 3 });
   const other = player({ token: g.token });
   await other.welcome;
-  const both = await Promise.all([
-    g.s.ask('buyUpgrade', { upgrade: 'defense', level: 0 }),
-    other.ask('buyUpgrade', { upgrade: 'defense', level: 0 }),
-    g.s.ask('buyUpgrade', { upgrade: 'defense', level: 0 }),   // a double tap on the first device
-  ]);
-  assert.equal(both.filter(r => !r.error).length, 1, JSON.stringify(both));
-  assert.equal(await levelOf(g.pid, 'defense'), 1);
-  assert.equal(await balanceOf(g.pid), 15);
+  const answers = await Promise.all([g.s.ask('buyUpgrade', { upgrade: 'clickPower', tier: 2 }), other.ask('buyUpgrade', { upgrade: 'clickPower', tier: 2 }),
+    g.s.ask('buyUpgrade', { upgrade: 'clickPower', tier: 2 })]);
+  assert.equal(answers.filter(a => a.tiers).length, 1, 'one bought');
+  assert.deepEqual(await tiersOf(g.pid), { clickPower: 2 });
   assert.equal((await ledgerOf(g.pid)).length, 1);
-  // Asking for the level already bought (a tap on a screen that hadn't refreshed) never buys the next one.
-  const later = await guestWith(100);
-  await later.s.ask('buyUpgrade', { upgrade: 'defense', level: 0 });
-  assert.equal((await later.s.ask('buyUpgrade', { upgrade: 'defense', level: 0 })).error, 'Already bought');
-  assert.equal(await levelOf(later.pid, 'defense'), 1);
 });
 
-test('every level can be bought up to the top, then MAX', async t => {
-  const costs = [1, 2, 3, 4, 5];
-  useTable(t, 'growth', lv([2, 3, 4, 5, 6], costs));
-  const g = await guestWith(15);
-  for (let level = 0; level < 5; level++) {
-    const r = await g.s.ask('buyUpgrade', { upgrade: 'growth', level });
-    assert.equal(r.levels.growth, level + 1, JSON.stringify(r));
-  }
-  assert.deepEqual(await g.s.ask('buyUpgrade', { upgrade: 'growth', level: 5 }), { error: 'This upgrade is at its maximum' });
-  assert.equal(await levelOf(g.pid, 'growth'), 5);
+test('tiers are bought in order, up to tier 10; costs are c_u x 1200 x 2^(N-1) and never change', async () => {
+  const total = Array.from({ length: 9 }, (_, i) => catalog.tierCostTenths('growth', i + 2)).reduce((a, b) => a + b, 0) / 10;
+  const g = await guestWith(total, { highest: 10 });
+  assert.deepEqual(await g.s.ask('buyUpgrade', { upgrade: 'growth', tier: 3 }), { error: 'Buy the tiers in order' });
+  for (let N = 2; N <= 10; N++) assert.deepEqual((await g.s.ask('buyUpgrade', { upgrade: 'growth', tier: N })).tiers, { growth: N }, `tier ${N}`);
   assert.equal(await balanceOf(g.pid), 0);
-  assert.deepEqual((await ledgerOf(g.pid)).map(l => l[0]), costs.map(c => -c));
+  assert.deepEqual(await g.s.ask('buyUpgrade', { upgrade: 'growth', tier: 11 }), { error: 'This upgrade is at its top tier' });
+  assert.deepEqual(await g.s.ask('buyUpgrade', { upgrade: 'nope', tier: 2 }), { error: 'Unknown upgrade' });
 });
 
-test('a new level works on the very next tap, on every device of the player', async t => {
-  useTable(t, 'clickPower', lv([10], [5]));
-  const g = await guestWith(5);
-  const second = player({ token: g.token });
-  await second.welcome;
-  const squares = second.next('squares');
-  await g.s.ask('buyUpgrade', { upgrade: 'clickPower', level: 0 });
-  assert.equal(await squares, 0, 'every device hears the new balance');
-  second.emit('hit', { x: 1, y: g.y });   // one click of 10 hits takes a block, from the other device
-  await second.next('claim', d => d.x === 1 && d.y === g.y && d.pid === g.pid);
+test('an upgrade works at min(tier owned, map level): capped on a level-1 map, full on a level-2 one, from the very next tap', async () => {
+  const id = await store.createMap(pool, { name: 'Level Two', width: 6, height: 6 });   // E = 36
+  await pool.query('UPDATE maps SET mined = 36 WHERE id = $1', [id]);   // level 2 before anyone loads it
+  const g = await guestWith(COST2, { highest: 2, mapId: id });
+  await g.s.ask('buyUpgrade', { upgrade: 'clickPower', tier: 2 });
+  assert.equal((await g.s.ask('upgrades')).mapLevel, 2);
+  // Click Power x2: 5 taps take a 10-hit block here.
+  for (let i = 0; i < 5; i++) g.s.emit('hit', { x: 1, y: g.y });
+  await g.s.next('claim', d => d.x === 1 && d.y === g.y && d.pid === g.pid);
+  // On the level-1 map it works at tier 1: 5 taps are not enough.
+  await g.s.ask('switchMap', db.mapId);
+  await g.s.next('welcome', d => d.map.id === db.mapId);
+  g.s.take(30, 30);
+  const you = await g.s.next('claim', d => d.x === 30 && d.y === 30);
+  assert.equal(you.pid, g.pid, 'a first block on the other map (10 taps)');
+  for (let i = 0; i < 5; i++) g.s.emit('hit', { x: 31, y: 30 });
+  const crack = await g.s.next('hit', d => d.x === 31 && d.y === 30 && d.p > 0.4);
+  assert.equal(crack.p, 0.5, 'five taps of x1 are half of ten hits');
 });
 
-test("a guest's upgrades come with them when they make an account from their guest profile", async t => {
-  useTable(t, 'earnings', lv([1.5], [3]));
-  const g = await guestWith(3);
-  await g.s.ask('buyUpgrade', { upgrade: 'earnings', level: 0 });
+test("a guest's tiers come with them when they make an account from their guest profile", async () => {
+  const g = await guestWith(COST2, { highest: 2 });
+  await g.s.ask('buyUpgrade', { upgrade: 'clickPower', tier: 2 });
   const { player: account, upgraded } = await store.accountPlayer(pool, 'test-' + crypto.randomUUID(), g.pid);
   assert.equal(upgraded, true);
   assert.equal(account.id, g.pid, 'the guest row becomes the account');
-  assert.equal(account.earnings, 1);
+  assert.deepEqual(account.tiers, { clickPower: 2 });
 });
 
 test('taps over the rate limit are ignored, and players who hit it are logged', async t => {
@@ -166,20 +150,20 @@ test('taps over the rate limit are ignored, and players who hit it are logged', 
 
 test('reset all progress: blocks, squares, upgrades, stats and achievements go, everywhere; other devices reload', async () => {
   const g = await guestWith(50);
-  await pool.query('UPDATE players SET click_power = 2, defense = 1 WHERE id = $1', [g.pid]);
+  await pool.query("UPDATE players SET tiers = '{\"clickPower\": 2, \"defense\": 3}', highest_level = 3 WHERE id = $1", [g.pid]);
   const other = player({ token: g.token });   // a second device
   await other.welcome;
   const reloaded = other.next('notice', n => n.kind === 'reset');
   assert.deepEqual(await g.s.ask('resetProgress'), { ok: true });
   await reloaded;
   const q = async sql => (await pool.query(sql, [g.pid])).rows[0];
-  assert.deepEqual(await q('SELECT squares::float AS s, click_power AS c, defense AS d, name IS NOT NULL AS named FROM players WHERE id = $1'),
-    { s: 0, c: 0, d: 0, named: true });
+  assert.deepEqual(await q('SELECT squares::float AS s, tiers AS t, highest_level AS h, name IS NOT NULL AS named FROM players WHERE id = $1'),
+    { s: 0, t: {}, h: 1, named: true });
   assert.equal((await q('SELECT count(*)::int AS n FROM map_cells WHERE owner_id = $1')).n, 0);
   for (const t of ['player_map_settings', 'player_map_stats', 'player_achievements']) {
     assert.equal((await q(`SELECT count(*)::int AS n FROM ${t} WHERE player_id = $1`)).n, 0, t);
   }
-  assert.deepEqual(await q("SELECT delta::float AS d, reason FROM square_ledger WHERE player_id = $1 ORDER BY id DESC LIMIT 1"),
+  assert.deepEqual(await q("SELECT delta::float / 10 AS d, reason FROM square_ledger WHERE player_id = $1 ORDER BY id DESC LIMIT 1"),
     { d: -50, reason: 'progress reset' });
   const back = player({ token: g.token });   // they come back as a fresh player with the same name
   const w = await back.welcome;

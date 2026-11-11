@@ -43,7 +43,19 @@ const clock = t => new Date(t).toLocaleTimeString([], { hour: 'numeric', minute:
 const nameCount = () => { $('name-count').textContent = `${$('name-input').value.length} / ${gameSettings.nameMaxLength}`; };
 $('name-input').addEventListener('input', nameCount);
 
+// Settings > Show tenths (players only; saved on the server, so it follows them to every device).
+$('show-tenths').addEventListener('change', e => {
+  const on = e.target.checked;
+  socket.timeout(10000).emit('showTenths', on, (err, r) => {
+    if (err || r?.error) { e.target.checked = !on; return toast(r?.error ?? 'No answer from the server. Try again.'); }
+    showTenths = on;
+    updateUI();
+  });
+});
+
 fills.settings = () => {
+  $('tenths-box').hidden = !me;
+  $('show-tenths').checked = showTenths;
   $('name-input').value = myName;
   nameCount();
   const waiting = renameAt > Date.now();
@@ -102,6 +114,8 @@ onSubmit($('form-signup'), async f => {
   markUpgrade();
   const r = await authApi('sign-up/email', { email, password: f.get('password'), name: 'Player' });
   if (r.error) return fail(r.error);
+  // Email updates: opt-in only (unchecked by default); saved once the account is in (see the welcome below).
+  try { sessionStorage.setItem('territory-email-updates', f.get('updates') ? '1' : ''); } catch {}
   show('verify');
 });
 
@@ -135,6 +149,7 @@ onSubmit($('form-reset'), async f => {
 for (const b of menu.querySelectorAll('.google')) {
   b.addEventListener('click', async () => {
     markUpgrade();
+    if (b.closest('[data-view="signup"]')) try { sessionStorage.setItem('territory-email-updates', $('signup-updates').checked ? '1' : ''); } catch {}
     const back = location.origin + '/';
     const r = await authApi('sign-in/social', { provider: 'google', callbackURL: back, errorCallbackURL: back + '?login=failed' });
     if (r.error) return fail(r.error);
@@ -167,3 +182,25 @@ $('menu-logout').addEventListener('click', async () => {
   else if (q.get('login') === 'failed' || q.get('error')) { show('login'); fail('Google sign-in did not finish. Try again.'); }
   if (location.search) history.replaceState(null, '', location.pathname);
 }
+
+// ---------- Email updates (loop 15) ----------
+// The sign-up checkbox's choice, once the new account has connected; and the Settings toggle (accounts only).
+socket.on('welcome', data => {
+  let pending = null;
+  try { pending = sessionStorage.getItem('territory-email-updates'); } catch {}
+  if (pending === null || !data.me.account) return;
+  try { sessionStorage.removeItem('territory-email-updates'); } catch {}
+  if (pending === '1') socket.emit('emailUpdates', { on: true, source: 'signup' }, () => {});
+});
+const settingsFill = fills.settings;
+fills.settings = (...a) => {
+  settingsFill?.(...a);
+  $('email-box').hidden = !myAccount;
+  if (myAccount) socket.timeout(10000).emit('emailUpdates', (e, r) => { if (!e && r) $('email-updates').checked = !!r.on; });
+};
+$('email-updates').addEventListener('change', e => {
+  socket.timeout(10000).emit('emailUpdates', { on: e.target.checked, source: 'settings' }, (err, r) => {
+    if (err || r?.error) { e.target.checked = !e.target.checked; return toast(r?.error ?? 'Could not save that. Try again.'); }
+    toast(r.on ? 'You will get update emails' : 'No more update emails', 'good');
+  });
+});

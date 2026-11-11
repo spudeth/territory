@@ -52,6 +52,12 @@
           { wave: 'triangle', freq: 220, slide: -3, attack: 0, hold: 0.3, decay: 0.3, vol: 0.5 }],
       C: { wave: 'saw', freq: 330, slide: -1.5, attack: 0, hold: 0.5, decay: 0.3, vol: 0.25, vib: [0.04, 6] },
     },
+    mention: {
+      label: 'Someone mentions you in chat', note: 'Soft.',
+      A: { wave: 'sine', freq: 880, attack: 0.005, hold: 0.06, decay: 0.18, vol: 0.35, steps: [[0.07, 1.25]] },
+      B: { wave: 'triangle', freq: 660, attack: 0, hold: 0.04, decay: 0.2, vol: 0.4, steps: [[0.05, 1.5]] },
+      C: { wave: 'sine', freq: 1320, attack: 0.01, hold: 0.03, decay: 0.25, vol: 0.25, vib: [0.01, 8] },
+    },
     grow: {
       label: 'The map grows',
       A: { wave: 'sine', freq: 400, slide: 2.5, attack: 0.01, hold: 0.05, decay: 0.12, vol: 0.45 },

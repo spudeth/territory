@@ -12,11 +12,18 @@ const SHEET = '1YIivEUXUWMkdw3w3hlmRn7PkTzH6Xry7EJTr8SuFKiM';
 const OUT = path.join(__dirname, '..', 'data', 'economy.json');
 const arg = name => { const i = process.argv.indexOf('--' + name); return i < 0 ? null : process.argv[i + 1] ?? true; };
 
-// One tab as CSV, through the sheet's public export. (For a tab name that doesn't exist, Google returns the
-// first tab instead; economy.validate catches that by its header row.)
-async function download(tab) {
-  const url = `https://docs.google.com/spreadsheets/d/${SHEET}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tab)}`;
-  const res = await fetch(url);
+// The sheet's tabs, name -> gid, from its public page.
+async function tabIds() {
+  const res = await fetch(`https://docs.google.com/spreadsheets/d/${SHEET}/htmlview`);
+  if (!res.ok) throw new Error(`could not open the sheet (HTTP ${res.status}); is it still shared by link?`);
+  const html = await res.text();
+  return new Map([...html.matchAll(/\{name: "((?:[^"\\]|\\.)*)", pageUrl: "[^"]*gid=(\d+)/g)].map(m => [JSON.parse(`"${m[1]}"`), m[2]]));
+}
+// One tab as CSV, exactly as the cells show (this export never guesses a column's type, so a text value in a
+// column of numbers, like mailingAddress, comes through). Null if the sheet has no such tab.
+async function download(tab, ids) {
+  if (!ids.has(tab)) return null;
+  const res = await fetch(`https://docs.google.com/spreadsheets/d/${SHEET}/export?format=csv&gid=${ids.get(tab)}`);
   if (!res.ok) throw new Error(`could not download the "${tab}" tab (HTTP ${res.status}); is the sheet still shared by link?`);
   return res.text();
 }
@@ -24,17 +31,20 @@ async function download(tab) {
 async function main() {
   const from = arg('from');
   const tabs = {};
+  const ids = from ? null : await tabIds();
   for (const tab of economy.TABS) {
     if (from) {
       const file = path.join(from, tab + '.csv');
       if (fs.existsSync(file)) tabs[tab] = fs.readFileSync(file, 'utf8');
     } else {
-      tabs[tab] = await download(tab);
+      const csv = await download(tab, ids);
+      if (csv !== null) tabs[tab] = csv;
     }
   }
 
   const hasFile = f => fs.existsSync(path.join(__dirname, '..', 'public', f));   // skins need their images
-  const { economy: next, errors } = economy.validate(tabs, { hasFile });
+  const { economy: next, errors, warnings = [] } = economy.validate(tabs, { hasFile });
+  for (const w of warnings) console.warn('Warning: ' + w);
   if (errors.length) {
     console.error(`The sheet has ${errors.length} problem${errors.length === 1 ? '' : 's'}; nothing was written:`);
     for (const e of errors) console.error('  - ' + e);
@@ -44,8 +54,10 @@ async function main() {
 
   const out = arg('out') ?? OUT;
   const before = fs.existsSync(out) ? JSON.parse(fs.readFileSync(out, 'utf8')) : null;
-  if (!next.skins) next.skins = before?.skins ?? [];   // no Skins tab in the sheet yet: keep the current skins
-  if (!next.items) next.items = before?.items ?? [];   // the same for Items
+  // A tab missing from the sheet keeps its part of the current file (Skins, Items and the loop 16 tabs).
+  for (const part of ['skins', 'items', 'economy', 'tiers', 'skinRarity', 'glossary']) if (!next[part] && before?.[part]) next[part] = before[part];
+  if (!next.skins) next.skins = [];
+  if (!next.items) next.items = [];
   console.log('Changes:');
   for (const line of economy.describeChanges(before, next)) console.log('  - ' + line);
   if (arg('check')) return console.log('Checked only (--check): nothing was written.');

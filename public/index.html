@@ -52,13 +52,13 @@
       <div class="card w-card">
         <div class="w-who">
           <div class="w-name"><span class="swatch" id="w-color"></span><span id="w-name">Connecting…</span></div>
-          <div class="w-line"><span class="tag" id="w-tag">GUEST</span><span class="w-sq"><img class="sq-icon" src="icons/square.svg" width="12" height="12" alt="Squares"><span id="w-squares">0</span></span></div>
+          <div class="w-line"><span class="tag" id="w-tag">GUEST</span><span class="w-sq"><img class="sq-icon" src="icons/square.svg" width="12" height="12" alt="Squares"><span id="w-squares" data-info="squares">0</span></span></div>
         </div>
         <div class="w-picker" id="w-picker">
           <button class="btn w-arrow" type="button" id="w-prev" aria-label="Previous map"><svg class="pix" width="16" height="16" viewBox="0 0 8 8" aria-hidden="true"><path d="M5 0h2v8H5V7H4V6H3V5H2V3h1V2h1V1h1z" fill="currentColor"/></svg></button>
           <div class="w-map">
             <div class="w-thumb" id="w-thumb"><canvas id="w-thumb-canvas"></canvas><div class="w-soon" id="w-soon" hidden><span class="tag">COMING SOON</span></div></div>
-            <span class="w-map-name" id="w-map-name"></span>
+            <span class="w-map-name" id="w-map-name" data-info="terrain"></span>
             <span class="w-stat" id="w-stat-1"></span>
             <span class="w-stat" id="w-stat-2"></span>
           </div>
@@ -68,15 +68,15 @@
         <button class="btn w-play" type="button" id="w-play" disabled><svg class="pix" width="22" height="22" viewBox="0 0 8 8" aria-hidden="true"><path d="M1 0h2v1h1v1h1v1h1v2H5v1H4v1H3v1H1z" fill="currentColor"/></svg>PLAY</button>
         <button class="btn w-play soon" type="button" id="w-soon-btn" disabled hidden>COMING SOON</button>
         <div class="w-minis">
-          <button class="w-mini" type="button" data-go="skins"><span class="b" style="background: var(--pink)"><svg class="pix" width="22" height="22" viewBox="0 0 8 8" aria-hidden="true"><path d="M0 0h4v4H0zM4 4h4v4H4z" fill="#0f131a"/></svg></span>Skins</button>
+          <button class="w-mini" type="button" data-go="market"><span class="b" style="background: var(--pink)"><img class="pix" src="art/marketplace.svg" width="22" height="22" alt="" style="filter: brightness(0) opacity(0.85)"></span>Marketplace</button>
+          <button class="w-mini" type="button" data-go="upgrades" id="w-upgrades-tile"><span class="b" style="background: var(--orange)"><svg class="pix" width="22" height="22" viewBox="0 0 8 8" aria-hidden="true"><path d="M3 0h2v1h1v1h1v1h1v1H6v4H2V4H0V3h1V2h1V1h1z" fill="#0f131a"/></svg></span>Upgrades</button>
           <button class="w-mini" type="button" data-go="achievements"><span class="b" style="background: var(--yellow); color: #0f131a"><svg class="pix" width="22" height="22" aria-hidden="true"><use href="#i-trophy"/></svg></span>Awards</button>
-          <button class="w-mini" type="button" data-go="upgrades"><span class="b" style="background: var(--orange)"><svg class="pix" width="22" height="22" viewBox="0 0 8 8" aria-hidden="true"><path d="M3 0h2v1h1v1h1v1h1v1H6v4H2V4H0V3h1V2h1V1h1z" fill="#0f131a"/></svg></span>Upgrades</button>
-          <button class="w-mini" type="button" data-go="items"><span class="b" style="background: var(--teal)"><svg class="pix" width="22" height="22" viewBox="0 0 8 8" aria-hidden="true"><path d="M3 0h2v1H3zM3 1h2v2h1v1h1v3H6v1H2V7H1V4h1V3h1z" fill="#0f131a"/><path d="M2 5h4v2H2z" fill="#ff77a8"/></svg></span>Items</button>
+          <button class="w-mini" type="button" id="w-profile"><span class="b" style="background: var(--teal)"><svg class="pix" width="22" height="22" viewBox="0 0 8 8" aria-hidden="true"><path d="M3 0h2v1H3zM3 1h2v2h1v1h1v3H6v1H2V7H1V4h1V3h1z" fill="#0f131a"/><path d="M2 5h4v2H2z" fill="#ff77a8"/></svg></span>Profile</button>
         </div>
         <button class="btn w-login" type="button" id="w-login" data-go="signup" hidden>Log in / Sign up to keep your blocks</button>
       </div>
       </div>
-      <p class="links w-foot"><a href="/privacy" target="_blank">Privacy</a><span aria-hidden="true">·</span><a href="/terms" target="_blank">Terms</a></p>
+      <p class="links w-foot"><a href="/guide" target="_blank">Game Guide</a><span aria-hidden="true">·</span><a href="/privacy" target="_blank">Privacy</a><span aria-hidden="true">·</span><a href="/terms" target="_blank">Terms</a></p>
     </div>
   </div>
 
@@ -85,6 +85,7 @@
     <div>
       <div id="me-name">Connecting…</div>
       <div class="sub" id="me-count">0 blocks</div>
+      <div class="lvl" id="lvl" data-info="mapLevel"><span id="lvl-n">Level 1</span><span class="lvl-bar"><i id="lvl-bar"></i></span></div>
     </div>
     <div class="chip" aria-label="Squares"><img class="sq-icon" src="icons/square.svg" width="14" height="14" alt=""><span id="me-squares">0</span></div>
   </div>
@@ -187,8 +188,8 @@
         <div class="tiles">
           <button class="btn" type="button" data-go="maps" style="background: var(--blue)">
             <svg class="pix" width="24" height="24" viewBox="0 0 8 8" aria-hidden="true"><path d="M0 1h3v6H0zM3 0h2v6H3zM5 1h3v6H5z" fill="#0f131a"/><path d="M1 2h1v4H1zM6 2h1v4H6z" fill="#29adff"/></svg>Maps</button>
-          <button class="btn" type="button" data-go="skins" style="background: var(--pink)">
-            <svg class="pix" width="24" height="24" viewBox="0 0 8 8" aria-hidden="true"><path d="M0 0h4v4H0zM4 4h4v4H4z" fill="#0f131a"/><path d="M4 0h4v4H4zM0 4h4v4H0z" fill="#ffffff"/></svg>Skins</button>
+          <button class="btn" type="button" data-go="market" style="background: var(--pink)">
+            <svg class="pix" width="24" height="24" viewBox="0 0 8 8" aria-hidden="true"><path d="M0 0h4v4H0zM4 4h4v4H4z" fill="#0f131a"/><path d="M4 0h4v4H4zM0 4h4v4H0z" fill="#ffffff"/></svg>Marketplace</button>
           <button class="btn" type="button" data-go="achievements" style="background: var(--yellow)">
             <svg class="pix" width="24" height="24" aria-hidden="true"><use href="#i-trophy"/></svg>Achievements</button>
           <button class="btn" type="button" data-go="upgrades" style="background: var(--orange)">
@@ -201,7 +202,7 @@
         <button class="btn" type="button" id="how-to-play"><svg class="pix" width="18" height="18" viewBox="0 0 8 8" aria-hidden="true"><path d="M2 0h4v1h1v3H6v1H5v1H3V4h1V3h1V1H3v1H1V1h1zM3 7h2v1H3z" fill="currentColor"/></svg>How to play</button>
         <div class="settings-row foot">
           <button class="btn" type="button" data-go="settings"><svg class="pix" width="18" height="18" aria-hidden="true"><use href="#i-cog"/></svg>Settings</button>
-          <p class="links"><a href="/privacy" target="_blank">Privacy</a><span aria-hidden="true">·</span><a href="/terms" target="_blank">Terms</a></p>
+          <p class="links"><a href="/guide" target="_blank">Game Guide</a><span aria-hidden="true">·</span><a href="/privacy" target="_blank">Privacy</a><span aria-hidden="true">·</span><a href="/terms" target="_blank">Terms</a></p>
         </div>
       </section>
 
@@ -245,6 +246,7 @@
         <form id="form-signup">
           <label class="lbl">Email<input class="field" name="email" type="email" placeholder="you@email.com" autocomplete="email" required></label>
           <label class="lbl">Password<input class="field" name="password" type="password" placeholder="8+ characters" autocomplete="new-password" minlength="8" required></label>
+          <label class="check"><input type="checkbox" name="updates" id="signup-updates"> Send me updates about changes to the game</label>
           <button class="btn" type="submit" style="background: var(--green); color: var(--well)">Create account</button>
         </form>
         <p class="note" style="text-align: center">We'll email you a 6-digit code to confirm.</p>
@@ -321,10 +323,18 @@
             <button class="btn icon-btn mute" type="button" data-mute="music" aria-pressed="false"></button></div>
           <div class="split" style="align-items: center"><p class="note">Saved on this device.</p><button class="text-btn" type="button" id="change-station">Change station</button></div>
         </div>
+        <div class="card box" id="tenths-box" hidden>
+          <label class="check"><input type="checkbox" id="show-tenths"> Show tenths</label>
+          <p class="note">Squares are counted in tenths. Off: whole squares, rounded down. On: one decimal place everywhere.</p>
+        </div>
+        <div class="card box" id="email-box" hidden>
+          <label class="check"><input type="checkbox" id="email-updates"> Send me updates about changes to the game</label>
+          <p class="note">Emails come from Territory, at most now and then. Every email has a one-click unsubscribe link.</p>
+        </div>
         <button class="btn" type="button" id="how-to-play-2"><svg class="pix" width="18" height="18" viewBox="0 0 8 8" aria-hidden="true"><path d="M2 0h4v1h1v3H6v1H5v1H3V4h1V3h1V1H3v1H1V1h1zM3 7h2v1H3z" fill="currentColor"/></svg>How to play</button>
         <button class="btn" type="button" id="menu-logout" style="margin-top: 4px">
           <svg class="pix" width="18" height="18" viewBox="0 0 8 8" aria-hidden="true"><path d="M0 0h5v2H4V1H1v6h3V6h1v2H0zM5 3V2h1v1h1v1h1v1H7v1H6v1H5V5H2V3z" fill="#f2f4f8"/></svg>Log out</button>
-        <p class="links foot"><a href="/privacy" target="_blank">Privacy</a><span aria-hidden="true">·</span><a href="/terms" target="_blank">Terms</a></p>
+        <p class="links foot"><a href="/guide" target="_blank">Game Guide</a><span aria-hidden="true">·</span><a href="/privacy" target="_blank">Privacy</a><span aria-hidden="true">·</span><a href="/terms" target="_blank">Terms</a></p>
       </section>
 
       <!-- Wipe confirmation -->
@@ -338,7 +348,7 @@
           <ul>
             <li>All <b id="wipe-count"></b> you own here become empty.</li>
             <li>You'll pick a new color, skin and coverage.</li>
-            <li>No squares here until you own <b id="wipe-floor"></b> again.</li>
+            <li><span data-info="wipeFloor">No squares here until you own <b id="wipe-floor"></b> again.</span></li>
             <li>Your squares, skins and other maps are not touched.</li>
           </ul>
           <label class="lbl">Type WIPE to confirm<input class="field" id="wipe-word" type="text" placeholder="WIPE" autocomplete="off" autocapitalize="characters"></label>
@@ -350,14 +360,35 @@
         </div>
       </section>
 
+      <!-- A player's profile (loop 15, profile.js) -->
+      <section data-view="profile" hidden>
+        <div class="head">
+          <span class="swatch" id="pf-color"></span>
+          <h1 id="pf-name" style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis"></h1>
+          <button class="btn icon-btn close" type="button" aria-label="Close"><svg class="pix" width="16" height="16" aria-hidden="true"><use href="#i-close"/></svg></button>
+        </div>
+        <div class="w-line"><span class="tag" id="pf-tag">GUEST</span><span id="pf-online" class="pf-online" hidden><span data-info="online">online</span></span></div>
+        <dl class="pf-stats">
+          <dt>Achievements</dt><dd id="pf-ach"></dd>
+          <dt>Most blocks ever</dt><dd id="pf-best"></dd>
+          <dt>Squares</dt><dd id="pf-squares"></dd>
+          <dt><span data-info="rank">Now on</span></dt><dd id="pf-now"></dd>
+          <dt>Playing since</dt><dd id="pf-since"></dd>
+        </dl>
+        <div><div class="cat-title" style="margin-top: 0">RECENT ACHIEVEMENTS</div><ul id="pf-recent" class="pf-recent"></ul>
+          <button class="text-btn" type="button" id="pf-all">See all</button></div>
+        <div><div class="cat-title" style="margin-top: 0">FAVORITES</div><div id="pf-stars" class="pf-stars"></div></div>
+        <button class="btn" type="button" id="pf-mute" hidden></button>
+      </section>
+
       <!-- Items (loop 14): bought once, used within limits -->
       <section data-view="items" hidden>
         <div class="head">
           <button class="btn icon-btn" type="button" data-go="main" aria-label="Back to menu"><svg class="pix" width="16" height="16" aria-hidden="true"><use href="#i-back"/></svg></button>
-          <h1>ITEMS</h1>
+          <h1>MARKETPLACE</h1>
         </div>
-        <p style="margin: 0; font-size: 15px; color: var(--soft)">Bought once with squares, yours for good. Each can be used a few times an hour, on any map.</p>
-        <div class="split" style="align-items: center"><span>Your squares</span><span class="chip"><img class="sq-icon" src="icons/square.svg" width="14" height="14" alt=""><span id="items-squares">0</span></span></div>
+        <p style="margin: 0; font-size: 15px; color: var(--soft)">Abilities are bought once and are yours for good; each can be used a few times an hour. Some, like Demolition, are used up. Prices follow this map's level.</p>
+        <div class="split" style="align-items: center"><span data-info="items">Your squares</span><span class="chip"><img class="sq-icon" src="icons/square.svg" width="14" height="14" alt=""><span id="items-squares">0</span></span></div>
         <div id="items-list" class="items-list"></div>
       </section>
 
@@ -414,7 +445,7 @@
       <!-- First entry on a map (and after a wipe): color, skin, coverage -->
       <section data-view="setup" hidden>
         <div class="head" style="flex-direction: column; align-items: flex-start; gap: 6px; position: relative">
-          <span class="tag" style="position: absolute; top: 14px; right: 54px; background: #3a2a0a; color: #f7c948; border-color: #f7c948">🔒 LOCKED AFTER SPAWN</span>
+          <span class="tag" style="position: absolute; top: 14px; right: 54px; background: #3a2a0a; color: #f7c948; border-color: #f7c948"><span data-info="locked">🔒 LOCKED AFTER SPAWN</span></span>
           <button class="btn icon-btn" type="button" id="setup-cancel" aria-label="Back to the menu" style="position: absolute; top: 0; right: 0"><svg class="pix" width="16" height="16" aria-hidden="true"><use href="#i-close"/></svg></button>
           <div style="font: 9px var(--title); color: var(--green)">WELCOME TO</div>
           <h1 id="setup-map" style="font-size: 16px"></h1>
@@ -424,7 +455,7 @@
         <div class="colors" role="radiogroup" aria-label="Color" id="setup-colors"></div>
         <h2 class="sec">2 · SKIN</h2>
         <div class="skins" role="radiogroup" aria-label="Skin" id="setup-skins"></div>
-        <h2 class="sec">3 · COVERAGE</h2>
+        <h2 class="sec"><span data-info="coverage">3 · COVERAGE</span></h2>
         <div class="coverages" role="radiogroup" aria-label="Coverage">
           <button class="card" type="button" role="radio" data-coverage="tile">
             <span style="display: grid; grid-template-columns: repeat(3, 12px); gap: 2px" aria-hidden="true">
@@ -449,11 +480,11 @@
       <section data-view="skins" hidden>
         <div class="head">
           <button class="btn icon-btn" type="button" data-go="main" aria-label="Back to menu"><svg class="pix" width="16" height="16" aria-hidden="true"><use href="#i-back"/></svg></button>
-          <h1>SKINS</h1>
+          <h1>MARKETPLACE</h1>
           <span class="right" id="skins-owned"></span>
         </div>
-        <p style="margin: 0; font-size: 15px; line-height: 1.35; color: var(--soft)">Buy skins with squares. Owned skins work on every map: you pick one when you first enter a map.</p>
-        <div class="split" style="align-items: center"><span>Your squares</span><span class="chip"><img class="sq-icon" src="icons/square.svg" width="14" height="14" alt=""><span id="skins-squares">0</span></span></div>
+        <p style="margin: 0; font-size: 15px; line-height: 1.35; color: var(--soft)">Buy skins with squares. Owned skins work on every map: you pick one when you first enter a map. Prices follow this map's level.</p>
+        <div class="split" style="align-items: center"><span data-info="skinPrices">Your squares</span><span class="chip"><img class="sq-icon" src="icons/square.svg" width="14" height="14" alt=""><span id="skins-squares">0</span></span></div>
         <div class="tabs yellow" role="tablist" aria-label="Collections" id="skins-tabs"></div>
         <input class="field" id="skins-search" type="search" placeholder="Search skins, e.g. Japan" autocomplete="off" aria-label="Search skins">
         <div id="catalog"></div>
@@ -463,10 +494,19 @@
       <section data-view="upgrades" hidden>
         <div class="head">
           <button class="btn icon-btn" type="button" data-go="main" aria-label="Back to menu"><svg class="pix" width="16" height="16" aria-hidden="true"><use href="#i-back"/></svg></button>
-          <h1>UPGRADES</h1>
+          <h1>MARKETPLACE</h1>
           <span class="right chip"><img class="sq-icon" src="icons/square.svg" width="16" height="16" alt="Squares"><span id="upg-squares">0</span></span>
         </div>
         <div id="upgrade-list" style="display: flex; flex-direction: column; gap: 14px"></div>
+      </section>
+
+      <section data-view="land" hidden>
+        <div class="head">
+          <button class="btn icon-btn" type="button" data-go="main" aria-label="Back to menu"><svg class="pix" width="16" height="16" aria-hidden="true"><use href="#i-back"/></svg></button>
+          <h1>MARKETPLACE</h1>
+        </div>
+        <p style="margin: 0; font-size: 15px; color: var(--soft)">Land for sale on this map. Tap Jump to it to see it, then press and hold a listed block to buy.</p>
+        <div id="land-list" class="items-list"></div>
       </section>
 
       <!-- Achievements -->
@@ -498,6 +538,7 @@
   <script src="skins.js"></script>
   <script src="sfx.js"></script>
   <script src="audio.js"></script>
+  <script src="art/manifest.js"></script>
   <script src="game.js"></script>
   <script src="menu.js"></script>
   <script src="account.js"></script>
@@ -505,6 +546,12 @@
   <script src="coach.js"></script>
   <script src="chat.js"></script>
   <script src="welcome.js"></script>
+  <script src="info.js"></script>
+  <script src="profile.js"></script>
+  <script src="inspect.js"></script>
+  <script src="build.js"></script>
+  <script src="walls.js"></script>
+  <script src="land.js"></script>
   <script src="items.js"></script>
 </body>
 </html>

@@ -154,7 +154,7 @@
     $('w-name').textContent = myName || 'Connecting…';
     $('w-color').style.background = myColor;
     $('w-tag').textContent = myAccount ? 'ACCOUNT' : 'GUEST';
-    $('w-squares').textContent = squares;
+    $('w-squares').textContent = fmtSq(squares);
     $('w-login').hidden = myAccount || !accountsOn;
     drawSound();
     drawPicker();
