@@ -1076,3 +1076,6 @@ Each phase is its own commit on iterate (Phase 1 4d96a22, 2 ce46c95, 3 60f57a8, 
 6. Review privacy.html (Q25), and answer Q23 (info text) and Q24 (Mention sound).
 
 Loop order 15 done. Stopping.
+
+## Later: scale (from Xoren, 2026-11-10; do when needed, not now)
+OPEN T1: maps of at least 2500 x 2500 starting blocks (6.25 million), later doubling, with thousands of players online at once. Today a map is all in one database and one server (fine for about Pangea's 10,240 blocks). When this comes: a paid database plan, loading only the part of the map each player sees, more than one game server, and load tests at that size first.
