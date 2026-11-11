@@ -106,11 +106,12 @@ function hitError(map, pid, x, y) {
 const NO_UPGRADES = Object.freeze({ clickPower: 0, defense: 0, earnings: 0, growth: 0 });
 const effect = (table, level) => table[Math.min(Math.max(0, level | 0), table.length - 1)];
 
+// A block's hardness H: hits to mine it = hitsPerBlock x 2^(birth level - 1) x its terrain factor
+// (settings.TERRAIN_HITS; grass, or no terrain, is 1). A block keeps the level it was born at.
+const hardness = (terrain = 'grass', birth = 1) => catalog.hardness(settings.HITS_PER_BLOCK, birth, settings.TERRAIN_HITS[terrain] ?? 1);
 // Hits needed to take a block owned by `owner` (upgrade levels like NO_UPGRADES; null for an empty block):
-// HITS_PER_BLOCK, times the owner's Defense.
-// Terrain (sand, forest, stone, gold) multiplies it too: settings.TERRAIN_HITS; grass, or no terrain, is 1.
-const hitsNeeded = (owner, terrain = 'grass') => settings.HITS_PER_BLOCK * (owner ? effect(settings.DEFENSE_MULTIPLIER, owner.defense) : 1)
-  * (settings.TERRAIN_HITS[terrain] ?? 1);
+// its hardness, times the owner's Defense.
+const hitsNeeded = (owner, terrain = 'grass', birth = 1) => hardness(terrain, birth) * (owner ? effect(settings.DEFENSE_MULTIPLIER, owner.defense) : 1);
 
 // How many hits one click by `attacker` counts as: their Click Power. Progress is kept as a fraction.
 const hitPower = attacker => effect(settings.CLICK_POWER_MULTIPLIER, attacker?.clickPower);
@@ -121,9 +122,10 @@ const growthBlocks = upgrades => effect(settings.GROWTH_BLOCKS, upgrades?.growth
 // Whether `progress` hits are enough to take a block needing `needed` (allowing for rounding, so 10 x 0.1 is 1).
 const isTaken = (progress, needed) => progress >= needed - 1e-9;
 
-// Tenths a player with these upgrade levels earns for the first claim of a block on this terrain, if the wipe rule
-// allows it (earnsSquares): its hits x 10 / hitsPerSquare x Earnings, rounded down, plus the gold bonus.
-const firstClaimTenths = (upgrades, terrain = 'grass') => catalog.payTenths(settings.HITS_PER_BLOCK * (settings.TERRAIN_HITS[terrain] ?? 1),
+// Tenths a player with these upgrade levels earns for the first claim of a block (its terrain and birth level), if
+// the wipe rule allows it (earnsSquares): H x 10 / hitsPerSquare x Earnings, rounded down, plus the gold bonus.
+// Pay tracks hits exactly, so income doesn't depend on level or terrain, only on upgrades.
+const firstClaimTenths = (upgrades, terrain = 'grass', birth = 1) => catalog.payTenths(hardness(terrain, birth),
   effect(settings.EARNINGS_MULTIPLIER, upgrades?.earnings), terrain === 'gold' ? settings.GOLD_BONUS_SQUARES : 0);
 
 // The balance players see, from a balance in tenths: whole squares only, rounded down.
@@ -152,5 +154,5 @@ const earnsSquares = (ownedAfterClaim, wipeFloor) => ownedAfterClaim > wipeFloor
 const wipeFloorAfterWipe = (wipeFloor, ownedAtWipe) => Math.max(wipeFloor, ownedAtWipe);
 
 // The rules read the numbers from this same object, so tests can try other dial values.
-module.exports = Object.assign(settings, { key, NEIGHBORS, defenseScaled, NO_UPGRADES, hitError, hitsNeeded, hitPower, growthBlocks, isTaken,
+module.exports = Object.assign(settings, { key, NEIGHBORS, defenseScaled, NO_UPGRADES, hitError, hardness, hitsNeeded, hitPower, growthBlocks, isTaken,
   firstClaimTenths, shownSquares, decayCrack, tapAllowed, earnsSquares, wipeFloorAfterWipe });

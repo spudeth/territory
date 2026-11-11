@@ -58,7 +58,7 @@ test("each terrain's hits, from the Game Rules tab", () => {
   assert.ok(rules.hitsNeeded(null, 'sand') < h && rules.hitsNeeded(null, 'forest') > h && rules.hitsNeeded(null, 'stone') > rules.hitsNeeded(null, 'forest'));
   assert.equal(rules.hitsNeeded(null, 'gold'), h * rules.TERRAIN_HITS.gold);
   const defended = { ...rules.NO_UPGRADES, defense: 3 };
-  assert.equal(rules.hitsNeeded(defended, 'stone'), rules.hitsNeeded(defended) * rules.TERRAIN_HITS.stone, 'Defense and terrain multiply');
+  assert.ok(Math.abs(rules.hitsNeeded(defended, 'stone') - rules.hitsNeeded(defended) * rules.TERRAIN_HITS.stone) < 1e-9, 'Defense and terrain multiply');
   const map = { cells: new Map([['0,0', null], ['1,0', null]]), counts: new Map(), terrainAt: x => (x === 0 ? 'water' : 'grass') };
   assert.equal(rules.hitError(map, null, 0, 0), "Water can't be claimed");
   assert.equal(rules.hitError(map, null, 1, 0), null);

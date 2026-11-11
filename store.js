@@ -131,7 +131,7 @@ const GROW = `
       (SELECT map_id, x, y FROM map_edges WHERE map_id = $1 ORDER BY random() LIMIT 1)
     RETURNING x, y
   ), cell AS (
-    INSERT INTO map_cells (map_id, x, y) SELECT $1, x, y FROM spot RETURNING x, y
+    INSERT INTO map_cells (map_id, x, y, birth_level) SELECT $1, x, y, $2 FROM spot RETURNING x, y
   ), edges AS (
     INSERT INTO map_edges (map_id, x, y)
     SELECT $1, n.x, n.y FROM cell
@@ -153,17 +153,18 @@ async function rebuildEdges(client, mapId) {
 // A seeded map's n-th growth takes the spot terrain.growthPick chooses from its open spots, sorted, so the
 // same seed and the same claims always grow the same map.
 const GROW_AT = GROW.replace(
-  '(SELECT map_id, x, y FROM map_edges WHERE map_id = $1 ORDER BY random() LIMIT 1)', '($1::bigint, $2::integer, $3::integer)');
+  '(SELECT map_id, x, y FROM map_edges WHERE map_id = $1 ORDER BY random() LIMIT 1)', '($1::bigint, $3::integer, $4::integer)');
 
-async function growMap(client, mapId) {
+// `birth`: the new block's level (the map's level now).
+async function growMap(client, mapId, birth = 1) {
   // One growth at a time per map.
   const { rows: [m] } = await client.query('SELECT seed, grown FROM maps WHERE id = $1 FOR UPDATE', [mapId]);
   let grown;
-  if (m.seed === null) grown = (await client.query(GROW, [mapId])).rows[0];
+  if (m.seed === null) grown = (await client.query(GROW, [mapId, birth])).rows[0];
   else {
     const { rows: spots } = await client.query('SELECT x, y FROM map_edges WHERE map_id = $1 ORDER BY x, y', [mapId]);
     const spot = spots[terrain.growthPick(m.seed, m.grown, spots.length)];
-    grown = spot && (await client.query(GROW_AT, [mapId, spot.x, spot.y])).rows[0];
+    grown = spot && (await client.query(GROW_AT, [mapId, birth, spot.x, spot.y])).rows[0];
     await client.query('UPDATE maps SET grown = grown + 1 WHERE id = $1', [mapId]);
   }
   if (!grown) throw new Error('map growth found no free spot');
@@ -196,7 +197,8 @@ class Conflict extends Error {}
 // Returns { conflict: true } if the block changed hands first, otherwise
 //   { playerId, name, joinedMap, grown: [{x, y}, …] (empty unless a first claim), squares: new exact balance | null }.
 //   grow:     blocks a first claim adds to the map (rules.growthBlocks: 1, or more with the Growth upgrade)
-async function claimBlock(pool, { mapId, x, y, from, playerId, newGuest, color, coverage = 'tile', skin = 'default', grow = 1, earn = 10,
+//   birth:    the level those new blocks are born at (the map's level after this claim)
+async function claimBlock(pool, { mapId, x, y, from, playerId, newGuest, color, coverage = 'tile', skin = 'default', grow = 1, birth = 1, earn = 10,
   stats = null }) {
   try {
     return await tx(pool, async c => {
@@ -241,7 +243,7 @@ async function claimBlock(pool, { mapId, x, y, from, playerId, newGuest, color, 
       let squares = null;
       if (from === null) {
         await c.query('UPDATE maps SET mined = mined + 1 WHERE id = $1', [mapId]);
-        for (let i = 0; i < grow; i++) { const g = await growMap(c, mapId); if (g) grown.push(g); }
+        for (let i = 0; i < grow; i++) { const g = await growMap(c, mapId, birth); if (g) grown.push({ ...g, l: birth }); }
         if (earn > 0) squares = (await c.query(EARN, [mapId, playerId, x, y, earn])).rows[0]?.balance_after ?? null;
       }
       return { playerId, name, joinedMap, grown, squares: squares === null ? null : Number(squares) };

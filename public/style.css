@@ -683,3 +683,19 @@ body.welcome #itembar, body.zooming #itembar { opacity: 0; pointer-events: none;
 
 .check { display: flex; align-items: flex-start; gap: 8px; font-size: 15px; color: var(--soft); cursor: pointer; }
 .check input { accent-color: var(--gold); width: 18px; height: 18px; margin-top: 1px; flex: none; }
+
+/* ---------- Loop 16: map level (HUD) and the block info card ---------- */
+#me .lvl { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); margin-top: 2px; }
+#me .lvl-bar { width: 56px; height: 6px; background: var(--raised, #2a2f3a); border: 1px solid #0f131a; }
+#me .lvl-bar i { display: block; height: 100%; width: 0; background: var(--gold, #ffd34d); }
+#inspect { position: fixed; z-index: 40; left: 50%; bottom: 16px; transform: translateX(-50%); width: min(340px, calc(100vw - 32px));
+  max-height: 60vh; overflow: auto; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+#inspect[hidden] { display: none; }
+#inspect .ic-head { display: flex; align-items: center; gap: 8px; font-family: "Press Start 2P", monospace; font-size: 11px; }
+#inspect .ic-head span { flex: 1; }
+#inspect .ic-head .icon-btn { min-width: 44px; min-height: 44px; }
+#inspect .ic-row { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; padding: 2px 0; }
+#inspect .ic-row span { color: var(--muted); }
+#inspect .ic-sec { border-top: 1px solid rgba(255,255,255,0.08); padding-top: 6px; }
+#inspect .ic-sec .btn { margin-top: 6px; width: 100%; }
+#inspect .ic-sec.hl { outline: 2px solid var(--gold, #ffd34d); outline-offset: 2px; }

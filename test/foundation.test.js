@@ -92,7 +92,7 @@ test('Settings > Show tenths is saved per player; balances reach the browser as 
   const w = await again.welcome;
   assert.equal(w.me.showTenths, true);
   assert.equal(w.me.squares, 1.5, '15 tenths = 1.5 squares');
-  assert.deepEqual(w.level, { level: 1, from: 0, to: w.level.to, mined: w.level.mined });
+  assert.deepEqual([w.level.level, w.level.from, w.level.max], [1, 0, 10]);
 });
 
 test('the tick catches up on all the time since the last one, however long the server slept', async () => {

@@ -14,6 +14,11 @@ let myAccount = false, accountsOn = false, renameAt = null;   // logged in?  log
 let hitsPerBlock = 10;   // hits to take a block with no upgrades (the server sends the real number)
 let gameSettings = { nameLabelShare: 0.25, nameMaxLength: 15, sound: {} };   // replaced by the server's on welcome
 let mapInfo = null, mySkin = 'default', myCoverage = 'tile', locked = false, wipeFloor = 0, choices = { colors: [], coverages: [] };
+// Levels (loop 16): each block keeps the level it was born at ("x,y" -> level, above 1 only); the map's level
+// comes from blocks mined and E (mapLevel: { level, from, to, mined, base, max }).
+let levels = new Map(), mapLevel = { level: 1, from: 0, to: null, mined: 0, base: 1, max: 10 };
+let inspectHoldMs = 400;
+const LEVEL_NUMBER_SCALE = 44;   // zoomed in this far (px per block), each block above level 1 shows its level
 let bounds = { x0: 0, y0: 0, x1: 1, y1: 1 };   // smallest box around every block; x1 and y1 are exclusive
 const key = (x, y) => x + ',' + y;
 
@@ -239,6 +244,8 @@ function render() {
       if (ground === 'water') { waterShown = true; ctx.drawImage(TERRAIN_TILES.water[waterFrame], x0, y0, bw, bh); }
       else if (white) { ctx.fillStyle = '#f7f8fa'; ctx.fillRect(x0, y0, bw, bh); }   // the white style: clean white blocks
       else ctx.drawImage(ground === 'grass' ? tiles[variant(x, y)] : TERRAIN_TILES[ground], x0, y0, bw, bh);
+      const lv = levels.get(key(x, y));
+      if (lv) { const shade = levelShade(lv); if (shade) { ctx.fillStyle = shade; ctx.fillRect(x0, y0, bw, bh); } }
 
       // The floating island's underside: where no block is below, a cliff of dirt and rock hangs down, with a
       // soft shadow under it.
@@ -296,6 +303,21 @@ function render() {
       ctx.fillRect(sx, sy, X(bx1) - sx, Y(by1) - sy);
     }
     ctx.restore();
+  }
+
+  // Zoomed in: the level of each block above level 1, small, in its corner.
+  if (scale >= LEVEL_NUMBER_SCALE && levels.size) {
+    ctx.font = `${Math.round(9 * dpr)}px "Press Start 2P", monospace`;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    for (let y = r0; y < r1; y++) for (let x = c0; x < c1; x++) {
+      const lv = levels.get(key(x, y));
+      if (!lv) continue;
+      ctx.fillStyle = 'rgba(15,19,26,0.75)';
+      ctx.fillText(String(lv), X(x) + 3 * dpr, Y(y) + 3 * dpr);
+      ctx.fillStyle = '#f2f4f8';
+      ctx.fillText(String(lv), X(x) + 2 * dpr, Y(y) + 2 * dpr);
+    }
   }
 
   // Borders, highlights and cracks, on top of every skin.
@@ -461,11 +483,27 @@ function cellAt(sx, sy) {
   return cells?.has(key(x, y)) ? { x, y } : null;
 }
 
+let holdTimer = null;   // press and hold: opens the block's info card (inspect.js) instead of tapping it
 canvas.addEventListener('pointerdown', e => {
   if (e.button !== 0) return;
   canvas.setPointerCapture(e.pointerId);
   pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
   tap = pointers.size === 1 ? { x: e.clientX, y: e.clientY } : null;
+  clearTimeout(holdTimer);
+  if (tap) {
+    const start = tap;
+    holdTimer = setTimeout(() => {
+      if (tap !== start || pointers.size !== 1) return;   // moved, pinched or let go: not a hold
+      const c = cellAt(start.x, start.y);
+      tap = null;   // the finger lifting now is not a tap
+      if (c) openInspect(c);
+    }, inspectHoldMs);
+  }
+});
+canvas.addEventListener('contextmenu', e => {
+  e.preventDefault();
+  const c = cellAt(e.clientX, e.clientY);
+  if (c) openInspect(c);
 });
 
 canvas.addEventListener('pointermove', e => {
@@ -496,6 +534,7 @@ canvas.addEventListener('pointermove', e => {
 
 function pointerEnd(e) {
   if (!pointers.delete(e.pointerId)) return;
+  clearTimeout(holdTimer);
   if (e.type === 'pointerup' && tap && pointers.size === 0) {
     const c = cellAt(e.clientX, e.clientY);
     const tagHit = tagBoxes.find(b => e.clientX >= b.x && e.clientX < b.x + b.w && e.clientY >= b.y && e.clientY < b.y + b.h);
@@ -548,6 +587,12 @@ function updateUI() {
   const mine = (me && counts[me]) || 0;
   $('me-count').textContent = `${mine} block${mine === 1 ? '' : 's'}`;
   $('me-squares').textContent = fmtSq(squares);
+  // The map's level and how far it is to the next one.
+  $('lvl-n').textContent = `Level ${mapLevel.level}`;
+  const pct = mapLevel.to === null ? 100 : Math.floor(100 * (mapLevel.mined - mapLevel.from) / (mapLevel.to - mapLevel.from));
+  $('lvl-bar').style.width = pct + '%';
+  $('lvl').title = mapLevel.to === null ? 'Top level' : `${(mapLevel.to - mapLevel.mined).toLocaleString()} more blocks mined to level ${mapLevel.level + 1}`;
+  $('lvl').setAttribute('aria-label', `Map level ${mapLevel.level}, ${pct}% to the next`);
   $('hint').hidden = !!(me && counts[me]);
   $('hint').textContent = `Tap any empty block ${hitsPerBlock} times to claim your first block`;
 
@@ -609,7 +654,11 @@ socket.on('welcome', data => {
   world = data.map.seed && data.map.style !== 'white' ? terrain.makeWorld(data.map.seed, data.settings.terrain) : null;   // white maps: no terrain
   cells = new Map();
   bounds = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
-  for (const [x, y, owner] of data.cells) addCell(x, y, owner);
+  levels = new Map();
+  for (const [x, y, owner, lv] of data.cells) { addCell(x, y, owner); if (lv > 1) levels.set(key(x, y), lv); }
+  if (data.level) mapLevel = data.level;
+  if (data.inspectHoldMs) inspectHoldMs = data.inspectHoldMs;
+  window.closeInspect?.();
   hits = new Map(data.hits.map(([x, y, p]) => [key(x, y), p]));
   if (window.welcomeScreen?.isOpen()) welcomeScreen.onWelcome(first);
   else if (first) initialView(); else clampView();
@@ -650,11 +699,24 @@ socket.on('claim', ({ x, y, pid }) => {
   updateUI();
   draw();
 });
-socket.on('grow', ({ x, y }) => {
+socket.on('grow', ({ x, y, l }) => {
   addCell(x, y, null);
+  if (l > 1) levels.set(key(x, y), l);
   gameAudio.play('grow', screenAt(x, y));
   tell('grew', { x, y });
   draw();
+});
+// The map's level: from blocks mined and E. A new level gets a toast.
+function levelOf(mined) {
+  let L = 1;
+  while (L < mapLevel.max && mined >= (2 ** L - 1) * mapLevel.base) L++;
+  return L;
+}
+socket.on('mapMined', mined => {
+  const L = levelOf(mined), up = L > mapLevel.level;
+  mapLevel = { ...mapLevel, mined, level: L, from: (2 ** (L - 1) - 1) * mapLevel.base, to: L < mapLevel.max ? (2 ** L - 1) * mapLevel.base : null };
+  updateUI();
+  if (up) { toast(`This map reached level ${L}`, 'good'); gameAudio.play('achievement'); }
 });
 socket.on('wipe', ({ pid, cells: wiped, floor }) => {
   for (const [x, y] of wiped) cells.set(key(x, y), null);

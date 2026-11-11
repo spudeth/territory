@@ -114,12 +114,13 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
         const map = { id: m.id, name: m.name, style: m.style, seed: m.seed, overrides, base: m.base, mined: m.mined,
           level: () => catalog.level(map.mined, map.base),
           terrainAt: (x, y) => overrides.get(key(x, y)) ?? (world ? world.at(x, y) : 'grass'),
-          room: 'map:' + m.id, cells: new Map(), counts: new Map(),
+          room: 'map:' + m.id, cells: new Map(), counts: new Map(), birth: new Map(),   // birth: "x,y" -> level, when above 1
           players: new Map(m.players.map(p => [p.player_id, { name: p.name, color: p.color, skin: p.skin_id, coverage: p.coverage,
             unlocked: p.unlocked, wipeFloor: p.wipe_floor, upgrades: upgradesOf(p) }])),
           hits: new Map(), claiming: new Set(), queue: Promise.resolve() };
         for (const c of m.cells) {
           map.cells.set(key(c.x, c.y), c.owner_id);
+          if (c.birth_level > 1) map.birth.set(key(c.x, c.y), c.birth_level);
           if (c.owner_id) map.counts.set(c.owner_id, (map.counts.get(c.owner_id) || 0) + 1);
         }
         // Stats as saved, with squares and lines recomputed from the map in case they are behind.
@@ -200,6 +201,18 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
     io.to('player:' + pid).emit('squares', catalog.fromTenths(balance));
     totals.best(pid, 'squaresHeld', rules.shownSquares(balance));
     if (rules.shownSquares(balance) === 1337) totals.best(pid, 'secret:leet', 1);
+  }
+
+  // A block as the info card shows it, for player `pid` (with `upgrades`): coordinates, terrain, level and
+  // hardness; its pay if mined, or the hits to take it; its owner. Later phases add walls, factories, listings.
+  function blockInfo(map, x, y, pid, upgrades) {
+    const k = key(x, y), owner = map.cells.get(k) ?? null, terrain = map.terrainAt(x, y), level = map.birth.get(k) ?? 1;
+    const H = rules.hardness(terrain, level);
+    const info = { x, y, terrain, level, hardness: H, owner: owner && { pid: owner, name: map.players.get(owner)?.name ?? null } };
+    if (terrain === 'water') info.water = true;
+    else if (owner === null) info.pay = catalog.fromTenths(rules.firstClaimTenths(upgrades, terrain, level));
+    else if (String(owner) !== String(pid)) info.hits = rules.hitsNeeded(map.players.get(owner)?.upgrades ?? rules.NO_UPGRADES, terrain, level);
+    return info;
   }
 
   // A first claim on a map (by a player or a factory): its mined count goes up; everyone there sees the level's
@@ -476,9 +489,10 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
       socket.emit('welcome', {
         // locked: color, skin and coverage are set here; wipeFloor: see the wipe rule; squares: whole squares
         me: { ...me, color, skin, coverage, locked: lockedHere(), wipeFloor: mine?.wipeFloor ?? 0, squares: catalog.fromTenths(me.squares) },
-        level: catalog.levelProgress(map.mined, map.base),
+        level: { ...catalog.levelProgress(map.mined, map.base), base: map.base, max: catalog.E.maxLevel },
         choices: { colors: rules.COLORS, coverages: rules.COVERAGES },
         hitsPerBlock: rules.HITS_PER_BLOCK,
+        inspectHoldMs: catalog.E.inspectHoldMs,
         settings: { nameLabelShare: rules.NAME_LABEL_SHARE, nameMaxLength: rules.NAME_MAX_LENGTH, sound: rules.SOUND, terrain: rules.TERRAIN,
           skinKinds: SKIN_KINDS,
           skinAnimated: rules.SKINS.filter(s => s.rarity === 'Legendary').map(s => s.id) },   // drawn from <id>-anim.png, 4 frames   // how to draw each skin: pattern (in the owner's color) or art
@@ -486,7 +500,8 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
         upgraded: false, loginFailed: false,      // see `flags`
         ...flags,
         map: { id: map.id, name: map.name, style: map.style, seed: map.seed },
-        cells: [...map.cells].map(([k, owner]) => [...k.split(',').map(Number), owner]),
+        // [x, y, owner] or [x, y, owner, birth level] for blocks above level 1
+        cells: [...map.cells].map(([k, owner]) => { const b = map.birth.get(k); return b ? [...k.split(',').map(Number), owner, b] : [...k.split(',').map(Number), owner]; }),
         players: Object.fromEntries([...map.players].map(([pid, { upgrades, ...shown }]) => [pid, shown])),
         hits: [...map.hits].map(([k, h]) => [...k.split(',').map(Number), share(h)]),
         chat: chats.get(map.id) ?? [],
@@ -527,9 +542,10 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
       const st = stats.afterClaim(me.pid ? statsOf(map, me.pid) : stats.empty(),
         { owns, x, y, owned: (map.counts.get(me.pid) || 0) + 1, from });
       const ground = map.terrainAt(x, y);
-      const earn = rules.firstClaimTenths(upgrades, ground);
+      const earn = rules.firstClaimTenths(upgrades, ground, map.birth.get(k) ?? 1);
       const r = await store.claimBlock(pool, { mapId: map.id, x, y, from, playerId: me.pid, newGuest,
-        color: joining ? color : null, coverage, skin, earn, grow: rules.growthBlocks(upgrades), stats: st.stats });
+        color: joining ? color : null, coverage, skin, earn, grow: rules.growthBlocks(upgrades), stats: st.stats,
+        birth: catalog.level(map.mined + 1, map.base) });
       if (r.conflict) {
         // Another server got there first (e.g. during a deploy). Resync this block for everyone.
         setOwner(map, k, await store.cellOwner(pool, map.id, x, y));
@@ -567,6 +583,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
       }
       for (const g of r.grown) {   // one new block, or more with Growth
         map.cells.set(key(g.x, g.y), null);
+        if (g.l > 1) map.birth.set(key(g.x, g.y), g.l);
         io.to(map.room).emit('grow', g);
       }
       if (r.squares !== null) {
@@ -653,7 +670,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
       if (h) decay(map, k, h, now);
       h = map.hits.get(k);
       const owner = map.cells.get(k);
-      const need = rules.hitsNeeded(owner ? map.players.get(owner)?.upgrades ?? rules.NO_UPGRADES : null, map.terrainAt(x, y));
+      const need = rules.hitsNeeded(owner ? map.players.get(owner)?.upgrades ?? rules.NO_UPGRADES : null, map.terrainAt(x, y), map.birth.get(k) ?? 1);
       // Hit power left over from the tap that took the last block counts toward the next one, so a higher Click
       // Power level never wastes power (GAME-RULES.md).
       if (h?.by !== by) { map.hits.set(k, h = { by, n: session.spare }); session.spare = 0; }
@@ -898,6 +915,15 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
 
     // A player's profile ({ pid }): see store.profile. Achievements as the list's names (known ids only), and
     // whether they have the game open right now.
+    // The info card (press and hold, or right-click, a block): { x, y } -> what's there. Never anything private.
+    socket.on('inspect', (p, reply) => {
+      if (typeof reply !== 'function') return;
+      if (!p || !Number.isInteger(p.x) || !Number.isInteger(p.y)) return reply({ error: 'Unknown block' });
+      const k = key(p.x, p.y);
+      if (!map.cells.has(k)) return reply({ error: 'There is no block there' });
+      reply(blockInfo(map, p.x, p.y, me.pid, upgrades));
+    });
+
     socket.on('profile', async (p, reply) => {
       if (typeof reply !== 'function') return;
       try {
