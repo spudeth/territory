@@ -780,9 +780,10 @@ Object.assign(module.exports, { buildWall, removeWall });
 // ---------- The land market (loop 16) ----------
 // Whether a player may trade land: an account at least `minDays` old.
 async function canTrade(c, playerId, minDays) {
-  const { rows: [p] } = await c.query('SELECT auth_user_id, created_at FROM players WHERE id = $1', [playerId]);
+  // The age is worked out by the database's clock, so a computer's clock being off can't matter.
+  const { rows: [p] } = await c.query('SELECT auth_user_id, created_at > now() - make_interval(secs => $2 * 86400) AS young FROM players WHERE id = $1', [playerId, minDays]);
   if (!p?.auth_user_id) return 'Only accounts can buy and sell land';
-  if (Date.now() - p.created_at.getTime() < minDays * 86400000) return `Accounts can trade land once they are ${minDays} days old`;
+  if (p.young) return `Accounts can trade land once they are ${minDays} days old`;
   return null;
 }
 // Lists blocks ([[x, y]]: the seller's, connected, none listed already) at `price` tenths. Returns { id } or { error }.
@@ -837,6 +838,60 @@ function buyListing(pool, { id, buyerId, fee, minDays, look }) {
   });
 }
 Object.assign(module.exports, { createListing, cancelListing, buyListing });
+
+// ---------- The economy reset (loop 16) ----------
+// A map's starting shape. Maps from before loop 16 have none: a seeded one is its seed's island of E blocks; one
+// without a seed is the largest full rectangle from (0, 0) (growth only ever adds blocks around it).
+async function startingShape(c, m) {
+  if (m.shape) return m.shape;
+  if (m.seed !== null) return { blocks: Number(m.base) };
+  const { rows } = await c.query('SELECT x, y FROM map_cells WHERE map_id = $1 AND x >= 0 AND y >= 0', [m.id]);
+  const has = new Set(rows.map(r => r.x + ',' + r.y));
+  let best = { width: 1, height: 1 }, w = Infinity;
+  for (let h = 1; has.has('0,' + (h - 1)); h++) {
+    let run = 0;
+    while (has.has(run + ',' + (h - 1))) run++;
+    w = Math.min(w, run);
+    if (w * h > best.width * best.height) best = { width: w, height: h };
+  }
+  return best;
+}
+// What the reset will do to each official map: [{ id, name, seed, shape, base, blocks now }].
+async function resetPlan(pool) {
+  const { rows } = await pool.query(`SELECT m.id, m.name, m.seed, m.shape, m.base_blocks AS base, (SELECT count(*)::int FROM map_cells c WHERE c.map_id = m.id) AS blocks
+    FROM maps m WHERE m.type = 'official' ORDER BY m.id`);
+  return tx(pool, async c => {
+    const out = [];
+    for (const m of rows) {
+      const shape = await startingShape(c, m);
+      out.push({ ...m, shape, base: shape.blocks ?? shape.width * shape.height });
+    }
+    return out;
+  });
+}
+// The economy reset, in one transaction. Clears: every block's owner, every map's mined count (level 1), squares
+// (written to the ledger), upgrade tiers and highest level, items and their uses, factories, walls and listings;
+// official maps are made again from their seeds and E. Keeps: accounts, names, owned skins, stars and earned
+// achievements. Never run on production by Cody; Xoren runs it.
+function economyReset(pool, plan) {
+  return tx(pool, async c => {
+    for (const t of ['listings', 'factories', 'player_items', 'player_inventory', 'item_uses']) await c.query(`DELETE FROM ${t}`);
+    await c.query(`INSERT INTO square_ledger (player_id, delta, balance_after, reason) SELECT id, -squares, 0, 'economy reset' FROM players WHERE squares <> 0`);
+    await c.query("UPDATE players SET squares = 0, tiers = '{}', highest_level = 1");
+    await c.query('UPDATE player_lives SET ended_at = now() WHERE ended_at IS NULL');
+    await c.query('UPDATE player_map_settings SET wipe_floor = 0, unlocked = true');
+    for (const m of plan) {
+      await c.query('DELETE FROM map_cells WHERE map_id = $1', [m.id]);
+      await c.query('UPDATE maps SET grown = 0, mined = 0, base_blocks = $2, shape = $3 WHERE id = $1', [m.id, m.base, m.shape]);
+      await fillShape(c, m.id, m.seed, m.shape);
+    }
+    await c.query("UPDATE map_cells SET owner_id = NULL, claimed_at = NULL, walls = '[]', factory_id = NULL, listing_id = NULL, birth_level = 1 WHERE owner_id IS NOT NULL OR walls <> '[]'");
+    await c.query('UPDATE maps SET mined = 0');
+    const { rows: [n] } = await c.query('SELECT count(*)::int AS players FROM players WHERE deleted_at IS NULL');
+    return n;
+  });
+}
+Object.assign(module.exports, { resetPlan, economyReset });
 
 // Settings > Show tenths (loop 16).
 const setShowTenths = (pool, playerId, on) => pool.query('UPDATE players SET show_tenths = $2 WHERE id = $1', [playerId, on]);

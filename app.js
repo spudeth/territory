@@ -616,11 +616,11 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
       },
       squaresChanged: balanceChanged,
       // After a restore: forget every loaded map and disconnect everyone, who reconnect to the restored game.
-      reloadAll() {
+      reloadAll(message = 'The game was restored from a backup. Reload the page to keep playing.') {
         maps.clear();
         loaded.clear();
         for (const s of io.sockets.sockets.values()) {
-          s.emit('notice', { kind: 'restored', message: 'The game was restored from a backup. Reload the page to keep playing.' });
+          s.emit('notice', { kind: 'restored', message });
           s.disconnect(true);
         }
       },

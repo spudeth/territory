@@ -397,6 +397,7 @@ const UPGRADE_LOOKS = {
 // A value with its unit: "x2 hits per tap", "3 new blocks", "4.5 hours awake".
 const tierText = (v, unit) => {
   const n = Number(v.toFixed(v < 10 ? 2 : 1)).toLocaleString();
+  if (v === 1) unit = unit.replace(/blocks$/, 'block');   // "1 new block"
   return /^x /.test(unit) ? `×${n} ${unit.slice(2)}` : `${n} ${unit}`;
 };
 

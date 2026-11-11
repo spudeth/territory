@@ -724,3 +724,6 @@ body.welcome #itembar, body.zooming #itembar { opacity: 0; pointer-events: none;
 #sell-bar #sell-msg.bad { color: var(--red, #ff4d4d); }
 #sell-bar input { width: 96px; min-height: 44px; }
 #sell-bar .icon-btn { min-width: 44px; min-height: 44px; font-size: 18px; }
+/* The loop 16 floating cards sit over the map: a solid panel, like the HUD. */
+#inspect, #build-menu, #build-bar, #sell-bar { background: var(--panel); color: var(--text); }
+#me .lvl { pointer-events: auto; }

@@ -264,6 +264,28 @@ function adminRouter({ pool, key, production, hooks, email }) {
       },
     },
 
+    // Loop 16: the economy reset. Never on production by Cody (Xoren runs it after merging).
+    'economy-reset': {
+      async prepare() {
+        const plan = await store.resetPlan(pool);
+        const { rows: [c] } = await pool.query(`SELECT (SELECT count(*)::int FROM players WHERE deleted_at IS NULL) AS players,
+          (SELECT count(*)::int FROM map_cells WHERE owner_id IS NOT NULL) AS owned, (SELECT count(*)::int FROM factories) AS factories,
+          (SELECT count(*)::int FROM listings) AS listings, (SELECT COALESCE(sum(squares), 0)::bigint AS squares FROM players) AS squares`);
+        return { plan, target: 'the whole economy', confirm: 'CONFIRM', preview: [
+          `Clear: ${c.owned.toLocaleString()} owned blocks, every map back to level 1, ${sq(c.squares)} squares held by ${plural(c.players, 'player')},`,
+          `  every upgrade tier and highest level, items, ${plural(c.factories, 'factory')}, every wall and ${plural(c.listings, 'listing')}.`,
+          'Keep: accounts, names, owned skins, stars and earned achievements.',
+          ...plan.map(m => `${m.name}: made again from ${m.seed ? `seed "${m.seed}"` : 'no seed'}, E = ${m.base.toLocaleString()} blocks`
+            + ` (${m.shape.blocks ? 'its island' : `${m.shape.width} x ${m.shape.height}`}; now ${m.blocks.toLocaleString()} blocks).`),
+          'Everyone is disconnected and reconnects to the fresh game.'] };
+      },
+      async run({ plan }) {
+        await store.economyReset(pool, plan);
+        hooks.reloadAll('The game was reset for the economy update. Reload the page to start again.');
+        return [`The economy was reset: ${plural(plan.length, 'map')} made again at level 1.`];
+      },
+    },
+
     'wipe-all-maps': {
       async prepare({ options }) {
         const { rows: maps } = await pool.query('SELECT id, name FROM maps ORDER BY id');

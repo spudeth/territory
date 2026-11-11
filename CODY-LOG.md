@@ -1141,3 +1141,16 @@ OPEN Q29 (Xoren): new and changed text to review.
   GAME-RULES.md: the top half is rewritten (map, levels, terrain, taking blocks, squares, upgrades, Marketplace, building, factories, walls, land market).
   The Game Guide (/guide): its wording is in guide.js.
 OPEN Q30 (Xoren): every new graphic is a placeholder in public/art/ (factory, factory-asleep, wall, for-sale, level-shades, build, marketplace, demolition, info-card), named in art/manifest.js; replace a file to change it, no code.
+#116 | 2026-11-11 | Loop 16 Phase 9: admin economy-reset (preview with each official map's seed and E, type CONFIRM, backup first, logged). Clears every block's owner, every map's mined count (level 1), squares (ledger "economy reset"), upgrade tiers and highest level, items, inventory and uses, factories, walls and listings; makes each official map again from its seed and E (maps from before loop 16: seeded = the island of E blocks; unseeded = the largest full rectangle from (0, 0), e.g. White Plains 200 x 200). Keeps accounts, names, owned skins, stars and earned achievements. Not run on production. Also: account age for the land market is now checked by the database's clock (a computer clock ahead of the database refused a fresh account); the floating cards (info card, Build menu, bars) have a solid panel; "1 new block" not "blocks" | tests: reset (clears, keeps, remakes at exactly E, ledger); full suite 170/170. Phase 9 ready to merge
+#117 | 2026-11-11 | Loop 16 wrap-up: full suite 170/170. Screenshots docs/screenshots/ (dev database; maps "Shots …" were made on dev for them): loop16-market-upgrades.png (Marketplace tabs; Click Power capped: "Tier 5, working at tier 2 on this map", tier 6 "Mine a level-6 block to unlock"; Earnings not capped), loop16-tier-cards.png, loop16-market-land.png, loop16-factories.png (awake and asleep, the 2-wall corner, for-sale markers), loop16-walls-corner.png, loop16-info-card.png (factory: awake, time left, Wake up), loop16-listing.png (bundle highlighted, price, Cancel for the seller), loop16-welcome-phone.png (new tiles; Game Guide link), loop16-guide.png, loop16-guide-upgrades.png
+
+## Merge steps (loop 16)
+One commit per phase on iterate (1 3c3a3e5, 2 0961761, 3 a405ba9, 4 abc07c3, 5 c25eda8, 6 1d04357, 7 148963f, 8 b985fb7, 9 the next commit). They build on each other: merge in order; one pull request iterate -> main merges them all (with loop 15 Phase 7).
+1. Render applies migrations 019-023 on start (tenths, block and map data, tiers, inventory, factories, listings). Existing balances become tenths; old upgrade levels are dropped (tiers start at 1).
+2. Straight after the deploy, Xoren runs: npm run admin -- economy-reset --prod (check each map's E in the preview; type CONFIRM).
+3. Phone checks: XOREN-TODO.md section 6.
+
+## Xoren's checklist
+The full list is in XOREN-TODO.md: open questions Q23-Q30; the sheet (delete Inputs, Summary, Click Power, Defense, Earnings, Growth; delete squaresPerFirstClaim and newMapBlocks rows; add mailingAddress; the tier achievement rows from Q28; fix Q26); merge; no new Render settings; economy-reset; phone tests.
+
+Loop order 16 done. Stopping.
