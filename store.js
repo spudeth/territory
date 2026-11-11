@@ -762,7 +762,7 @@ async function removeFactory(c, mapId, x, y) {
   await c.query('UPDATE map_cells SET factory_id = NULL WHERE map_id = $1 AND x = $2 AND y = $3', [mapId, x, y]);
   await c.query('DELETE FROM factories WHERE map_id = $1 AND x = $2 AND y = $3', [mapId, x, y]);
 }
-const factoryStep = now => Math.floor(now / (catalog.E.tickSeconds * 1000)) * catalog.E.tickSeconds * 1000;
+const factoryStep = now => Math.floor(now / 1000) * 1000;   // factories.js steps: one second (loop 18)
 Object.assign(module.exports, { buildFactory, wakeFactory, saveFactories, factoryMaps, removeFactory });
 
 // ---------- Walls (loop 16) ----------

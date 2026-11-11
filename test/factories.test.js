@@ -70,7 +70,7 @@ before(async () => {
 });
 after(async () => { for (const s of sockets) s.disconnect(); game.io.close(); await db.drop(); });
 const player = auth => { const s = connectPlayer(url, auth); sockets.push(s); return s; };
-const STEP = fac.STEP_MS();
+const STEP = 60000;   // a minute (factories work in one-second steps inside each tick)
 const T0 = fac.stepFloor(Date.now()) - 6 * 3600000;   // six hours ago, on a step boundary
 
 // A seeded map with a player owning `n` blocks in its top rows (claimed in order); returns { id, pid, token }.
@@ -190,4 +190,22 @@ test('a factory is destroyed when its block is taken; Demolition removes one for
   assert.equal(r.ok, true);
   assert.equal(await db.count('SELECT count(*) FROM factories WHERE map_id = $1', [id]), 0);
   assert.equal((await s.ask('inspect', { x: 1, y: 0 })).factory, undefined);
+});
+
+test('live (loop 18): someone watching sees each factory hit as it happens, one every 6 seconds at tier 1', async () => {
+  const n = E.factoryBlocksPerFactory;
+  const { id, pid, token } = await landed('Live', n);
+  const start = fac.stepFloor(Date.now()) - 60000;
+  await factoryAt(id, pid, 5, 1, start, 1);
+  await pool.query("UPDATE map_cells SET terrain = 'grass' WHERE map_id = $1", [id]);   // every block 10 hits
+  const s = player({ token });
+  await onMap(s, id);
+  const seen = [];
+  s.on('hit', d => seen.push(d));
+  for (let sec = 1; sec <= 30; sec++) await game.liveFactories(start + sec * 1000);
+  await new Promise(r => setTimeout(r, 200));
+  const H = rules.HITS_PER_BLOCK, shares = seen.map(d => d.p);
+  assert.equal(seen.length, 5, `30 seconds at 1/6 hit a second: 5 hits (${JSON.stringify(shares)})`);
+  assert.deepEqual(shares, [1, 2, 3, 4, 5].map(h => h / H), 'one hit at a time, each shown');
+  assert.ok(seen.every(d => d.x === seen[0].x && d.y === seen[0].y), 'all on its one target');
 });

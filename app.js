@@ -430,56 +430,79 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
     if (level > 1) for (const s of io.sockets.sockets.values()) if (String(s.data.me?.pid) === String(owner) && (s.data.me.highest ?? 1) < level) s.data.me.highest = level;
     return true;
   }
-  // `secs` of work by factory f: hits on its target (closest first), claiming each block it finishes.
-  async function factoryWork(map, f, secs) {
-    let left = secs;   // seconds of work still to do
-    while (left > 1e-9) {
-      const t = fac.chooseTarget(map, f.owner, f.x, f.y, `${map.seed}:${f.x},${f.y}`);   // ties: the same seeded order every time
-      f.target = t;
-      if (!t) return;   // nothing to mine: it idles
-      // Factory Speed works at most at the end of the target block's level's tier.
-      const rate = fac.hitsPerSecond(ownerValues(map, f.owner, levelAt(map, t.x, t.y)).factorySpeed), budget = rate * left;
-      const k = key(t.x, t.y), need = fac.hitsFor(map, t.x, t.y, f.x, f.y, map.level());
+  // `secs` of work by factory f (loop 18: whole hits, so watchers see each one). It hits its target until it's
+  // taken: Factory Speed (capped at the target's level) x the base player rate, in hits a second; the fraction of a
+  // hit carries to the next second. The closest target is chosen again each minute, after each block it takes, and
+  // whenever its target stops being one. Answers whether it took a block.
+  async function factoryWork(map, f, secs, t) {
+    const pick = () => (f.target = fac.chooseTarget(map, f.owner, f.x, f.y, `${map.seed}:${f.x},${f.y}`));   // ties: the same seeded order every time
+    if (!f.target || t % 60000 === 0 || !fac.stillTarget(map, f.owner, f.target)) pick();
+    if (!f.target) { f.charge = 0; return false; }   // nothing to mine: it idles
+    f.charge = (f.charge ?? 0) + fac.hitsPerSecond(ownerValues(map, f.owner, levelAt(map, f.target.x, f.target.y)).factorySpeed) * secs;
+    let hits = Math.floor(f.charge + 1e-9), took = false;
+    f.charge = Math.max(0, f.charge - hits);
+    while (hits > 0) {
+      const tg = f.target, k = key(tg.x, tg.y), need = fac.hitsFor(map, tg.x, tg.y, f.x, f.y, map.level());
       let h = map.hits.get(k);
       if (!h || h.by !== f.owner) h = { by: f.owner, n: 0 };   // another player's progress doesn't count
       Object.assign(h, { factory: true, need, at: Date.now() });
-      if (h.n + budget + 1e-9 < need) {
-        h.n += budget;
+      const use = Math.min(hits, Math.max(1, Math.ceil(need - h.n - 1e-9)));
+      h.n += use;
+      hits -= use;
+      if (!rules.isTaken(h.n, need)) {
         map.hits.set(k, h);
-        io.to(map.room).emit('hit', { x: t.x, y: t.y, p: share(h) });
-        return;
+        io.to(map.room).emit('hit', { x: tg.x, y: tg.y, p: share(h) });
+        return took;
       }
-      left -= Math.max(0, need - h.n) / rate;
       map.hits.delete(k);
-      if (!(await factoryClaim(map, f, t.x, t.y))) return;
+      if (!(await factoryClaim(map, f, tg.x, tg.y))) return took;
+      took = true;
+      if (!pick()) { f.charge = 0; return took; }
     }
+    return took;
   }
-  // Brings every factory on a map up to `until` (a step boundary), one step at a time in time order, so a long
-  // sleep gives exactly what ticking every step would. Saves where each got to.
-  async function runFactories(map, until) {
-    const STEP = fac.STEP_MS(), list = [...map.factories.values()].sort((a, b) => a.id - b.id), changed = new Set();
-    const behind = () => list.filter(f => map.factories.get(key(f.x, f.y)) === f && f.processed < until);
-    let t = Math.min(...behind().map(f => f.processed));
-    while (t < until) {
-      const now = behind();
-      if (!now.length) break;
-      // Asleep factories skip ahead: nothing happens until they're woken.
-      for (const f of now) if (f.awake <= f.processed) { f.processed = until; changed.add(f); }
-      for (const f of now) {
-        if (f.processed !== t || map.factories.get(key(f.x, f.y)) !== f) continue;
+  // Brings every factory on a map up to `until` (a step boundary), one step (a second) at a time in time order, so a
+  // long sleep gives exactly what running live would. `save`: write where each got to (the tick does; the live loop,
+  // every second while someone watches, doesn't, to spare the database).
+  async function runFactories(map, until, { save = true } = {}) {
+    const STEP = fac.STEP_MS(), list = [...map.factories.values()].sort((a, b) => a.id - b.id);
+    const here = f => map.factories.get(key(f.x, f.y)) === f;
+    // Asleep factories skip ahead: nothing happens until they're woken.
+    const skipAsleep = f => { if (f.awake <= f.processed && f.processed < until) f.processed = until; };
+    list.forEach(skipAsleep);
+    const next = () => Math.min(...list.filter(f => here(f) && f.processed < until).map(f => f.processed));
+    let paused = null;   // owner -> paused ids, worked out again after any claim
+    const isPaused = f => (paused ??= new Map()).get(f.owner)?.has(f.id) ?? paused.set(f.owner, pausedOn(map, f.owner)).get(f.owner).has(f.id);
+    for (let t = next(); t < until; t = next()) {
+      for (const f of list) {
+        if (f.processed !== t || !here(f)) continue;
         const secs = Math.max(0, Math.min(t + STEP, f.awake) - t) / 1000;
-        if (secs > 0 && !pausedOn(map, f.owner).has(f.id) && map.players.has(f.owner)) await factoryWork(map, f, secs);
+        if (secs > 0 && !isPaused(f) && map.players.has(f.owner) && await factoryWork(map, f, secs, t)) paused = null;
         f.processed = t + STEP;
-        changed.add(f);
+        skipAsleep(f);
       }
-      t += STEP;
     }
-    await store.saveFactories(pool, [...changed].filter(f => map.factories.get(key(f.x, f.y)) === f).map(f => {
+    if (!save) return;
+    await store.saveFactories(pool, list.filter(here).map(f => {
       const h = f.target && map.hits.get(key(f.target.x, f.target.y));
       return { id: f.id, processed: f.processed, tx: f.target?.x ?? null, ty: f.target?.y ?? null, progress: h?.factory && h.by === f.owner ? h.n : 0 };
     }));
-    for (const f of list) if (map.factories.get(key(f.x, f.y)) === f) io.to(map.room).emit('factory', factoryOut(map, f));
+    for (const f of list) if (here(f)) io.to(map.room).emit('factory', factoryOut(map, f));
   }
+  // Live (loop 18): every second, each map someone is watching runs its factories up to now, so every hit shows.
+  // `now` for tests. The tick below still catches up maps nobody watches, and saves.
+  function liveFactories(now = Date.now()) {
+    const until = fac.stepFloor(now), runs = [];
+    for (const map of loaded) {
+      if (!map.factories?.size || map.liveRun || !io.sockets.adapter.rooms.get(map.room)?.size) continue;
+      map.liveRun = true;
+      runs.push(serial(map, () => runFactories(map, until, { save: false }))
+        .catch(err => console.error(`LIVE FACTORIES FAILED (map ${map.id}): ${err.message}`)).finally(() => { map.liveRun = false; }));
+    }
+    return Promise.all(runs);
+  }
+  const liveTimer = startTicker ? setInterval(liveFactories, fac.STEP_MS()) : null;
+  liveTimer?.unref();
   // The tick: every map with factories still to bring up to date (loaded if it isn't).
   ticker.on(async function factoriesTick(from, to) {
     const until = fac.stepFloor(to);
@@ -607,7 +630,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
     for (const map of loaded) for (const [k, h] of map.hits) decay(map, k, h, now);
   }, Math.min(1000, crackDecayMs / 4));
   sweep.unref();
-  server.on('close', () => { clearInterval(sweep); clearInterval(tapLog); });
+  server.on('close', () => { clearInterval(sweep); clearInterval(tapLog); clearInterval(liveTimer); });
 
   const checkHit = rules.hitError;
 
@@ -1558,7 +1581,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
   });
 
   if (startTicker) ticker.start();
-  return { server, io, events, totals, ticker };
+  return { server, io, events, totals, ticker, liveFactories };
 }
 
 module.exports = { createGame };
