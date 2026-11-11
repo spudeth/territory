@@ -8,6 +8,7 @@ const { adminRouter, bannedMessage } = require('./admin');
 const rules = require('./rules');
 const catalog = require('./catalog');
 const { createTicker } = require('./ticker');
+const fac = require('./factories');
 const chat = require('./chat');
 const terrain = require('./public/terrain');
 // How each skin is drawn, for the browser: { id: 'pattern' | 'art' }.
@@ -125,6 +126,16 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
           if (c.birth_level > 1) map.birth.set(key(c.x, c.y), c.birth_level);
           if (c.owner_id) map.counts.set(c.owner_id, (map.counts.get(c.owner_id) || 0) + 1);
         }
+        // Factories: "x,y" -> { id, owner, x, y, built, awake (ms), processed (ms), target }. Their saved progress is
+        // a crack on the target, tagged `factory` (it never fades).
+        map.factories = new Map();
+        for (const r of m.factories) {
+          const f = { id: r.id, owner: r.owner_id, x: r.x, y: r.y, built: Number(r.built), awake: Number(r.awake), processed: Number(r.processed),
+            target: r.target_x === null ? null : { x: r.target_x, y: r.target_y } };
+          map.factories.set(key(r.x, r.y), f);
+          if (f.target && r.progress > 0) map.hits.set(key(f.target.x, f.target.y), { by: f.owner, n: r.progress, at: Date.now(), factory: true,
+            need: fac.hitsFor(map, f.target.x, f.target.y, f.x, f.y, map.level()) });
+        }
         // Stats as saved, with squares and lines recomputed from the map in case they are behind.
         map.stats = new Map(m.stats.map(r => [r.player_id, { ownedMax: r.owned_max, firstClaims: r.first_claims,
           retakes: r.retakes, blocksLost: r.blocks_lost, bestSquare: r.best_square, bestLine: r.best_line }]));
@@ -194,6 +205,9 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
     queued.then(() => { if (checks.get(pid) === queued) checks.delete(pid); });
   });
 
+  // The server tick (ticker.js): factories and timers, caught up after every sleep.
+  const ticker = createTicker(pool, { seconds: catalog.E.tickSeconds });
+
   // Lifetime totals (totals.js), checked like any other stat.
   const totals = createTotals(pool, { onStat: (pid, name, value) => events.emit('stat', { pid, name, value }) });
 
@@ -214,6 +228,8 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
     if (terrain === 'water') info.water = true;
     else if (owner === null) info.pay = catalog.fromTenths(rules.firstClaimTenths(upgrades, terrain, level));
     else if (String(owner) !== String(pid)) info.hits = rules.hitsNeeded(tiersOn(map.players.get(owner)?.upgrades, map), terrain, level);
+    const f = map.factories.get(k);
+    if (f) info.factory = { ...factoryOut(map, f), mine: String(f.owner) === String(pid), target: f.target };
     return info;
   }
 
@@ -224,9 +240,143 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
     tiers: Array.from({ length: catalog.TIER_COUNT }, (_, i) => ({ tier: i + 1, value: catalog.tierValue(key, i + 1),
       cost: i ? catalog.fromTenths(catalog.tierCostTenths(key, i + 1)) : 0 })) })));
 
+  // ---------- Factories (loop 16; the rules are in factories.js) ----------
+  const ownerValues = (map, owner) => catalog.effectiveValues(map.players.get(owner)?.upgrades, map.level());
+  const ownFactories = (map, owner) => [...map.factories.values()].filter(f => String(f.owner) === String(owner));
+  // The owner's newest factories pause while their land is below the limit.
+  const pausedOn = (map, owner) => fac.pausedIds(ownFactories(map, owner).map(f => ({ id: f.id, builtAt: f.built })), map.counts.get(owner) || 0);
+  const factoryOut = (map, f) => ({ x: f.x, y: f.y, owner: f.owner, awakeUntil: f.awake, paused: pausedOn(map, f.owner).has(f.id) });
+  function dropFactory(map, k) {
+    const f = map.factories.get(k);
+    if (!f) return;
+    map.factories.delete(k);
+    io.to(map.room).emit('factory', { x: f.x, y: f.y, gone: true });
+  }
+  // Why a factory can't go on (x, y) for `pid`, or null.
+  function factoryRefusal(map, pid, x, y) {
+    const k = key(x, y);
+    if (map.cells.get(k) !== pid) return 'Only on your own land';
+    if (map.terrainAt(x, y) === 'water') return 'Not on water';
+    if (map.factories.has(k)) return 'There is a factory here already';
+    if (map.listings?.has(k)) return 'Not on land for sale';
+    return null;
+  }
+  // What the Build menu needs to know: factories owned here, the limit, the next one's price, blocks still needed.
+  function factoryInfo(map, pid) {
+    const n = ownFactories(map, pid).length, owned = map.counts.get(pid) || 0, limit = fac.factoryLimit(owned);
+    return { count: n, limit, price: catalog.fromTenths(catalog.priceTenths(catalog.CATALOG.get('building:factory'), { L: map.level(), n: n + 1 })),
+      needBlocks: Math.max(0, (n + 1) * catalog.E.factoryBlocksPerFactory - owned) };
+  }
+  // What can be built: { kind: async (map, pid, request) -> answer }. Walls add themselves.
+  const builders = {
+    async factory(map, pid, { x, y }) {
+      const refusal = factoryRefusal(map, pid, x, y);
+      if (refusal) return { error: refusal };
+      const info = factoryInfo(map, pid);
+      if (info.count >= info.limit) return { error: `Own ${info.needBlocks} more blocks for another factory` };
+      const price = catalog.toTenths(info.price), awakeMs = ownerValues(map, pid).factoryLifetime * 3600000;
+      const r = await store.buildFactory(pool, { mapId: map.id, playerId: pid, x, y, price, limit: info.limit, awakeMs });
+      if (r.error) return { error: r.error, ...(r.need !== undefined ? { need: catalog.fromTenths(r.need) } : {}) };
+      const now = Date.now(), f = { id: r.id, owner: pid, x, y, built: now, awake: now + awakeMs, processed: fac.stepFloor(now), target: null };
+      map.factories.set(key(x, y), f);
+      balanceChanged(pid, r.squares);
+      totals.bump(pid, 'purchases');
+      totals.bump(pid, 'squaresSpent', info.price);
+      io.to(map.room).emit('factory', factoryOut(map, f));
+      return { ok: true, squares: catalog.fromTenths(r.squares) };
+    },
+  };
+
+  // A factory took (x, y): the same claim as a player's, paying its owner Factory Yield (capped at the block's pay).
+  async function factoryClaim(map, f, x, y) {
+    const owner = f.owner, k = key(x, y), eff = ownerValues(map, owner), level = map.birth.get(k) ?? 1;
+    const r = await store.claimBlock(pool, { mapId: map.id, x, y, from: null, playerId: owner, newGuest: null, color: null,
+      grow: rules.growthBlocks(eff), birth: catalog.level(map.mined + 1, map.base), level, earn: fac.yieldTenths(eff.factoryYield, map, x, y) });
+    if (r.conflict) {
+      setOwner(map, k, await store.cellOwner(pool, map.id, x, y));
+      io.to(map.room).emit('claim', { x, y, pid: map.cells.get(k) });
+      return false;
+    }
+    setOwner(map, k, owner);
+    io.to(map.room).emit('claim', { x, y, pid: owner });
+    for (const g of r.grown) {
+      map.cells.set(key(g.x, g.y), null);
+      if (g.l > 1) map.birth.set(key(g.x, g.y), g.l);
+      io.to(map.room).emit('grow', g);
+    }
+    mapMined(map);
+    if (r.squares !== null) balanceChanged(owner, r.squares);
+    statChanged(map, owner, 'owned', map.counts.get(owner));
+    totals.bump(owner, 'claims');
+    if (level > 1) for (const s of io.sockets.sockets.values()) if (String(s.data.me?.pid) === String(owner) && (s.data.me.highest ?? 1) < level) s.data.me.highest = level;
+    return true;
+  }
+  // `secs` of work by factory f: hits on its target (closest first), claiming each block it finishes.
+  async function factoryWork(map, f, secs) {
+    let budget = fac.hitsPerSecond(ownerValues(map, f.owner).factorySpeed) * secs;
+    while (budget > 1e-9) {
+      const t = fac.chooseTarget(map, f.owner, f.x, f.y, `${map.seed}:${f.x},${f.y}`);   // ties: the same seeded order every time
+      f.target = t;
+      if (!t) return;   // nothing to mine: it idles
+      const k = key(t.x, t.y), need = fac.hitsFor(map, t.x, t.y, f.x, f.y, map.level());
+      let h = map.hits.get(k);
+      if (!h || h.by !== f.owner) h = { by: f.owner, n: 0 };   // another player's progress doesn't count
+      Object.assign(h, { factory: true, need, at: Date.now() });
+      if (h.n + budget + 1e-9 < need) {
+        h.n += budget;
+        map.hits.set(k, h);
+        io.to(map.room).emit('hit', { x: t.x, y: t.y, p: share(h) });
+        return;
+      }
+      budget -= Math.max(0, need - h.n);
+      map.hits.delete(k);
+      if (!(await factoryClaim(map, f, t.x, t.y))) return;
+    }
+  }
+  // Brings every factory on a map up to `until` (a step boundary), one step at a time in time order, so a long
+  // sleep gives exactly what ticking every step would. Saves where each got to.
+  async function runFactories(map, until) {
+    const STEP = fac.STEP_MS(), list = [...map.factories.values()].sort((a, b) => a.id - b.id), changed = new Set();
+    const behind = () => list.filter(f => map.factories.get(key(f.x, f.y)) === f && f.processed < until);
+    let t = Math.min(...behind().map(f => f.processed));
+    while (t < until) {
+      const now = behind();
+      if (!now.length) break;
+      // Asleep factories skip ahead: nothing happens until they're woken.
+      for (const f of now) if (f.awake <= f.processed) { f.processed = until; changed.add(f); }
+      for (const f of now) {
+        if (f.processed !== t || map.factories.get(key(f.x, f.y)) !== f) continue;
+        const secs = Math.max(0, Math.min(t + STEP, f.awake) - t) / 1000;
+        if (secs > 0 && !pausedOn(map, f.owner).has(f.id) && map.players.has(f.owner)) await factoryWork(map, f, secs);
+        f.processed = t + STEP;
+        changed.add(f);
+      }
+      t += STEP;
+    }
+    await store.saveFactories(pool, [...changed].filter(f => map.factories.get(key(f.x, f.y)) === f).map(f => {
+      const h = f.target && map.hits.get(key(f.target.x, f.target.y));
+      return { id: f.id, processed: f.processed, tx: f.target?.x ?? null, ty: f.target?.y ?? null, progress: h?.factory && h.by === f.owner ? h.n : 0 };
+    }));
+    for (const f of list) if (map.factories.get(key(f.x, f.y)) === f) io.to(map.room).emit('factory', factoryOut(map, f));
+  }
+  // The tick: every map with factories still to bring up to date (loaded if it isn't).
+  ticker.on(async function factoriesTick(from, to) {
+    const until = fac.stepFloor(to);
+    for (const id of await store.factoryMaps(pool, until)) {
+      const map = await getMap(id);
+      if (map) await serial(map, () => runFactories(map, until));
+    }
+  });
+
   // What Demolition can remove: { target: { check(map, x, y, side) -> refusal or null, remove(client, map, x, y, side)
   // in the item's transaction, removed(map, x, y, side) after } }. Factories and walls add themselves.
-  const demolishers = {};
+  const demolishers = {
+    factory: {
+      check: (map, x, y) => (map.factories.has(key(x, y)) ? null : 'There is no factory there'),
+      remove: (c, map, x, y) => store.removeFactory(c, map.id, x, y),
+      removed: (map, x, y) => dropFactory(map, key(x, y)),
+    },
+  };
 
   // A first claim on a map (by a player or a factory): its mined count goes up; everyone there sees the level's
   // progress (the level is worked out from mined and E).
@@ -235,9 +385,6 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
     io.to(map.room).emit('mapMined', map.mined);
   }
 
-  // The server tick (ticker.js): factories and timers, caught up after every sleep.
-  const ticker = createTicker(pool, { seconds: catalog.E.tickSeconds });
-  if (startTicker) ticker.start();
 
   // Every stat an achievement can use, as it stands now: lifetime totals, upgrade levels, records on any map,
   // maps played, achievements earned. For the Achievements screen, and to catch up on connecting.
@@ -288,6 +435,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
 
   function setOwner(map, k, pid) {
     const old = map.cells.get(k);
+    if (old !== pid && map.factories?.has(k)) dropFactory(map, k);
     if (old) map.counts.set(old, map.counts.get(old) - 1);
     if (pid) map.counts.set(pid, (map.counts.get(pid) || 0) + 1);
     map.cells.set(k, pid);
@@ -298,6 +446,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
 
   // Cracks fade (rules.decayCrack). Tells everyone when progress is lost.
   function decay(map, k, h, now) {
+    if (h.factory) return;   // a factory's progress never fades (its hits can be hours apart)
     const d = rules.decayCrack(h, now, crackDecayMs);
     if (!d.lost) return;
     h.n = d.n;
@@ -520,6 +669,8 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
         hits: [...map.hits].map(([k, h]) => [...k.split(',').map(Number), share(h)]),
         chat: chats.get(map.id) ?? [],
         terrain: [...map.overrides].map(([k, t]) => [...k.split(',').map(Number), t]),   // Terraformer changes
+        factories: [...map.factories.values()].map(f => factoryOut(map, f)),
+        build: { blocksPerFactory: catalog.E.factoryBlocksPerFactory, maxWallsPerBlock: catalog.E.maxWallsPerBlock, areaSize: catalog.E.factoryAreaSize },
       });
     }
     // upgraded: the guest profile just became an account; the browser can forget its guest token
@@ -946,6 +1097,43 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
 
     // A player's profile ({ pid }): see store.profile. Achievements as the list's names (known ids only), and
     // whether they have the game open right now.
+    // Builds on this map: { kind: 'factory' | 'wall', x, y, side? }. Answers { ok, squares } or { error, need? }.
+    socket.on('build', async (p, reply) => {
+      if (typeof reply !== 'function') return;
+      if (!me.pid) return reply({ error: 'Claim a block first' });
+      const b = builders[p?.kind];
+      if (!b || !Number.isInteger(p.x) || !Number.isInteger(p.y)) return reply({ error: 'Pick something to build and a block' });
+      if (buying) return reply({ error: 'One purchase at a time' });
+      buying = true;
+      const here = map;
+      try { await serial(here, async () => reply(await b(here, me.pid, p))); } catch (err) {
+        console.error(`BUILD FAILED (player ${me.pid}, ${p.kind}): ${err.message}`);
+        reply({ error: 'Could not build that. Try again.' });
+      } finally { buying = false; }
+    });
+    // The Build menu's numbers for this player here.
+    socket.on('buildInfo', (...args) => {
+      const reply = args.at(-1);
+      if (typeof reply !== 'function') return;
+      reply({ factory: me.pid ? factoryInfo(map, me.pid) : null, balance: catalog.fromTenths(me.squares) });
+    });
+    // Wakes one of your factories: { x, y }. It works for its Factory Lifetime hours from now.
+    socket.on('wakeFactory', async (p, reply) => {
+      if (typeof reply !== 'function') return;
+      const here = map, f = p && here.factories.get(key(p.x, p.y));
+      if (!f || String(f.owner) !== String(me.pid)) return reply({ error: 'Not your factory' });
+      try {
+        await serial(here, async () => {
+          const now = Date.now(), awakeMs = ownerValues(here, f.owner).factoryLifetime * 3600000;
+          await store.wakeFactory(pool, f.id, f.owner, awakeMs, now);
+          f.awake = now + awakeMs;
+          f.processed = Math.max(f.processed, fac.stepFloor(now));
+          io.to(here.room).emit('factory', factoryOut(here, f));
+          reply({ ok: true, awakeUntil: f.awake });
+        });
+      } catch { reply({ error: 'Could not wake it. Try again.' }); }
+    });
+
     // The info card (press and hold, or right-click, a block): { x, y } -> what's there. Never anything private.
     socket.on('inspect', (p, reply) => {
       if (typeof reply !== 'function') return;
@@ -1098,6 +1286,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
     });
   });
 
+  if (startTicker) ticker.start();
   return { server, io, events, totals, ticker };
 }
 

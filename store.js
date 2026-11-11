@@ -21,6 +21,7 @@ async function spend(c, playerId, price, reason) {
 
 // A block that loses its owner loses what was built on it too: walls, its factory and its land listing.
 const FREED = "owner_id = NULL, claimed_at = NULL, walls = '[]', factory_id = NULL, listing_id = NULL";
+const DROP_ORPHAN_FACTORIES = 'DELETE FROM factories f WHERE NOT EXISTS (SELECT 1 FROM map_cells c WHERE c.factory_id = f.id)';
 
 const hashToken = token => crypto.createHash('sha256').update(token).digest();
 const PLAYER = 'p.id, p.name, p.last_map_id, p.auth_user_id, p.name_changed_at, p.tiers, p.highest_level, p.squares, p.tutorial, p.show_tenths';
@@ -110,7 +111,9 @@ async function loadMap(pool, mapId) {
     pool.query('SELECT * FROM player_map_stats WHERE map_id = $1', [mapId]),
   ]);
   const overrides = cells.rows.filter(c => c.terrain !== null).map(({ x, y, terrain }) => ({ x, y, terrain }));
-  return { ...map, cells: cells.rows, players: players.rows, stats: stats.rows, overrides };
+  const factories = (await pool.query(`SELECT id, owner_id, x, y, extract(epoch FROM built_at) * 1000 AS built, extract(epoch FROM awake_until) * 1000 AS awake,
+    extract(epoch FROM processed_at) * 1000 AS processed, target_x, target_y, progress FROM factories WHERE map_id = $1`, [mapId])).rows;
+  return { ...map, cells: cells.rows, players: players.rows, stats: stats.rows, overrides, factories };
 }
 
 async function cellOwner(pool, mapId, x, y) {
@@ -218,8 +221,10 @@ async function claimBlock(pool, { mapId, x, y, from, playerId, newGuest, color, 
 
       const taken = from === null
         ? await c.query('UPDATE map_cells SET owner_id = $4, claimed_at = now() WHERE map_id = $1 AND x = $2 AND y = $3 AND owner_id IS NULL', [mapId, x, y, playerId])
-        : await c.query('UPDATE map_cells SET owner_id = $4, claimed_at = now() WHERE map_id = $1 AND x = $2 AND y = $3 AND owner_id = $5', [mapId, x, y, playerId, from]);
+        : await c.query(`UPDATE map_cells SET owner_id = $4, claimed_at = now(), walls = '[]', factory_id = NULL, listing_id = NULL
+            WHERE map_id = $1 AND x = $2 AND y = $3 AND owner_id = $5`, [mapId, x, y, playerId, from]);
       if (!taken.rowCount) throw new Conflict();
+      if (from !== null) await c.query('DELETE FROM factories WHERE map_id = $1 AND x = $2 AND y = $3', [mapId, x, y]);
 
       // First claim on this map, or the first since a wipe unlocked the choices: store them, locked.
       let joinedMap = false;
@@ -277,6 +282,7 @@ function wipeTerritory(pool, mapId, playerId) {
     const { rows } = await c.query(
       'UPDATE map_cells SET ' + FREED + ' WHERE map_id = $1 AND owner_id = $2 RETURNING x, y', [mapId, playerId]);
     if (!rows.length) return null;
+    await c.query(DROP_ORPHAN_FACTORIES);
     await c.query('INSERT INTO map_wipes (map_id, player_id, blocks_owned) VALUES ($1, $2, $3)', [mapId, playerId, rows.length]);
     const { rows: [s] } = await c.query(
       'UPDATE player_map_settings SET wipe_floor = GREATEST(wipe_floor, $3), unlocked = true WHERE map_id = $1 AND player_id = $2 RETURNING wipe_floor',
@@ -566,12 +572,14 @@ function wipeMap(pool, mapId, size = null) {
       // A fresh start: a seeded map gets its seed's starting island again and grows from its first growth again;
       // one without a seed becomes a width-by-height rectangle.
       const { rows: [m] } = await c.query('SELECT seed, base_blocks::float AS base, shape FROM maps WHERE id = $1', [mapId]);
+      await c.query('DELETE FROM factories WHERE map_id = $1', [mapId]);
       await c.query('DELETE FROM map_cells WHERE map_id = $1', [mapId]);
       await c.query('UPDATE maps SET grown = 0 WHERE id = $1', [mapId]);
       // Its own starting shape (E is fixed forever); maps from before loop 16 without one use `size`.
       await fillShape(c, mapId, m.seed, m.shape ?? (m.seed ? { blocks: m.base } : size));
     } else {
       await c.query('UPDATE map_cells SET ' + FREED + ' WHERE map_id = $1 AND owner_id IS NOT NULL', [mapId]);
+      await c.query(DROP_ORPHAN_FACTORIES);
     }
     await c.query('UPDATE maps SET mined = 0 WHERE id = $1', [mapId]);   // a wiped map starts again at level 1
     await c.query('UPDATE player_map_settings SET wipe_floor = 0, unlocked = true WHERE map_id = $1', [mapId]);
@@ -588,6 +596,7 @@ function deleteAccount(pool, playerId) {
     const { rows: [p] } = await c.query('SELECT auth_user_id, squares FROM players WHERE id = $1 FOR UPDATE', [playerId]);
     const { rows: maps } = await c.query('SELECT DISTINCT map_id FROM map_cells WHERE owner_id = $1', [playerId]);
     await c.query('UPDATE map_cells SET ' + FREED + ' WHERE owner_id = $1', [playerId]);
+    await c.query(DROP_ORPHAN_FACTORIES);
     for (const t of ['player_tokens', 'player_map_settings', 'player_map_stats', 'player_achievements', 'player_skins',
       'tap_limit_log', 'bans', 'player_totals', 'player_lives', 'player_items', 'player_inventory', 'item_uses', 'email_consent_log']) {
       await c.query(`DELETE FROM ${t} WHERE player_id = $1`, [playerId]);
@@ -623,6 +632,7 @@ function resetProgress(pool, playerId) {
     const { rows: maps } = await c.query(`SELECT map_id FROM map_cells WHERE owner_id = $1
       UNION SELECT map_id FROM player_map_settings WHERE player_id = $1 UNION SELECT map_id FROM player_map_stats WHERE player_id = $1`, [playerId]);
     await c.query('UPDATE map_cells SET ' + FREED + ' WHERE owner_id = $1', [playerId]);
+    await c.query(DROP_ORPHAN_FACTORIES);
     for (const t of ['player_map_settings', 'player_map_stats', 'player_achievements', 'player_totals', 'player_lives']) {
       await c.query(`DELETE FROM ${t} WHERE player_id = $1`, [playerId]);
     }
@@ -642,7 +652,7 @@ function deleteMap(pool, mapId) {
   return tx(pool, async c => {
     for (const sql of ['UPDATE players SET last_map_id = NULL WHERE last_map_id = $1', 'UPDATE square_ledger SET map_id = NULL WHERE map_id = $1',
       'UPDATE player_achievements SET map_id = NULL WHERE map_id = $1', 'DELETE FROM player_map_settings WHERE map_id = $1',
-      'DELETE FROM player_map_stats WHERE map_id = $1', 'DELETE FROM map_wipes WHERE map_id = $1', 'DELETE FROM player_lives WHERE map_id = $1', 'UPDATE item_uses SET map_id = NULL WHERE map_id = $1', 'DELETE FROM map_edges WHERE map_id = $1',
+      'DELETE FROM player_map_stats WHERE map_id = $1', 'DELETE FROM map_wipes WHERE map_id = $1', 'DELETE FROM player_lives WHERE map_id = $1', 'UPDATE item_uses SET map_id = NULL WHERE map_id = $1', 'DELETE FROM factories WHERE map_id = $1', 'DELETE FROM map_edges WHERE map_id = $1',
       'DELETE FROM map_cells WHERE map_id = $1', 'DELETE FROM maps WHERE id = $1']) await c.query(sql, [mapId]);
   });
 }
@@ -678,6 +688,54 @@ async function setEmailUpdates(pool, playerId, on, source) {
   await pool.query('INSERT INTO email_consent_log (player_id, subscribed, source) VALUES ($1, $2, $3)', [playerId, on, source]);
   return { on: p.email_updates, token: p.unsubscribe_token, email: await accountEmail(pool, p.auth_user_id) };
 }
+// ---------- Factories (loop 16) ----------
+// Builds a factory on the player's own block for `price` tenths, in one transaction with the player row locked,
+// so two taps never build two or pay twice; the block must still be theirs, bare and not for sale, and they must
+// still be under their limit (`limit`: how many they may have on this map). Returns the factory row or { error }.
+function buildFactory(pool, { mapId, playerId, x, y, price, limit, awakeMs, now = Date.now() }) {
+  return tx(pool, async c => {
+    await c.query('SELECT 1 FROM players WHERE id = $1 FOR UPDATE', [playerId]);
+    const { rows: [cell] } = await c.query('SELECT owner_id, factory_id, listing_id FROM map_cells WHERE map_id = $1 AND x = $2 AND y = $3 FOR UPDATE', [mapId, x, y]);
+    if (!cell || String(cell.owner_id) !== String(playerId)) return { error: 'Only on your own land' };
+    if (cell.factory_id) return { error: 'There is a factory here already' };
+    if (cell.listing_id) return { error: 'Not on land for sale' };
+    const { rows: [n] } = await c.query('SELECT count(*)::int AS n FROM factories WHERE map_id = $1 AND owner_id = $2', [mapId, playerId]);
+    if (n.n >= limit) return { error: 'You have all the factories your land allows' };
+    const paid = await spend(c, playerId, price, 'build:factory');
+    if (paid.error) return paid;
+    const { rows: [f] } = await c.query(`INSERT INTO factories (map_id, owner_id, x, y, built_at, awake_until, processed_at)
+      VALUES ($1, $2, $3, $4, to_timestamp($5 / 1000.0), to_timestamp($6 / 1000.0), to_timestamp($7 / 1000.0)) RETURNING id`,
+      [mapId, playerId, x, y, now, now + awakeMs, factoryStep(now)]);
+    await c.query('UPDATE map_cells SET factory_id = $4 WHERE map_id = $1 AND x = $2 AND y = $3', [mapId, x, y, f.id]);
+    return { id: f.id, squares: paid.squares };
+  });
+}
+// Wakes a factory: it works for `awakeMs` from now; time asleep never counts.
+async function wakeFactory(pool, id, playerId, awakeMs, now = Date.now()) {
+  const { rows: [f] } = await pool.query(`UPDATE factories SET awake_until = to_timestamp($3 / 1000.0),
+    processed_at = GREATEST(processed_at, to_timestamp($4 / 1000.0)) WHERE id = $1 AND owner_id = $2 RETURNING id`, [id, playerId, now + awakeMs, factoryStep(now)]);
+  return !!f;
+}
+// Saves where the tick got to with each factory: [{ id, processed, tx, ty, progress }].
+async function saveFactories(pool, list) {
+  if (!list.length) return;
+  await pool.query(`UPDATE factories f SET processed_at = to_timestamp(v.p / 1000.0), target_x = v.tx, target_y = v.ty, progress = v.g
+    FROM unnest($1::bigint[], $2::float8[], $3::int[], $4::int[], $5::float8[]) AS v (id, p, tx, ty, g) WHERE f.id = v.id`,
+    [list.map(f => f.id), list.map(f => f.processed), list.map(f => f.tx), list.map(f => f.ty), list.map(f => f.progress)]);
+}
+// Maps with a factory the tick still has to bring up to `until` (ms).
+async function factoryMaps(pool, until) {
+  const { rows } = await pool.query('SELECT DISTINCT map_id FROM factories WHERE processed_at < LEAST(awake_until, to_timestamp($1 / 1000.0))', [until]);
+  return rows.map(r => r.map_id);
+}
+// Removes a factory (Demolition), inside the item's transaction.
+async function removeFactory(c, mapId, x, y) {
+  await c.query('UPDATE map_cells SET factory_id = NULL WHERE map_id = $1 AND x = $2 AND y = $3', [mapId, x, y]);
+  await c.query('DELETE FROM factories WHERE map_id = $1 AND x = $2 AND y = $3', [mapId, x, y]);
+}
+const factoryStep = now => Math.floor(now / (catalog.E.tickSeconds * 1000)) * catalog.E.tickSeconds * 1000;
+Object.assign(module.exports, { buildFactory, wakeFactory, saveFactories, factoryMaps, removeFactory });
+
 // Settings > Show tenths (loop 16).
 const setShowTenths = (pool, playerId, on) => pool.query('UPDATE players SET show_tenths = $2 WHERE id = $1', [playerId, on]);
 Object.assign(module.exports, { setShowTenths, spend, FREED });
@@ -792,7 +850,10 @@ function useItem(pool, playerId, item, mapId, apply = async () => null) {
 // Terraformer: a block's terrain for good. Water can't be owned, so a block turned to water is freed.
 async function setTerrain(c, mapId, x, y, terrain) {
   await c.query('UPDATE map_cells SET terrain = $4 WHERE map_id = $1 AND x = $2 AND y = $3', [mapId, x, y, terrain]);
-  if (terrain === 'water') await c.query('UPDATE map_cells SET ' + FREED + ' WHERE map_id = $1 AND x = $2 AND y = $3', [mapId, x, y]);
+  if (terrain === 'water') {
+    await c.query('UPDATE map_cells SET ' + FREED + ' WHERE map_id = $1 AND x = $2 AND y = $3', [mapId, x, y]);
+    await c.query(DROP_ORPHAN_FACTORIES);
+  }
 }
 Object.assign(module.exports, { USABLE, itemsFor, buyItem, useItem, setTerrain });
 

@@ -703,3 +703,17 @@ body.welcome #itembar, body.zooming #itembar { opacity: 0; pointer-events: none;
 /* ---------- Loop 16: the Marketplace tabs ---------- */
 .market-tabs { margin-bottom: 4px; }
 .item-card .act .have { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; text-align: right; }
+
+/* ---------- Loop 16: Build ---------- */
+#board .build-btn { width: 100%; margin-top: 8px; min-height: 44px; gap: 6px; font-size: 13px; }
+#build-menu { position: fixed; z-index: 45; right: 16px; top: 50%; transform: translateY(-50%); width: min(280px, calc(100vw - 32px));
+  display: flex; flex-direction: column; gap: 8px; padding: 10px; }
+#build-menu[hidden] { display: none; }
+#build-menu .btn { flex-direction: column; align-items: flex-start; min-height: 48px; text-align: left; }
+#build-menu .btn small { font-size: 11px; color: var(--muted); font-weight: normal; }
+#build-bar { position: fixed; z-index: 45; left: 50%; bottom: 16px; transform: translateX(-50%); display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; width: min(420px, calc(100vw - 32px)); }
+#build-bar[hidden] { display: none; }
+#build-bar #build-msg { flex: 1; font-size: 14px; }
+#build-bar #build-msg.bad { color: var(--red, #ff4d4d); }
+#build-bar .icon-btn { min-width: 44px; min-height: 44px; font-size: 18px; }

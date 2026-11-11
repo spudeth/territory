@@ -305,6 +305,8 @@ function render() {
     ctx.restore();
   }
 
+  drawBuilt(ctx, X, Y, r0, r1, c0, c1);   // factories, walls, for-sale markers and the build ghost (build.js)
+
   // Zoomed in: the level of each block above level 1, small, in its corner.
   if (scale >= LEVEL_NUMBER_SCALE && levels.size) {
     ctx.font = `${Math.round(9 * dpr)}px "Press Start 2P", monospace`;
@@ -539,6 +541,7 @@ function pointerEnd(e) {
     const c = cellAt(e.clientX, e.clientY);
     const tagHit = tagBoxes.find(b => e.clientX >= b.x && e.clientX < b.x + b.w && e.clientY >= b.y && e.clientY < b.y + b.h);
     if (tagHit) openProfile(tagHit.owner);   // exactly the tag; the block around it still attacks
+    else if (c && window.buildTap?.(c, e.clientX, e.clientY)) { /* placing a building (build.js) */ }
     else if (c && window.itemTap?.(c)) { /* the Terraformer took this tap (items.js) */ }
     else if (c && !(me && cells.get(key(c.x, c.y)) === me)) {
       socket.emit('hit', c);
