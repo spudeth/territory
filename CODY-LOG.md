@@ -1190,3 +1190,13 @@ OPEN Q31 (Bob): the "Buy N upgrade tiers" achievements count steps now; new rows
 4. Phone checks on iPhone Safari: XOREN-TODO.md section 6 (Build tap, tool reasons, own-block tap, sizing, no page zoom, music).
 
 Stopping.
+
+## Loop 18 (Bob, approved by Xoren 2026-11-11)
+
+#122 | 2026-11-11 | Upgrades: new math from the rewritten Upgrades tab (start, max1, m, tiers, S, T, c, g); Charts tab ignored. Each step's price = running total rounded down minus the one before, so a tier is exactly T x W(N). Bob's checks all match: 9.7, 234.5, 14,400, 19.4; 1.373, 3.709, 10, 20. The cap is now the block's level (Click Power, Earnings, Growth, the owner's Defense, Factory Speed and Yield on the target). Step counts kept. Economy stepsPerTier and wallPaybackHours retired (warned, ignored); new key wallPriceWh = 0.01 (warned until it's on the sheet; the sync keeps the file's value). Fixed on the way: the info card's pay used raw step counts as Earnings. Walls: item 4's price, and batches on the server (all or nothing) | tests: catalog, economy, rules, shop (block cap), walls (price, batch)
+OPEN Q32 (Bob): on the Economy tab, delete stepsPerTier and wallPaybackHours, and add: wallPriceWh, 0.01, work-hours, "Wall price = this x W(L of the block) x max(1, sqrt(walls you own on this map) / 2)". Recommend: yes.
+OPEN Q33 (Bob): the Glossary tab still describes the old math (a_N, c_u, Tier cost, Effective tier = map level, P_a). The Guide shows it as is. Recommend new rows: lo_N/hi_N, T, c, g, "Effective tier: min(your tier, the block's level)", the new wall price.
+OPEN Q34 (Bob): Factory Lifetime acts on no block. I use the level of the block the factory stands on. Recommend: keep.
+OPEN Q35 (Bob): "walls you own" in the wall price: I count your walls on this map. Recommend: keep (prices are per map).
+OPEN Q36 (Xoren): an Upgrades card past tier 1 now says "In full on level-N+ blocks. On a level-L block, at most the end of tier L (level 1: x10 hits per tap)." Approve or reword.
+Q31 still open: the sheet still has the old "Buy N upgrade tiers" rows, so I kept the file's step rows.

@@ -119,11 +119,11 @@ function wallRefusal(map, pid, x, y, side) {
   return null;
 }
 
-// A player's upgrades as they work on a map: { clickPower, defense, earnings, growth, … } values
-// (catalog.effectiveValues: capped at the end of the map's level's tier). Visitors and new players have no steps:
-// NO_UPGRADES, and any value missing counts as the start value (a_0).
+// A player's upgrades as they work on a block: { clickPower, defense, earnings, growth, … } values
+// (catalog.effectiveValues: capped at the end of the block's level's tier). Visitors and new players have no steps:
+// NO_UPGRADES, and any value missing counts as the tier 1 start.
 const NO_UPGRADES = Object.freeze({});
-const value = (eff, key) => eff?.[key] ?? catalog.anchor(key, 0);   // the start (a_0), before any step
+const value = (eff, key) => eff?.[key] ?? catalog.tierValue(key, 0);   // the tier 1 start, before any step
 
 // A block's hardness H: hits to mine it = hitsPerBlock x 2^(birth level - 1) x its terrain factor
 // (settings.TERRAIN_HITS; grass, or no terrain, is 1). A block keeps the level it was born at.

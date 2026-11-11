@@ -60,19 +60,19 @@ async function onMap(s, id) {
   if (w.map.id !== id) { await s.ask('switchMap', id); await s.next('welcome', d => d.map.id === id); }
 }
 
-test('a wall: priced P_a x w x H / hitsPerSquare, w x H hits to break, broken for good; Demolition removes one', async () => {
+test('a wall: priced wallPriceWh x W(L), w x H hits to break, broken for good; Demolition removes one', async () => {
   const id = await store.createMap(pool, { name: 'Walled', width: 6, height: 1 });
   const a = await newGuest(pool, id, 0, 0);
   await claim(pool, id, a.playerId, 1, 0);
-  const H = rules.HITS_PER_BLOCK, price = catalog.priceTenths(catalog.CATALOG.get('building:wall'), { H });
-  assert.equal(price, catalog.toTenths(catalog.E.wallPaybackHours * catalog.E.wallStrength * H / catalog.E.hitsPerSquare));
+  const H = rules.HITS_PER_BLOCK, price = catalog.priceTenths(catalog.CATALOG.get('building:wall'), { L: 1, owned: 0 });
+  assert.equal(price, catalog.toTenths(catalog.E.wallPriceWh * catalog.W(1)));
   const demo = catalog.priceTenths(catalog.CATALOG.get('item:demolition'), { L: 1 });
   await pool.query('UPDATE players SET squares = $2 WHERE id = $1', [a.playerId, price * 2 + demo]);
   const sa = player({ token: a.token });
   await onMap(sa, id);
-  assert.deepEqual(await sa.ask('build', { kind: 'wall', x: 1, y: 0, side: 'w' }), { error: 'Walls go on the edge of your land' });
+  assert.deepEqual(await sa.ask('build', { kind: 'wall', x: 1, y: 0, side: 'w' }), { error: 'Walls go on the edge of your land', at: { x: 1, y: 0, side: 'w' } });
   const built = sa.next('walls');
-  assert.deepEqual(await sa.ask('build', { kind: 'wall', x: 1, y: 0, side: 'e' }), { ok: true, squares: (price + demo) / 10 });
+  assert.deepEqual(await sa.ask('build', { kind: 'wall', x: 1, y: 0, side: 'e' }), { ok: true, built: 1, price: price / 10, squares: (price + demo) / 10 });
   assert.deepEqual((await built).walls, [{ side: 'e', hits: catalog.E.wallStrength * H }]);
   // Its owner can't claim across it.
   sa.emit('hit', { x: 2, y: 0 });
@@ -97,7 +97,7 @@ test('a wall: priced P_a x w x H / hitsPerSquare, w x H hits to break, broken fo
   await sb.next('claim', d => d.x === 1 && d.y === 0);
 
   // Demolition removes one of your walls, no refund.
-  assert.deepEqual(await sa.ask('build', { kind: 'wall', x: 0, y: 0, side: 'n' }), { ok: true, squares: demo / 10 });
+  assert.deepEqual(await sa.ask('build', { kind: 'wall', x: 0, y: 0, side: 'n' }), { ok: true, built: 1, price: price / 10, squares: demo / 10 });
   await sa.ask('buyItem', { item: 'demolition' });
   assert.deepEqual(await sa.ask('useItem', { item: 'demolition', x: 0, y: 0, target: 'wall', side: 's' }), { error: 'There is no wall there' });
   assert.equal((await sa.ask('useItem', { item: 'demolition', x: 0, y: 0, target: 'wall', side: 'n' })).ok, true);
@@ -117,4 +117,36 @@ test('walls go with their block when it is taken', async () => {
   await sb.next('claim', d => d.x === 0 && d.y === 0);
   await cleared;
   assert.deepEqual((await pool.query('SELECT walls FROM map_cells WHERE map_id = $1 AND x = 0 AND y = 0', [id])).rows[0].walls, []);
+});
+
+test('walls in a batch (loop 18): all or nothing; one price multiplier from the walls owned before; the preview\'s prices', async () => {
+  const id = await store.createMap(pool, { name: 'Batch Walls', width: 8, height: 8 });
+  const a = await newGuest(pool, id, 3, 3);
+  for (const [x, y] of [[4, 3], [3, 4], [4, 4]]) await claim(pool, id, a.playerId, x, y);
+  // 16 walls owned already (made up on blocks of a far corner): the multiplier is sqrt(16) / 2 = 2.
+  for (const [x, y] of [[0, 0], [1, 0], [0, 1], [1, 1], [7, 7], [6, 7], [7, 6], [6, 6]]) {
+    await claim(pool, id, a.playerId, x, y);
+    await pool.query(`UPDATE map_cells SET walls = '[{"side":"n","hits":20},{"side":"w","hits":20}]' WHERE map_id = $1 AND x = $2 AND y = $3`, [id, x, y]);
+  }
+  const one = catalog.toTenths(catalog.E.wallPriceWh * catalog.W(1) * 2);
+  await pool.query('UPDATE players SET squares = $2 WHERE id = $1', [a.playerId, one * 3]);
+  const sa = player({ token: a.token });
+  await onMap(sa, id);
+  const info = await sa.ask('buildInfo');
+  assert.deepEqual([info.walls.owned, info.walls.factor, info.walls.byLevel[1]], [16, 2, one / 10], 'the preview\'s numbers');
+  // One bad wall in the batch: nothing is built.
+  const bad = await sa.ask('build', { kind: 'wall', walls: [{ x: 3, y: 3, side: 'n' }, { x: 3, y: 3, side: 'e' }] });
+  assert.deepEqual(bad, { error: 'Walls go on the edge of your land', at: { x: 3, y: 3, side: 'e' } });
+  assert.deepEqual(await sa.ask('build', { kind: 'wall', walls: [{ x: 3, y: 3, side: 'n' }, { x: 3, y: 3, side: 'n' }] }),
+    { error: 'That wall is in the batch twice', at: { x: 3, y: 3, side: 'n' } });
+  assert.deepEqual(await sa.ask('build', { kind: 'wall', walls: [{ x: 3, y: 3, side: 'n' }, { x: 3, y: 3, side: 'w' }, { x: 4, y: 3, side: 'n' }, { x: 4, y: 3, side: 'e' }] }),
+    { error: 'Not enough squares', need: one / 10 }, 'four walls cost four times the multiplied price');
+  assert.equal(await db.count('SELECT count(*) FROM map_cells WHERE map_id = $1 AND x IN (3, 4) AND y = 3 AND walls <> \'[]\'', [id]), 0, 'nothing built');
+  // Three walls: all built, each at the same multiplier (16 owned before the batch, not 17, 18).
+  const got = [];
+  sa.on('walls', d => got.push(d));
+  assert.deepEqual(await sa.ask('build', { kind: 'wall', walls: [{ x: 3, y: 3, side: 'n' }, { x: 3, y: 3, side: 'w' }, { x: 4, y: 3, side: 'n' }] }),
+    { ok: true, built: 3, price: one * 3 / 10, squares: 0 });
+  await new Promise(r => setTimeout(r, 100));
+  assert.deepEqual(got.map(d => [d.x, d.y, d.walls.map(w => w.side).join('')]).sort(), [[3, 3, 'nw'], [4, 3, 'n']]);
 });

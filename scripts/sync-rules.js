@@ -56,6 +56,8 @@ async function main() {
   const before = fs.existsSync(out) ? JSON.parse(fs.readFileSync(out, 'utf8')) : null;
   // A tab missing from the sheet keeps its part of the current file (Skins, Items and the loop 16 tabs).
   for (const part of ['skins', 'items', 'economy', 'tiers', 'skinRarity', 'glossary']) if (!next[part] && before?.[part]) next[part] = before[part];
+  // A new Economy key the sheet doesn't have yet keeps the file's value (economy.NEW_ECONOMY).
+  for (const k of economy.NEW_ECONOMY) if (next.economy && next.economy[k] === undefined && before?.economy?.[k] !== undefined) next.economy[k] = before.economy[k];
   if (!next.skins) next.skins = [];
   if (!next.items) next.items = [];
   console.log('Changes:');

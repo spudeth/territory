@@ -8,7 +8,7 @@ const catalog = require('../catalog');
 function useTiers(t, key, list) {
   const saved = catalog.CATALOG_TIERS[key];
   t.after(() => { catalog.CATALOG_TIERS[key] = saved; });
-  catalog.CATALOG_TIERS[key] = { ...saved, step: 'geometric', v0: list[0], vmax: list[0] };   // the same value at every step
+  catalog.CATALOG_TIERS[key] = { ...saved, start: list[0], max1: list[0], mult: 1 };   // the same value at every step
 }
 const store = require('../store');
 const { testDb, connectPlayer } = require('./helpers');
@@ -312,7 +312,7 @@ test('menu screens: skins, upgrades and achievement progress come from the real 
   assert.equal(skinList.length, 1 + rules.SKINS.filter(s => s.enabled).length, 'the catalog from the sheet');
   assert.ok(skinList.slice(1).every(s => !s.owned), 'a visitor owns only the plain look');
   const upg = await a.ask('upgrades');
-  assert.deepEqual([upg.steps, upg.highest, upg.mapLevel, upg.balance, upg.stepsPerTier], [{}, 1, 1, 0, catalog.E.stepsPerTier]);
+  assert.deepEqual([upg.steps, upg.highest, upg.mapLevel, upg.balance], [{}, 1, 1, 0]);
   assert.deepEqual(upg.list.map(u => u.key), Object.keys(catalog.CATALOG_TIERS), 'every upgrade from the Upgrades tab');
   const none = await a.ask('achievements');
   assert.equal(none.list.length, 300);

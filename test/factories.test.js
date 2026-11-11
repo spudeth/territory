@@ -109,7 +109,7 @@ test('building: on your own land, priced P_F x V_F x W(L) x g^(n-1); one per fac
   assert.deepEqual(await s.ask('build', { kind: 'factory', x: 0, y: 0 }), { ok: true, squares: price / 10 });
   const f = await built;
   assert.equal(f.owner, pid);
-  assert.ok(Math.abs(f.awakeUntil - Date.now() - catalog.anchor('factoryLifetime', 0) * 3600000) < 60000, 'awake for Factory Lifetime hours');
+  assert.ok(Math.abs(f.awakeUntil - Date.now() - catalog.tierValue('factoryLifetime', 0) * 3600000) < 60000, 'awake for Factory Lifetime hours');
   assert.deepEqual(await s.ask('build', { kind: 'factory', x: 1, y: 0 }), { error: `Own ${E.factoryBlocksPerFactory} more blocks for another factory (you have ${E.factoryBlocksPerFactory}).` });
   assert.equal((await s.ask('buildInfo')).factory.price, catalog.priceTenths(catalog.CATALOG.get('building:factory'), { L: 1, n: 2 }) / 10, 'the next costs g times more');
   const card = await s.ask('inspect', { x: 0, y: 0 });

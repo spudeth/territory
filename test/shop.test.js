@@ -47,7 +47,7 @@ const balanceOf = async pid => Number((await pool.query('SELECT squares FROM pla
 const ledgerOf = async pid => (await pool.query(
   "SELECT delta, balance_after, reason FROM square_ledger WHERE player_id = $1 AND reason LIKE 'upgrade:%' ORDER BY id", [pid]))
   .rows.map(r => [Number(r.delta) / 10, Number(r.balance_after) / 10, r.reason]);
-const S = catalog.E.stepsPerTier;
+const S = catalog.STEPS('clickPower');
 const STEP1 = catalog.stepCostTenths('clickPower', 1) / 10;   // the first step's price, squares
 const sumSteps = (key, from, to) => { let t = 0; for (let s = from; s <= to; s++) t += catalog.stepCostTenths(key, s); return t / 10; };
 
@@ -60,10 +60,10 @@ test('steps: tier 1 is open from the start; exactly a step\'s price buys it; a t
   assert.deepEqual(await stepsOf(g.pid), { clickPower: 1 });
   assert.deepEqual(await ledgerOf(g.pid), [[-STEP1, 0.5, 'upgrade:clickPower:1-1']]);
   const screen = await g.s.ask('upgrades');
-  assert.deepEqual([screen.steps, screen.highest, screen.mapLevel, screen.stepsPerTier], [{ clickPower: 1 }, 1, 1, S]);
+  assert.deepEqual([screen.steps, screen.highest, screen.mapLevel], [{ clickPower: 1 }, 1, 1]);
   const cp = screen.list.find(u => u.key === 'clickPower');
-  assert.equal(cp.anchors.length, 11);
-  assert.equal(cp.anchors[0], 1);
+  assert.deepEqual([cp.start, cp.max1, cp.mult, cp.gain, cp.steps, cp.tiers.length], [1, 10, 2, 9, 90, 10], 'what the screen needs for any step\'s value');
+  assert.deepEqual(cp.tiers[1], { tier: 2, from: 10, to: 20, cost: 28800 });
   assert.deepEqual(screen.prices.clickPower, { value: catalog.stepValue('clickPower', 2), price: catalog.stepCostTenths('clickPower', 2) / 10, tier: 1 });
   assert.equal(screen.list.length, 7, 'all seven upgrades from the Upgrades tab');
   assert.deepEqual(await g.s.ask('buyUpgrade', { upgrade: 'clickPower', from: 0, count: 1 }), { error: 'Already bought' }, 'a repeated tap is refused');
@@ -95,25 +95,27 @@ test('two purchases at the same moment: only one is paid for, from two devices o
   assert.equal((await ledgerOf(g.pid)).length, 1);
 });
 
-test('an upgrade works at most at the end of the map level\'s tier: capped on a level-1 map, more on a level-2 one, from the next tap', async () => {
+test('an upgrade works by the block (loop 18): on a level-2 block up to the end of tier 2, on a level-1 block only tier 1, same map', async () => {
   const id = await store.createMap(pool, { name: 'Level Two', width: 6, height: 6 });   // E = 36
   await pool.query('UPDATE maps SET mined = 36 WHERE id = $1', [id]);   // level 2 before anyone loads it
+  const y = row;   // the row guestWith uses next
+  // Before the map loads: (1, y) a level-2 grass block (20 hits); (2, y) a level-1 stone block.
+  await pool.query('UPDATE map_cells SET birth_level = 2 WHERE map_id = $1 AND x = 1 AND y = $2', [id, y]);
+  await pool.query("UPDATE map_cells SET terrain = 'stone' WHERE map_id = $1 AND x = 2 AND y = $2", [id, y]);
   const g = await guestWith(0, { highest: 2, mapId: id });
-  await pool.query(`UPDATE players SET upgrade_steps = '{"clickPower": ${2 * S}}' WHERE id = $1`, [g.pid]);   // the end of tier 2: x a_2
+  assert.equal(g.y, y);
+  await pool.query(`UPDATE players SET upgrade_steps = '{"clickPower": ${2 * S}}' WHERE id = $1`, [g.pid]);   // the end of tier 2: x20
   const fresh = player({ token: g.token });
   const w = await fresh.welcome;
   assert.equal(w.map.id, id);
-  const a2 = catalog.anchor('clickPower', 2), taps2 = Math.ceil(10 / a2 - 1e-9);
-  for (let i = 0; i < taps2; i++) fresh.emit('hit', { x: 1, y: g.y });
-  await fresh.next('claim', d => d.x === 1 && d.y === g.y && d.pid === g.pid);
-  // On the level-1 map it works at a_1: the same taps are not enough.
-  await fresh.ask('switchMap', db.mapId);
-  await fresh.next('welcome', d => d.map.id === db.mapId);
-  fresh.take(30, 30);
-  await fresh.next('claim', d => d.x === 30 && d.y === 30);
-  for (let i = 0; i < taps2; i++) fresh.emit('hit', { x: 31, y: 30 });
-  const crack = await fresh.next('hit', d => d.x === 31 && d.y === 30 && d.p > 0.3);
-  assert.ok(crack.p < 1, `capped at a_1 (${catalog.anchor('clickPower', 1).toFixed(2)} a tap): ${taps2} taps are not enough`);
+  // The level-2 block: Click Power works at hi_2 = 20, so 1 tap takes its 20 hits.
+  fresh.emit('hit', { x: 1, y });
+  await fresh.next('claim', d => d.x === 1 && d.y === y && d.pid === g.pid);
+  // The level-1 stone block, same map: it works at hi_1 = 10 there, so 1 tap is 10 of its hits.
+  const need = rules.hardness('stone', 1);
+  fresh.emit('hit', { x: 2, y });
+  const crack = await fresh.next('hit', d => d.x === 2 && d.y === y);
+  assert.ok(Math.abs(crack.p - 10 / need) < 0.02, `capped at hi_1 = 10 a tap on a level-1 block: ${crack.p} vs ${10 / need}`);
 });
 
 test("a guest's steps come with them when they make an account from their guest profile", async () => {

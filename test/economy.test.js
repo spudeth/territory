@@ -21,17 +21,21 @@ test('the saved sheet passes and reads every tab as shown; retired Game Rules ke
   const { economy: e, errors, warnings } = economy.validate(saved());
   assert.deepEqual(errors, []);
   assert.deepEqual(warnings, ['Game Rules: "squaresPerFirstClaim" is retired and ignored; the row can be deleted',
-    'Game Rules: "newMapBlocks" is retired and ignored; the row can be deleted']);
+    'Game Rules: "newMapBlocks" is retired and ignored; the row can be deleted',
+    'Economy: "wallPaybackHours" is retired and ignored; the row can be deleted', 'Economy: "stepsPerTier" is retired and ignored; the row can be deleted',
+    'Economy: no row for "wallPriceWh" yet; keeping the value in data/economy.json']);
   assert.equal(e.rules.hitsPerBlock, 10);
   assert.equal(e.rules.squaresPerFirstClaim, undefined);
   assert.equal(e.achievements.length, 300);
   assert.deepEqual(e.achievements[0], { id: 'first-block', name: 'First Block', category: 'Claiming', stat: 'claims', threshold: 1, secret: false, description: 'Claim 1 empty block', reward: 0.5 });
   assert.equal(e.economy.defaultBaseBlocks, 431649);
   assert.equal(e.economy.marketFee, 0.05);
-  assert.deepEqual(Object.keys(e.economy).sort(), Object.keys(economy.ECONOMY_KEYS).sort());
+  // Loop 18: stepsPerTier and wallPaybackHours are retired (warned, ignored); wallPriceWh isn't on the sheet yet (warned).
+  assert.deepEqual(Object.keys(e.economy).sort(), Object.keys(economy.ECONOMY_KEYS).filter(k => !economy.NEW_ECONOMY.includes(k)).sort());
   assert.deepEqual(Object.keys(e.tiers), economy.TIER_KEYS);
-  assert.deepEqual(e.tiers.clickPower, { name: 'Click Power', type: 'Income', v0: 1, vmax: 512, step: 'geometric', cu: 4, unit: 'x hits per tap', about: 'Each tap counts as this many hits' });
-  assert.deepEqual([e.tiers.growth.step, e.tiers.growth.v0, e.tiers.growth.vmax, e.economy.stepsPerTier], ['geometric', 1, 6, 90], 'Growth is geometric; 90 steps a tier (loop 17)');
+  assert.deepEqual(e.tiers.clickPower, { name: 'Click Power', type: 'Income', start: 1, max1: 10, mult: 2, tiers: 10, steps: 90, tierWh: 12, priceCurve: 9, gainCurve: 9,
+    unit: 'x hits per tap', about: 'Each tap counts as this many hits' });
+  assert.deepEqual([e.tiers.factorySpeed.start, e.tiers.factorySpeed.max1], [0.05, 0.1]);
   assert.deepEqual(e.items.map(i => [i.id, i.pricing, i.consumable]), [['superClick', 'PV', false], ['terraformer', 'PV', false], ['demolition', 'Hours', true]]);
   assert.deepEqual(e.skinRarity, { Common: 0.3333, Rare: 1, 'Ultra Rare': 5, Legendary: 20 });
   assert.ok(e.glossary.length >= 20);
@@ -71,7 +75,7 @@ test('the Economy tab: unknown, missing, twice, out of range, not whole and not 
   check(setCell(tab, row('factoryAreaSize'), 1, '4'), 'Economy: factoryAreaSize must be odd, so the factory is in the middle (not 4)');
 });
 
-test('the Upgrades tab: unknown upgrades, bad steps and lists, and missing rows are refused by cell', () => {
+test('the Upgrades tab: unknown upgrades, bad numbers and missing rows are refused by cell', () => {
   const tab = saved().Upgrades;
   const row = k => economy.parseCsv(tab).findIndex(r => r[0] === k);
   const check = (csv, expected) => {
@@ -81,11 +85,13 @@ test('the Upgrades tab: unknown upgrades, bad steps and lists, and missing rows 
   };
   check(setCell(tab, row('defense'), 0, 'armor'), `Upgrades, cell A${row('defense') + 1} ("Key"): unknown upgrade "armor" (one of: ${economy.TIER_KEYS.join(', ')})`);
   check(setCell(tab, row('defense'), 0, 'armor'), 'Upgrades: no row for "defense"');
-  check(setCell(tab, row('earnings'), 5, 'linear'), `Upgrades, cell F${row('earnings') + 1} ("Step"): "linear" must be geometric or list:…`);
-  check(setCell(tab, row('growth'), 5, 'list:1,2,3'), `Upgrades, cell F${row('growth') + 1} ("Step"): a list needs 10 numbers, e.g. list:1,2,2,3,3,4,4,5,5,6`);
-  check(setCell(tab, row('growth'), 5, 'list:1,2,2,3,3,4,4,5,5,4'), `Upgrades, cell F${row('growth') + 1} ("Step"): the list must never go down`);
-  check(setCell(tab, row('defense'), 4, '0.5'), `Upgrades, cell E${row('defense') + 1} ("Tier 10 value (vmax)"): 0.5 must be at least the tier 1 value (1)`);
-  check(setCell(tab, row('clickPower'), 6, ''), `Upgrades, cell G${row('clickPower') + 1} ("c_u (work-hours)"): blank`);
+  check(setCell(tab, row('defense'), 4, '0.5'), `Upgrades, cell E${row('defense') + 1} ("Tier 1 max"): 0.5 must be at least the tier 1 start (1)`);
+  check(setCell(tab, row('earnings'), 5, '0.5'), `Upgrades, cell F${row('earnings') + 1} ("Multiplier per tier"): Multiplier per tier must be between 1 and 1000, not 0.5`);
+  check(setCell(tab, row('growth'), 6, '2.5'), `Upgrades, cell G${row('growth') + 1} ("Tiers"): Tiers must be a whole number, not 2.5`);
+  check(setCell(tab, row('growth'), 7, '0'), `Upgrades, cell H${row('growth') + 1} ("Steps per tier"): Steps per tier must be between 1 and 1000, not 0`);
+  check(setCell(tab, row('clickPower'), 8, ''), `Upgrades, cell I${row('clickPower') + 1} ("Tier cost (work hours)"): blank`);
+  check(setCell(tab, row('clickPower'), 9, '0'), `Upgrades, cell J${row('clickPower') + 1} ("Price curve"): Price curve must be between 0.000001 and 1000000, not 0`);
+  check(setCell(tab, row('clickPower'), 10, 'x'), `Upgrades, cell K${row('clickPower') + 1} ("Gain curve"): "x" is not a number`);
 });
 
 test('the Items, Skin Rarity and Glossary tabs: bad rows are named by cell', () => {
@@ -120,11 +126,11 @@ test('the change report says what changed in plain English', () => {
   before.rules.hitsPerBlock = 3;
   before.rules.squaresPerFirstClaim = 1;
   before.economy.marketFee = 0.1;
-  before.tiers.clickPower.cu = 5;
+  before.tiers.clickPower.tierWh = 5;
   before.skinRarity.Rare = 2;
   before.items.pop();
   const lines = economy.describeChanges(before, after);
-  for (const l of ['hitsPerBlock: 3 → 10', 'marketFee: 0.1 → 0.05', 'squaresPerFirstClaim: retired (no longer used)', 'Click Power: cu 5 → 4',
+  for (const l of ['hitsPerBlock: 3 → 10', 'marketFee: 0.1 → 0.05', 'squaresPerFirstClaim: retired (no longer used)', 'Click Power: tierWh 5 → 12',
     'Rare skins: 2 → 1 work-hours', 'Items: 3 in all; 1 added, 0 removed, 0 changed']) assert.ok(lines.includes(l), `${l}\n${lines.join('\n')}`);
   assert.deepEqual(economy.describeChanges(after, after), ['No changes.']);
 });
@@ -136,7 +142,8 @@ test('npm run sync-rules: writes the file from a saved copy, keeps parts the she
   const report = run('--from', DIR, '--out', out);
   assert.match(report, /defaultBaseBlocks: set to 431,649/);
   const file = JSON.parse(fs.readFileSync(out, 'utf8'));
-  assert.equal(file.economy.stepsPerTier, 90);
+  assert.equal(file.economy.stepsPerTier, undefined, 'retired');
+  assert.equal(file.tiers.clickPower.steps, 90);
   assert.match(run('--from', DIR, '--out', out), /No changes\./);
 
   // A sheet without the Glossary tab keeps the file's glossary.
