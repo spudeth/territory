@@ -141,6 +141,7 @@ function drawBuilt(ctx, X, Y, r0, r1, c0, c1) {
     ctx.drawImage(img, x0 + pad, y0 + pad, w - 2 * pad, h - 2 * pad);
   }
   window.drawWalls?.(ctx, X, Y, r0, r1, c0, c1);
+  window.drawListings?.(ctx, X, Y, r0, r1, c0, c1);
   if (buildGhost) {
     const g = buildGhost, x0 = X(g.x), y0 = Y(g.y), w = X(g.x + 1) - x0, h = Y(g.y + 1) - y0;
     ctx.fillStyle = g.ok ? 'rgba(0,228,90,0.45)' : 'rgba(255,77,77,0.45)';

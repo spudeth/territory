@@ -129,6 +129,13 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
         }
         // Factories: "x,y" -> { id, owner, x, y, built, awake (ms), processed (ms), target }. Their saved progress is
         // a crack on the target, tagged `factory` (it never fades).
+        map.listings = new Map();
+        map.listingInfo = new Map();
+        for (const l of m.listings) {
+          const info = { id: l.id, seller: l.seller_id, price: Number(l.price), created: Number(l.created), blocks: l.xs.map((x, i) => [x, l.ys[i]]) };
+          map.listingInfo.set(l.id, info);
+          for (const [x, y] of info.blocks) map.listings.set(key(x, y), l.id);
+        }
         map.factories = new Map();
         for (const r of m.factories) {
           const f = { id: r.id, owner: r.owner_id, x: r.x, y: r.y, built: Number(r.built), awake: Number(r.awake), processed: Number(r.processed),
@@ -232,6 +239,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
     const f = map.factories.get(k);
     if (f) info.factory = { ...factoryOut(map, f), mine: String(f.owner) === String(pid), target: f.target };
     if (map.walls.has(k)) info.walls = map.walls.get(k).map(w => ({ ...w }));
+    if (map.listings.has(k)) info.listing = { ...listingOut(map, map.listingInfo.get(map.listings.get(k))), mine: String(map.listingInfo.get(map.listings.get(k)).seller) === String(pid) };
     // Someone else's walled block: a wall comes first when every way in runs through one.
     if (pid && owner !== null && String(owner) !== String(pid)) { const side = rules.wallFirst(map, pid, x, y); if (side) info.wallFirst = side; }
     return info;
@@ -314,6 +322,28 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
     if (rest.length) map.walls.set(k, rest); else map.walls.delete(k);
     map.hits.delete(k + '|' + side);
     io.to(map.room).emit('walls', { x, y, walls: rest, ...(broken ? { broken: side } : {}) });
+  }
+
+  // ---------- The land market ----------
+  // A listing as players see it: size, price (squares), seller, the levels of its blocks, its blocks.
+  function listingOut(map, l) {
+    const levels = l.blocks.map(([x, y]) => map.birth.get(key(x, y)) ?? 1);
+    return { id: l.id, seller: { pid: l.seller, name: map.players.get(l.seller)?.name ?? null }, price: catalog.fromTenths(l.price), size: l.blocks.length,
+      levels: [Math.min(...levels), Math.max(...levels)], blocks: l.blocks };
+  }
+  // A listing ends (cancelled, attacked, a block lost): in memory and for everyone. The database is done already
+  // when a block was freed or taken; cancelling saves it.
+  function dropListing(map, id) {
+    const l = map.listingInfo.get(id);
+    if (!l) return;
+    map.listingInfo.delete(id);
+    for (const [x, y] of l.blocks) map.listings.delete(key(x, y));
+    io.to(map.room).emit('listing', { id, gone: true });
+  }
+  async function cancelListingNow(map, id) {
+    if (!map.listingInfo.has(id)) return;
+    await store.cancelListing(pool, id);
+    dropListing(map, id);
   }
 
   // A factory took (x, y): the same claim as a player's, paying its owner Factory Yield (capped at the block's pay).
@@ -467,9 +497,25 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
     return run;
   }
 
+  // A sale: the block changes hands with what's built on it (setOwner would clear it).
+  function transferOwner(map, k, pid) {
+    const old = map.cells.get(k);
+    if (old) map.counts.set(old, map.counts.get(old) - 1);
+    map.counts.set(pid, (map.counts.get(pid) || 0) + 1);
+    map.cells.set(k, pid);
+    map.hits.delete(k);
+  }
+  function dropListingQuiet(map, id) {
+    const l = map.listingInfo.get(id);
+    if (!l) return;
+    map.listingInfo.delete(id);
+    for (const [x, y] of l.blocks) map.listings.delete(key(x, y));
+  }
+
   function setOwner(map, k, pid) {
     const old = map.cells.get(k);
     if (old !== pid && map.factories?.has(k)) dropFactory(map, k);
+    if (old !== pid && map.listings?.has(k)) dropListing(map, map.listings.get(k));
     if (old !== pid && map.walls?.has(k)) {
       map.walls.delete(k);
       const [x, y] = k.split(',').map(Number);
@@ -710,6 +756,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
         terrain: [...map.overrides].map(([k, t]) => [...k.split(',').map(Number), t]),   // Terraformer changes
         factories: [...map.factories.values()].map(f => factoryOut(map, f)),
         walls: [...map.walls].map(([k, w]) => [...k.split(',').map(Number), w]),
+        listings: [...map.listingInfo.values()].map(l => listingOut(map, l)),
         build: { blocksPerFactory: catalog.E.factoryBlocksPerFactory, maxWallsPerBlock: catalog.E.maxWallsPerBlock, areaSize: catalog.E.factoryAreaSize },
       });
     }
@@ -870,6 +917,11 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
         }
       }
 
+      // Any attack on a listed block ends the listing.
+      if (map.listings.has(k) && map.cells.get(k) !== me.pid) {
+        const here = map, id = map.listings.get(k);
+        serial(here, () => cancelListingNow(here, id)).catch(err => console.error(`LISTING CANCEL FAILED (${id}): ${err.message}`));
+      }
       // Every way in runs through the owner's walls: the hit goes to a wall first (it needs w x H hits).
       const wallSide = me.pid && rules.wallFirst(map, me.pid, x, y);
       if (wallSide) return hitWall(x, y, wallSide);
@@ -1183,6 +1235,88 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
       reply({ factory: me.pid ? factoryInfo(map, me.pid) : null, balance: catalog.fromTenths(me.squares),
         ...(at && map.cells.has(key(at.x, at.y)) ? { wallPrice: wallPrice(map, at.x, at.y) } : {}) });
     });
+    // ---------- The land market ----------
+    // Lists connected blocks of yours: { blocks: [[x, y]], price } (squares). Accounts at least marketMinAccountDays old.
+    socket.on('listLand', async (p, reply) => {
+      if (typeof reply !== 'function') return;
+      if (!me.pid) return reply({ error: 'Claim a block first' });
+      const blocks = Array.isArray(p?.blocks) ? p.blocks.filter(b => Array.isArray(b) && Number.isInteger(b[0]) && Number.isInteger(b[1])) : [];
+      const price = catalog.toTenths(Number(p?.price));
+      if (!blocks.length || blocks.length !== p.blocks.length || blocks.length > 10000) return reply({ error: 'Pick some of your blocks' });
+      if (new Set(blocks.map(b => key(...b))).size !== blocks.length) return reply({ error: 'Pick each block once' });
+      if (!(price > 0) || price > 1e15) return reply({ error: 'Enter a price above 0' });
+      if (!rules.connected(blocks)) return reply({ error: 'The blocks must be connected side to side' });
+      const here = map;
+      try {
+        await serial(here, async () => {
+          if (blocks.some(b => here.cells.get(key(...b)) !== me.pid)) return reply({ error: 'Only your own blocks' });
+          if (blocks.some(b => here.listings.has(key(...b)))) return reply({ error: 'Some of those blocks are already for sale' });
+          const r = await store.createListing(pool, { mapId: here.id, sellerId: me.pid, blocks, price, minDays: catalog.E.marketMinAccountDays });
+          if (r.error) return reply(r);
+          const l = { id: r.id, seller: me.pid, price, created: Date.now(), blocks };
+          here.listingInfo.set(r.id, l);
+          for (const b of blocks) here.listings.set(key(...b), r.id);
+          io.to(here.room).emit('listing', listingOut(here, l));
+          reply({ ok: true, id: r.id });
+        });
+      } catch (err) {
+        console.error(`LISTING FAILED (player ${me.pid}): ${err.message}`);
+        reply({ error: 'Could not list that. Try again.' });
+      }
+    });
+    socket.on('cancelListing', async (p, reply) => {
+      if (typeof reply !== 'function') return;
+      const here = map, l = here.listingInfo.get(p?.id);
+      if (!l || String(l.seller) !== String(me.pid)) return reply({ error: 'Not your listing' });
+      try { await serial(here, () => cancelListingNow(here, l.id)); reply({ ok: true }); } catch { reply({ error: 'Could not cancel it. Try again.' }); }
+    });
+    // The Land tab: every listing on this map.
+    socket.on('landList', (...args) => {
+      const reply = args.at(-1);
+      if (typeof reply !== 'function') return;
+      reply({ list: [...map.listingInfo.values()].map(l => ({ ...listingOut(map, l), mine: String(l.seller) === String(me.pid) })), balance: catalog.fromTenths(me.squares) });
+    });
+    // Buys a listing: { id }. Everything moves to the buyer in one transaction.
+    socket.on('buyLand', async (p, reply) => {
+      if (typeof reply !== 'function') return;
+      if (!me.pid) return reply({ error: 'Claim a block first' });
+      if (buying) return reply({ error: 'One purchase at a time' });
+      const here = map, l = here.listingInfo.get(p?.id);
+      if (!l) return reply({ error: 'That land is no longer for sale' });
+      buying = true;
+      try {
+        await serial(here, async () => {
+          const mine = here.players.get(me.pid);
+          const look = { color: mine?.color ?? color, skin: mine?.skin ?? 'default', coverage: mine?.coverage ?? rules.COVERAGES[0] };
+          const r = await store.buyListing(pool, { id: l.id, buyerId: me.pid, fee: catalog.E.marketFee, minDays: catalog.E.marketMinAccountDays, look });
+          if (r.error) return reply({ error: r.error, ...(r.need !== undefined ? { need: catalog.fromTenths(r.need) } : {}) });
+          if (r.joined || !mine) {
+            here.players.set(me.pid, { name: me.name, ...look, unlocked: false, wipeFloor: 0, upgrades });
+            io.to(here.room).emit('player', { pid: me.pid, name: me.name, ...look });
+          }
+          // The sale: listing gone, then the blocks (with their factories and walls) change hands.
+          dropListingQuiet(here, l.id);
+          io.to(here.room).emit('listing', { id: l.id, gone: true, sold: true });
+          for (const [x, y] of r.blocks) {
+            const k = key(x, y), f = here.factories.get(k);
+            if (f) f.owner = me.pid;
+            transferOwner(here, k, me.pid);
+            io.to(here.room).emit('claim', { x, y, pid: me.pid, sold: true });
+            if (f) io.to(here.room).emit('factory', factoryOut(here, f));
+          }
+          balanceChanged(me.pid, r.buyerSquares);
+          balanceChanged(r.seller, r.sellerSquares);
+          statChanged(here, me.pid, 'owned', here.counts.get(me.pid));
+          statChanged(here, r.seller, 'owned', here.counts.get(r.seller) || 0);
+          totals.bump(me.pid, 'squaresSpent', catalog.fromTenths(r.price));
+          reply({ ok: true, blocks: r.blocks.length, squares: catalog.fromTenths(r.buyerSquares) });
+        });
+      } catch (err) {
+        console.error(`LAND PURCHASE FAILED (player ${me.pid}, ${p?.id}): ${err.message}`);
+        reply({ error: 'Could not buy that. Try again.' });
+      } finally { buying = false; }
+    });
+
     // Wakes one of your factories: { x, y }. It works for its Factory Lifetime hours from now.
     socket.on('wakeFactory', async (p, reply) => {
       if (typeof reply !== 'function') return;

@@ -717,3 +717,10 @@ body.welcome #itembar, body.zooming #itembar { opacity: 0; pointer-events: none;
 #build-bar #build-msg { flex: 1; font-size: 14px; }
 #build-bar #build-msg.bad { color: var(--red, #ff4d4d); }
 #build-bar .icon-btn { min-width: 44px; min-height: 44px; font-size: 18px; }
+#sell-bar { position: fixed; z-index: 45; left: 50%; bottom: 16px; transform: translateX(-50%); display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; width: min(460px, calc(100vw - 32px)); }
+#sell-bar[hidden] { display: none; }
+#sell-bar #sell-msg { flex: 1; font-size: 14px; }
+#sell-bar #sell-msg.bad { color: var(--red, #ff4d4d); }
+#sell-bar input { width: 96px; min-height: 44px; }
+#sell-bar .icon-btn { min-width: 44px; min-height: 44px; font-size: 18px; }

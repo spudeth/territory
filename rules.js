@@ -80,6 +80,18 @@ function hitError(map, pid, x, y) {
   return null;
 }
 
+// Whether blocks ([[x, y], …]) are all connected side to side (a land listing must be one piece).
+function connected(blocks) {
+  if (!blocks.length) return false;
+  const left = new Set(blocks.map(([x, y]) => key(x, y))), queue = [blocks[0]];
+  left.delete(key(...blocks[0]));
+  while (queue.length) {
+    const [x, y] = queue.pop();
+    for (const [dx, dy] of NEIGHBORS) if (left.delete(key(x + dx, y + dy))) queue.push([x + dx, y + dy]);
+  }
+  return left.size === 0;
+}
+
 // ---------- Walls (loop 16) ----------
 // A block's sides: n (up), e, s, w. map.walls: "x,y" -> [{ side, hits }] (at most maxWallsPerBlock, on different sides).
 const SIDES = { n: [0, -1], e: [1, 0], s: [0, 1], w: [-1, 0] };
@@ -161,5 +173,5 @@ const earnsSquares = (ownedAfterClaim, wipeFloor) => ownedAfterClaim > wipeFloor
 const wipeFloorAfterWipe = (wipeFloor, ownedAtWipe) => Math.max(wipeFloor, ownedAtWipe);
 
 // The rules read the numbers from this same object, so tests can try other dial values.
-module.exports = Object.assign(settings, { key, NEIGHBORS, NO_UPGRADES, hitError, SIDES, OPPOSITE, hasWall, adjacentSides, openSides, wallFirst, wallRefusal, hardness, hitsNeeded, hitPower, growthBlocks, isTaken,
+module.exports = Object.assign(settings, { key, NEIGHBORS, NO_UPGRADES, hitError, connected, SIDES, OPPOSITE, hasWall, adjacentSides, openSides, wallFirst, wallRefusal, hardness, hitsNeeded, hitPower, growthBlocks, isTaken,
   firstClaimTenths, shownSquares, decayCrack, tapAllowed, earnsSquares, wipeFloorAfterWipe });
