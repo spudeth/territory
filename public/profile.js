@@ -47,8 +47,9 @@
     }
   };
 
-  // Your own profile: your name on the welcome card.
+  // Your own profile: your name on the welcome card, or the Profile tile.
   $('w-name').addEventListener('click', () => { if (me) openProfile(me); });
+  $('w-profile').addEventListener('click', () => { if (me) openProfile(me); else toast('Claim a block first to have a profile'); });
 
   // Phones: swipe the sheet down to close it.
   let startY = null;

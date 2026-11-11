@@ -7,7 +7,26 @@ const menu = $('menu');
 const fills = {};     // view name -> function that fills the view in just before it shows
 let view = null;      // the view showing, or null when the menu is closed
 
+// The Marketplace: one screen with tabs (Upgrades, Skins, Items, Land), each the screen it always was.
+const MARKET_TABS = [['upgrades', 'Upgrades'], ['skins', 'Skins'], ['items', 'Items'], ['land', 'Land']];
+let marketTab = 'upgrades';
+for (const [v] of MARKET_TABS) {
+  const bar = document.createElement('div');
+  bar.className = 'tabs market-tabs';
+  bar.setAttribute('role', 'tablist');
+  bar.setAttribute('aria-label', 'Marketplace');
+  bar.replaceChildren(...MARKET_TABS.map(([t, label]) => {
+    const b = Object.assign(document.createElement('button'), { type: 'button', textContent: label });
+    b.setAttribute('role', 'tab');
+    b.setAttribute('aria-selected', t === v);
+    b.addEventListener('click', () => { if (t !== v) show(t); });
+    return b;
+  }));
+  menu.querySelector(`[data-view="${v}"] .head`).after(bar);
+}
 function show(name) {
+  if (name === 'market') name = marketTab;
+  if (MARKET_TABS.some(([t]) => t === name)) marketTab = name;
   if (name !== 'achievements' && typeof achTarget !== 'undefined') achTarget = null;
   if (name === 'main') return closeMenu();   // the old menu hub: the welcome screen is underneath now
   if (menu.hidden) gameAudio.play('menuOpen');

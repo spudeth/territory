@@ -224,6 +224,10 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
     tiers: Array.from({ length: catalog.TIER_COUNT }, (_, i) => ({ tier: i + 1, value: catalog.tierValue(key, i + 1),
       cost: i ? catalog.fromTenths(catalog.tierCostTenths(key, i + 1)) : 0 })) })));
 
+  // What Demolition can remove: { target: { check(map, x, y, side) -> refusal or null, remove(client, map, x, y, side)
+  // in the item's transaction, removed(map, x, y, side) after } }. Factories and walls add themselves.
+  const demolishers = {};
+
   // A first claim on a map (by a player or a factory): its mined count goes up; everyone there sees the level's
   // progress (the level is worked out from mined and E).
   function mapMined(map) {
@@ -873,7 +877,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
         balanceChanged(me.pid, r.squares);
         totals.bump(me.pid, 'squaresSpent', catalog.fromTenths(r.price));
         io.to('player:' + me.pid).emit('itemsChanged');
-        reply({ squares: catalog.fromTenths(r.squares), balance: catalog.fromTenths(r.squares) });
+        reply({ squares: catalog.fromTenths(r.squares), balance: catalog.fromTenths(r.squares), ...(r.count !== undefined ? { count: r.count } : {}) });
       } catch (err) {
         console.error(`ITEM PURCHASE FAILED (player ${me.pid}, ${p?.item}): ${err.message}`);
         reply({ error: 'Could not buy that. Try again.' });
@@ -896,6 +900,21 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
             io.to('player:' + me.pid).emit('superClick', { until, value: item.value });
           }
           return done(r);
+        }
+        // Demolition: removes one of your factories or walls (what can be removed: `demolishers`), no refund.
+        if (item.effect === 'demolish') {
+          const { x, y, target, side } = p;
+          const d = demolishers[target];
+          if (!Number.isInteger(x) || !Number.isInteger(y) || !d) return reply({ error: 'Pick one of your factories or walls' });
+          await serial(here, async () => {
+            if (here.cells.get(key(x, y)) !== me.pid) return reply({ error: 'Only your own factories and walls' });
+            const refusal = d.check(here, x, y, side);
+            if (refusal) return reply({ error: refusal });
+            const r = await store.useItem(pool, me.pid, item, here.id, c => d.remove(c, here, x, y, side));
+            if (r.ok) d.removed(here, x, y, side);
+            done(r);
+          });
+          return;
         }
         if (item.effect === 'terraform') {
           const { x, y, terrain } = p;
@@ -989,7 +1008,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
       if (buying) return reply({ error: 'One purchase at a time' });
       buying = true;
       try {
-        const r = await store.buySkin(pool, me.pid, skin);
+        const r = await store.buySkin(pool, me.pid, skin, catalog.skinPriceTenths(skin, map.level()));
         if (r.error) return reply(squaresOut(r));
         balanceChanged(me.pid, r.squares);
         totals.bump(me.pid, 'squaresSpent', catalog.fromTenths(r.price));
@@ -1031,7 +1050,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
     socket.on('skins', async (...args) => {
       const reply = args.at(-1);   // with or without an argument before it
       if (typeof reply !== 'function') return;
-      try { reply(await store.skinsFor(pool, me.pid)); } catch { reply([]); }
+      try { reply(await store.skinsFor(pool, me.pid, map.level())); } catch { reply([]); }
     });
 
     // The maps this player can go to, with their place on each (store.mapsFor). Answers with an array.

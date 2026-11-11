@@ -105,3 +105,18 @@ test('Terraformer: own blocks and empty ones next to them; never gold; 5 an hour
   assert.ok(w.terrain.some(([x, y]) => x === next[0] && y === next[1]), 'a returning player gets the change with the map');
   assert.equal((await pool.query('SELECT count(*)::int AS n FROM map_cells WHERE map_id = $1 AND terrain IS NOT NULL', [id])).rows[0].n, 1, 'one block changed, kept for good');
 });
+
+test('Demolition is used up: each purchase adds one to the inventory at its Hours price; using one needs a factory or wall', async () => {
+  const DEMO = rules.ITEMS.find(i => i.id === 'demolition');
+  const price = catalog.priceTenths(catalog.CATALOG.get('item:demolition'), { L: 1 }) / 10;
+  assert.equal(price, 600, '0.5 work-hours at level 1');
+  const g = await guestWith(price * 2);
+  assert.equal((await g.s.ask('buyItem', { item: 'demolition' })).count, 1);
+  assert.deepEqual(await g.s.ask('buyItem', { item: 'demolition' }), { squares: 0, balance: 0, count: 2 }, 'bought again: two');
+  const list = (await g.s.ask('items')).list;
+  assert.deepEqual(['count', 'owned', 'consumable'].map(k => list.find(i => i.id === 'demolition')[k]), [2, true, true]);
+  assert.equal(DEMO.consumable, true);
+  // There is nothing to demolish on a plain block.
+  assert.deepEqual(await g.s.ask('useItem', { item: 'demolition', x: 0, y: g.y, target: 'statue' }), { error: 'Pick one of your factories or walls' });
+  assert.equal((await pool.query("SELECT count FROM player_inventory WHERE player_id = $1 AND item_id = 'demolition'", [g.pid])).rows[0].count, 2, 'none used');
+});

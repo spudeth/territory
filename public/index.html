@@ -68,10 +68,10 @@
         <button class="btn w-play" type="button" id="w-play" disabled><svg class="pix" width="22" height="22" viewBox="0 0 8 8" aria-hidden="true"><path d="M1 0h2v1h1v1h1v1h1v2H5v1H4v1H3v1H1z" fill="currentColor"/></svg>PLAY</button>
         <button class="btn w-play soon" type="button" id="w-soon-btn" disabled hidden>COMING SOON</button>
         <div class="w-minis">
-          <button class="w-mini" type="button" data-go="skins"><span class="b" style="background: var(--pink)"><svg class="pix" width="22" height="22" viewBox="0 0 8 8" aria-hidden="true"><path d="M0 0h4v4H0zM4 4h4v4H4z" fill="#0f131a"/></svg></span>Skins</button>
+          <button class="w-mini" type="button" data-go="market"><span class="b" style="background: var(--pink)"><img class="pix" src="art/marketplace.svg" width="22" height="22" alt="" style="filter: brightness(0) opacity(0.85)"></span>Marketplace</button>
+          <button class="w-mini" type="button" data-go="upgrades" id="w-upgrades-tile"><span class="b" style="background: var(--orange)"><svg class="pix" width="22" height="22" viewBox="0 0 8 8" aria-hidden="true"><path d="M3 0h2v1h1v1h1v1h1v1H6v4H2V4H0V3h1V2h1V1h1z" fill="#0f131a"/></svg></span>Upgrades</button>
           <button class="w-mini" type="button" data-go="achievements"><span class="b" style="background: var(--yellow); color: #0f131a"><svg class="pix" width="22" height="22" aria-hidden="true"><use href="#i-trophy"/></svg></span>Awards</button>
-          <button class="w-mini" type="button" data-go="upgrades"><span class="b" style="background: var(--orange)"><svg class="pix" width="22" height="22" viewBox="0 0 8 8" aria-hidden="true"><path d="M3 0h2v1h1v1h1v1h1v1H6v4H2V4H0V3h1V2h1V1h1z" fill="#0f131a"/></svg></span>Upgrades</button>
-          <button class="w-mini" type="button" data-go="items"><span class="b" style="background: var(--teal)"><svg class="pix" width="22" height="22" viewBox="0 0 8 8" aria-hidden="true"><path d="M3 0h2v1H3zM3 1h2v2h1v1h1v3H6v1H2V7H1V4h1V3h1z" fill="#0f131a"/><path d="M2 5h4v2H2z" fill="#ff77a8"/></svg></span>Items</button>
+          <button class="w-mini" type="button" id="w-profile"><span class="b" style="background: var(--teal)"><svg class="pix" width="22" height="22" viewBox="0 0 8 8" aria-hidden="true"><path d="M3 0h2v1H3zM3 1h2v2h1v1h1v3H6v1H2V7H1V4h1V3h1z" fill="#0f131a"/><path d="M2 5h4v2H2z" fill="#ff77a8"/></svg></span>Profile</button>
         </div>
         <button class="btn w-login" type="button" id="w-login" data-go="signup" hidden>Log in / Sign up to keep your blocks</button>
       </div>
@@ -188,8 +188,8 @@
         <div class="tiles">
           <button class="btn" type="button" data-go="maps" style="background: var(--blue)">
             <svg class="pix" width="24" height="24" viewBox="0 0 8 8" aria-hidden="true"><path d="M0 1h3v6H0zM3 0h2v6H3zM5 1h3v6H5z" fill="#0f131a"/><path d="M1 2h1v4H1zM6 2h1v4H6z" fill="#29adff"/></svg>Maps</button>
-          <button class="btn" type="button" data-go="skins" style="background: var(--pink)">
-            <svg class="pix" width="24" height="24" viewBox="0 0 8 8" aria-hidden="true"><path d="M0 0h4v4H0zM4 4h4v4H4z" fill="#0f131a"/><path d="M4 0h4v4H4zM0 4h4v4H0z" fill="#ffffff"/></svg>Skins</button>
+          <button class="btn" type="button" data-go="market" style="background: var(--pink)">
+            <svg class="pix" width="24" height="24" viewBox="0 0 8 8" aria-hidden="true"><path d="M0 0h4v4H0zM4 4h4v4H4z" fill="#0f131a"/><path d="M4 0h4v4H4zM0 4h4v4H0z" fill="#ffffff"/></svg>Marketplace</button>
           <button class="btn" type="button" data-go="achievements" style="background: var(--yellow)">
             <svg class="pix" width="24" height="24" aria-hidden="true"><use href="#i-trophy"/></svg>Achievements</button>
           <button class="btn" type="button" data-go="upgrades" style="background: var(--orange)">
@@ -385,9 +385,9 @@
       <section data-view="items" hidden>
         <div class="head">
           <button class="btn icon-btn" type="button" data-go="main" aria-label="Back to menu"><svg class="pix" width="16" height="16" aria-hidden="true"><use href="#i-back"/></svg></button>
-          <h1>ITEMS</h1>
+          <h1>MARKETPLACE</h1>
         </div>
-        <p style="margin: 0; font-size: 15px; color: var(--soft)">Bought once with squares, yours for good. Each can be used a few times an hour, on any map.</p>
+        <p style="margin: 0; font-size: 15px; color: var(--soft)">Abilities are bought once and are yours for good; each can be used a few times an hour. Some, like Demolition, are used up. Prices follow this map's level.</p>
         <div class="split" style="align-items: center"><span data-info="items">Your squares</span><span class="chip"><img class="sq-icon" src="icons/square.svg" width="14" height="14" alt=""><span id="items-squares">0</span></span></div>
         <div id="items-list" class="items-list"></div>
       </section>
@@ -480,10 +480,10 @@
       <section data-view="skins" hidden>
         <div class="head">
           <button class="btn icon-btn" type="button" data-go="main" aria-label="Back to menu"><svg class="pix" width="16" height="16" aria-hidden="true"><use href="#i-back"/></svg></button>
-          <h1>SKINS</h1>
+          <h1>MARKETPLACE</h1>
           <span class="right" id="skins-owned"></span>
         </div>
-        <p style="margin: 0; font-size: 15px; line-height: 1.35; color: var(--soft)">Buy skins with squares. Owned skins work on every map: you pick one when you first enter a map.</p>
+        <p style="margin: 0; font-size: 15px; line-height: 1.35; color: var(--soft)">Buy skins with squares. Owned skins work on every map: you pick one when you first enter a map. Prices follow this map's level.</p>
         <div class="split" style="align-items: center"><span data-info="skinPrices">Your squares</span><span class="chip"><img class="sq-icon" src="icons/square.svg" width="14" height="14" alt=""><span id="skins-squares">0</span></span></div>
         <div class="tabs yellow" role="tablist" aria-label="Collections" id="skins-tabs"></div>
         <input class="field" id="skins-search" type="search" placeholder="Search skins, e.g. Japan" autocomplete="off" aria-label="Search skins">
@@ -494,10 +494,19 @@
       <section data-view="upgrades" hidden>
         <div class="head">
           <button class="btn icon-btn" type="button" data-go="main" aria-label="Back to menu"><svg class="pix" width="16" height="16" aria-hidden="true"><use href="#i-back"/></svg></button>
-          <h1>UPGRADES</h1>
+          <h1>MARKETPLACE</h1>
           <span class="right chip"><img class="sq-icon" src="icons/square.svg" width="16" height="16" alt="Squares"><span id="upg-squares">0</span></span>
         </div>
         <div id="upgrade-list" style="display: flex; flex-direction: column; gap: 14px"></div>
+      </section>
+
+      <section data-view="land" hidden>
+        <div class="head">
+          <button class="btn icon-btn" type="button" data-go="main" aria-label="Back to menu"><svg class="pix" width="16" height="16" aria-hidden="true"><use href="#i-back"/></svg></button>
+          <h1>MARKETPLACE</h1>
+        </div>
+        <p style="margin: 0; font-size: 15px; color: var(--soft)">Land for sale on this map. Tap Jump to it to see it, then press and hold a listed block to buy.</p>
+        <div id="land-list" class="items-list"></div>
       </section>
 
       <!-- Achievements -->

@@ -6,6 +6,7 @@ const path = require('path');
 const { createGame } = require('../app');
 const economy = require('../economy');
 const rules = require('../rules');
+const catalog = require('../catalog');
 const store = require('../store');
 const skins = require('../public/skins');
 const { testDb, connectPlayer } = require('./helpers');
@@ -75,7 +76,8 @@ async function guestWith(balance) {
   await fresh.welcome;
   return { s: fresh, pid, token };
 }
-const flag = rules.SKINS.find(s => s.id === 'flag-jp');
+// A flag's price at level 1: Rare's work-hours x W(1) (loop 16).
+const flagRow = rules.SKINS.find(s => s.id === 'flag-jp'), flag = { ...flagRow, price: catalog.skinPriceTenths(flagRow, 1) / 10 };
 const owns = async (pid, id) => (await pool.query('SELECT 1 FROM player_skins WHERE player_id = $1 AND skin_id = $2', [pid, id])).rowCount === 1;
 const balance = async pid => Number((await pool.query('SELECT squares FROM players WHERE id = $1', [pid])).rows[0].squares) / 10;   // tenths -> squares
 
@@ -120,14 +122,20 @@ test('an owned skin can be picked on every map; one not owned cannot', async () 
   assert.ok(list.find(k => k.id === flag.id).owned && list[0].id === 'default');
 });
 
-test('prices rise as you collect: Common from 100 to 1,500 at half the commons owned, and the same model per rarity', () => {
-  const commons = rules.SKINS.filter(s => s.rarity === 'Common').length;
-  assert.equal(skins.skinPrice('Common', 0, commons), 100);
-  assert.equal(skins.skinPrice('Common', Math.ceil(commons / 2), commons), 1500);
-  assert.equal(skins.skinPrice('Common', commons, commons), 1500, 'never above the top');
-  assert.ok(skins.skinPrice('Common', 5, commons) > 100 && skins.skinPrice('Common', 5, commons) < 1500);
-  assert.equal(skins.skinPrice('Rare', 0, 199), 1000);
-  assert.equal(skins.skinPrice('Legendary', 10, 10), 25000);
+test("skin prices are the rarity's work-hours x W(L) at the map's level; flags are Rare; owning more never changes them", async () => {
+  const g = await guestWith(0);
+  const list = await g.s.ask('skins');
+  for (const rarity of ['Common', 'Rare', 'Ultra Rare', 'Legendary']) {
+    const k = list.find(s => s.rarity === rarity && s.id !== 'default' && !s.id.startsWith('flag-'));
+    if (k) assert.equal(k.price, catalog.toTenths(catalog.skinHours(rarity) * 1200) / 10, rarity);
+  }
+  assert.ok(list.filter(s => s.id.startsWith('flag-')).every(s => s.price === flag.price), 'every flag costs a Rare');
+  assert.equal(flag.price, 1200, 'Rare: 1 work-hour = 1,200 squares at level 1');
+  const id = await store.createMap(pool, { name: 'Pricey', width: 3, height: 3 });
+  await pool.query('UPDATE maps SET mined = 9 WHERE id = $1', [id]);   // level 2
+  await g.s.ask('switchMap', id);
+  await g.s.next('welcome', d => d.map.id === id);
+  assert.equal((await g.s.ask('skins')).find(s => s.id === 'flag-jp').price, 2400, 'twice the price on a level-2 map');
 });
 
 test('skin order: flags after the other skins; within each group by price, then name', async () => {

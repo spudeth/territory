@@ -699,3 +699,7 @@ body.welcome #itembar, body.zooming #itembar { opacity: 0; pointer-events: none;
 #inspect .ic-sec { border-top: 1px solid rgba(255,255,255,0.08); padding-top: 6px; }
 #inspect .ic-sec .btn { margin-top: 6px; width: 100%; }
 #inspect .ic-sec.hl { outline: 2px solid var(--gold, #ffd34d); outline-offset: 2px; }
+
+/* ---------- Loop 16: the Marketplace tabs ---------- */
+.market-tabs { margin-bottom: 4px; }
+.item-card .act .have { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; text-align: right; }

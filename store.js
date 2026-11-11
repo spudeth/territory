@@ -3,7 +3,6 @@ const crypto = require('crypto');
 const { tx } = require('./db');
 const rules = require('./rules');
 const terrain = require('./public/terrain');
-const skinPrices = require('./public/skins');
 const { accountNames } = require('./names');
 const catalog = require('./catalog');
 
@@ -415,7 +414,7 @@ Object.assign(module.exports, { STYLES, listMaps, createMap, mapsFor });
 // The skin catalog, with whether this player owns each (free skins count as owned by everyone).
 // The skin catalog (rules.SKINS, from the sheet) with what this player owns: [{ id, name, kind, rarity, price,
 // collection, owned }], the free plain look first. Skins taken out of the shop still show for their owners.
-// Prices are what this player would pay now (skins.skinPrice: they rise with how many of a rarity they own).
+// Prices are in squares at map level L: the rarity's work-hours x W(L) (flags are Rare).
 // Which star slot a skin goes in: a Common pattern, or art that is Rare or better (flags too); null for others.
 const starSlot = s => (s.kind === 'pattern' && s.rarity === 'Common' ? 'star_pattern' : s.kind === 'art' && s.rarity !== 'Common' ? 'star_art' : null);
 // Stars one owned skin in its slot (replacing the old one), or clears that slot when `on` is false.
@@ -426,30 +425,24 @@ async function starSkin(pool, playerId, skin, on) {
   await pool.query(`UPDATE players SET ${slot} = CASE WHEN $3 THEN $2 END WHERE id = $1 AND ($3 OR ${slot} = $2)`, [playerId, skin.id, on]);
   return { ok: true };
 }
-async function skinsFor(pool, playerId) {
+async function skinsFor(pool, playerId, L = 1) {
   const stars = playerId ? (await pool.query('SELECT star_pattern, star_art FROM players WHERE id = $1', [playerId])).rows[0] ?? {} : {};
   const owned = new Set(playerId ? (await pool.query('SELECT skin_id FROM player_skins WHERE player_id = $1', [playerId])).rows.map(r => r.skin_id) : []);
-  const count = rarity => { const ids = rules.SKINS.filter(s => s.rarity === rarity); return [ids.filter(s => owned.has(s.id)).length, ids.length]; };
   return [{ id: 'default', name: 'Default', kind: 'default', rarity: 'Common', price: 0, collection: 'Basic', owned: true },
-    ...rules.SKINS.filter(s => s.enabled || owned.has(s.id)).map(({ enabled, ...s }) => ({ ...s, price: skinPrices.skinPrice(s.rarity, ...count(s.rarity)), owned: owned.has(s.id),
+    ...rules.SKINS.filter(s => s.enabled || owned.has(s.id)).map(({ enabled, price: sheetPrice, ...s }) => ({ ...s, price: catalog.fromTenths(catalog.skinPriceTenths(s, L)), owned: owned.has(s.id),
       starrable: !!starSlot(s), starred: owned.has(s.id) && (stars.star_pattern === s.id || stars.star_art === s.id) }))
       // Bob (loop 15): flags after every other skin, and within each group by price, then name.
       .sort((a, b) => (a.collection === 'Flags') - (b.collection === 'Flags') || a.price - b.price || a.name.localeCompare(b.name))];
 }
 
 // Buys a skin with squares, in one transaction: the player row is locked, so a double tap or two devices can
-// never pay twice. skin: a catalog entry { id, name, price }. Returns { squares } (the new exact balance), or
-// { error } with `need` (squares short) when there aren't enough.
-function buySkin(pool, playerId, skin) {
+// never pay twice. skin: a catalog entry { id, name }; price: tenths (catalog.skinPriceTenths at the map's level).
+// Returns { squares, price } (tenths), or { error } with `need` (tenths short) when there aren't enough.
+function buySkin(pool, playerId, skin, price) {
   return tx(pool, async c => {
     const { rows: [p] } = await c.query('SELECT squares FROM players WHERE id = $1 FOR UPDATE', [playerId]);
     if (!p) return { error: 'Claim a block first' };
     if ((await c.query('SELECT 1 FROM player_skins WHERE player_id = $1 AND skin_id = $2', [playerId, skin.id])).rowCount) return { error: 'You already own this skin' };
-    // The price now: it rises with how many skins of this rarity they own (counted inside the lock).
-    const same = rules.SKINS.filter(s => s.rarity === skin.rarity).map(s => s.id);
-    const { rows: [o] } = await c.query('SELECT count(*)::int AS n FROM player_skins WHERE player_id = $1 AND skin_id = ANY($2)', [playerId, same]);
-    const price = catalog.toTenths(skinPrices.skinPrice(skin.rarity, o.n, same.length));
-    if (Number(p.squares) < price) return { error: 'Not enough squares', need: price - Number(p.squares) };
     await c.query(`INSERT INTO skins (id, name, image, price_squares) VALUES ($1, $2, $3, $4)
       ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, price_squares = EXCLUDED.price_squares`, [skin.id, skin.name, skin.id + '.png', Math.max(1, catalog.wholeSquares(price))]);
     const paid = await spend(c, playerId, price, 'skin:' + skin.id);
@@ -596,7 +589,7 @@ function deleteAccount(pool, playerId) {
     const { rows: maps } = await c.query('SELECT DISTINCT map_id FROM map_cells WHERE owner_id = $1', [playerId]);
     await c.query('UPDATE map_cells SET ' + FREED + ' WHERE owner_id = $1', [playerId]);
     for (const t of ['player_tokens', 'player_map_settings', 'player_map_stats', 'player_achievements', 'player_skins',
-      'tap_limit_log', 'bans', 'player_totals', 'player_lives', 'player_items', 'item_uses', 'email_consent_log']) {
+      'tap_limit_log', 'bans', 'player_totals', 'player_lives', 'player_items', 'player_inventory', 'item_uses', 'email_consent_log']) {
       await c.query(`DELETE FROM ${t} WHERE player_id = $1`, [playerId]);
     }
     await c.query('DELETE FROM player_links WHERE account_id = $1 OR guest_id = $1', [playerId]);
@@ -739,13 +732,15 @@ Object.assign(module.exports, { lifeClaim, endLife, unseenDeath, markLifeSeen })
 
 // ---------- Items (loop 14) ----------
 // The item effects that have a handler (app.js useItem); an item of any other effect stays out of the shop.
-const USABLE = { clickMultiplier: true, terraform: true };
+const USABLE = { clickMultiplier: true, terraform: true, demolish: true };
 // A use frees up `perMinutes` after it was made (a rolling window). For each item: owned, uses left now, and when
 // the next one frees up (null when none are used up).
 async function itemsFor(pool, playerId) {
   const owned = new Set(playerId ? (await pool.query('SELECT item_id FROM player_items WHERE player_id = $1', [playerId])).rows.map(r => r.item_id) : []);
+  const counts = new Map(playerId ? (await pool.query('SELECT item_id, count FROM player_inventory WHERE player_id = $1', [playerId])).rows.map(r => [r.item_id, r.count]) : []);
   const uses = playerId ? (await pool.query("SELECT item_id, used_at FROM item_uses WHERE player_id = $1 AND used_at > now() - interval '1 day' ORDER BY used_at", [playerId])).rows : [];
-  return rules.ITEMS.filter(i => (i.enabled || owned.has(i.id)) && i.effect in USABLE).map(i => {
+  return rules.ITEMS.filter(i => (i.enabled || owned.has(i.id) || counts.get(i.id)) && i.effect in USABLE).map(i => {
+    if (i.consumable) return { ...i, count: counts.get(i.id) ?? 0, owned: (counts.get(i.id) ?? 0) > 0, usesLeft: counts.get(i.id) ?? 0, nextAt: null };
     const recent = uses.filter(u => u.item_id === i.id && Date.now() - u.used_at.getTime() < i.perMinutes * 60000);
     return { ...i, owned: owned.has(i.id), usesLeft: Math.max(0, i.uses - recent.length),
       nextAt: recent.length ? recent[0].used_at.getTime() + i.perMinutes * 60000 : null };
@@ -756,9 +751,14 @@ function buyItem(pool, playerId, item, price) {
   return tx(pool, async c => {
     const { rows: [p] } = await c.query('SELECT squares FROM players WHERE id = $1 FOR UPDATE', [playerId]);
     if (!p) return { error: 'Claim a block first' };
-    if ((await c.query('SELECT 1 FROM player_items WHERE player_id = $1 AND item_id = $2', [playerId, item.id])).rowCount) return { error: 'You already own this item' };
+    if (!item.consumable && (await c.query('SELECT 1 FROM player_items WHERE player_id = $1 AND item_id = $2', [playerId, item.id])).rowCount) return { error: 'You already own this item' };
     const paid = await spend(c, playerId, price, 'item:' + item.id);
     if (paid.error) return paid;
+    if (item.consumable) {
+      const { rows: [inv] } = await c.query(`INSERT INTO player_inventory (player_id, item_id, count) VALUES ($1, $2, 1)
+        ON CONFLICT (player_id, item_id) DO UPDATE SET count = player_inventory.count + 1 RETURNING count`, [playerId, item.id]);
+      return { squares: paid.squares, price, count: inv.count };
+    }
     await c.query('INSERT INTO player_items (player_id, item_id) VALUES ($1, $2)', [playerId, item.id]);
     return { squares: paid.squares, price };
   });
@@ -769,6 +769,15 @@ function buyItem(pool, playerId, item, price) {
 function useItem(pool, playerId, item, mapId, apply = async () => null) {
   return tx(pool, async c => {
     await c.query('SELECT 1 FROM players WHERE id = $1 FOR UPDATE', [playerId]);
+    // A consumable: one from the inventory, used up.
+    if (item.consumable) {
+      const { rows: [inv] } = await c.query('UPDATE player_inventory SET count = count - 1 WHERE player_id = $1 AND item_id = $2 AND count > 0 RETURNING count', [playerId, item.id]);
+      if (!inv) return { error: `You have no ${item.name} left` };
+      const refused = await apply(c);
+      if (refused) throw Object.assign(new Error(refused), { refusal: true });
+      await c.query('INSERT INTO item_uses (player_id, item_id, map_id) VALUES ($1, $2, $3)', [playerId, item.id, mapId]);
+      return { ok: true, count: inv.count, usesLeft: inv.count, nextAt: null };
+    }
     if (!(await c.query('SELECT 1 FROM player_items WHERE player_id = $1 AND item_id = $2', [playerId, item.id])).rowCount) return { error: "You don't own this item" };
     const { rows } = await c.query(`SELECT used_at FROM item_uses WHERE player_id = $1 AND item_id = $2 AND used_at > now() - make_interval(mins => $3)
       ORDER BY used_at`, [playerId, item.id, item.perMinutes]);
