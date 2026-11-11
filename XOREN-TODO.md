@@ -5,20 +5,20 @@ to main, and nothing has touched the production database. Work down the list in 
 
 ## 1. Answer the open questions (in CODY-LOG.md)
 
-- [ ] **Q26** Achievements tab: the sheet's Achievements rows are older than the game's (the 50% reward cap). Have Bob copy the game's rows to the sheet before the next full sync, or the old rewards come back.
-- [ ] **Q27** Block terrain is stored only where it differs from the map seed's. Recommended: keep.
-- [ ] **Q28** The new achievement rows for tiers (CSV in the log): thresholds and placeholder rewards (5% of a tier's cost). Bob puts them on the sheet.
-- [ ] **Q29** The new and changed texts: the "i" popups, the tutorial line, GAME-RULES.md and the Game Guide. Read them and tell Cody what to change.
+- [x] **Q26** Achievements tab: the sheet's Achievements rows are older than the game's (the 50% reward cap). Have Bob copy the game's rows to the sheet before the next full sync, or the old rewards come back.
+- [x] **Q27** Block terrain is stored only where it differs from the map seed's. Recommended: keep.
+- [x] **Q28** The new achievement rows for tiers (CSV in the log): thresholds and placeholder rewards (5% of a tier's cost). Bob puts them on the sheet.
+- [x] **Q29** The new and changed texts: the "i" popups, the tutorial line, GAME-RULES.md and the Game Guide. Read them and tell Cody what to change.
 - [ ] **Q30** Placeholder art in `public/art/`: factory, factory asleep, wall, for-sale marker, level shades, Build / Marketplace / Demolition / info card icons. Replace any file with the same name to change it.
 - [ ] Earlier ones still open: Q23 (info text, loop 15), Q24 (Mention sound), Q25 (privacy page review).
 
-## 2. The sheet (Bob or you)
+## 2. The sheet (done by Bob, synced and checked clean on 2026-11-11)
 
-- [ ] Delete the old tabs the sync no longer reads: Inputs, Summary, Click Power, Defense, Earnings, Growth.
-- [ ] On Game Rules, delete the rows `squaresPerFirstClaim` and `newMapBlocks` (retired; the sync warns until they're gone).
-- [ ] On Game Rules, add `mailingAddress` = 2212 W 5th Ave, Gary, IN 46404 (from loop 15; the sync refuses without it).
-- [ ] Put the tier achievement rows (Q28) on the Achievements tab, and fix Q26.
-- [ ] Then `npm run sync-rules -- --check` should say there are no problems.
+- [x] Delete the old tabs the sync no longer reads: Inputs, Summary, Click Power, Defense, Earnings, Growth.
+- [x] On Game Rules, delete the rows `squaresPerFirstClaim` and `newMapBlocks` (retired; the sync warns until they're gone).
+- [x] On Game Rules, add `mailingAddress` = 2212 W 5th Ave, Gary, IN 46404 (from loop 15; the sync refuses without it).
+- [x] Put the tier achievement rows (Q28) on the Achievements tab, and fix Q26.
+- [x] Then `npm run sync-rules -- --check` should say there are no problems.
 
 ## 3. Merge (GitHub)
 

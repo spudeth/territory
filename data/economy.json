@@ -1,6 +1,6 @@
 {
   "source": "https://docs.google.com/spreadsheets/d/1YIivEUXUWMkdw3w3hlmRn7PkTzH6Xry7EJTr8SuFKiM",
-  "syncedAt": "2026-11-11T07:24:56.659Z",
+  "syncedAt": "2026-11-11T14:43:07.019Z",
   "rules": {
     "hitsPerBlock": 10,
     "crackFadeSeconds": 60,
@@ -19,7 +19,6 @@
     "maxTapsPerSecond": 12,
     "rankMinPlayers": 10,
     "rankMinBlocks": 100,
-    "mailingAddress": "2212 W 5th Ave, Gary, IN 46404",
     "terrainScale": 28,
     "waterShare": 0.12,
     "sandShare": 0.07,
@@ -30,1162 +29,8 @@
     "forestHits": 1.5,
     "stoneHits": 3,
     "goldHits": 1,
-    "goldBonusSquares": 5
-  },
-  "upgrades": {
-    "clickPower": [
-      {
-        "level": 0,
-        "value": 1,
-        "cost": 0
-      },
-      {
-        "level": 1,
-        "value": 1.13,
-        "cost": 22
-      },
-      {
-        "level": 2,
-        "value": 1.26,
-        "cost": 24
-      },
-      {
-        "level": 3,
-        "value": 1.39,
-        "cost": 26
-      },
-      {
-        "level": 4,
-        "value": 1.51,
-        "cost": 29
-      },
-      {
-        "level": 5,
-        "value": 1.64,
-        "cost": 32
-      },
-      {
-        "level": 6,
-        "value": 1.77,
-        "cost": 35
-      },
-      {
-        "level": 7,
-        "value": 1.9,
-        "cost": 38
-      },
-      {
-        "level": 8,
-        "value": 2.03,
-        "cost": 42
-      },
-      {
-        "level": 9,
-        "value": 2.16,
-        "cost": 47
-      },
-      {
-        "level": 10,
-        "value": 2.29,
-        "cost": 51
-      },
-      {
-        "level": 11,
-        "value": 2.41,
-        "cost": 56
-      },
-      {
-        "level": 12,
-        "value": 2.54,
-        "cost": 62
-      },
-      {
-        "level": 13,
-        "value": 2.67,
-        "cost": 68
-      },
-      {
-        "level": 14,
-        "value": 2.8,
-        "cost": 75
-      },
-      {
-        "level": 15,
-        "value": 2.93,
-        "cost": 82
-      },
-      {
-        "level": 16,
-        "value": 3.06,
-        "cost": 91
-      },
-      {
-        "level": 17,
-        "value": 3.19,
-        "cost": 100
-      },
-      {
-        "level": 18,
-        "value": 3.31,
-        "cost": 110
-      },
-      {
-        "level": 19,
-        "value": 3.44,
-        "cost": 121
-      },
-      {
-        "level": 20,
-        "value": 3.57,
-        "cost": 133
-      },
-      {
-        "level": 21,
-        "value": 3.7,
-        "cost": 146
-      },
-      {
-        "level": 22,
-        "value": 3.83,
-        "cost": 161
-      },
-      {
-        "level": 23,
-        "value": 3.96,
-        "cost": 177
-      },
-      {
-        "level": 24,
-        "value": 4.09,
-        "cost": 194
-      },
-      {
-        "level": 25,
-        "value": 4.21,
-        "cost": 214
-      },
-      {
-        "level": 26,
-        "value": 4.34,
-        "cost": 235
-      },
-      {
-        "level": 27,
-        "value": 4.47,
-        "cost": 259
-      },
-      {
-        "level": 28,
-        "value": 4.6,
-        "cost": 285
-      },
-      {
-        "level": 29,
-        "value": 4.73,
-        "cost": 313
-      },
-      {
-        "level": 30,
-        "value": 4.86,
-        "cost": 344
-      },
-      {
-        "level": 31,
-        "value": 4.99,
-        "cost": 379
-      },
-      {
-        "level": 32,
-        "value": 5.11,
-        "cost": 417
-      },
-      {
-        "level": 33,
-        "value": 5.24,
-        "cost": 458
-      },
-      {
-        "level": 34,
-        "value": 5.37,
-        "cost": 504
-      },
-      {
-        "level": 35,
-        "value": 5.5,
-        "cost": 555
-      },
-      {
-        "level": 36,
-        "value": 5.63,
-        "cost": 610
-      },
-      {
-        "level": 37,
-        "value": 5.76,
-        "cost": 671
-      },
-      {
-        "level": 38,
-        "value": 5.89,
-        "cost": 738
-      },
-      {
-        "level": 39,
-        "value": 6.01,
-        "cost": 812
-      },
-      {
-        "level": 40,
-        "value": 6.14,
-        "cost": 893
-      },
-      {
-        "level": 41,
-        "value": 6.27,
-        "cost": 983
-      },
-      {
-        "level": 42,
-        "value": 6.4,
-        "cost": 1081
-      },
-      {
-        "level": 43,
-        "value": 6.53,
-        "cost": 1189
-      },
-      {
-        "level": 44,
-        "value": 6.66,
-        "cost": 1308
-      },
-      {
-        "level": 45,
-        "value": 6.79,
-        "cost": 1439
-      },
-      {
-        "level": 46,
-        "value": 6.91,
-        "cost": 1583
-      },
-      {
-        "level": 47,
-        "value": 7.04,
-        "cost": 1741
-      },
-      {
-        "level": 48,
-        "value": 7.17,
-        "cost": 1915
-      },
-      {
-        "level": 49,
-        "value": 7.3,
-        "cost": 2107
-      },
-      {
-        "level": 50,
-        "value": 7.43,
-        "cost": 2317
-      },
-      {
-        "level": 51,
-        "value": 7.56,
-        "cost": 2549
-      },
-      {
-        "level": 52,
-        "value": 7.69,
-        "cost": 2804
-      },
-      {
-        "level": 53,
-        "value": 7.81,
-        "cost": 3084
-      },
-      {
-        "level": 54,
-        "value": 7.94,
-        "cost": 3393
-      },
-      {
-        "level": 55,
-        "value": 8.07,
-        "cost": 3732
-      },
-      {
-        "level": 56,
-        "value": 8.2,
-        "cost": 4105
-      },
-      {
-        "level": 57,
-        "value": 8.33,
-        "cost": 4516
-      },
-      {
-        "level": 58,
-        "value": 8.46,
-        "cost": 4967
-      },
-      {
-        "level": 59,
-        "value": 8.59,
-        "cost": 5464
-      },
-      {
-        "level": 60,
-        "value": 8.71,
-        "cost": 6011
-      },
-      {
-        "level": 61,
-        "value": 8.84,
-        "cost": 6612
-      },
-      {
-        "level": 62,
-        "value": 8.97,
-        "cost": 7273
-      },
-      {
-        "level": 63,
-        "value": 9.1,
-        "cost": 8000
-      },
-      {
-        "level": 64,
-        "value": 9.23,
-        "cost": 8800
-      },
-      {
-        "level": 65,
-        "value": 9.36,
-        "cost": 9680
-      },
-      {
-        "level": 66,
-        "value": 9.49,
-        "cost": 10648
-      },
-      {
-        "level": 67,
-        "value": 9.61,
-        "cost": 11713
-      },
-      {
-        "level": 68,
-        "value": 9.74,
-        "cost": 12884
-      },
-      {
-        "level": 69,
-        "value": 9.87,
-        "cost": 14173
-      },
-      {
-        "level": 70,
-        "value": 10,
-        "cost": 15590
-      }
-    ],
-    "defense": [
-      {
-        "level": 0,
-        "value": 1,
-        "cost": 0
-      },
-      {
-        "level": 1,
-        "value": 1.04,
-        "cost": 124
-      },
-      {
-        "level": 2,
-        "value": 1.08,
-        "cost": 136
-      },
-      {
-        "level": 3,
-        "value": 1.12,
-        "cost": 150
-      },
-      {
-        "level": 4,
-        "value": 1.16,
-        "cost": 165
-      },
-      {
-        "level": 5,
-        "value": 1.2,
-        "cost": 181
-      },
-      {
-        "level": 6,
-        "value": 1.24,
-        "cost": 199
-      },
-      {
-        "level": 7,
-        "value": 1.28,
-        "cost": 219
-      },
-      {
-        "level": 8,
-        "value": 1.32,
-        "cost": 241
-      },
-      {
-        "level": 9,
-        "value": 1.36,
-        "cost": 265
-      },
-      {
-        "level": 10,
-        "value": 1.4,
-        "cost": 292
-      },
-      {
-        "level": 11,
-        "value": 1.44,
-        "cost": 321
-      },
-      {
-        "level": 12,
-        "value": 1.48,
-        "cost": 353
-      },
-      {
-        "level": 13,
-        "value": 1.52,
-        "cost": 388
-      },
-      {
-        "level": 14,
-        "value": 1.56,
-        "cost": 427
-      },
-      {
-        "level": 15,
-        "value": 1.6,
-        "cost": 470
-      },
-      {
-        "level": 16,
-        "value": 1.64,
-        "cost": 517
-      },
-      {
-        "level": 17,
-        "value": 1.68,
-        "cost": 568
-      },
-      {
-        "level": 18,
-        "value": 1.72,
-        "cost": 625
-      },
-      {
-        "level": 19,
-        "value": 1.76,
-        "cost": 688
-      },
-      {
-        "level": 20,
-        "value": 1.8,
-        "cost": 757
-      },
-      {
-        "level": 21,
-        "value": 1.84,
-        "cost": 832
-      },
-      {
-        "level": 22,
-        "value": 1.88,
-        "cost": 916
-      },
-      {
-        "level": 23,
-        "value": 1.92,
-        "cost": 1007
-      },
-      {
-        "level": 24,
-        "value": 1.96,
-        "cost": 1108
-      },
-      {
-        "level": 25,
-        "value": 2,
-        "cost": 1219
-      },
-      {
-        "level": 26,
-        "value": 2.04,
-        "cost": 1340
-      },
-      {
-        "level": 27,
-        "value": 2.08,
-        "cost": 1475
-      },
-      {
-        "level": 28,
-        "value": 2.12,
-        "cost": 1622
-      },
-      {
-        "level": 29,
-        "value": 2.16,
-        "cost": 1784
-      },
-      {
-        "level": 30,
-        "value": 2.2,
-        "cost": 1963
-      },
-      {
-        "level": 31,
-        "value": 2.24,
-        "cost": 2159
-      },
-      {
-        "level": 32,
-        "value": 2.28,
-        "cost": 2375
-      },
-      {
-        "level": 33,
-        "value": 2.32,
-        "cost": 2612
-      },
-      {
-        "level": 34,
-        "value": 2.36,
-        "cost": 2873
-      },
-      {
-        "level": 35,
-        "value": 2.4,
-        "cost": 3161
-      },
-      {
-        "level": 36,
-        "value": 2.44,
-        "cost": 3477
-      },
-      {
-        "level": 37,
-        "value": 2.48,
-        "cost": 3825
-      },
-      {
-        "level": 38,
-        "value": 2.52,
-        "cost": 4207
-      },
-      {
-        "level": 39,
-        "value": 2.56,
-        "cost": 4628
-      },
-      {
-        "level": 40,
-        "value": 2.6,
-        "cost": 5090
-      },
-      {
-        "level": 41,
-        "value": 2.64,
-        "cost": 5600
-      },
-      {
-        "level": 42,
-        "value": 2.68,
-        "cost": 6159
-      },
-      {
-        "level": 43,
-        "value": 2.72,
-        "cost": 6775
-      },
-      {
-        "level": 44,
-        "value": 2.76,
-        "cost": 7453
-      },
-      {
-        "level": 45,
-        "value": 2.8,
-        "cost": 8198
-      },
-      {
-        "level": 46,
-        "value": 2.84,
-        "cost": 9018
-      },
-      {
-        "level": 47,
-        "value": 2.88,
-        "cost": 9920
-      },
-      {
-        "level": 48,
-        "value": 2.92,
-        "cost": 10912
-      },
-      {
-        "level": 49,
-        "value": 2.96,
-        "cost": 12003
-      },
-      {
-        "level": 50,
-        "value": 3,
-        "cost": 13203
-      }
-    ],
-    "earnings": [
-      {
-        "level": 0,
-        "value": 1,
-        "cost": 0
-      },
-      {
-        "level": 1,
-        "value": 1.09,
-        "cost": 9
-      },
-      {
-        "level": 2,
-        "value": 1.18,
-        "cost": 10
-      },
-      {
-        "level": 3,
-        "value": 1.27,
-        "cost": 11
-      },
-      {
-        "level": 4,
-        "value": 1.36,
-        "cost": 12
-      },
-      {
-        "level": 5,
-        "value": 1.45,
-        "cost": 14
-      },
-      {
-        "level": 6,
-        "value": 1.54,
-        "cost": 15
-      },
-      {
-        "level": 7,
-        "value": 1.63,
-        "cost": 16
-      },
-      {
-        "level": 8,
-        "value": 1.72,
-        "cost": 18
-      },
-      {
-        "level": 9,
-        "value": 1.81,
-        "cost": 20
-      },
-      {
-        "level": 10,
-        "value": 1.9,
-        "cost": 22
-      },
-      {
-        "level": 11,
-        "value": 1.99,
-        "cost": 24
-      },
-      {
-        "level": 12,
-        "value": 2.08,
-        "cost": 26
-      },
-      {
-        "level": 13,
-        "value": 2.17,
-        "cost": 29
-      },
-      {
-        "level": 14,
-        "value": 2.26,
-        "cost": 32
-      },
-      {
-        "level": 15,
-        "value": 2.35,
-        "cost": 35
-      },
-      {
-        "level": 16,
-        "value": 2.44,
-        "cost": 39
-      },
-      {
-        "level": 17,
-        "value": 2.53,
-        "cost": 43
-      },
-      {
-        "level": 18,
-        "value": 2.62,
-        "cost": 47
-      },
-      {
-        "level": 19,
-        "value": 2.71,
-        "cost": 52
-      },
-      {
-        "level": 20,
-        "value": 2.8,
-        "cost": 57
-      },
-      {
-        "level": 21,
-        "value": 2.89,
-        "cost": 62
-      },
-      {
-        "level": 22,
-        "value": 2.98,
-        "cost": 69
-      },
-      {
-        "level": 23,
-        "value": 3.07,
-        "cost": 75
-      },
-      {
-        "level": 24,
-        "value": 3.16,
-        "cost": 83
-      },
-      {
-        "level": 25,
-        "value": 3.25,
-        "cost": 91
-      },
-      {
-        "level": 26,
-        "value": 3.34,
-        "cost": 100
-      },
-      {
-        "level": 27,
-        "value": 3.43,
-        "cost": 111
-      },
-      {
-        "level": 28,
-        "value": 3.52,
-        "cost": 122
-      },
-      {
-        "level": 29,
-        "value": 3.61,
-        "cost": 134
-      },
-      {
-        "level": 30,
-        "value": 3.7,
-        "cost": 147
-      },
-      {
-        "level": 31,
-        "value": 3.79,
-        "cost": 162
-      },
-      {
-        "level": 32,
-        "value": 3.88,
-        "cost": 178
-      },
-      {
-        "level": 33,
-        "value": 3.97,
-        "cost": 196
-      },
-      {
-        "level": 34,
-        "value": 4.06,
-        "cost": 215
-      },
-      {
-        "level": 35,
-        "value": 4.15,
-        "cost": 237
-      },
-      {
-        "level": 36,
-        "value": 4.24,
-        "cost": 261
-      },
-      {
-        "level": 37,
-        "value": 4.33,
-        "cost": 287
-      },
-      {
-        "level": 38,
-        "value": 4.42,
-        "cost": 315
-      },
-      {
-        "level": 39,
-        "value": 4.51,
-        "cost": 347
-      },
-      {
-        "level": 40,
-        "value": 4.6,
-        "cost": 382
-      },
-      {
-        "level": 41,
-        "value": 4.69,
-        "cost": 420
-      },
-      {
-        "level": 42,
-        "value": 4.78,
-        "cost": 462
-      },
-      {
-        "level": 43,
-        "value": 4.87,
-        "cost": 508
-      },
-      {
-        "level": 44,
-        "value": 4.96,
-        "cost": 559
-      },
-      {
-        "level": 45,
-        "value": 5.05,
-        "cost": 614
-      },
-      {
-        "level": 46,
-        "value": 5.14,
-        "cost": 676
-      },
-      {
-        "level": 47,
-        "value": 5.23,
-        "cost": 744
-      },
-      {
-        "level": 48,
-        "value": 5.32,
-        "cost": 818
-      },
-      {
-        "level": 49,
-        "value": 5.41,
-        "cost": 900
-      },
-      {
-        "level": 50,
-        "value": 5.5,
-        "cost": 990
-      },
-      {
-        "level": 51,
-        "value": 5.59,
-        "cost": 1089
-      },
-      {
-        "level": 52,
-        "value": 5.68,
-        "cost": 1197
-      },
-      {
-        "level": 53,
-        "value": 5.77,
-        "cost": 1317
-      },
-      {
-        "level": 54,
-        "value": 5.86,
-        "cost": 1449
-      },
-      {
-        "level": 55,
-        "value": 5.95,
-        "cost": 1594
-      },
-      {
-        "level": 56,
-        "value": 6.04,
-        "cost": 1753
-      },
-      {
-        "level": 57,
-        "value": 6.13,
-        "cost": 1928
-      },
-      {
-        "level": 58,
-        "value": 6.22,
-        "cost": 2121
-      },
-      {
-        "level": 59,
-        "value": 6.31,
-        "cost": 2333
-      },
-      {
-        "level": 60,
-        "value": 6.4,
-        "cost": 2567
-      },
-      {
-        "level": 61,
-        "value": 6.49,
-        "cost": 2823
-      },
-      {
-        "level": 62,
-        "value": 6.58,
-        "cost": 3106
-      },
-      {
-        "level": 63,
-        "value": 6.67,
-        "cost": 3416
-      },
-      {
-        "level": 64,
-        "value": 6.76,
-        "cost": 3758
-      },
-      {
-        "level": 65,
-        "value": 6.85,
-        "cost": 4134
-      },
-      {
-        "level": 66,
-        "value": 6.94,
-        "cost": 4547
-      },
-      {
-        "level": 67,
-        "value": 7.03,
-        "cost": 5002
-      },
-      {
-        "level": 68,
-        "value": 7.12,
-        "cost": 5502
-      },
-      {
-        "level": 69,
-        "value": 7.21,
-        "cost": 6052
-      },
-      {
-        "level": 70,
-        "value": 7.3,
-        "cost": 6658
-      },
-      {
-        "level": 71,
-        "value": 7.39,
-        "cost": 7323
-      },
-      {
-        "level": 72,
-        "value": 7.48,
-        "cost": 8056
-      },
-      {
-        "level": 73,
-        "value": 7.57,
-        "cost": 8861
-      },
-      {
-        "level": 74,
-        "value": 7.66,
-        "cost": 9747
-      },
-      {
-        "level": 75,
-        "value": 7.75,
-        "cost": 10722
-      },
-      {
-        "level": 76,
-        "value": 7.84,
-        "cost": 11794
-      },
-      {
-        "level": 77,
-        "value": 7.93,
-        "cost": 12974
-      },
-      {
-        "level": 78,
-        "value": 8.02,
-        "cost": 14271
-      },
-      {
-        "level": 79,
-        "value": 8.11,
-        "cost": 15698
-      },
-      {
-        "level": 80,
-        "value": 8.2,
-        "cost": 17268
-      },
-      {
-        "level": 81,
-        "value": 8.29,
-        "cost": 18995
-      },
-      {
-        "level": 82,
-        "value": 8.38,
-        "cost": 20894
-      },
-      {
-        "level": 83,
-        "value": 8.47,
-        "cost": 22984
-      },
-      {
-        "level": 84,
-        "value": 8.56,
-        "cost": 25282
-      },
-      {
-        "level": 85,
-        "value": 8.65,
-        "cost": 27811
-      },
-      {
-        "level": 86,
-        "value": 8.74,
-        "cost": 30592
-      },
-      {
-        "level": 87,
-        "value": 8.83,
-        "cost": 33651
-      },
-      {
-        "level": 88,
-        "value": 8.92,
-        "cost": 37016
-      },
-      {
-        "level": 89,
-        "value": 9.01,
-        "cost": 40717
-      },
-      {
-        "level": 90,
-        "value": 9.1,
-        "cost": 44789
-      },
-      {
-        "level": 91,
-        "value": 9.19,
-        "cost": 49268
-      },
-      {
-        "level": 92,
-        "value": 9.28,
-        "cost": 54195
-      },
-      {
-        "level": 93,
-        "value": 9.37,
-        "cost": 59614
-      },
-      {
-        "level": 94,
-        "value": 9.46,
-        "cost": 65576
-      },
-      {
-        "level": 95,
-        "value": 9.55,
-        "cost": 72133
-      },
-      {
-        "level": 96,
-        "value": 9.64,
-        "cost": 79347
-      },
-      {
-        "level": 97,
-        "value": 9.73,
-        "cost": 87281
-      },
-      {
-        "level": 98,
-        "value": 9.82,
-        "cost": 96010
-      },
-      {
-        "level": 99,
-        "value": 9.91,
-        "cost": 105611
-      },
-      {
-        "level": 100,
-        "value": 10,
-        "cost": 116172
-      }
-    ],
-    "growth": [
-      {
-        "level": 0,
-        "value": 1,
-        "cost": 0
-      },
-      {
-        "level": 1,
-        "value": 2,
-        "cost": 1161
-      },
-      {
-        "level": 2,
-        "value": 3,
-        "cost": 2323
-      },
-      {
-        "level": 3,
-        "value": 4,
-        "cost": 4645
-      },
-      {
-        "level": 4,
-        "value": 5,
-        "cost": 9290
-      },
-      {
-        "level": 5,
-        "value": 6,
-        "cost": 18581
-      }
-    ]
+    "goldBonusSquares": 5,
+    "mailingAddress": "2212 W 5th Ave, Gary, IN 46404"
   },
   "achievements": [
     {
@@ -4187,6 +3032,371 @@
       "secret": true,
       "description": "Wipe a territory of 1,000 blocks or more",
       "reward": 150
+    }
+  ],
+  "items": [
+    {
+      "id": "superClick",
+      "name": "Super Click",
+      "description": "Your taps hit 10 times harder for 5 seconds. Once an hour.",
+      "effect": "clickMultiplier",
+      "value": 10,
+      "seconds": 5,
+      "uses": 1,
+      "perMinutes": 60,
+      "consumable": false,
+      "pricing": "PV",
+      "V": 0.0125,
+      "P": 50,
+      "hours": null,
+      "enabled": true
+    },
+    {
+      "id": "terraformer",
+      "name": "Terraformer",
+      "description": "Change the terrain of one block. 5 blocks per hour.",
+      "effect": "terraform",
+      "value": 0,
+      "seconds": 0,
+      "uses": 5,
+      "perMinutes": 60,
+      "consumable": false,
+      "pricing": "PV",
+      "V": 0.0125,
+      "P": 50,
+      "hours": null,
+      "enabled": true
+    },
+    {
+      "id": "demolition",
+      "name": "Demolition",
+      "description": "Removes one of your factories or walls. Used up when used.",
+      "effect": "demolish",
+      "value": 0,
+      "seconds": 0,
+      "uses": 1,
+      "perMinutes": 0,
+      "consumable": true,
+      "pricing": "Hours",
+      "V": null,
+      "P": null,
+      "hours": 0.5,
+      "enabled": true
+    }
+  ],
+  "economy": {
+    "baseBlockSeconds": 3,
+    "hitsPerSquare": 10,
+    "defaultBaseBlocks": 431649,
+    "maxLevel": 10,
+    "maxBaseBlocksOnline": 50000,
+    "tickSeconds": 60,
+    "inspectHoldMs": 400,
+    "factoryBlocksPerFactory": 20,
+    "factoryBuildPaybackHours": 48,
+    "factoryValuePerHour": 0.05,
+    "factoryBuildGrowth": 1.15,
+    "factoryAreaSize": 5,
+    "factoryDistancePenaltyWh": 0.0005,
+    "wallStrength": 2,
+    "wallPaybackHours": 1,
+    "maxWallsPerBlock": 2,
+    "marketFee": 0.05,
+    "marketMinAccountDays": 3
+  },
+  "tiers": {
+    "clickPower": {
+      "name": "Click Power",
+      "type": "Income",
+      "v0": 1,
+      "vmax": 512,
+      "step": "geometric",
+      "cu": 4,
+      "unit": "x hits per tap",
+      "about": "Each tap counts as this many hits"
+    },
+    "earnings": {
+      "name": "Earnings",
+      "type": "Income",
+      "v0": 1,
+      "vmax": 10,
+      "step": "geometric",
+      "cu": 6,
+      "unit": "x pay",
+      "about": "Multiplies the squares you earn from mining a new block"
+    },
+    "defense": {
+      "name": "Defense",
+      "type": "Protection",
+      "v0": 1,
+      "vmax": 6,
+      "step": "geometric",
+      "cu": 3,
+      "unit": "x hardness",
+      "about": "Others need this many times the hits to take your blocks"
+    },
+    "growth": {
+      "name": "Growth",
+      "type": "Map",
+      "v0": 1,
+      "vmax": 6,
+      "step": "list",
+      "list": [
+        1,
+        2,
+        2,
+        3,
+        3,
+        4,
+        4,
+        5,
+        5,
+        6
+      ],
+      "cu": 3,
+      "unit": "new blocks",
+      "about": "How many new map blocks appear when you mine a new block"
+    },
+    "factorySpeed": {
+      "name": "Factory Speed",
+      "type": "Income",
+      "v0": 0.05,
+      "vmax": 25.6,
+      "step": "geometric",
+      "cu": 4,
+      "unit": "x a base player",
+      "about": "How fast your factories mine, compared with a base player (0.05 = 1/20)"
+    },
+    "factoryLifetime": {
+      "name": "Factory Lifetime",
+      "type": "Income",
+      "v0": 4,
+      "vmax": 24,
+      "step": "geometric",
+      "cu": 2,
+      "unit": "hours awake",
+      "about": "How long a factory works after you wake it up"
+    },
+    "factoryYield": {
+      "name": "Factory Yield",
+      "type": "Income",
+      "v0": 1,
+      "vmax": 512,
+      "step": "geometric",
+      "cu": 4,
+      "unit": "squares per block",
+      "about": "Squares a factory earns per block it mines, never more than the block's normal pay"
+    }
+  },
+  "skinRarity": {
+    "Common": 0.3333,
+    "Rare": 1,
+    "Ultra Rare": 5,
+    "Legendary": 20
+  },
+  "glossary": [
+    {
+      "symbol": "E",
+      "name": "Base blocks",
+      "meaning": "How many blocks a map starts with. Fixed forever once the map is created",
+      "formula": "Chosen at creation; default defaultBaseBlocks",
+      "home": "Each map; Economy tab"
+    },
+    {
+      "symbol": "L",
+      "name": "Level",
+      "meaning": "A map's difficulty, 1 to 10. Each map has its own",
+      "formula": "L = 1 + floor(log2(mined / E + 1)), at most maxLevel",
+      "home": "Each map"
+    },
+    {
+      "symbol": "mined",
+      "name": "Blocks mined",
+      "meaning": "Every new block first claimed on that map, by players and factories",
+      "formula": "Counts up by 1 per first claim",
+      "home": "Each map"
+    },
+    {
+      "symbol": "B_start(L)",
+      "name": "Level start",
+      "meaning": "Blocks mined on a map when level L begins",
+      "formula": "(2^(L-1) - 1) x E",
+      "home": "Formula"
+    },
+    {
+      "symbol": "t",
+      "name": "Terrain factor",
+      "meaning": "How hard the terrain is: sand 0.5, grass 1, forest 1.5, stone 3, gold 1. Water can't be claimed",
+      "formula": "",
+      "home": "Game Rules tab"
+    },
+    {
+      "symbol": "H",
+      "name": "Hardness",
+      "meaning": "Hits to mine a block. A block keeps the level it was born at",
+      "formula": "H = hitsPerBlock x 2^(L-1) x t",
+      "home": "Formula; Game Rules hitsPerBlock"
+    },
+    {
+      "symbol": "C",
+      "name": "Click Power",
+      "meaning": "Hits each tap counts as",
+      "formula": "Tier value",
+      "home": "Upgrades tab"
+    },
+    {
+      "symbol": "D",
+      "name": "Defense",
+      "meaning": "Multiplies the hits others need to take your block",
+      "formula": "Hits to take = H x D (+ walls)",
+      "home": "Upgrades tab"
+    },
+    {
+      "symbol": "S",
+      "name": "Pay",
+      "meaning": "Squares for mining a new block. Taking an owned block pays nothing",
+      "formula": "S = H / hitsPerSquare x M_earn + G",
+      "home": "Formula; Economy hitsPerSquare"
+    },
+    {
+      "symbol": "M_earn",
+      "name": "Earnings",
+      "meaning": "Multiplies pay",
+      "formula": "Tier value",
+      "home": "Upgrades tab"
+    },
+    {
+      "symbol": "G",
+      "name": "Gold bonus",
+      "meaning": "Extra squares for first claiming a gold block",
+      "formula": "",
+      "home": "Game Rules goldBonusSquares"
+    },
+    {
+      "symbol": "Wh",
+      "name": "Work-hour",
+      "meaning": "One hour of base mining. The unit every price is measured in",
+      "formula": "1 Wh at level L = W(L) squares",
+      "home": "Formula"
+    },
+    {
+      "symbol": "W(L)",
+      "name": "Work index",
+      "meaning": "Squares one work-hour is worth at level L",
+      "formula": "W(L) = (3600 / baseBlockSeconds) x 2^(L-1) = 1,200 x 2^(L-1)",
+      "home": "Economy baseBlockSeconds"
+    },
+    {
+      "symbol": "P",
+      "name": "Payback hours",
+      "meaning": "How long an object takes to repay its price",
+      "formula": "",
+      "home": "Each object's row"
+    },
+    {
+      "symbol": "V",
+      "name": "Value per hour",
+      "meaning": "Work-hours an object gives (or forces an attacker to spend) per hour",
+      "formula": "",
+      "home": "Each object's row"
+    },
+    {
+      "symbol": "Price",
+      "name": "Universal price",
+      "meaning": "The price of anything with a V",
+      "formula": "Price = P x V x W(L)",
+      "home": "Formula"
+    },
+    {
+      "symbol": "N",
+      "name": "Tier",
+      "meaning": "Upgrade tier, 1 to 10. Everyone starts at tier 1",
+      "formula": "",
+      "home": "Each player"
+    },
+    {
+      "symbol": "v_N",
+      "name": "Tier value",
+      "meaning": "What an upgrade gives at tier N",
+      "formula": "geometric: v0 x (vmax / v0)^((N-1)/9); list: the Nth value",
+      "home": "Upgrades tab"
+    },
+    {
+      "symbol": "c_u",
+      "name": "Upgrade weight",
+      "meaning": "How many work-hours an upgrade is worth",
+      "formula": "",
+      "home": "Upgrades tab"
+    },
+    {
+      "symbol": "Tier cost",
+      "name": "Tier price",
+      "meaning": "Price of buying tier N (N = 2 to 10). Fixed forever",
+      "formula": "c_u x W(N) = c_u x 1,200 x 2^(N-1)",
+      "home": "Formula"
+    },
+    {
+      "symbol": "Unlock",
+      "name": "Tier unlock",
+      "meaning": "You can buy tier N once you have first-claimed a level-N block",
+      "formula": "",
+      "home": "Rule"
+    },
+    {
+      "symbol": "Effective tier",
+      "name": "Tier in use",
+      "meaning": "Your upgrades work at most at the level of the map you're on",
+      "formula": "min(your tier, map level)",
+      "home": "Rule"
+    },
+    {
+      "symbol": "Build_n",
+      "name": "Factory price",
+      "meaning": "Price of your nth factory",
+      "formula": "P_F x V_F x W(L) x g^(n-1)",
+      "home": "Economy factory rows"
+    },
+    {
+      "symbol": "Factory speed",
+      "name": "Factory hits",
+      "meaning": "Hits a factory adds per second",
+      "formula": "(hitsPerBlock / baseBlockSeconds) x Factory Speed value",
+      "home": "Upgrades tab"
+    },
+    {
+      "symbol": "Distance penalty",
+      "name": "Factory distance",
+      "meaning": "Extra hits when a factory's target lies outside its home square (d = blocks outside it)",
+      "formula": "d x factoryDistancePenaltyWh x W(L) x hitsPerSquare",
+      "home": "Economy tab"
+    },
+    {
+      "symbol": "Wall hits",
+      "name": "Wall strength",
+      "meaning": "Hits to break a wall",
+      "formula": "w x H",
+      "home": "Economy wallStrength"
+    },
+    {
+      "symbol": "Wall price",
+      "name": "Wall price",
+      "meaning": "Price of one wall",
+      "formula": "P_a x w x H / hitsPerSquare",
+      "home": "Economy tab"
+    },
+    {
+      "symbol": "Skin price",
+      "name": "Skin price",
+      "meaning": "Price of a skin",
+      "formula": "rarity hours x W(L)",
+      "home": "Skin Rarity tab"
+    },
+    {
+      "symbol": "Market fee",
+      "name": "Market fee",
+      "meaning": "Share of each land sale destroyed",
+      "formula": "price x marketFee",
+      "home": "Economy tab"
     }
   ],
   "skins": [
@@ -8185,371 +7395,6 @@
       "price": 12500,
       "collection": "Showpieces",
       "enabled": true
-    }
-  ],
-  "items": [
-    {
-      "id": "superClick",
-      "name": "Super Click",
-      "description": "Your taps hit 10 times harder for 5 seconds. Once an hour.",
-      "effect": "clickMultiplier",
-      "value": 10,
-      "seconds": 5,
-      "uses": 1,
-      "perMinutes": 60,
-      "consumable": false,
-      "pricing": "PV",
-      "V": 0.0125,
-      "P": 50,
-      "hours": null,
-      "enabled": true
-    },
-    {
-      "id": "terraformer",
-      "name": "Terraformer",
-      "description": "Change the terrain of one block. 5 blocks per hour.",
-      "effect": "terraform",
-      "value": 0,
-      "seconds": 0,
-      "uses": 5,
-      "perMinutes": 60,
-      "consumable": false,
-      "pricing": "PV",
-      "V": 0.0125,
-      "P": 50,
-      "hours": null,
-      "enabled": true
-    },
-    {
-      "id": "demolition",
-      "name": "Demolition",
-      "description": "Removes one of your factories or walls. Used up when used.",
-      "effect": "demolish",
-      "value": 0,
-      "seconds": 0,
-      "uses": 1,
-      "perMinutes": 0,
-      "consumable": true,
-      "pricing": "Hours",
-      "V": null,
-      "P": null,
-      "hours": 0.5,
-      "enabled": true
-    }
-  ],
-  "economy": {
-    "baseBlockSeconds": 3,
-    "hitsPerSquare": 10,
-    "defaultBaseBlocks": 431649,
-    "maxLevel": 10,
-    "maxBaseBlocksOnline": 50000,
-    "tickSeconds": 60,
-    "inspectHoldMs": 400,
-    "factoryBlocksPerFactory": 20,
-    "factoryBuildPaybackHours": 48,
-    "factoryValuePerHour": 0.05,
-    "factoryBuildGrowth": 1.15,
-    "factoryAreaSize": 5,
-    "factoryDistancePenaltyWh": 0.03,
-    "wallStrength": 2,
-    "wallPaybackHours": 1,
-    "maxWallsPerBlock": 2,
-    "marketFee": 0.05,
-    "marketMinAccountDays": 3
-  },
-  "tiers": {
-    "clickPower": {
-      "name": "Click Power",
-      "type": "Income",
-      "v0": 1,
-      "vmax": 512,
-      "step": "geometric",
-      "cu": 4,
-      "unit": "x hits per tap",
-      "about": "Each tap counts as this many hits"
-    },
-    "earnings": {
-      "name": "Earnings",
-      "type": "Income",
-      "v0": 1,
-      "vmax": 10,
-      "step": "geometric",
-      "cu": 6,
-      "unit": "x pay",
-      "about": "Multiplies the squares you earn from mining a new block"
-    },
-    "defense": {
-      "name": "Defense",
-      "type": "Protection",
-      "v0": 1,
-      "vmax": 6,
-      "step": "geometric",
-      "cu": 3,
-      "unit": "x hardness",
-      "about": "Others need this many times the hits to take your blocks"
-    },
-    "growth": {
-      "name": "Growth",
-      "type": "Map",
-      "v0": 1,
-      "vmax": 6,
-      "step": "list",
-      "list": [
-        1,
-        2,
-        2,
-        3,
-        3,
-        4,
-        4,
-        5,
-        5,
-        6
-      ],
-      "cu": 3,
-      "unit": "new blocks",
-      "about": "How many new map blocks appear when you mine a new block"
-    },
-    "factorySpeed": {
-      "name": "Factory Speed",
-      "type": "Income",
-      "v0": 0.05,
-      "vmax": 25.6,
-      "step": "geometric",
-      "cu": 4,
-      "unit": "x a base player",
-      "about": "How fast your factories mine, compared with a base player (0.05 = 1/20)"
-    },
-    "factoryLifetime": {
-      "name": "Factory Lifetime",
-      "type": "Income",
-      "v0": 4,
-      "vmax": 24,
-      "step": "geometric",
-      "cu": 2,
-      "unit": "hours awake",
-      "about": "How long a factory works after you wake it up"
-    },
-    "factoryYield": {
-      "name": "Factory Yield",
-      "type": "Income",
-      "v0": 1,
-      "vmax": 512,
-      "step": "geometric",
-      "cu": 4,
-      "unit": "squares per block",
-      "about": "Squares a factory earns per block it mines, never more than the block's normal pay"
-    }
-  },
-  "skinRarity": {
-    "Common": 0.3333,
-    "Rare": 1,
-    "Ultra Rare": 5,
-    "Legendary": 20
-  },
-  "glossary": [
-    {
-      "symbol": "E",
-      "name": "Base blocks",
-      "meaning": "How many blocks a map starts with. Fixed forever once the map is created",
-      "formula": "Chosen at creation; default defaultBaseBlocks",
-      "home": "Each map; Economy tab"
-    },
-    {
-      "symbol": "L",
-      "name": "Level",
-      "meaning": "A map's difficulty, 1 to 10. Each map has its own",
-      "formula": "L = 1 + floor(log2(mined / E + 1)), at most maxLevel",
-      "home": "Each map"
-    },
-    {
-      "symbol": "mined",
-      "name": "Blocks mined",
-      "meaning": "Every new block first claimed on that map, by players and factories",
-      "formula": "Counts up by 1 per first claim",
-      "home": "Each map"
-    },
-    {
-      "symbol": "B_start(L)",
-      "name": "Level start",
-      "meaning": "Blocks mined on a map when level L begins",
-      "formula": "(2^(L-1) - 1) x E",
-      "home": "Formula"
-    },
-    {
-      "symbol": "t",
-      "name": "Terrain factor",
-      "meaning": "How hard the terrain is: sand 0.5, grass 1, forest 1.5, stone 3, gold 1. Water can't be claimed",
-      "formula": "",
-      "home": "Game Rules tab"
-    },
-    {
-      "symbol": "H",
-      "name": "Hardness",
-      "meaning": "Hits to mine a block. A block keeps the level it was born at",
-      "formula": "H = hitsPerBlock x 2^(L-1) x t",
-      "home": "Formula; Game Rules hitsPerBlock"
-    },
-    {
-      "symbol": "C",
-      "name": "Click Power",
-      "meaning": "Hits each tap counts as",
-      "formula": "Tier value",
-      "home": "Upgrades tab"
-    },
-    {
-      "symbol": "D",
-      "name": "Defense",
-      "meaning": "Multiplies the hits others need to take your block",
-      "formula": "Hits to take = H x D (+ walls)",
-      "home": "Upgrades tab"
-    },
-    {
-      "symbol": "S",
-      "name": "Pay",
-      "meaning": "Squares for mining a new block. Taking an owned block pays nothing",
-      "formula": "S = H / hitsPerSquare x M_earn + G",
-      "home": "Formula; Economy hitsPerSquare"
-    },
-    {
-      "symbol": "M_earn",
-      "name": "Earnings",
-      "meaning": "Multiplies pay",
-      "formula": "Tier value",
-      "home": "Upgrades tab"
-    },
-    {
-      "symbol": "G",
-      "name": "Gold bonus",
-      "meaning": "Extra squares for first claiming a gold block",
-      "formula": "",
-      "home": "Game Rules goldBonusSquares"
-    },
-    {
-      "symbol": "Wh",
-      "name": "Work-hour",
-      "meaning": "One hour of base mining. The unit every price is measured in",
-      "formula": "1 Wh at level L = W(L) squares",
-      "home": "Formula"
-    },
-    {
-      "symbol": "W(L)",
-      "name": "Work index",
-      "meaning": "Squares one work-hour is worth at level L",
-      "formula": "W(L) = (3600 / baseBlockSeconds) x 2^(L-1) = 1,200 x 2^(L-1)",
-      "home": "Economy baseBlockSeconds"
-    },
-    {
-      "symbol": "P",
-      "name": "Payback hours",
-      "meaning": "How long an object takes to repay its price",
-      "formula": "",
-      "home": "Each object's row"
-    },
-    {
-      "symbol": "V",
-      "name": "Value per hour",
-      "meaning": "Work-hours an object gives (or forces an attacker to spend) per hour",
-      "formula": "",
-      "home": "Each object's row"
-    },
-    {
-      "symbol": "Price",
-      "name": "Universal price",
-      "meaning": "The price of anything with a V",
-      "formula": "Price = P x V x W(L)",
-      "home": "Formula"
-    },
-    {
-      "symbol": "N",
-      "name": "Tier",
-      "meaning": "Upgrade tier, 1 to 10. Everyone starts at tier 1",
-      "formula": "",
-      "home": "Each player"
-    },
-    {
-      "symbol": "v_N",
-      "name": "Tier value",
-      "meaning": "What an upgrade gives at tier N",
-      "formula": "geometric: v0 x (vmax / v0)^((N-1)/9); list: the Nth value",
-      "home": "Upgrades tab"
-    },
-    {
-      "symbol": "c_u",
-      "name": "Upgrade weight",
-      "meaning": "How many work-hours an upgrade is worth",
-      "formula": "",
-      "home": "Upgrades tab"
-    },
-    {
-      "symbol": "Tier cost",
-      "name": "Tier price",
-      "meaning": "Price of buying tier N (N = 2 to 10). Fixed forever",
-      "formula": "c_u x W(N) = c_u x 1,200 x 2^(N-1)",
-      "home": "Formula"
-    },
-    {
-      "symbol": "Unlock",
-      "name": "Tier unlock",
-      "meaning": "You can buy tier N once you have first-claimed a level-N block",
-      "formula": "",
-      "home": "Rule"
-    },
-    {
-      "symbol": "Effective tier",
-      "name": "Tier in use",
-      "meaning": "Your upgrades work at most at the level of the map you're on",
-      "formula": "min(your tier, map level)",
-      "home": "Rule"
-    },
-    {
-      "symbol": "Build_n",
-      "name": "Factory price",
-      "meaning": "Price of your nth factory",
-      "formula": "P_F x V_F x W(L) x g^(n-1)",
-      "home": "Economy factory rows"
-    },
-    {
-      "symbol": "Factory speed",
-      "name": "Factory hits",
-      "meaning": "Hits a factory adds per second",
-      "formula": "(hitsPerBlock / baseBlockSeconds) x Factory Speed value",
-      "home": "Upgrades tab"
-    },
-    {
-      "symbol": "Distance penalty",
-      "name": "Factory distance",
-      "meaning": "Extra hits when a factory's target lies outside its home square (d = blocks outside it)",
-      "formula": "d x factoryDistancePenaltyWh x W(L) x hitsPerSquare",
-      "home": "Economy tab"
-    },
-    {
-      "symbol": "Wall hits",
-      "name": "Wall strength",
-      "meaning": "Hits to break a wall",
-      "formula": "w x H",
-      "home": "Economy wallStrength"
-    },
-    {
-      "symbol": "Wall price",
-      "name": "Wall price",
-      "meaning": "Price of one wall",
-      "formula": "P_a x w x H / hitsPerSquare",
-      "home": "Economy tab"
-    },
-    {
-      "symbol": "Skin price",
-      "name": "Skin price",
-      "meaning": "Price of a skin",
-      "formula": "rarity hours x W(L)",
-      "home": "Skin Rarity tab"
-    },
-    {
-      "symbol": "Market fee",
-      "name": "Market fee",
-      "meaning": "Share of each land sale destroyed",
-      "formula": "price x marketFee",
-      "home": "Economy tab"
     }
   ]
 }

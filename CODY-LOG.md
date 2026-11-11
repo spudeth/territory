@@ -1154,3 +1154,15 @@ One commit per phase on iterate (1 3c3a3e5, 2 0961761, 3 a405ba9, 4 abc07c3, 5 c
 The full list is in XOREN-TODO.md: open questions Q23-Q30; the sheet (delete Inputs, Summary, Click Power, Defense, Earnings, Growth; delete squaresPerFirstClaim and newMapBlocks rows; add mailingAddress; the tier achievement rows from Q28; fix Q26); merge; no new Render settings; economy-reset; phone tests.
 
 Loop order 16 done. Stopping.
+
+## Loop 16 follow-up (Bob, 2026-11-11)
+#118 | 2026-11-11 | Answers: Q26 done (the sheet's Achievements match economy.json), Q27 kept as recommended (terrain stored only where it differs from the seed), Q28 done (tier rows on the sheet), Q29 approved with three edits in info.js (walls, market, and "Each block it mines pays its Factory Yield." on factories), all made. Economy tab: factoryDistancePenaltyWh 0.03 -> 0.0005. Sync: the old quick export (gviz) blanked mailingAddress, because Google guesses a column's type and drops text in a column of numbers; the sync now finds each tab's id on the sheet's public page and uses the per-tab CSV export, which keeps every cell as written (a missing tab is simply absent). npm run sync-rules -- --check: no problems, no warnings, one change (factoryDistancePenaltyWh 0.03 -> 0.0005). The real sync wrote the same: achievements, skins, items, tiers, skin rarity, glossary and rules identical to before; the old upgrade level tables (unused since Phase 3) are gone from the file. Clean | tests: catalog, economy, guide, factories 24/24
+Q26, Q27, Q28, Q29: closed. Still open: Q30 (placeholder art), and from loop 15 Q23, Q24, Q25.
+
+## Merge steps (loop 16, updated)
+1. One pull request iterate -> main merges loop 15 Phase 7, loop 16 Phases 1-9 and this follow-up (data/economy.json with the new penalty, the sync fix, the info texts). Render applies migrations 018-023 on start.
+2. The sheet is already done (old tabs and retired rows deleted, mailingAddress added, achievements matching): nothing more to sync before merging.
+3. Straight after the deploy, Xoren runs: npm run admin -- economy-reset --prod (check each map's E in the preview, White Plains 200 x 200; type CONFIRM).
+4. Phone checks: XOREN-TODO.md section 6. A base factory now needs about 36 more seconds per block of distance outside its home square (was about 36 minutes).
+
+Stopping.
