@@ -23,8 +23,7 @@ test('the same seed gives the same terrain and starting shape; another seed give
 });
 
 test('the starting shape has exactly the blocks asked for, all different and all connected', () => {
-  const shape = terrain.startingShape('island', rules.NEW_MAP_BLOCKS);
-  assert.equal(rules.NEW_MAP_BLOCKS, 10240);
+  const shape = terrain.startingShape('island', 10240);
   assert.equal(shape.length, 10240);
   const set = new Set(shape.map(([x, y]) => x + ',' + y));
   assert.equal(set.size, 10240);
@@ -146,18 +145,18 @@ test("on a seeded map: water can't be claimed, sand, forest and stone take their
   const g = await onMap();
   tap(g, find('gold'), rules.hitsNeeded(null, 'gold'));
   assert.equal(await claimed(g, find('gold')), true);
-  assert.equal(await g.next('squares'), rules.SQUARES_PER_FIRST_CLAIM + rules.GOLD_BONUS_SQUARES, 'gold: the normal square plus the bonus');
+  assert.equal(await g.next('squares'), 1 + rules.GOLD_BONUS_SQUARES, 'gold: the normal square plus the bonus');
   const p = await onMap();
   tap(p, find('grass'), rules.HITS_PER_BLOCK);
   assert.equal(await claimed(p, find('grass')), true);
-  assert.equal(await p.next('squares'), rules.SQUARES_PER_FIRST_CLAIM, 'grass: the normal square');
+  assert.equal(await p.next('squares'), 1, 'grass: the normal square');
 });
 
 test('create-map makes a seeded island, random seed if none; map shows the seed', async () => {
-  const id = await store.createMap(pool, { name: 'Random Seed' });
+  const id = await store.createMap(pool, { name: 'Random Seed', blocks: 500 });
   const m = await store.findMap(pool, '#' + id);
   assert.match(m.seed, /^[a-z2-9]{8}$/);
-  assert.equal((await cellsOf(id)).length, rules.NEW_MAP_BLOCKS);
+  assert.equal((await cellsOf(id)).length, 500);
   const plain = await store.createMap(pool, { name: 'Plain', width: 3, height: 3 });
   assert.equal((await store.findMap(pool, '#' + plain)).seed, null, 'a rectangle without a seed stays plain grass');
 });

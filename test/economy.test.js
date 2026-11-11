@@ -1,4 +1,4 @@
-// The sheet sync: checks, change reports and level remapping, using a saved copy of the sheet (no internet).
+// The sheet sync: checks and change reports, using a saved copy of the sheet (no internet).
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
@@ -17,51 +17,142 @@ function setCell(csv, row, col, value) {
 }
 const errorsWith = (tabs) => economy.validate(tabs).errors;
 
-test('the saved sheet passes and reads every level and rule as shown', () => {
-  const { economy: e, errors } = economy.validate(saved());
+test('the saved sheet passes and reads every tab as shown; retired Game Rules keys are ignored with a warning', () => {
+  const { economy: e, errors, warnings } = economy.validate(saved());
   assert.deepEqual(errors, []);
-  assert.deepEqual(Object.fromEntries(Object.entries(e.upgrades).map(([k, v]) => [k, v.length - 1])),
-    { clickPower: 70, defense: 50, earnings: 100, growth: 5 });
-  assert.deepEqual(e.upgrades.clickPower[0], { level: 0, value: 1, cost: 0 }, 'level 0 is no upgrade');
-  assert.deepEqual(e.upgrades.clickPower[1], { level: 1, value: 1.13, cost: 22 });
-  assert.deepEqual(e.upgrades.clickPower[70], { level: 70, value: 10, cost: 15590 }, '"15,590" read as 15590');
-  assert.deepEqual(e.upgrades.growth.map(l => l.value), [1, 2, 3, 4, 5, 6]);
+  assert.deepEqual(warnings, ['Game Rules: "squaresPerFirstClaim" is retired and ignored; the row can be deleted',
+    'Game Rules: "newMapBlocks" is retired and ignored; the row can be deleted']);
   assert.equal(e.rules.hitsPerBlock, 10);
+  assert.equal(e.rules.squaresPerFirstClaim, undefined);
   assert.equal(e.achievements.length, 300);
   assert.deepEqual(e.achievements[0], { id: 'first-block', name: 'First Block', category: 'Claiming', stat: 'claims', threshold: 1, secret: false, description: 'Claim 1 empty block', reward: 0.5 });
-  assert.equal(Object.keys(e.rules).length, Object.keys(economy.RULE_KEYS).length);
+  assert.equal(e.economy.defaultBaseBlocks, 431649);
+  assert.equal(e.economy.marketFee, 0.05);
+  assert.deepEqual(Object.keys(e.economy).sort(), Object.keys(economy.ECONOMY_KEYS).sort());
+  assert.deepEqual(Object.keys(e.tiers), economy.TIER_KEYS);
+  assert.deepEqual(e.tiers.clickPower, { name: 'Click Power', type: 'Income', v0: 1, vmax: 512, step: 'geometric', cu: 4, unit: 'x hits per tap', about: 'Each tap counts as this many hits' });
+  assert.deepEqual(e.tiers.growth.list, [1, 2, 2, 3, 3, 4, 4, 5, 5, 6]);
+  assert.deepEqual(e.items.map(i => [i.id, i.pricing, i.consumable]), [['superClick', 'PV', false], ['terraformer', 'PV', false], ['demolition', 'Hours', true]]);
+  assert.deepEqual(e.skinRarity, { Common: 0.3333, Rare: 1, 'Ultra Rare': 5, Legendary: 20 });
+  assert.ok(e.glossary.length >= 20);
+  assert.deepEqual(e.glossary[0].symbol, 'E');
 });
 
-test('a missing tab, or the first tab returned in its place, is refused by name', () => {
+test('a missing tab, or the first tab returned in its place, is refused by name; the new tabs are left out instead', () => {
   const tabs = saved();
   delete tabs['Game Rules'];
   assert.deepEqual(errorsWith(tabs), ['Game Rules: the tab is missing']);
   const fallback = saved();
   fallback['Game Rules'] = '"Territory upgrade economy: edit the yellow cells","",""\n"Hits to take a plain block","10","Game rule"';
   assert.match(errorsWith(fallback)[0], /^Game Rules: no column "Key", "Value", "What it means" in row 1/);
+  // Google returns the first tab (Economy) for a tab that doesn't exist: each new tab is then left out.
+  const none = saved();
+  for (const t of ['Upgrades', 'Items', 'Skin Rarity', 'Glossary']) none[t] = none.Economy;
+  delete none.Economy;
+  const r = economy.validate(none);
+  assert.deepEqual(r.errors, []);
+  for (const part of ['economy', 'tiers', 'items', 'skinRarity', 'glossary']) assert.equal(r.economy[part], undefined, part);
 });
 
-test('blank cells, words and wrong order are refused with the exact cell', () => {
-  const cases = [
-    ['Click Power', 3, 2, '', 'Click Power, cell C4 ("Cost (squares)"): blank'],
-    ['Defense', 2, 1, 'lots', 'Defense, cell B3 ("Value after"): "lots" is not a number'],
-    ['Earnings', 5, 2, '1', 'Earnings, cell C6 ("Cost (squares)"): 1 must be more than the level before (12)'],
-    ['Click Power', 4, 1, '1.2', 'Click Power, cell B5 ("Value after"): 1.2 must be more than the level before (1.39)'],
-    ['Defense', 4, 0, '7', 'Defense, cell A5 ("Level"): expected level 4, found 7'],
-    ['Growth', 2, 1, '3.5', 'Growth, cell B3 ("Value after"): 3.5 must be a whole number of blocks'],
-  ];
-  for (const [tab, row, col, value, expected] of cases) {
+test('the Economy tab: unknown, missing, twice, out of range, not whole and not a number are refused by cell', () => {
+  const tab = saved().Economy;
+  const row = k => economy.parseCsv(tab).findIndex(r => r[0] === k);
+  const check = (csv, expected) => {
     const tabs = saved();
-    tabs[tab] = setCell(tabs[tab], row, col, value);
+    tabs.Economy = csv;
     assert.ok(errorsWith(tabs).includes(expected), `${expected}\n  got: ${errorsWith(tabs).join(' | ')}`);
-  }
+  };
+  check(setCell(tab, row('maxLevel'), 0, 'maxLevle'), `Economy, cell A${row('maxLevel') + 1} ("Key"): unknown key "maxLevle"`);
+  check(setCell(tab, row('maxLevel'), 0, 'maxLevle'), 'Economy: no row for "maxLevel"');
+  check(setCell(tab, row('tickSeconds'), 0, 'maxLevel'), `Economy, cell A${row('tickSeconds') + 1} ("Key"): "maxLevel" appears twice`);
+  check(setCell(tab, row('marketFee'), 1, '1.5'), `Economy, cell B${row('marketFee') + 1} ("Value"): marketFee must be between 0 and 1, not 1.5`);
+  check(setCell(tab, row('defaultBaseBlocks'), 1, '1.5'), `Economy, cell B${row('defaultBaseBlocks') + 1} ("Value"): defaultBaseBlocks must be a whole number, not 1.5`);
+  check(setCell(tab, row('baseBlockSeconds'), 1, 'three'), `Economy, cell B${row('baseBlockSeconds') + 1} ("Value"): "three" is not a number (baseBlockSeconds)`);
+  check(setCell(tab, row('factoryAreaSize'), 1, '4'), 'Economy: factoryAreaSize must be odd, so the factory is in the middle (not 4)');
 });
 
-test('the real Growth tab (fractions, see Q9) is refused cell by cell', () => {
-  const tabs = saved();
-  tabs.Growth = fs.readFileSync(path.join(__dirname, 'fixtures', 'growth-as-in-sheet.csv'), 'utf8');
-  assert.deepEqual(errorsWith(tabs), ['B2', 'B3', 'B4', 'B5'].map((c, i) =>
-    `Growth, cell ${c} ("Value after"): ${[1.8, 2.6, 3.4, 4.2][i]} must be a whole number of blocks`));
+test('the Upgrades tab: unknown upgrades, bad steps and lists, and missing rows are refused by cell', () => {
+  const tab = saved().Upgrades;
+  const row = k => economy.parseCsv(tab).findIndex(r => r[0] === k);
+  const check = (csv, expected) => {
+    const tabs = saved();
+    tabs.Upgrades = csv;
+    assert.ok(errorsWith(tabs).includes(expected), `${expected}\n  got: ${errorsWith(tabs).join(' | ')}`);
+  };
+  check(setCell(tab, row('defense'), 0, 'armor'), `Upgrades, cell A${row('defense') + 1} ("Key"): unknown upgrade "armor" (one of: ${economy.TIER_KEYS.join(', ')})`);
+  check(setCell(tab, row('defense'), 0, 'armor'), 'Upgrades: no row for "defense"');
+  check(setCell(tab, row('earnings'), 5, 'linear'), `Upgrades, cell F${row('earnings') + 1} ("Step"): "linear" must be geometric or list:…`);
+  check(setCell(tab, row('growth'), 5, 'list:1,2,3'), `Upgrades, cell F${row('growth') + 1} ("Step"): a list needs 10 numbers, e.g. list:1,2,2,3,3,4,4,5,5,6`);
+  check(setCell(tab, row('growth'), 5, 'list:1,2,2,3,3,4,4,5,5,4'), `Upgrades, cell F${row('growth') + 1} ("Step"): the list must never go down`);
+  check(setCell(tab, row('defense'), 4, '0.5'), `Upgrades, cell E${row('defense') + 1} ("Tier 10 value (vmax)"): 0.5 must be at least the tier 1 value (1)`);
+  check(setCell(tab, row('clickPower'), 6, ''), `Upgrades, cell G${row('clickPower') + 1} ("c_u (work-hours)"): blank`);
+});
+
+test('the Items, Skin Rarity and Glossary tabs: bad rows are named by cell', () => {
+  const items = saved().Items;
+  const check = (tab, csv, expected) => {
+    const tabs = saved();
+    tabs[tab] = csv;
+    assert.ok(errorsWith(tabs).includes(expected), `${expected}\n  got: ${errorsWith(tabs).join(' | ')}`);
+  };
+  check('Items', setCell(items, 1, 3, 'explode'), `Items, cell D2 ("Effect"): unknown effect "explode" (one of: ${economy.ITEM_EFFECTS.join(', ')})`);
+  check('Items', setCell(items, 1, 9, 'Free'), 'Items, cell J2 ("Pricing"): "Free" must be PV or Hours');
+  check('Items', setCell(items, 1, 10, ''), 'Items, cell K2 ("V (work-hours/hour)"): PV pricing needs V and P');
+  check('Items', setCell(items, 3, 12, ''), 'Items, cell M4 ("Hours"): Hours pricing needs Hours');
+  check('Items', setCell(items, 1, 6, ''), 'Items, cell G2 ("Uses"): a reusable item needs Uses and Per (minutes)');
+  check('Items', setCell(items, 1, 8, 'maybe'), 'Items, cell I2 ("Consumable"): "maybe" must be yes or no');
+  check('Items', setCell(items, 2, 0, 'superClick'), 'Items, cell A3 ("Key"): "superClick" appears twice');
+  const rarity = saved()['Skin Rarity'];
+  check('Skin Rarity', setCell(rarity, 1, 0, 'Mythic'), 'Skin Rarity, cell A2 ("Rarity"): "Mythic" must be Common, Rare, Ultra Rare, Legendary');
+  check('Skin Rarity', setCell(rarity, 2, 1, '0'), 'Skin Rarity, cell B3 ("Work-hours"): Work-hours must be at least 0.0001, not 0');
+  check('Glossary', setCell(saved().Glossary, 2, 2, ''), 'Glossary, cell C3 ("What it means"): blank');
+});
+
+test('numbers: plain, with thousands commas, negative and decimal; anything else is not a number', () => {
+  for (const [s, n] of [['10', 10], ['1,161', 1161], ['116,172', 116172], ['-2.5', -2.5], ['0.25', 0.25], [' 7 ', 7]]) assert.equal(economy.parseNumber(s), n, s);
+  for (const s of ['', 'ten', '1,16', '10%', '1.2.3', '$5', '1e3']) assert.equal(economy.parseNumber(s), null, s);
+  assert.deepEqual(economy.parseCsv('"a, b","say ""hi"""\n"x\ny",2'), [['a, b', 'say "hi"'], ['x\ny', '2']]);
+});
+
+test('the change report says what changed in plain English', () => {
+  const after = economy.validate(saved()).economy;
+  const before = JSON.parse(JSON.stringify(after));
+  before.rules.hitsPerBlock = 3;
+  before.rules.squaresPerFirstClaim = 1;
+  before.economy.marketFee = 0.1;
+  before.tiers.clickPower.cu = 5;
+  before.skinRarity.Rare = 2;
+  before.items.pop();
+  const lines = economy.describeChanges(before, after);
+  for (const l of ['hitsPerBlock: 3 → 10', 'marketFee: 0.1 → 0.05', 'squaresPerFirstClaim: retired (no longer used)', 'Click Power: cu 5 → 4',
+    'Rare skins: 2 → 1 work-hours', 'Items: 3 in all; 1 added, 0 removed, 0 changed']) assert.ok(lines.includes(l), `${l}\n${lines.join('\n')}`);
+  assert.deepEqual(economy.describeChanges(after, after), ['No changes.']);
+});
+
+test('npm run sync-rules: writes the file from a saved copy, keeps parts the sheet lacks, and refuses to write when a check fails', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'sync-')), out = path.join(tmp, 'economy.json');
+  const run = (...args) => execFileSync(process.execPath, [path.join(__dirname, '..', 'scripts', 'sync-rules.js'), ...args],
+    { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+  const report = run('--from', DIR, '--out', out);
+  assert.match(report, /defaultBaseBlocks: set to 431,649/);
+  const file = JSON.parse(fs.readFileSync(out, 'utf8'));
+  assert.equal(file.tiers.growth.list.length, 10);
+  assert.match(run('--from', DIR, '--out', out), /No changes\./);
+
+  // A sheet without the Glossary tab keeps the file's glossary.
+  const partial = path.join(tmp, 'partial');
+  fs.mkdirSync(partial);
+  for (const t of economy.TABS) if (t !== 'Glossary') fs.copyFileSync(path.join(DIR, t + '.csv'), path.join(partial, t + '.csv'));
+  run('--from', partial, '--out', out);
+  assert.deepEqual(JSON.parse(fs.readFileSync(out, 'utf8')).glossary, file.glossary);
+
+  const bad = path.join(tmp, 'bad');
+  fs.mkdirSync(bad);
+  for (const t of economy.TABS) fs.copyFileSync(path.join(DIR, t + '.csv'), path.join(bad, t + '.csv'));
+  fs.writeFileSync(path.join(bad, 'Economy.csv'), setCell(fs.readFileSync(path.join(DIR, 'Economy.csv'), 'utf8'), 1, 1, 'fast'));
+  const before = fs.readFileSync(out, 'utf8');
+  assert.throws(() => run('--from', bad, '--out', out), e => /1 problem; nothing was written/.test(e.stderr) && /cell B2/.test(e.stderr));
+  assert.equal(fs.readFileSync(out, 'utf8'), before, 'the file was not touched');
 });
 
 test('Game Rules keys: unknown, missing, twice, out of range and not whole are refused', () => {
@@ -79,64 +170,6 @@ test('Game Rules keys: unknown, missing, twice, out of range and not whole are r
   check(setCell(rules, row('hitsPerBlock'), 1, '10.5'), 'Game Rules, cell B2 ("Value"): hitsPerBlock must be a whole number, not 10.5');
   check(setCell(rules, row('crackFadeSeconds'), 1, ''), 'Game Rules, cell B3 ("Value"): blank (crackFadeSeconds)');
   check(setCell(rules, row('crackFadeSeconds'), 2, ''), 'Game Rules, cell C3 ("What it means"): blank');
-});
-
-test('numbers: plain, with thousands commas, negative and decimal; anything else is not a number', () => {
-  for (const [s, n] of [['10', 10], ['1,161', 1161], ['116,172', 116172], ['-2.5', -2.5], ['0.25', 0.25], [' 7 ', 7]]) assert.equal(economy.parseNumber(s), n, s);
-  for (const s of ['', 'ten', '1,16', '10%', '1.2.3', '$5', '1e3']) assert.equal(economy.parseNumber(s), null, s);
-  assert.deepEqual(economy.parseCsv('"a, b","say ""hi"""\n"x\ny",2'), [['a, b', 'say "hi"'], ['x\ny', '2']]);
-});
-
-test('option B: a stored level becomes the lowest new level at least as strong, so nobody gets weaker', () => {
-  const lv = values => [{ level: 0, value: 1, cost: 0 }, ...values.map((value, i) => ({ level: i + 1, value, cost: i + 1 }))];
-  const old = lv([1.5, 2, 3]), fine = lv([1.2, 1.4, 1.6, 1.8, 2, 2.5, 3, 3.5]);
-  assert.equal(economy.remapLevel(old, fine, 0), 0, 'no upgrade stays no upgrade');
-  assert.equal(economy.remapLevel(old, fine, 1), 3, '1.5 -> the first level of at least 1.5 (1.6)');
-  assert.equal(economy.remapLevel(old, fine, 2), 5, 'exactly equal counts (2)');
-  assert.equal(economy.remapLevel(old, fine, 3), 7, '3 -> 3');
-  assert.equal(economy.remapLevel(old, lv([2, 2.5]), 3), 2, 'nothing as strong: the top level');
-  assert.equal(economy.remapLevel(old, fine, 99), 7, 'a level past the old table counts as its top');
-  assert.deepEqual(economy.remapTable({ clickPower: old }, { clickPower: fine }).clickPower, [[1, 3], [2, 5], [3, 7]]);
-  // Every old level maps to something at least as strong, over the real tables and a shuffled copy.
-  const real = economy.validate(saved()).economy.upgrades;
-  const coarse = [real.clickPower[0], ...real.clickPower.filter(l => l.level % 7 === 0 && l.level)].map((l, i) => ({ ...l, level: i }));
-  for (const [a, b] of [[real.clickPower, coarse], [coarse, real.clickPower]]) {
-    for (const l of a) {
-      const to = b[economy.remapLevel(a, b, l.level)];
-      assert.ok(to.value >= l.value - 1e-9 || to.level === b.length - 1, `level ${l.level} (${l.value}) -> ${to.level} (${to.value})`);
-    }
-  }
-});
-
-test('the change report says what changed in plain English', () => {
-  const after = economy.validate(saved()).economy;
-  const before = JSON.parse(JSON.stringify(after));
-  before.upgrades.clickPower = before.upgrades.clickPower.slice(0, 51);
-  before.upgrades.clickPower[1].cost = 119;
-  before.rules.hitsPerBlock = 3;
-  const lines = economy.describeChanges(before, after);
-  assert.ok(lines.includes('hitsPerBlock: 3 → 10'), lines.join('\n'));
-  assert.ok(lines.includes('Click Power: 50 → 70 levels; level 1 cost 119 → 22; top value 7.43 → 10; 1 existing level changed'), lines.join('\n'));
-  assert.deepEqual(economy.describeChanges(after, after), ['No changes.']);
-});
-
-test('npm run sync-rules: writes the file from a saved copy, and refuses to write when a check fails', () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'sync-')), out = path.join(tmp, 'economy.json');
-  const run = (...args) => execFileSync(process.execPath, [path.join(__dirname, '..', 'scripts', 'sync-rules.js'), ...args],
-    { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
-  const report = run('--from', DIR, '--out', out);
-  assert.match(report, /Click Power: 0 → 70 levels/);
-  const file = JSON.parse(fs.readFileSync(out, 'utf8'));
-  assert.equal(file.upgrades.growth.length, 6);
-  assert.match(run('--from', DIR, '--out', out), /No changes\./);
-
-  const bad = path.join(tmp, 'bad');
-  fs.mkdirSync(bad);
-  for (const t of economy.TABS) fs.copyFileSync(path.join(DIR, t + '.csv'), path.join(bad, t + '.csv'));
-  fs.copyFileSync(path.join(__dirname, 'fixtures', 'growth-as-in-sheet.csv'), path.join(bad, 'Growth.csv'));
-  const before = fs.readFileSync(out, 'utf8');
-  assert.throws(() => run('--from', bad, '--out', out), e => /4 problems; nothing was written/.test(e.stderr) && /cell B2/.test(e.stderr));
-  assert.equal(fs.readFileSync(out, 'utf8'), before, 'the file was not touched');
 });
 
 test('the Achievements tab: bad rows are named by cell; a missing tab is refused', () => {

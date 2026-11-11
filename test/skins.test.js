@@ -70,20 +70,20 @@ async function guestWith(balance) {
   s.take(0, y);
   const { pid, token } = await s.next('you');
   await s.next('claim', at(0, y));
-  await pool.query('UPDATE players SET squares = $2 WHERE id = $1', [pid, balance]);
+  await pool.query('UPDATE players SET squares = $2 WHERE id = $1', [pid, Math.round(balance * 10)]);   // squares -> tenths
   const fresh = player({ token });
   await fresh.welcome;
   return { s: fresh, pid, token };
 }
 const flag = rules.SKINS.find(s => s.id === 'flag-jp');
 const owns = async (pid, id) => (await pool.query('SELECT 1 FROM player_skins WHERE player_id = $1 AND skin_id = $2', [pid, id])).rowCount === 1;
-const balance = async pid => Number((await pool.query('SELECT squares FROM players WHERE id = $1', [pid])).rows[0].squares);
+const balance = async pid => Number((await pool.query('SELECT squares FROM players WHERE id = $1', [pid])).rows[0].squares) / 10;   // tenths -> squares
 
 test('buying at exactly the price works and is written to the ledger; one square short is refused', async () => {
   const g = await guestWith(flag.price);
   assert.deepEqual(await g.s.ask('buySkin', { skin: flag.id }), { squares: 0, balance: 0 });
   assert.ok(await owns(g.pid, flag.id));
-  const { rows } = await pool.query("SELECT delta::float, reason FROM square_ledger WHERE player_id = $1 AND reason LIKE 'skin:%'", [g.pid]);
+  const { rows } = await pool.query("SELECT delta::float / 10 AS delta, reason FROM square_ledger WHERE player_id = $1 AND reason LIKE 'skin:%'", [g.pid]);
   assert.deepEqual(rows, [{ delta: -flag.price, reason: 'skin:flag-jp' }]);
   assert.deepEqual(await g.s.ask('buySkin', { skin: flag.id }), { error: 'You already own this skin' });
 

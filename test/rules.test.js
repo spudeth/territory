@@ -55,7 +55,7 @@ test('defaults: 10 hits for any block, 1 hit per click, 1 square, fade of 1 hit 
   assert.equal(rules.hitsNeeded(null), 10);
   assert.equal(rules.hitsNeeded(rules.NO_UPGRADES), 10);
   assert.equal(rules.hitPower(rules.NO_UPGRADES), 1);
-  assert.equal(rules.squaresForFirstClaim(rules.NO_UPGRADES), 1);
+  assert.equal(rules.firstClaimTenths(rules.NO_UPGRADES), 10, '1 square, in tenths');
   assert.equal(rules.CRACK_DECAY_SECONDS, 60);
   assert.equal(rules.CRACK_DECAY_HITS, 1);
 });
@@ -68,14 +68,14 @@ const clicks = (attacker, owner) => {
 };
 
 test('upgrades: Click Power multiplies each click, Defense multiplies hits needed, Earnings keeps fractions', t => {
-  const saved = ['CLICK_POWER_MULTIPLIER', 'DEFENSE_MULTIPLIER', 'EARNINGS_MULTIPLIER', 'HITS_PER_BLOCK', 'SQUARES_PER_FIRST_CLAIM']
+  const saved = ['CLICK_POWER_MULTIPLIER', 'DEFENSE_MULTIPLIER', 'EARNINGS_MULTIPLIER', 'HITS_PER_BLOCK']
     .map(k => [k, rules[k]]);
   t.after(() => { for (const [k, v] of saved) rules[k] = v; });
   const none = rules.NO_UPGRADES, lv = (clickPower, defense, earnings) => ({ clickPower, defense, earnings });
 
   // With the synced tables, level 0 is no upgrade.
   assert.equal(clicks(none, none), 10);
-  assert.equal(rules.squaresForFirstClaim(none), 1);
+  assert.equal(rules.firstClaimTenths(none), 10);
   assert.equal(clicks(null, null), 10, 'a visitor with no levels');
 
   // Tables that do nothing: levels make no difference.
@@ -83,7 +83,7 @@ test('upgrades: Click Power multiplies each click, Defense multiplies hits neede
   rules.DEFENSE_MULTIPLIER = [1];
   rules.EARNINGS_MULTIPLIER = [1];
   assert.equal(clicks(lv(5, 5, 5), lv(5, 5, 5)), 10);
-  assert.equal(rules.squaresForFirstClaim(lv(5, 5, 5)), 1);
+  assert.equal(rules.firstClaimTenths(lv(5, 5, 5)), 10);
 
   rules.CLICK_POWER_MULTIPLIER = [1, 1.2, 2];
   rules.DEFENSE_MULTIPLIER = [1, 1.5, 2];
@@ -97,17 +97,19 @@ test('upgrades: Click Power multiplies each click, Defense multiplies hits neede
   rules.CLICK_POWER_MULTIPLIER = [0.1];
   assert.equal(clicks(none, null), 100, 'fractions add up exactly: 100 x 0.1 is 10');
 
-  assert.equal(rules.squaresForFirstClaim(lv(0, 0, 1)), 1.5, 'fractions are kept');
-  assert.equal(rules.squaresForFirstClaim(lv(0, 0, 2)), 1.1);
-  rules.SQUARES_PER_FIRST_CLAIM = 3;
-  assert.equal(rules.squaresForFirstClaim(lv(0, 0, 2)), 3.3, 'rounded to 6 places, not 3.3000000000000003');
+  assert.equal(rules.firstClaimTenths(lv(0, 0, 1)), 15, 'tenths are kept');
+  assert.equal(rules.firstClaimTenths(lv(0, 0, 2)), 11);
+  rules.EARNINGS_MULTIPLIER = [1, 1.19];
+  assert.equal(rules.firstClaimTenths(lv(0, 0, 1)), 11, '11.9 tenths rounds down to 11');
+  assert.equal(rules.firstClaimTenths(none, 'sand'), 5, 'sand: half the hits, half the pay');
+  assert.equal(rules.firstClaimTenths(none, 'gold'), 10 + rules.GOLD_BONUS_SQUARES * 10, 'gold: plus the bonus');
 });
 
-test('players see whole squares, rounded down', () => {
+test('players see whole squares, rounded down, from a balance in tenths', () => {
   assert.equal(rules.shownSquares(0), 0);
-  assert.equal(rules.shownSquares(2.999999), 2);
-  assert.equal(rules.shownSquares('3.000000'), 3, 'as the database returns it');
-  assert.equal(rules.shownSquares(3.3), 3);
+  assert.equal(rules.shownSquares(29), 2);
+  assert.equal(rules.shownSquares('30'), 3, 'as the database returns it (bigint as a string)');
+  assert.equal(rules.shownSquares(33), 3);
 });
 
 test('tap-rate limit: a burst up to the rate, then the rate per second', () => {

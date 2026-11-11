@@ -23,7 +23,7 @@
   // ---------- The Items screen ----------
   fills.items = () => { drawScreen(); load(); };
   function drawScreen() {
-    $('items-squares').textContent = squares;
+    $('items-squares').textContent = fmtSq(squares);
     $('items-list').replaceChildren(...items.map(i => {
       const c = document.createElement('div');
       c.className = 'item-card';
@@ -39,7 +39,7 @@
         b.type = 'button';
         b.className = 'btn buy';
         b.disabled = short > 0;
-        b.innerHTML = short > 0 ? `Need ${short.toLocaleString()} more` : `Buy ${i.price.toLocaleString()} <img class="sq-icon" src="icons/square.svg" width="14" height="14" alt="squares">`;
+        b.innerHTML = short > 0 ? `Need ${fmtNeed(short)} more` : `Buy ${fmtSq(i.price)} <img class="sq-icon" src="icons/square.svg" width="14" height="14" alt="squares">`;
         b.addEventListener('click', async () => {
           b.disabled = true;
           const r = await ask('buyItem', { item: i.id });

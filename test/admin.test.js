@@ -116,7 +116,7 @@ test('destructive commands need the name typed, take a backup first, and are log
   assert.match((await res.json()).error, /No backup was taken first/);
 
   // --yes: no typing, still a backup and a log line.
-  await pool.query('UPDATE players SET squares = 5 WHERE id = $1', [g.pid]);
+  await pool.query('UPDATE players SET squares = 50 WHERE id = $1', [g.pid]);   // tenths
   const yes = await admin(`take-squares "${g.name}" 2 --reason oops --yes`);
   assert.equal(yes.code, 0, yes.out);
   assert.equal(backupsNow(), before + 2);
@@ -144,10 +144,10 @@ test('wipe-map empties a map for everyone, resets floors and unlocks looks; --re
   assert.equal(Number((await pool.query('SELECT squares FROM players WHERE id = $1', [you.pid])).rows[0].squares) >= 1, true, 'squares stay');
 
   const sized = await admin('wipe-map "Wipe Me" --reset-size --yes');
-  assert.match(sized.out, new RegExp(`fresh ${rules.NEW_MAP_WIDTH} x ${rules.NEW_MAP_HEIGHT} map`));
-  assert.equal(await db.count('SELECT count(*) FROM map_cells WHERE map_id = $1', [id]), rules.NEW_MAP_WIDTH * rules.NEW_MAP_HEIGHT);
+  assert.match(sized.out, /to its starting blocks again/);
+  assert.equal(await db.count('SELECT count(*) FROM map_cells WHERE map_id = $1', [id]), 16, 'its own 4 x 4 (E never changes)');
   assert.equal(await db.count('SELECT count(*) FROM map_edges WHERE map_id = $1', [id]),
-    2 * (rules.NEW_MAP_WIDTH + rules.NEW_MAP_HEIGHT), 'growth spots rebuilt around the new rectangle');
+    2 * (4 + 4), 'growth spots rebuilt around the new rectangle');
 
   const all = await admin('wipe-all-maps', { answers: ['ALL MAPS'] });
   assert.equal(all.code, 0, all.out);
@@ -194,7 +194,7 @@ test('give-squares and take-squares go through the ledger and show at once; neve
   assert.equal(await shown, 51);
   assert.match((await admin(`take-squares "${g.name}" 1000 --yes`)).out, /has only 51 squares/);
   const { rows } = await pool.query("SELECT delta, reason FROM square_ledger WHERE player_id = $1 AND reason LIKE 'admin%'", [g.pid]);
-  assert.deepEqual(rows.map(r => [Number(r.delta), r.reason]), [[50, 'admin give: prize']]);
+  assert.deepEqual(rows.map(r => [Number(r.delta), r.reason]), [[500, 'admin give: prize']]);
 });
 
 test('player and map show the details; unknown names are refused plainly', async () => {
@@ -214,7 +214,7 @@ test('player and map show the details; unknown names are refused plainly', async
 
 test('delete-account erases the login, email and personal data, frees the name, and keeps an anonymous ledger', async () => {
   const g = await guest(2);
-  await pool.query('UPDATE players SET squares = 7 WHERE id = $1', [g.pid]);
+  await pool.query('UPDATE players SET squares = 70 WHERE id = $1', [g.pid]);   // tenths
   // A Neon Auth user for this player, in the dev database's real neon_auth tables.
   const authId = crypto.randomUUID(), email = `${crypto.randomUUID()}@example.com`;
   await pool.query(`INSERT INTO neon_auth."user" (id, name, email, "emailVerified", "createdAt", "updatedAt") VALUES ($1, 'Test', $2, true, now(), now())`, [authId, email]);
@@ -260,7 +260,7 @@ test('create-map makes a map players can switch to; backup and restore put the g
   const r = await admin(`restore "${file}"`, { answers: ['RESTORE'] });
   assert.equal(r.code, 0, r.out);
   assert.equal((await notice).kind, 'restored');
-  assert.equal(Number((await pool.query('SELECT squares FROM players WHERE id = $1', [g.pid])).rows[0].squares), 1, 'back to before the gift');
+  assert.equal(Number((await pool.query('SELECT squares FROM players WHERE id = $1', [g.pid])).rows[0].squares), 10, 'back to before the gift (tenths)');
   assert.equal((await player({ token: g.token }).welcome).me.pid, g.pid, 'tokens restored too');
   // New rows carry on after the restored ids.
   const again = await guest();

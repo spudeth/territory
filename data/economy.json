@@ -1,11 +1,10 @@
 {
   "source": "https://docs.google.com/spreadsheets/d/1YIivEUXUWMkdw3w3hlmRn7PkTzH6Xry7EJTr8SuFKiM",
-  "syncedAt": "2026-10-29T06:06:34.619Z",
+  "syncedAt": "2026-11-11T07:24:56.659Z",
   "rules": {
     "hitsPerBlock": 10,
     "crackFadeSeconds": 60,
     "crackFadeHits": 1,
-    "squaresPerFirstClaim": 1,
     "guestsPerIp": 5,
     "guestWindowMinutes": 60,
     "renameWaitMinutes": 10,
@@ -21,7 +20,6 @@
     "rankMinPlayers": 10,
     "rankMinBlocks": 100,
     "mailingAddress": "2212 W 5th Ave, Gary, IN 46404",
-    "newMapBlocks": 10240,
     "terrainScale": 28,
     "waterShare": 0.12,
     "sandShare": 0.07,
@@ -8191,28 +8189,367 @@
   ],
   "items": [
     {
-      "id": "super-click",
+      "id": "superClick",
       "name": "Super Click",
-      "description": "Your Click Power x10 for 5 seconds, once an hour. Stacks with your Click Power upgrade.",
-      "price": 28800,
-      "uses": 1,
-      "perMinutes": 60,
+      "description": "Your taps hit 10 times harder for 5 seconds. Once an hour.",
       "effect": "clickMultiplier",
       "value": 10,
       "seconds": 5,
+      "uses": 1,
+      "perMinutes": 60,
+      "consumable": false,
+      "pricing": "PV",
+      "V": 0.0125,
+      "P": 50,
+      "hours": null,
       "enabled": true
     },
     {
       "id": "terraformer",
       "name": "Terraformer",
-      "description": "Change one block to grass, sand, forest, stone or water: your own blocks, or empty ones touching your land. Up to 5 an hour. Never gold.",
-      "price": 28800,
-      "uses": 5,
-      "perMinutes": 60,
+      "description": "Change the terrain of one block. 5 blocks per hour.",
       "effect": "terraform",
       "value": 0,
       "seconds": 0,
+      "uses": 5,
+      "perMinutes": 60,
+      "consumable": false,
+      "pricing": "PV",
+      "V": 0.0125,
+      "P": 50,
+      "hours": null,
       "enabled": true
+    },
+    {
+      "id": "demolition",
+      "name": "Demolition",
+      "description": "Removes one of your factories or walls. Used up when used.",
+      "effect": "demolish",
+      "value": 0,
+      "seconds": 0,
+      "uses": 1,
+      "perMinutes": 0,
+      "consumable": true,
+      "pricing": "Hours",
+      "V": null,
+      "P": null,
+      "hours": 0.5,
+      "enabled": true
+    }
+  ],
+  "economy": {
+    "baseBlockSeconds": 3,
+    "hitsPerSquare": 10,
+    "defaultBaseBlocks": 431649,
+    "maxLevel": 10,
+    "maxBaseBlocksOnline": 50000,
+    "tickSeconds": 60,
+    "inspectHoldMs": 400,
+    "factoryBlocksPerFactory": 20,
+    "factoryBuildPaybackHours": 48,
+    "factoryValuePerHour": 0.05,
+    "factoryBuildGrowth": 1.15,
+    "factoryAreaSize": 5,
+    "factoryDistancePenaltyWh": 0.03,
+    "wallStrength": 2,
+    "wallPaybackHours": 1,
+    "maxWallsPerBlock": 2,
+    "marketFee": 0.05,
+    "marketMinAccountDays": 3
+  },
+  "tiers": {
+    "clickPower": {
+      "name": "Click Power",
+      "type": "Income",
+      "v0": 1,
+      "vmax": 512,
+      "step": "geometric",
+      "cu": 4,
+      "unit": "x hits per tap",
+      "about": "Each tap counts as this many hits"
+    },
+    "earnings": {
+      "name": "Earnings",
+      "type": "Income",
+      "v0": 1,
+      "vmax": 10,
+      "step": "geometric",
+      "cu": 6,
+      "unit": "x pay",
+      "about": "Multiplies the squares you earn from mining a new block"
+    },
+    "defense": {
+      "name": "Defense",
+      "type": "Protection",
+      "v0": 1,
+      "vmax": 6,
+      "step": "geometric",
+      "cu": 3,
+      "unit": "x hardness",
+      "about": "Others need this many times the hits to take your blocks"
+    },
+    "growth": {
+      "name": "Growth",
+      "type": "Map",
+      "v0": 1,
+      "vmax": 6,
+      "step": "list",
+      "list": [
+        1,
+        2,
+        2,
+        3,
+        3,
+        4,
+        4,
+        5,
+        5,
+        6
+      ],
+      "cu": 3,
+      "unit": "new blocks",
+      "about": "How many new map blocks appear when you mine a new block"
+    },
+    "factorySpeed": {
+      "name": "Factory Speed",
+      "type": "Income",
+      "v0": 0.05,
+      "vmax": 25.6,
+      "step": "geometric",
+      "cu": 4,
+      "unit": "x a base player",
+      "about": "How fast your factories mine, compared with a base player (0.05 = 1/20)"
+    },
+    "factoryLifetime": {
+      "name": "Factory Lifetime",
+      "type": "Income",
+      "v0": 4,
+      "vmax": 24,
+      "step": "geometric",
+      "cu": 2,
+      "unit": "hours awake",
+      "about": "How long a factory works after you wake it up"
+    },
+    "factoryYield": {
+      "name": "Factory Yield",
+      "type": "Income",
+      "v0": 1,
+      "vmax": 512,
+      "step": "geometric",
+      "cu": 4,
+      "unit": "squares per block",
+      "about": "Squares a factory earns per block it mines, never more than the block's normal pay"
+    }
+  },
+  "skinRarity": {
+    "Common": 0.3333,
+    "Rare": 1,
+    "Ultra Rare": 5,
+    "Legendary": 20
+  },
+  "glossary": [
+    {
+      "symbol": "E",
+      "name": "Base blocks",
+      "meaning": "How many blocks a map starts with. Fixed forever once the map is created",
+      "formula": "Chosen at creation; default defaultBaseBlocks",
+      "home": "Each map; Economy tab"
+    },
+    {
+      "symbol": "L",
+      "name": "Level",
+      "meaning": "A map's difficulty, 1 to 10. Each map has its own",
+      "formula": "L = 1 + floor(log2(mined / E + 1)), at most maxLevel",
+      "home": "Each map"
+    },
+    {
+      "symbol": "mined",
+      "name": "Blocks mined",
+      "meaning": "Every new block first claimed on that map, by players and factories",
+      "formula": "Counts up by 1 per first claim",
+      "home": "Each map"
+    },
+    {
+      "symbol": "B_start(L)",
+      "name": "Level start",
+      "meaning": "Blocks mined on a map when level L begins",
+      "formula": "(2^(L-1) - 1) x E",
+      "home": "Formula"
+    },
+    {
+      "symbol": "t",
+      "name": "Terrain factor",
+      "meaning": "How hard the terrain is: sand 0.5, grass 1, forest 1.5, stone 3, gold 1. Water can't be claimed",
+      "formula": "",
+      "home": "Game Rules tab"
+    },
+    {
+      "symbol": "H",
+      "name": "Hardness",
+      "meaning": "Hits to mine a block. A block keeps the level it was born at",
+      "formula": "H = hitsPerBlock x 2^(L-1) x t",
+      "home": "Formula; Game Rules hitsPerBlock"
+    },
+    {
+      "symbol": "C",
+      "name": "Click Power",
+      "meaning": "Hits each tap counts as",
+      "formula": "Tier value",
+      "home": "Upgrades tab"
+    },
+    {
+      "symbol": "D",
+      "name": "Defense",
+      "meaning": "Multiplies the hits others need to take your block",
+      "formula": "Hits to take = H x D (+ walls)",
+      "home": "Upgrades tab"
+    },
+    {
+      "symbol": "S",
+      "name": "Pay",
+      "meaning": "Squares for mining a new block. Taking an owned block pays nothing",
+      "formula": "S = H / hitsPerSquare x M_earn + G",
+      "home": "Formula; Economy hitsPerSquare"
+    },
+    {
+      "symbol": "M_earn",
+      "name": "Earnings",
+      "meaning": "Multiplies pay",
+      "formula": "Tier value",
+      "home": "Upgrades tab"
+    },
+    {
+      "symbol": "G",
+      "name": "Gold bonus",
+      "meaning": "Extra squares for first claiming a gold block",
+      "formula": "",
+      "home": "Game Rules goldBonusSquares"
+    },
+    {
+      "symbol": "Wh",
+      "name": "Work-hour",
+      "meaning": "One hour of base mining. The unit every price is measured in",
+      "formula": "1 Wh at level L = W(L) squares",
+      "home": "Formula"
+    },
+    {
+      "symbol": "W(L)",
+      "name": "Work index",
+      "meaning": "Squares one work-hour is worth at level L",
+      "formula": "W(L) = (3600 / baseBlockSeconds) x 2^(L-1) = 1,200 x 2^(L-1)",
+      "home": "Economy baseBlockSeconds"
+    },
+    {
+      "symbol": "P",
+      "name": "Payback hours",
+      "meaning": "How long an object takes to repay its price",
+      "formula": "",
+      "home": "Each object's row"
+    },
+    {
+      "symbol": "V",
+      "name": "Value per hour",
+      "meaning": "Work-hours an object gives (or forces an attacker to spend) per hour",
+      "formula": "",
+      "home": "Each object's row"
+    },
+    {
+      "symbol": "Price",
+      "name": "Universal price",
+      "meaning": "The price of anything with a V",
+      "formula": "Price = P x V x W(L)",
+      "home": "Formula"
+    },
+    {
+      "symbol": "N",
+      "name": "Tier",
+      "meaning": "Upgrade tier, 1 to 10. Everyone starts at tier 1",
+      "formula": "",
+      "home": "Each player"
+    },
+    {
+      "symbol": "v_N",
+      "name": "Tier value",
+      "meaning": "What an upgrade gives at tier N",
+      "formula": "geometric: v0 x (vmax / v0)^((N-1)/9); list: the Nth value",
+      "home": "Upgrades tab"
+    },
+    {
+      "symbol": "c_u",
+      "name": "Upgrade weight",
+      "meaning": "How many work-hours an upgrade is worth",
+      "formula": "",
+      "home": "Upgrades tab"
+    },
+    {
+      "symbol": "Tier cost",
+      "name": "Tier price",
+      "meaning": "Price of buying tier N (N = 2 to 10). Fixed forever",
+      "formula": "c_u x W(N) = c_u x 1,200 x 2^(N-1)",
+      "home": "Formula"
+    },
+    {
+      "symbol": "Unlock",
+      "name": "Tier unlock",
+      "meaning": "You can buy tier N once you have first-claimed a level-N block",
+      "formula": "",
+      "home": "Rule"
+    },
+    {
+      "symbol": "Effective tier",
+      "name": "Tier in use",
+      "meaning": "Your upgrades work at most at the level of the map you're on",
+      "formula": "min(your tier, map level)",
+      "home": "Rule"
+    },
+    {
+      "symbol": "Build_n",
+      "name": "Factory price",
+      "meaning": "Price of your nth factory",
+      "formula": "P_F x V_F x W(L) x g^(n-1)",
+      "home": "Economy factory rows"
+    },
+    {
+      "symbol": "Factory speed",
+      "name": "Factory hits",
+      "meaning": "Hits a factory adds per second",
+      "formula": "(hitsPerBlock / baseBlockSeconds) x Factory Speed value",
+      "home": "Upgrades tab"
+    },
+    {
+      "symbol": "Distance penalty",
+      "name": "Factory distance",
+      "meaning": "Extra hits when a factory's target lies outside its home square (d = blocks outside it)",
+      "formula": "d x factoryDistancePenaltyWh x W(L) x hitsPerSquare",
+      "home": "Economy tab"
+    },
+    {
+      "symbol": "Wall hits",
+      "name": "Wall strength",
+      "meaning": "Hits to break a wall",
+      "formula": "w x H",
+      "home": "Economy wallStrength"
+    },
+    {
+      "symbol": "Wall price",
+      "name": "Wall price",
+      "meaning": "Price of one wall",
+      "formula": "P_a x w x H / hitsPerSquare",
+      "home": "Economy tab"
+    },
+    {
+      "symbol": "Skin price",
+      "name": "Skin price",
+      "meaning": "Price of a skin",
+      "formula": "rarity hours x W(L)",
+      "home": "Skin Rarity tab"
+    },
+    {
+      "symbol": "Market fee",
+      "name": "Market fee",
+      "meaning": "Share of each land sale destroyed",
+      "formula": "price x marketFee",
+      "home": "Economy tab"
     }
   ]
 }

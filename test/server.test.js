@@ -279,11 +279,11 @@ test("upgrades: Click Power and Defense multiply hits (Bob's example: 17 clicks)
   await b.welcome;
   for (let i = 0; i < 4; i++) b.emit('hit', { x: 17, y: 25 });   // 4 clicks of 2.5
   await b.next('claim', d => d.x === 17 && d.y === 25);
-  assert.equal(await b.next('squares'), 2, '1 + 1.5 = 2.5, shown as 2');
-  assert.equal(Number((await pool.query('SELECT squares FROM players WHERE id = $1', [you.pid])).rows[0].squares), 2.5,
+  assert.equal(await b.next('squares'), 2.5, '1 + 1.5 = 2.5 (sent with its tenth; the screen shows 2 unless Show tenths is on)');
+  assert.equal(Number((await pool.query('SELECT squares FROM players WHERE id = $1', [you.pid])).rows[0].squares), 25,
     'the exact balance is kept');
   const { rows: ledger } = await pool.query('SELECT delta, balance_after FROM square_ledger WHERE player_id = $1 ORDER BY id', [you.pid]);
-  assert.deepEqual(ledger.map(r => [Number(r.delta), Number(r.balance_after)]), [[1, 1], [1.5, 2.5]]);
+  assert.deepEqual(ledger.map(r => [Number(r.delta), Number(r.balance_after)]), [[10, 10], [15, 25]], 'in tenths');
 
   // Everyone's Defense doubles and Click Power is 1.2 for all: 20 hits to take their block, 17 clicks.
   rules.CLICK_POWER_MULTIPLIER = [1.2];
@@ -308,7 +308,7 @@ test('menu screens: skins, upgrades and achievement progress come from the real 
   assert.equal(skinList.length, 1 + rules.SKINS.filter(s => s.enabled).length, 'the catalog from the sheet');
   assert.ok(skinList.slice(1).every(s => !s.owned), 'a visitor owns only the plain look');
   assert.deepEqual(await a.ask('upgrades'), { levels: rules.NO_UPGRADES, hitsPerBlock: rules.HITS_PER_BLOCK,
-    squaresPerClaim: rules.SQUARES_PER_FIRST_CLAIM, balance: 0,
+    balance: 0,
     upgrades: { ...rules.UPGRADES, defense: rules.UPGRADES.defense.map(l => ({ ...l, value: rules.defenseScaled(l.value) })) } });
   const none = await a.ask('achievements');
   assert.equal(none.list.length, 300);

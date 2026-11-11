@@ -7,6 +7,7 @@ const crypto = require('crypto');
 const express = require('express');
 const store = require('./store');
 const rules = require('./rules');
+const catalog = require('./catalog');
 const { dumpTables, restoreTables } = require('./db');
 const { COMMANDS } = require('./admin-spec');
 const { isProfane } = require('./profanity');
@@ -98,11 +99,13 @@ function adminRouter({ pool, key, production, hooks, email }) {
     if (!m) throw new Refusal(`No map called "${ref}".`);
     return m;
   }
+  // An amount typed in squares (tenths allowed, e.g. 2.5), as tenths.
   const amount = raw => {
     const n = Number(raw);
     if (!(n > 0) || n > 1e9) throw new Refusal(`"${raw}" isn't an amount of squares (a number above 0)`);
-    return n;
+    return catalog.toTenths(n);
   };
+  const sq = t => catalog.fromTenths(t).toLocaleString('en-US', { maximumFractionDigits: 1 });   // tenths, shown as squares
   const blocksOn = async (mapId, pid) => (await pool.query(
     'SELECT count(*)::int AS n FROM map_cells WHERE map_id = $1 AND owner_id = $2', [mapId, pid])).rows[0].n;
   const sizeOption = options => options['reset-size'] ? { width: rules.NEW_MAP_WIDTH, height: rules.NEW_MAP_HEIGHT } : null;
@@ -120,7 +123,7 @@ function adminRouter({ pool, key, production, hooks, email }) {
           q.auth_user_id ? `Account${i.email ? `: ${i.email}` : ''}` : 'Guest (no account)',
           `Joined: ${new Date(q.created_at).toISOString().slice(0, 16).replace('T', ' ')} UTC`,
           `Linked profiles: ${i.linked.length ? i.linked.map(l => `${l.name} (#${l.id})`).join(', ') : 'none'}`,
-          `Squares: ${Number(q.squares).toLocaleString('en-US', { maximumFractionDigits: 6 })}`,
+          `Squares: ${sq(q.squares)}`,
           `Upgrades: Click Power ${q.click_power}, Defense ${q.defense}, Earnings ${q.earnings}, Growth ${q.growth}`,
           `Blocks: ${i.blocks.length ? i.blocks.map(b => `${b.name} ${b.blocks}`).join(', ') : 'none'}`,
           `Achievements: ${i.achievements.length ? i.achievements.join(', ') : 'none'}`,
@@ -170,27 +173,27 @@ function adminRouter({ pool, key, production, hooks, email }) {
       async prepare({ args, options }) {
         const p = await player(args[0]), n = amount(args[1]);
         return { p, n, reason: options.reason, target: `player ${p.name}`,
-          preview: [`Give ${p.name} ${n.toLocaleString()} squares: ${Number(p.squares)} -> ${Number(p.squares) + n}.`] };
+          preview: [`Give ${p.name} ${sq(n)} squares: ${sq(p.squares)} -> ${sq(Number(p.squares) + n)}.`] };
       },
       async run({ p, n, reason }) {
         const r = await store.adjustSquares(pool, p.id, n, `admin give${reason ? `: ${reason}` : ''}`);
         hooks.squaresChanged(p.id, r.squares);
-        return [`${p.name} now has ${r.squares.toLocaleString('en-US', { maximumFractionDigits: 6 })} squares.`];
+        return [`${p.name} now has ${sq(r.squares)} squares.`];
       },
     },
 
     'take-squares': {
       async prepare({ args, options }) {
         const p = await player(args[0]), n = amount(args[1]), have = Number(p.squares);
-        if (n > have) throw new Refusal(`${p.name} has only ${have} squares.`);
+        if (n > have) throw new Refusal(`${p.name} has only ${sq(have)} squares.`);
         return { p, n, reason: options.reason, target: `player ${p.name}`, confirm: p.name,
-          preview: [`Take ${n.toLocaleString()} squares from ${p.name}: ${have} -> ${have - n}.`] };
+          preview: [`Take ${sq(n)} squares from ${p.name}: ${sq(have)} -> ${sq(have - n)}.`] };
       },
       async run({ p, n, reason }) {
         const r = await store.adjustSquares(pool, p.id, -n, `admin take${reason ? `: ${reason}` : ''}`);
         if (r.error) throw new Refusal(r.error);
         hooks.squaresChanged(p.id, r.squares);
-        return [`${p.name} now has ${r.squares.toLocaleString('en-US', { maximumFractionDigits: 6 })} squares.`];
+        return [`${p.name} now has ${sq(r.squares)} squares.`];
       },
     },
 
@@ -214,7 +217,7 @@ function adminRouter({ pool, key, production, hooks, email }) {
         const m = await map(args[0]), i = await store.mapInfo(pool, m.id), size = sizeOption(options);
         return { maps: [m], size, target: `map ${m.name}`, confirm: m.name, preview: [
           `Empty all ${i.claimed.toLocaleString()} claimed blocks on ${m.name}, owned by ${plural(i.players, 'player')}${i.top.length ? ` (most: ${i.top.map(t => `${t.name} ${t.blocks}`).join(', ')})` : ''}.`,
-          size ? `Reset ${m.name} to a fresh ${size.width} x ${size.height} map (now ${i.blocks.toLocaleString()} blocks).` : `The map keeps its size (${i.blocks.toLocaleString()} blocks).`,
+          size ? `Reset ${m.name} to its starting blocks again, at level 1 (now ${i.blocks.toLocaleString()} blocks).` : `The map keeps its size (${i.blocks.toLocaleString()} blocks).`,
           `Everyone's wipe floor there goes back to 0, and their color, skin and coverage there unlock.`,
           'Squares, upgrades, achievements and accounts are not touched.',
         ] };
@@ -267,7 +270,7 @@ function adminRouter({ pool, key, production, hooks, email }) {
         const size = sizeOption(options), preview = [];
         for (const m of maps) {
           const i = await store.mapInfo(pool, m.id);
-          preview.push(`${m.name}: empty ${i.claimed.toLocaleString()} claimed blocks (${plural(i.players, 'player')})${size ? `, reset to ${size.width} x ${size.height}` : ''}.`);
+          preview.push(`${m.name}: empty ${i.claimed.toLocaleString()} claimed blocks (${plural(i.players, 'player')})${size ? ', reset to its starting blocks' : ''}.`);
         }
         preview.push(`Everyone's wipe floors go back to 0 and their looks unlock, on all ${plural(maps.length, 'map')}.`,
           'Squares, upgrades, achievements and accounts are not touched.');
@@ -328,7 +331,7 @@ function adminRouter({ pool, key, production, hooks, email }) {
           `Delete ${p.name} (#${p.id}) for good${i.email ? `, account ${i.email}` : ' (a guest)'}.`,
           `Their blocks go empty: ${i.blocks.length ? i.blocks.map(b => `${b.name} ${b.blocks}`).join(', ') : 'none'}.`,
           'Erased: their login and email (Neon Auth too), name, devices, settings, stats, achievements, skins and bans. Their name becomes free.',
-          `Kept, anonymous: the squares ledger (their ${Number(p.squares)} squares are written off).`,
+          `Kept, anonymous: the squares ledger (their ${sq(p.squares)} squares are written off).`,
         ] };
       },
       async run({ p }) {
@@ -345,11 +348,17 @@ function adminRouter({ pool, key, production, hooks, email }) {
         const rectangle = options.width !== undefined || options.height !== undefined;
         // No --seed: a random one for an island, none for a rectangle. White maps never have terrain.
         const spec = { name, style: options.style ?? 'grass', seed: options.seed ?? (rectangle ? null : ''),
-          ...(rectangle ? { width: Number(options.width ?? rules.NEW_MAP_WIDTH), height: Number(options.height ?? rules.NEW_MAP_HEIGHT) } : {}) };
+          ...(rectangle ? { width: Number(options.width ?? rules.NEW_MAP_WIDTH), height: Number(options.height ?? rules.NEW_MAP_HEIGHT) }
+            : { blocks: options.base === undefined ? catalog.E.defaultBaseBlocks : Number(options.base) }) };
+        if (!rectangle && (!Number.isInteger(spec.blocks) || spec.blocks < 1)) throw new Refusal(`--base must be a whole number of blocks, 1 or more (not "${options.base}").`);
+        const base = rectangle ? spec.width * spec.height : spec.blocks;
+        if (production && base > catalog.E.maxBaseBlocksOnline) {
+          throw new Refusal(`E = ${base.toLocaleString()} blocks is more than the live game allows (maxBaseBlocksOnline = ${catalog.E.maxBaseBlocksOnline.toLocaleString()} on the Economy tab) until the database is upgraded. Make it smaller, or make it locally (no limit there).`);
+        }
         if (!spec.name || spec.name === true) throw new Refusal('Give the map a name: create-map Snowfield');
         if (spec.seed === true) throw new Refusal('Give --seed some text, e.g. --seed "frosty hills", or leave it out for a random one.');
         if (await store.findMap(pool, spec.name)) throw new Refusal(`There's already a map called "${spec.name}".`);
-        const size = rectangle ? `${spec.width} x ${spec.height} blocks` : `${rules.NEW_MAP_BLOCKS.toLocaleString()} blocks`;
+        const size = rectangle ? `${spec.width} x ${spec.height} blocks (E = ${base.toLocaleString()})` : `E = ${base.toLocaleString()} blocks`;
         return { spec, target: `map ${spec.name}`, preview: [
           `Make a new ${spec.style} map "${spec.name}", ${size}, seed ${spec.seed ? `"${spec.seed}"` : 'random'}. Players can switch to it straight away.`] };
       },

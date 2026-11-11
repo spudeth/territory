@@ -1,0 +1,5 @@
+"Rarity","Work-hours","What it means"
+"Common","0.3333","20 minutes of work. Price = hours x W(L)"
+"Rare","1","1 hour of work. Flags are Rare"
+"Ultra Rare","5","5 hours of work"
+"Legendary","20","20 hours of work"

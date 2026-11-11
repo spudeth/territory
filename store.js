@@ -5,9 +5,26 @@ const rules = require('./rules');
 const terrain = require('./public/terrain');
 const skinPrices = require('./public/skins');
 const { accountNames } = require('./names');
+const catalog = require('./catalog');
+
+// The one purchase step every purchase uses: takes `price` tenths from the player (their row must already be
+// locked by the caller's transaction) and writes the ledger. Returns { squares: new balance in tenths } or
+// { error, need: tenths short }.
+async function spend(c, playerId, price, reason) {
+  const { rows: [after] } = await c.query('UPDATE players SET squares = squares - $2 WHERE id = $1 AND squares >= $2 RETURNING squares', [playerId, price]);
+  if (!after) {
+    const { rows: [p] } = await c.query('SELECT squares FROM players WHERE id = $1', [playerId]);
+    return { error: 'Not enough squares', need: price - Number(p?.squares ?? 0) };
+  }
+  await c.query('INSERT INTO square_ledger (player_id, delta, balance_after, reason) VALUES ($1, $2, $3, $4)', [playerId, -price, after.squares, reason]);
+  return { squares: Number(after.squares) };
+}
+
+// A block that loses its owner loses what was built on it too: walls, its factory and its land listing.
+const FREED = "owner_id = NULL, claimed_at = NULL, walls = '[]', factory_id = NULL, listing_id = NULL";
 
 const hashToken = token => crypto.createHash('sha256').update(token).digest();
-const PLAYER = 'p.id, p.name, p.last_map_id, p.auth_user_id, p.name_changed_at, p.click_power, p.defense, p.earnings, p.growth, p.squares, p.tutorial';
+const PLAYER = 'p.id, p.name, p.last_map_id, p.auth_user_id, p.name_changed_at, p.click_power, p.defense, p.earnings, p.growth, p.squares, p.tutorial, p.show_tenths';
 
 // Only a real string can be a token, so values like {} or "__proto__" never match a player.
 async function findPlayerByToken(pool, token) {
@@ -86,14 +103,14 @@ async function defaultMapId(pool) {
 
 // One map with its blocks and the players who have joined it. Null if there is no such map.
 async function loadMap(pool, mapId) {
-  const { rows: [map] } = await pool.query('SELECT id, name, style, seed FROM maps WHERE id = $1', [mapId]);
+  const { rows: [map] } = await pool.query('SELECT id, name, style, seed, base_blocks::float AS base, mined::float AS mined FROM maps WHERE id = $1', [mapId]);
   if (!map) return null;
   const [cells, players, stats] = await Promise.all([
-    pool.query('SELECT x, y, owner_id FROM map_cells WHERE map_id = $1', [mapId]),
+    pool.query('SELECT x, y, owner_id, birth_level, terrain, walls, factory_id, listing_id FROM map_cells WHERE map_id = $1', [mapId]),
     pool.query('SELECT s.player_id, p.name, s.color, s.skin_id, s.coverage, s.unlocked, s.wipe_floor, p.click_power, p.defense, p.earnings, p.growth FROM player_map_settings s JOIN players p ON p.id = s.player_id WHERE s.map_id = $1', [mapId]),
     pool.query('SELECT * FROM player_map_stats WHERE map_id = $1', [mapId]),
   ]);
-  const overrides = (await pool.query('SELECT x, y, terrain FROM terrain_overrides WHERE map_id = $1', [mapId])).rows;
+  const overrides = cells.rows.filter(c => c.terrain !== null).map(({ x, y, terrain }) => ({ x, y, terrain }));
   return { ...map, cells: cells.rows, players: players.rows, stats: stats.rows, overrides };
 }
 
@@ -153,7 +170,7 @@ async function growMap(client, mapId) {
   return grown;
 }
 
-// Gives $5 squares for a first claim, but only if the player now owns more blocks here than at any wipe (wipe_floor).
+// Gives $5 tenths for a first claim, but only if the player now owns more blocks here than at any wipe (wipe_floor).
 // Returns the new balance, or nothing if no square was earned.
 const EARN = `
   WITH p AS (
@@ -173,13 +190,13 @@ class Conflict extends Error {}
 // A first claim (from = null) also grows the map and may earn a square, all in the same transaction.
 //   playerId: an existing player, or null to create a guest from `newGuest` = { names, tokenHash }
 //   color:    stored if this is the player's first claim on this map (or since a wipe); null if their choices are locked
-//   earn:     squares for a first claim (rules.squaresForFirstClaim with the player's upgrades; may be a fraction)
+//   earn:     tenths for a first claim (whole tenths)
 //   coverage, skin: stored with the color; locked with it until the player wipes this map
 //   stats:    the claimer's stats after this claim (stats.afterClaim); `from` loses a block
 // Returns { conflict: true } if the block changed hands first, otherwise
 //   { playerId, name, joinedMap, grown: [{x, y}, …] (empty unless a first claim), squares: new exact balance | null }.
 //   grow:     blocks a first claim adds to the map (rules.growthBlocks: 1, or more with the Growth upgrade)
-async function claimBlock(pool, { mapId, x, y, from, playerId, newGuest, color, coverage = 'tile', skin = 'default', grow = 1, earn = rules.squaresForFirstClaim(),
+async function claimBlock(pool, { mapId, x, y, from, playerId, newGuest, color, coverage = 'tile', skin = 'default', grow = 1, earn = 10,
   stats = null }) {
   try {
     return await tx(pool, async c => {
@@ -223,6 +240,7 @@ async function claimBlock(pool, { mapId, x, y, from, playerId, newGuest, color, 
       const grown = [];
       let squares = null;
       if (from === null) {
+        await c.query('UPDATE maps SET mined = mined + 1 WHERE id = $1', [mapId]);
         for (let i = 0; i < grow; i++) { const g = await growMap(c, mapId); if (g) grown.push(g); }
         if (earn > 0) squares = (await c.query(EARN, [mapId, playerId, x, y, earn])).rows[0]?.balance_after ?? null;
       }
@@ -254,7 +272,7 @@ function wipeTerritory(pool, mapId, playerId) {
   return tx(pool, async c => {
     await c.query('SELECT 1 FROM maps WHERE id = $1 FOR UPDATE', [mapId]);
     const { rows } = await c.query(
-      'UPDATE map_cells SET owner_id = NULL, claimed_at = NULL WHERE map_id = $1 AND owner_id = $2 RETURNING x, y', [mapId, playerId]);
+      'UPDATE map_cells SET ' + FREED + ' WHERE map_id = $1 AND owner_id = $2 RETURNING x, y', [mapId, playerId]);
     if (!rows.length) return null;
     await c.query('INSERT INTO map_wipes (map_id, player_id, blocks_owned) VALUES ($1, $2, $3)', [mapId, playerId, rows.length]);
     const { rows: [s] } = await c.query(
@@ -290,7 +308,7 @@ function earnAchievements(pool, playerId, mapId, ids, rewards = {}) {
     const fresh = rows.map(r => r.achievement_id);
     let squares = null;
     for (const id of fresh) {
-      const pay = Number(rewards[id]) || 0;
+      const pay = catalog.toTenths(Number(rewards[id]) || 0);
       if (!pay) continue;
       const { rows: [p] } = await c.query('UPDATE players SET squares = squares + $2 WHERE id = $1 AND deleted_at IS NULL RETURNING squares', [playerId, pay]);
       if (!p) continue;
@@ -334,10 +352,11 @@ const STYLES = ['grass', 'white'];
 const randomSeed = () => Array.from({ length: 8 }, () => 'abcdefghijkmnpqrstuvwxyz23456789'[crypto.randomInt(32)]).join('');
 
 // Makes a new official map and returns its id. Its seed decides its terrain and growth (see the migration
-// 013_seeds.sql); its starting shape is the seed's island of `blocks` blocks (rules.NEW_MAP_BLOCKS), or a
+// 013_seeds.sql); its starting shape is the seed's island of `blocks` blocks (E; default the Economy tab's
+// defaultBaseBlocks), or a
 // width-by-height rectangle when those are given. seed '' means a random one. A rectangle without a seed is
 // all grass and grows at random, like the maps from before seeds (tests use these).
-async function createMap(pool, { name, style = 'grass', seed, blocks = rules.NEW_MAP_BLOCKS, width = null, height = null }) {
+async function createMap(pool, { name, style = 'grass', seed, blocks = catalog.E.defaultBaseBlocks, width = null, height = null }) {
   if (!name || typeof name !== 'string') throw new Error('a map needs a name');
   if (!STYLES.includes(style)) throw new Error(`style must be one of: ${STYLES.join(', ')}`);
   const rectangle = width !== null || height !== null;
@@ -347,10 +366,13 @@ async function createMap(pool, { name, style = 'grass', seed, blocks = rules.NEW
   if (seed?.length > 100) throw new Error('the seed must be at most 100 characters');
   if (rectangle) {
     for (const n of [width, height]) if (!Number.isInteger(n) || n < 1 || n > 1000) throw new Error('width and height must be 1-1000');
-  } else if (!Number.isInteger(blocks) || blocks < 1 || blocks > 1000000) throw new Error('blocks must be 1-1000000');
+  } else if (!Number.isInteger(blocks) || blocks < 1 || blocks > 50000000) throw new Error('blocks must be 1-50,000,000');
   return tx(pool, async c => {
-    const { rows: [m] } = await c.query("INSERT INTO maps (name, style, type, seed) VALUES ($1, $2, 'official', $3) RETURNING id", [name, style, seed]);
-    await fillShape(c, m.id, seed, rectangle ? { width, height } : { blocks });
+    // E (base blocks) is its starting size, fixed forever; shape is kept so the map can be made again the same.
+    const shape = rectangle ? { width, height } : { blocks };
+    const { rows: [m] } = await c.query("INSERT INTO maps (name, style, type, seed, base_blocks, shape) VALUES ($1, $2, 'official', $3, $4, $5) RETURNING id",
+      [name, style, seed, rectangle ? width * height : blocks, shape]);
+    await fillShape(c, m.id, seed, shape);
     return m.id;
   });
 }
@@ -422,16 +444,14 @@ function buySkin(pool, playerId, skin) {
     // The price now: it rises with how many skins of this rarity they own (counted inside the lock).
     const same = rules.SKINS.filter(s => s.rarity === skin.rarity).map(s => s.id);
     const { rows: [o] } = await c.query('SELECT count(*)::int AS n FROM player_skins WHERE player_id = $1 AND skin_id = ANY($2)', [playerId, same]);
-    const price = skinPrices.skinPrice(skin.rarity, o.n, same.length);
-    const balance = Number(p.squares);
-    if (balance < price - 1e-9) return { error: 'Not enough squares', need: rules.roundSquares(price - balance) };
+    const price = catalog.toTenths(skinPrices.skinPrice(skin.rarity, o.n, same.length));
+    if (Number(p.squares) < price) return { error: 'Not enough squares', need: price - Number(p.squares) };
     await c.query(`INSERT INTO skins (id, name, image, price_squares) VALUES ($1, $2, $3, $4)
-      ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, price_squares = EXCLUDED.price_squares`, [skin.id, skin.name, skin.id + '.png', price]);
-    const { rows: [after] } = await c.query('UPDATE players SET squares = squares - $2 WHERE id = $1 RETURNING squares', [playerId, price]);
+      ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, price_squares = EXCLUDED.price_squares`, [skin.id, skin.name, skin.id + '.png', Math.max(1, catalog.wholeSquares(price))]);
+    const paid = await spend(c, playerId, price, 'skin:' + skin.id);
+    if (paid.error) return paid;
     await c.query("INSERT INTO player_skins (player_id, skin_id, source) VALUES ($1, $2, 'squares')", [playerId, skin.id]);
-    await c.query('INSERT INTO square_ledger (player_id, delta, balance_after, reason) VALUES ($1, $2, $3, $4)',
-      [playerId, -price, after.squares, 'skin:' + skin.id]);
-    return { squares: Number(after.squares), price };
+    return { squares: paid.squares, price };
   });
 }
 
@@ -503,13 +523,10 @@ async function buyUpgrade(pool, playerId, upgrade, expected, levels) {
     const next = levels[p.level + 1];
     if (!next) return { error: 'This upgrade is at its maximum' };
     // Compared in the database, so fractions are exact.
-    const { rows: [paid] } = await c.query(
-      `UPDATE players SET squares = squares - $2, ${column} = ${column} + 1 WHERE id = $1 AND squares >= $2 RETURNING squares`,
-      [playerId, next.cost]);
-    if (!paid) return { error: 'Not enough squares', need: Number(next.cost) - Number(p.squares) };
-    await c.query(`INSERT INTO square_ledger (player_id, delta, balance_after, reason) VALUES ($1, $2, $3, $4)`,
-      [playerId, -next.cost, paid.squares, `upgrade:${upgrade}:${next.level}`]);
-    return { level: next.level, squares: Number(paid.squares) };
+    const paid = await spend(c, playerId, catalog.toTenths(next.cost), `upgrade:${upgrade}:${next.level}`);
+    if (paid.error) return paid;
+    await c.query(`UPDATE players SET ${column} = ${column} + 1 WHERE id = $1`, [playerId]);
+    return { level: next.level, squares: paid.squares };
   });
 }
 
@@ -589,13 +606,15 @@ function wipeMap(pool, mapId, size = null) {
     if (size) {
       // A fresh start: a seeded map gets its seed's starting island again and grows from its first growth again;
       // one without a seed becomes a width-by-height rectangle.
-      const { rows: [m] } = await c.query('SELECT seed FROM maps WHERE id = $1', [mapId]);
+      const { rows: [m] } = await c.query('SELECT seed, base_blocks::float AS base, shape FROM maps WHERE id = $1', [mapId]);
       await c.query('DELETE FROM map_cells WHERE map_id = $1', [mapId]);
       await c.query('UPDATE maps SET grown = 0 WHERE id = $1', [mapId]);
-      await fillShape(c, mapId, m.seed, m.seed ? { blocks: size.blocks ?? rules.NEW_MAP_BLOCKS } : size);
+      // Its own starting shape (E is fixed forever); maps from before loop 16 without one use `size`.
+      await fillShape(c, mapId, m.seed, m.shape ?? (m.seed ? { blocks: m.base } : size));
     } else {
-      await c.query('UPDATE map_cells SET owner_id = NULL, claimed_at = NULL WHERE map_id = $1 AND owner_id IS NOT NULL', [mapId]);
+      await c.query('UPDATE map_cells SET ' + FREED + ' WHERE map_id = $1 AND owner_id IS NOT NULL', [mapId]);
     }
+    await c.query('UPDATE maps SET mined = 0 WHERE id = $1', [mapId]);   // a wiped map starts again at level 1
     await c.query('UPDATE player_map_settings SET wipe_floor = 0, unlocked = true WHERE map_id = $1', [mapId]);
     const { rows: [b] } = await c.query('SELECT count(*)::int AS blocks FROM map_cells WHERE map_id = $1', [mapId]);
     return { ...n, blocks: b.blocks };
@@ -609,7 +628,7 @@ function deleteAccount(pool, playerId) {
   return tx(pool, async c => {
     const { rows: [p] } = await c.query('SELECT auth_user_id, squares FROM players WHERE id = $1 FOR UPDATE', [playerId]);
     const { rows: maps } = await c.query('SELECT DISTINCT map_id FROM map_cells WHERE owner_id = $1', [playerId]);
-    await c.query('UPDATE map_cells SET owner_id = NULL, claimed_at = NULL WHERE owner_id = $1', [playerId]);
+    await c.query('UPDATE map_cells SET ' + FREED + ' WHERE owner_id = $1', [playerId]);
     for (const t of ['player_tokens', 'player_map_settings', 'player_map_stats', 'player_achievements', 'player_skins',
       'level_remaps', 'tap_limit_log', 'bans', 'player_totals', 'player_lives', 'player_items', 'item_uses', 'email_consent_log']) {
       await c.query(`DELETE FROM ${t} WHERE player_id = $1`, [playerId]);
@@ -644,7 +663,7 @@ function resetProgress(pool, playerId) {
     // wipe floor or stats in memory (a stale one would stop them earning squares there).
     const { rows: maps } = await c.query(`SELECT map_id FROM map_cells WHERE owner_id = $1
       UNION SELECT map_id FROM player_map_settings WHERE player_id = $1 UNION SELECT map_id FROM player_map_stats WHERE player_id = $1`, [playerId]);
-    await c.query('UPDATE map_cells SET owner_id = NULL, claimed_at = NULL WHERE owner_id = $1', [playerId]);
+    await c.query('UPDATE map_cells SET ' + FREED + ' WHERE owner_id = $1', [playerId]);
     for (const t of ['player_map_settings', 'player_map_stats', 'player_achievements', 'level_remaps', 'player_totals', 'player_lives']) {
       await c.query(`DELETE FROM ${t} WHERE player_id = $1`, [playerId]);
     }
@@ -664,7 +683,7 @@ function deleteMap(pool, mapId) {
   return tx(pool, async c => {
     for (const sql of ['UPDATE players SET last_map_id = NULL WHERE last_map_id = $1', 'UPDATE square_ledger SET map_id = NULL WHERE map_id = $1',
       'UPDATE player_achievements SET map_id = NULL WHERE map_id = $1', 'DELETE FROM player_map_settings WHERE map_id = $1',
-      'DELETE FROM player_map_stats WHERE map_id = $1', 'DELETE FROM map_wipes WHERE map_id = $1', 'DELETE FROM player_lives WHERE map_id = $1', 'DELETE FROM terrain_overrides WHERE map_id = $1', 'UPDATE item_uses SET map_id = NULL WHERE map_id = $1', 'DELETE FROM map_edges WHERE map_id = $1',
+      'DELETE FROM player_map_stats WHERE map_id = $1', 'DELETE FROM map_wipes WHERE map_id = $1', 'DELETE FROM player_lives WHERE map_id = $1', 'UPDATE item_uses SET map_id = NULL WHERE map_id = $1', 'DELETE FROM map_edges WHERE map_id = $1',
       'DELETE FROM map_cells WHERE map_id = $1', 'DELETE FROM maps WHERE id = $1']) await c.query(sql, [mapId]);
   });
 }
@@ -672,7 +691,7 @@ Object.assign(module.exports, { deleteMap });
 
 // A player's public profile (loop 15). Nothing from the login system: no email, sign-in method or IP.
 async function profile(pool, playerId) {
-  const { rows: [p] } = await pool.query(`SELECT p.id, p.name, p.auth_user_id IS NOT NULL AS account, floor(p.squares)::int AS squares,
+  const { rows: [p] } = await pool.query(`SELECT p.id, p.name, p.auth_user_id IS NOT NULL AS account, (p.squares / 10)::float AS squares,
       p.star_pattern, p.star_art, p.created_at, p.last_map_id, m.name AS map,
       (SELECT color FROM player_map_settings s WHERE s.player_id = p.id AND s.map_id = p.last_map_id) AS color,
       (SELECT count(*)::int FROM map_cells c WHERE c.map_id = p.last_map_id AND c.owner_id = p.id) AS blocks
@@ -700,6 +719,10 @@ async function setEmailUpdates(pool, playerId, on, source) {
   await pool.query('INSERT INTO email_consent_log (player_id, subscribed, source) VALUES ($1, $2, $3)', [playerId, on, source]);
   return { on: p.email_updates, token: p.unsubscribe_token, email: await accountEmail(pool, p.auth_user_id) };
 }
+// Settings > Show tenths (loop 16).
+const setShowTenths = (pool, playerId, on) => pool.query('UPDATE players SET show_tenths = $2 WHERE id = $1', [playerId, on]);
+Object.assign(module.exports, { setShowTenths, spend, FREED });
+
 async function emailUpdates(pool, playerId) {
   const { rows: [p] } = await pool.query('SELECT email_updates, auth_user_id FROM players WHERE id = $1', [playerId]);
   return { on: !!p?.email_updates, account: !!p?.auth_user_id };
@@ -736,7 +759,7 @@ async function endLife(pool, playerId, mapId, killerId = null, x = null, y = nul
 // A life as the death screen shows it.
 async function lifeShown(pool, id) {
   const { rows: [l] } = await pool.query(`SELECT l.id, l.map_id AS "mapId", extract(epoch FROM l.ended_at - l.started_at)::float AS seconds, l.peak,
-    l.claims, l.squares::float AS squares, k.name AS killer, k.id AS "killerId", l.x, l.y FROM player_lives l LEFT JOIN players k ON k.id = l.killer_id WHERE l.id = $1`, [id]);
+    l.claims, (l.squares / 10.0)::float AS squares, k.name AS killer, k.id AS "killerId", l.x, l.y FROM player_lives l LEFT JOIN players k ON k.id = l.killer_id WHERE l.id = $1`, [id]);
   return l ?? null;
 }
 // A death on this map the player hasn't seen yet (they were away), or null; marks it seen.
@@ -749,28 +772,29 @@ const markLifeSeen = (pool, id) => pool.query('UPDATE player_lives SET seen = tr
 Object.assign(module.exports, { lifeClaim, endLife, unseenDeath, markLifeSeen });
 
 // ---------- Items (loop 14) ----------
+// The item effects that have a handler (app.js useItem); an item of any other effect stays out of the shop.
+const USABLE = { clickMultiplier: true, terraform: true };
 // A use frees up `perMinutes` after it was made (a rolling window). For each item: owned, uses left now, and when
 // the next one frees up (null when none are used up).
 async function itemsFor(pool, playerId) {
   const owned = new Set(playerId ? (await pool.query('SELECT item_id FROM player_items WHERE player_id = $1', [playerId])).rows.map(r => r.item_id) : []);
   const uses = playerId ? (await pool.query("SELECT item_id, used_at FROM item_uses WHERE player_id = $1 AND used_at > now() - interval '1 day' ORDER BY used_at", [playerId])).rows : [];
-  return rules.ITEMS.filter(i => i.enabled || owned.has(i.id)).map(i => {
+  return rules.ITEMS.filter(i => (i.enabled || owned.has(i.id)) && i.effect in USABLE).map(i => {
     const recent = uses.filter(u => u.item_id === i.id && Date.now() - u.used_at.getTime() < i.perMinutes * 60000);
     return { ...i, owned: owned.has(i.id), usesLeft: Math.max(0, i.uses - recent.length),
       nextAt: recent.length ? recent[0].used_at.getTime() + i.perMinutes * 60000 : null };
   });
 }
-// Buys an item with squares, in one transaction with the player row locked (a double tap pays once).
-function buyItem(pool, playerId, item) {
+// Buys an item for `price` tenths, in one transaction with the player row locked (a double tap pays once).
+function buyItem(pool, playerId, item, price) {
   return tx(pool, async c => {
     const { rows: [p] } = await c.query('SELECT squares FROM players WHERE id = $1 FOR UPDATE', [playerId]);
     if (!p) return { error: 'Claim a block first' };
     if ((await c.query('SELECT 1 FROM player_items WHERE player_id = $1 AND item_id = $2', [playerId, item.id])).rowCount) return { error: 'You already own this item' };
-    if (Number(p.squares) < item.price - 1e-9) return { error: 'Not enough squares', need: rules.roundSquares(item.price - Number(p.squares)) };
-    const { rows: [after] } = await c.query('UPDATE players SET squares = squares - $2 WHERE id = $1 RETURNING squares', [playerId, item.price]);
+    const paid = await spend(c, playerId, price, 'item:' + item.id);
+    if (paid.error) return paid;
     await c.query('INSERT INTO player_items (player_id, item_id) VALUES ($1, $2)', [playerId, item.id]);
-    await c.query('INSERT INTO square_ledger (player_id, delta, balance_after, reason) VALUES ($1, $2, $3, $4)', [playerId, -item.price, after.squares, 'item:' + item.id]);
-    return { squares: Number(after.squares) };
+    return { squares: paid.squares, price };
   });
 }
 // Uses an owned item if a use is free (checked with the player row locked, so two devices can't both use the last
@@ -792,11 +816,10 @@ function useItem(pool, playerId, item, mapId, apply = async () => null) {
 }
 // Terraformer: a block's terrain for good. Water can't be owned, so a block turned to water is freed.
 async function setTerrain(c, mapId, x, y, terrain) {
-  await c.query(`INSERT INTO terrain_overrides (map_id, x, y, terrain) VALUES ($1, $2, $3, $4)
-    ON CONFLICT (map_id, x, y) DO UPDATE SET terrain = EXCLUDED.terrain`, [mapId, x, y, terrain]);
-  if (terrain === 'water') await c.query('UPDATE map_cells SET owner_id = NULL, claimed_at = NULL WHERE map_id = $1 AND x = $2 AND y = $3', [mapId, x, y]);
+  await c.query('UPDATE map_cells SET terrain = $4 WHERE map_id = $1 AND x = $2 AND y = $3', [mapId, x, y, terrain]);
+  if (terrain === 'water') await c.query('UPDATE map_cells SET ' + FREED + ' WHERE map_id = $1 AND x = $2 AND y = $3', [mapId, x, y]);
 }
-Object.assign(module.exports, { itemsFor, buyItem, useItem, setTerrain });
+Object.assign(module.exports, { USABLE, itemsFor, buyItem, useItem, setTerrain });
 
 // An account's email, from Neon Auth (null for guests, or where Neon Auth isn't in this database).
 async function accountEmail(pool, authUserId) {

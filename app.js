@@ -6,6 +6,8 @@ const { Server } = require('socket.io');
 const store = require('./store');
 const { adminRouter, bannedMessage } = require('./admin');
 const rules = require('./rules');
+const catalog = require('./catalog');
+const { createTicker } = require('./ticker');
 const chat = require('./chat');
 const terrain = require('./public/terrain');
 // How each skin is drawn, for the browser: { id: 'pattern' | 'art' }.
@@ -41,7 +43,7 @@ function guestLimiter(limit, windowMs) {
 //   auth:      from createAuth(), or null to run with guests only
 //   publicUrl: the site's address (https://territory.sarl); requests for any other host, such as www or
 //              the onrender.com address, are sent there. Unset locally.
-function createGame(pool, { email = createEmail(), achievementList = achievements.DEFINITIONS, guestsPerIp = rules.GUESTS_PER_IP, crackDecayMs = rules.CRACK_DECAY_SECONDS * 1000,
+function createGame(pool, { startTicker = false, email = createEmail(), achievementList = achievements.DEFINITIONS, guestsPerIp = rules.GUESTS_PER_IP, crackDecayMs = rules.CRACK_DECAY_SECONDS * 1000,
   auth = null, publicUrl = null, tapsPerSecond = null, tapLogMs = 60 * 1000, adminKey = null } = {}) {
   // adminKey: the secret npm run admin must send (ADMIN_KEY); without it, admin commands are off.
   // The server counts as production when it has a publicUrl; admin commands then need --prod.
@@ -106,9 +108,11 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
         // terrainAt(x, y): a seeded map's terrain (public/terrain.js); maps without a seed are all grass.
         // White maps never have terrain, even with a seed (one was made with a random seed by mistake).
         const world = m.seed && m.style !== 'white' ? terrain.makeWorld(m.seed, rules.TERRAIN) : null;
-        // Terraformer changes (terrain_overrides) win over the seed's terrain.
+        // Terraformer changes (a block's own terrain) win over the seed's terrain.
         const overrides = new Map(m.overrides.map(o => [key(o.x, o.y), o.terrain]));
-        const map = { id: m.id, name: m.name, style: m.style, seed: m.seed, overrides,
+        // base: E (its starting size, fixed forever); mined: first claims so far. Level: catalog.level(mined, base).
+        const map = { id: m.id, name: m.name, style: m.style, seed: m.seed, overrides, base: m.base, mined: m.mined,
+          level: () => catalog.level(map.mined, map.base),
           terrainAt: (x, y) => overrides.get(key(x, y)) ?? (world ? world.at(x, y) : 'grass'),
           room: 'map:' + m.id, cells: new Map(), counts: new Map(),
           players: new Map(m.players.map(p => [p.player_id, { name: p.name, color: p.color, skin: p.skin_id, coverage: p.coverage,
@@ -193,10 +197,21 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
   // A player's balance changed (claims, purchases, rewards, admin): every device, and the Saving achievements.
   function balanceChanged(pid, balance) {
     for (const s of io.sockets.sockets.values()) if (String(s.data.me?.pid) === String(pid)) s.data.me.squares = balance;
-    io.to('player:' + pid).emit('squares', rules.shownSquares(balance));
+    io.to('player:' + pid).emit('squares', catalog.fromTenths(balance));
     totals.best(pid, 'squaresHeld', rules.shownSquares(balance));
     if (rules.shownSquares(balance) === 1337) totals.best(pid, 'secret:leet', 1);
   }
+
+  // A first claim on a map (by a player or a factory): its mined count goes up; everyone there sees the level's
+  // progress (the level is worked out from mined and E).
+  function mapMined(map) {
+    map.mined++;
+    io.to(map.room).emit('mapMined', map.mined);
+  }
+
+  // The server tick (ticker.js): factories and timers, caught up after every sleep.
+  const ticker = createTicker(pool, { seconds: catalog.E.tickSeconds });
+  if (startTicker) ticker.start();
 
   // Every stat an achievement can use, as it stands now: lifetime totals, upgrade levels, records on any map,
   // maps played, achievements earned. For the Achievements screen, and to catch up on connecting.
@@ -409,9 +424,9 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
         socket.emit('notice', { kind: 'banned', message: bannedMessage(ban) });
         return socket.disconnect(true);
       }
-      me = player ? { pid: player.id, name: player.name, account: !!player.auth_user_id, renameAt: renameAt(player.name_changed_at), squares: player.squares,
-          tutorial: player.tutorial }
-        : { pid: null, name: guestName(), account: false, renameAt: null, squares: 0, tutorial: null };
+      me = player ? { pid: player.id, name: player.name, account: !!player.auth_user_id, renameAt: renameAt(player.name_changed_at), squares: Number(player.squares),
+          tutorial: player.tutorial, showTenths: player.show_tenths }
+        : { pid: null, name: guestName(), account: false, renameAt: null, squares: 0, tutorial: null, showTenths: false };
       upgrades = player ? upgradesOf(player) : rules.NO_UPGRADES;
       if (upgraded) renamed(me.pid, me.name);   // the guest's old name was showing to everyone
       map = (player?.last_map_id && await getMap(player.last_map_id)) || await getMap(await getDefaultMapId());
@@ -460,7 +475,8 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
       coverage = mine?.coverage ?? rules.COVERAGES[0];
       socket.emit('welcome', {
         // locked: color, skin and coverage are set here; wipeFloor: see the wipe rule; squares: whole squares
-        me: { ...me, color, skin, coverage, locked: lockedHere(), wipeFloor: mine?.wipeFloor ?? 0, squares: rules.shownSquares(me.squares) },
+        me: { ...me, color, skin, coverage, locked: lockedHere(), wipeFloor: mine?.wipeFloor ?? 0, squares: catalog.fromTenths(me.squares) },
+        level: catalog.levelProgress(map.mined, map.base),
         choices: { colors: rules.COLORS, coverages: rules.COVERAGES },
         hitsPerBlock: rules.HITS_PER_BLOCK,
         settings: { nameLabelShare: rules.NAME_LABEL_SHARE, nameMaxLength: rules.NAME_MAX_LENGTH, sound: rules.SOUND, terrain: rules.TERRAIN,
@@ -511,7 +527,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
       const st = stats.afterClaim(me.pid ? statsOf(map, me.pid) : stats.empty(),
         { owns, x, y, owned: (map.counts.get(me.pid) || 0) + 1, from });
       const ground = map.terrainAt(x, y);
-      const earn = rules.squaresForFirstClaim(upgrades) + (ground === 'gold' ? rules.GOLD_BONUS_SQUARES : 0);
+      const earn = rules.firstClaimTenths(upgrades, ground);
       const r = await store.claimBlock(pool, { mapId: map.id, x, y, from, playerId: me.pid, newGuest,
         color: joining ? color : null, coverage, skin, earn, grow: rules.growthBlocks(upgrades), stats: st.stats });
       if (r.conflict) {
@@ -557,9 +573,11 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
         // Whole squares this claim mined, for the rising-square animation (rewards don't animate).
         const mined = rules.shownSquares(r.squares) - rules.shownSquares(me.squares);
         if (mined > 0) socket.emit('mined', { x, y, count: mined });
+        if (from === null) mapMined(map);
         balanceChanged(me.pid, r.squares);
       }
-      claimStats({ x, y, k, from, ground, grown: r.grown.length, earned: r.squares !== null ? earn : 0, joinedMap: r.joinedMap });
+      if (r.squares === null && from === null) mapMined(map);
+      claimStats({ x, y, k, from, ground, grown: r.grown.length, earned: r.squares !== null ? catalog.fromTenths(earn) : 0, joinedMap: r.joinedMap });
     }
 
     // What a claim counts toward: lifetime totals, records, rank, and the secrets.
@@ -765,10 +783,10 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
     socket.on('upgrades', (...args) => {
       const reply = args.at(-1);   // with or without an argument before it
       if (typeof reply !== 'function') return;
-      reply({ levels: upgrades, hitsPerBlock: rules.HITS_PER_BLOCK, squaresPerClaim: rules.SQUARES_PER_FIRST_CLAIM,
+      reply({ levels: upgrades, hitsPerBlock: rules.HITS_PER_BLOCK,
         // { clickPower: [{ level, value, cost }, …], … } from the sheet; Defense shown as it works (scaled, top x2)
         upgrades: { ...rules.UPGRADES, defense: rules.UPGRADES.defense.map(l => ({ ...l, value: rules.defenseScaled(l.value) })) },
-        balance: Number(me.squares) }); // the exact balance, so "Need X more" is right with fractions
+        balance: catalog.fromTenths(me.squares) }); // the exact balance, so "Need X more" is right with tenths
     });
 
     // Saves this player's tutorial progress: { step: id or null, done, tips: [ids] }. Visitors keep theirs in
@@ -790,26 +808,43 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
     });
 
     let buying = false;   // one purchase at a time per connection (skins and upgrades)
+    // Prices at the level of the map this player is on (catalog.js); answers carry squares, not tenths.
+    const itemPrice = item => catalog.priceTenths(catalog.CATALOG.get('item:' + item.id), { L: map.level() });
+    const squaresOut = r => ({ ...r, ...(r.need !== undefined ? { need: catalog.fromTenths(r.need) } : {}) });
+
+    // Settings > Show tenths: one decimal place everywhere (remembered per player).
+    socket.on('showTenths', async (on, reply) => {
+      if (typeof reply !== 'function') return;
+      if (!me.pid) return reply({ error: 'Claim a block first' });
+      try {
+        await store.setShowTenths(pool, me.pid, !!on);
+        me.showTenths = !!on;
+        reply({ on: !!on });
+      } catch { reply({ error: 'Could not save that. Try again.' }); }
+    });
     // Items (loop 14): the list with what this player owns and how many uses are left.
     socket.on('items', async (...args) => {
       const reply = args.at(-1);
       if (typeof reply !== 'function') return;
-      try { reply({ list: await store.itemsFor(pool, me.pid), balance: Number(me.squares) }); } catch { reply({ error: 'Could not load items. Try again.' }); }
+      try {
+        const list = (await store.itemsFor(pool, me.pid)).map(i => ({ ...i, price: catalog.fromTenths(itemPrice(i)) }));
+        reply({ list, balance: catalog.fromTenths(me.squares) });
+      } catch { reply({ error: 'Could not load items. Try again.' }); }
     });
     socket.on('buyItem', async (p, reply) => {
       if (typeof reply !== 'function') return;
       if (!me.pid) return reply({ error: 'Claim a block first' });
-      const item = rules.ITEMS.find(i => i.id === p?.item && i.enabled);
+      const item = rules.ITEMS.find(i => i.id === p?.item && i.enabled && i.effect in store.USABLE);
       if (!item) return reply({ error: 'That item is not for sale' });
       if (buying) return reply({ error: 'One purchase at a time' });
       buying = true;
       try {
-        const r = await store.buyItem(pool, me.pid, item);
-        if (r.error) return reply(r);
+        const r = await store.buyItem(pool, me.pid, item, itemPrice(item));
+        if (r.error) return reply(squaresOut(r));
         balanceChanged(me.pid, r.squares);
-        totals.bump(me.pid, 'squaresSpent', item.price);
+        totals.bump(me.pid, 'squaresSpent', catalog.fromTenths(r.price));
         io.to('player:' + me.pid).emit('itemsChanged');
-        reply({ squares: rules.shownSquares(r.squares), balance: r.squares });
+        reply({ squares: catalog.fromTenths(r.squares), balance: catalog.fromTenths(r.squares) });
       } catch (err) {
         console.error(`ITEM PURCHASE FAILED (player ${me.pid}, ${p?.item}): ${err.message}`);
         reply({ error: 'Could not buy that. Try again.' });
@@ -917,10 +952,10 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
       buying = true;
       try {
         const r = await store.buySkin(pool, me.pid, skin);
-        if (r.error) return reply(r);
+        if (r.error) return reply(squaresOut(r));
         balanceChanged(me.pid, r.squares);
-        totals.bump(me.pid, 'squaresSpent', r.price);
-        reply({ squares: rules.shownSquares(r.squares), balance: r.squares });
+        totals.bump(me.pid, 'squaresSpent', catalog.fromTenths(r.price));
+        reply({ squares: catalog.fromTenths(r.squares), balance: catalog.fromTenths(r.squares) });
       } catch (err) {
         console.error(`SKIN PURCHASE FAILED (player ${me.pid}, ${p?.skin}): ${err.message}`);
         reply({ error: 'Could not buy that. Try again.' });
@@ -940,12 +975,12 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
       buying = true;
       try {
         const r = await store.buyUpgrade(pool, me.pid, p.upgrade, p.level, rules.UPGRADES[p.upgrade]);
-        if (r.error) return reply({ error: r.error, need: r.need });
+        if (r.error) return reply({ error: r.error, need: r.need === undefined ? undefined : catalog.fromTenths(r.need) });
         upgradesChanged(me.pid, { ...upgrades, [p.upgrade]: r.level }, r.squares);
         totals.bump(me.pid, 'purchases');
         totals.bump(me.pid, 'squaresSpent', rules.UPGRADES[p.upgrade][r.level].cost);
         totals.best(me.pid, 'level:' + p.upgrade, r.level);
-        reply({ levels: upgrades, squares: rules.shownSquares(r.squares), balance: r.squares });
+        reply({ levels: upgrades, squares: catalog.fromTenths(r.squares), balance: catalog.fromTenths(r.squares) });
       } catch (err) {
         console.error(`PURCHASE FAILED (player ${me.pid}, ${p.upgrade}): ${err.message}`);
         reply({ error: 'Could not buy that. Try again.' });
@@ -1006,7 +1041,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
     });
   });
 
-  return { server, io, events, totals };
+  return { server, io, events, totals, ticker };
 }
 
 module.exports = { createGame };

@@ -31,7 +31,7 @@ const pool = createPool(process.env.DATABASE_URL);
   const auth = createAuth({ baseUrl: process.env.NEON_AUTH_BASE_URL, cookieSecret: process.env.NEON_AUTH_COOKIE_SECRET });
   console.log(auth ? 'Accounts are on.' : 'NEON_AUTH_BASE_URL is not set, so accounts are off and everyone plays as a guest.');
 
-  const { server } = createGame(pool, { auth, publicUrl: process.env.PUBLIC_URL || null, adminKey: process.env.ADMIN_KEY || null });
+  const { server } = createGame(pool, { startTicker: true, auth, publicUrl: process.env.PUBLIC_URL || null, adminKey: process.env.ADMIN_KEY || null });
   console.log(process.env.ADMIN_KEY ? 'Admin commands are on.' : 'ADMIN_KEY is not set, so admin commands are off.');
   server.on('error', err => {
     if (err.code !== 'EADDRINUSE') throw err;

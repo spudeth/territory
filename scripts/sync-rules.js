@@ -34,7 +34,8 @@ async function main() {
   }
 
   const hasFile = f => fs.existsSync(path.join(__dirname, '..', 'public', f));   // skins need their images
-  const { economy: next, errors } = economy.validate(tabs, { hasFile });
+  const { economy: next, errors, warnings = [] } = economy.validate(tabs, { hasFile });
+  for (const w of warnings) console.warn('Warning: ' + w);
   if (errors.length) {
     console.error(`The sheet has ${errors.length} problem${errors.length === 1 ? '' : 's'}; nothing was written:`);
     for (const e of errors) console.error('  - ' + e);
@@ -44,8 +45,11 @@ async function main() {
 
   const out = arg('out') ?? OUT;
   const before = fs.existsSync(out) ? JSON.parse(fs.readFileSync(out, 'utf8')) : null;
-  if (!next.skins) next.skins = before?.skins ?? [];   // no Skins tab in the sheet yet: keep the current skins
-  if (!next.items) next.items = before?.items ?? [];   // the same for Items
+  // A tab missing from the sheet keeps its part of the current file (Skins, Items and the loop 16 tabs). The old
+  // upgrade level tables are no longer in the sheet; they stay until the tier upgrades replace them.
+  for (const part of ['skins', 'items', 'economy', 'tiers', 'skinRarity', 'glossary', 'upgrades']) if (!next[part] && before?.[part]) next[part] = before[part];
+  if (!next.skins) next.skins = [];
+  if (!next.items) next.items = [];
   console.log('Changes:');
   for (const line of economy.describeChanges(before, next)) console.log('  - ' + line);
   if (arg('check')) return console.log('Checked only (--check): nothing was written.');

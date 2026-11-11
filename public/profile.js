@@ -18,7 +18,7 @@
     $('pf-online').hidden = !p.online;
     $('pf-ach').textContent = `${p.achievements.earned} / ${p.achievements.total}`;
     $('pf-best').textContent = p.best ? `${p.best.n.toLocaleString()} on ${p.best.map}` : 'None yet';
-    $('pf-squares').textContent = p.squares.toLocaleString();
+    $('pf-squares').textContent = fmtSq(p.squares);
     $('pf-now').textContent = p.map ? `${p.map}: ${p.blocks.toLocaleString()} block${p.blocks === 1 ? '' : 's'}${p.rank ? ` · #${p.rank}` : ''}` : '—';
     const since = new Date(p.since);
     $('pf-since').textContent = `${MONTHS[since.getMonth()]} ${since.getFullYear()}`;

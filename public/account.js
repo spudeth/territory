@@ -43,7 +43,19 @@ const clock = t => new Date(t).toLocaleTimeString([], { hour: 'numeric', minute:
 const nameCount = () => { $('name-count').textContent = `${$('name-input').value.length} / ${gameSettings.nameMaxLength}`; };
 $('name-input').addEventListener('input', nameCount);
 
+// Settings > Show tenths (players only; saved on the server, so it follows them to every device).
+$('show-tenths').addEventListener('change', e => {
+  const on = e.target.checked;
+  socket.timeout(10000).emit('showTenths', on, (err, r) => {
+    if (err || r?.error) { e.target.checked = !on; return toast(r?.error ?? 'No answer from the server. Try again.'); }
+    showTenths = on;
+    updateUI();
+  });
+});
+
 fills.settings = () => {
+  $('tenths-box').hidden = !me;
+  $('show-tenths').checked = showTenths;
   $('name-input').value = myName;
   nameCount();
   const waiting = renameAt > Date.now();

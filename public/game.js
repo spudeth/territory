@@ -1,6 +1,13 @@
 // ---------- State (filled in by the server) ----------
 // cells: "x,y" -> owner id, or null when empty. A block that isn't in cells doesn't exist; maps grow into any shape.
 let me = null, myName = '', myColor = '#888', cells = null, players = {}, hits = new Map(), squares = 0;
+// Squares come from the server with one decimal place (they're counted in tenths). Shown whole, rounded down, or
+// with the tenth when Settings > Show tenths is on. fmtNeed rounds a shortfall up, so "Need 3 more" is enough.
+let showTenths = false;
+const fmtSq = n => showTenths ? (Math.floor(Number(n) * 10 + 1e-6) / 10).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+  : Math.floor(Number(n) + 1e-9).toLocaleString();
+const fmtNeed = n => showTenths ? (Math.ceil(Number(n) * 10 - 1e-6) / 10).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+  : Math.ceil(Number(n) - 1e-9).toLocaleString();
 let myAccount = false, accountsOn = false, renameAt = null;   // logged in?  logins set up?  when renaming is allowed again
 // This map: its { id, name, style }, my skin and coverage here, whether they're locked, my wipe floor here, and
 // the colors and coverages the setup screen offers.
@@ -540,7 +547,7 @@ function updateUI() {
   $('me-color').style.background = myColor;
   const mine = (me && counts[me]) || 0;
   $('me-count').textContent = `${mine} block${mine === 1 ? '' : 's'}`;
-  $('me-squares').textContent = squares;
+  $('me-squares').textContent = fmtSq(squares);
   $('hint').hidden = !!(me && counts[me]);
   $('hint').textContent = `Tap any empty block ${hitsPerBlock} times to claim your first block`;
 
@@ -583,6 +590,7 @@ socket.on('welcome', data => {
   const first = !cells || data.map.id !== mapInfo?.id;   // a new map (or a switch) gets a fresh view
   ({ pid: me, name: myName, color: myColor, skin: mySkin, coverage: myCoverage, locked, wipeFloor, squares,
     account: myAccount, renameAt } = data.me);
+  showTenths = !!data.me.showTenths;
   accountsOn = data.accounts;
   mapInfo = data.map;
   choices = data.choices;
@@ -711,7 +719,7 @@ function showDeath(life) {
   $('death-killer').style.cursor = life.killerId ? 'pointer' : '';
   $('death-killer').style.textDecoration = life.killerId ? 'underline' : '';
   $('death-claims').textContent = life.claims.toLocaleString();
-  $('death-squares').textContent = (Math.round(life.squares * 10) / 10).toLocaleString();
+  $('death-squares').textContent = fmtSq(life.squares);
   $('death').hidden = false;
 }
 const leaveDeath = () => { $('death').hidden = true; document.body.classList.remove('dying'); };

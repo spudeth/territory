@@ -5,6 +5,7 @@
 // tests check both agree.
 
 const economy = require('./data/economy.json');
+const catalog = require('./catalog');
 const R = economy.rules;
 const values = upgrade => economy.upgrades[upgrade].map(l => l.value);   // effect at each level, from level 0
 // Xoren: the top Earnings level costs 10,000 squares (the sheet had over 100,000). The cost curve is flattened in
@@ -27,9 +28,7 @@ const settings = {
   CRACK_DECAY_SECONDS: R.crackFadeSeconds,      // crack progress fades by CRACK_DECAY_HITS for every this many seconds…
   CRACK_DECAY_HITS: R.crackFadeHits,            // …since the block was last hit
 
-  // Squares (the currency)
-  SQUARES_PER_FIRST_CLAIM: R.squaresPerFirstClaim,   // squares for claiming an empty block, before upgrades (and only beyond the wipe floor)
-  SQUARE_DECIMALS: 6,                           // code constant: balances keep fractions to this many places, like the database column
+  // Squares (the currency) are kept in whole tenths (catalog.js); pay for a first claim is catalog.payTenths.
 
   // Players
   GUESTS_PER_IP: R.guestsPerIp,                 // new guest players one network may create…
@@ -54,7 +53,7 @@ const settings = {
   // New maps made with npm run create-map, unless given a size
   NEW_MAP_WIDTH: R.newMapWidth,
   NEW_MAP_HEIGHT: R.newMapHeight,
-  NEW_MAP_BLOCKS: R.newMapBlocks,
+  NEW_MAP_BLOCKS: catalog.E.defaultBaseBlocks,  // E for a new map made without --base (the Economy tab)
   // Terrain (public/terrain.js): the world's shares, and hits per terrain as a multiple of the normal number.
   TERRAIN: { scale: R.terrainScale, water: R.waterShare, sand: R.sandShare, forest: R.forestShare, stone: R.stoneShare, gold: R.goldShare },
   TERRAIN_HITS: { grass: 1, sand: R.sandHits, forest: R.forestHits, stone: R.stoneHits, gold: R.goldHits },
@@ -122,14 +121,13 @@ const growthBlocks = upgrades => effect(settings.GROWTH_BLOCKS, upgrades?.growth
 // Whether `progress` hits are enough to take a block needing `needed` (allowing for rounding, so 10 x 0.1 is 1).
 const isTaken = (progress, needed) => progress >= needed - 1e-9;
 
-// Squares a player with these upgrade levels earns for one first claim, if the wipe rule allows it
-// (earnsSquares). Fractions are kept, to SQUARE_DECIMALS places.
-const roundSquares = n => Math.round(n * 10 ** settings.SQUARE_DECIMALS) / 10 ** settings.SQUARE_DECIMALS;
-const squaresForFirstClaim = upgrades =>
-  roundSquares(settings.SQUARES_PER_FIRST_CLAIM * effect(settings.EARNINGS_MULTIPLIER, upgrades?.earnings));
+// Tenths a player with these upgrade levels earns for the first claim of a block on this terrain, if the wipe rule
+// allows it (earnsSquares): its hits x 10 / hitsPerSquare x Earnings, rounded down, plus the gold bonus.
+const firstClaimTenths = (upgrades, terrain = 'grass') => catalog.payTenths(settings.HITS_PER_BLOCK * (settings.TERRAIN_HITS[terrain] ?? 1),
+  effect(settings.EARNINGS_MULTIPLIER, upgrades?.earnings), terrain === 'gold' ? settings.GOLD_BONUS_SQUARES : 0);
 
-// The balance players see: whole squares only, rounded down.
-const shownSquares = balance => Math.floor(Number(balance) + 1e-9);
+// The balance players see, from a balance in tenths: whole squares only, rounded down.
+const shownSquares = balance => catalog.wholeSquares(balance);
 
 // Crack fading. `crack` is { n: hits so far (may be a fraction), at: when it last changed (ms) }. Returns the
 // crack `now`: CRACK_DECAY_HITS fewer per `decayMs` passed, never below 0, with `at` moved on by the whole
@@ -154,5 +152,5 @@ const earnsSquares = (ownedAfterClaim, wipeFloor) => ownedAfterClaim > wipeFloor
 const wipeFloorAfterWipe = (wipeFloor, ownedAtWipe) => Math.max(wipeFloor, ownedAtWipe);
 
 // The rules read the numbers from this same object, so tests can try other dial values.
-module.exports = Object.assign(settings, { key, NEIGHBORS, roundSquares, defenseScaled, NO_UPGRADES, hitError, hitsNeeded, hitPower, growthBlocks, isTaken,
-  squaresForFirstClaim, shownSquares, decayCrack, tapAllowed, earnsSquares, wipeFloorAfterWipe });
+module.exports = Object.assign(settings, { key, NEIGHBORS, defenseScaled, NO_UPGRADES, hitError, hitsNeeded, hitPower, growthBlocks, isTaken,
+  firstClaimTenths, shownSquares, decayCrack, tapAllowed, earnsSquares, wipeFloorAfterWipe });

@@ -4,6 +4,7 @@ const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { createGame } = require('../app');
 const rules = require('../rules');
+const catalog = require('../catalog');
 const store = require('../store');
 const { testDb, connectPlayer } = require('./helpers');
 
@@ -23,7 +24,7 @@ after(async () => {
 });
 const player = auth => { const s = connectPlayer(url, auth); sockets.push(s); return s; };
 const at = (x, y) => d => d.x === x && d.y === y;
-const SUPER = rules.ITEMS.find(i => i.id === 'super-click'), TERRA = rules.ITEMS.find(i => i.id === 'terraformer');
+const SUPER = rules.ITEMS.find(i => i.id === 'superClick'), TERRA = rules.ITEMS.find(i => i.id === 'terraformer');
 let row = 0;
 // A guest with a block at (0, y) and `balance` squares, on a fresh connection.
 async function guestWith(balance) {
@@ -32,33 +33,34 @@ async function guestWith(balance) {
   s.take(0, y);
   const { pid, token } = await s.next('you');
   await s.next('claim', at(0, y));
-  await pool.query('UPDATE players SET squares = $2 WHERE id = $1', [pid, balance]);
+  await pool.query('UPDATE players SET squares = $2 WHERE id = $1', [pid, Math.round(balance * 10)]);   // squares -> tenths
   const fresh = player({ token });
   await fresh.welcome;
   return { s: fresh, pid, token, y };
 }
 
-test('the items: Super Click and Terraformer, 28,800 squares each, from the data', () => {
-  assert.deepEqual([SUPER.price, SUPER.uses, SUPER.perMinutes, SUPER.value, SUPER.seconds], [28800, 1, 60, 10, 5]);
-  assert.deepEqual([TERRA.price, TERRA.uses, TERRA.perMinutes, TERRA.effect], [28800, 5, 60, 'terraform']);
+test('the items: Super Click and Terraformer, 750 squares each at level 1 (P x V x W(L)), from the data', () => {
+  const price = i => catalog.priceTenths(catalog.CATALOG.get('item:' + i.id), { L: 1 });
+  assert.deepEqual([price(SUPER), SUPER.uses, SUPER.perMinutes, SUPER.value, SUPER.seconds], [7500, 1, 60, 10, 5]);
+  assert.deepEqual([price(TERRA), TERRA.uses, TERRA.perMinutes, TERRA.effect], [7500, 5, 60, 'terraform']);
 });
 
 test('buying: exactly the price works once; one short is refused', async () => {
-  const g = await guestWith(28800);
-  assert.deepEqual(await g.s.ask('buyItem', { item: 'super-click' }), { squares: 0, balance: 0 });
-  assert.deepEqual(await g.s.ask('buyItem', { item: 'super-click' }), { error: 'You already own this item' });
-  const short = await guestWith(28799);
-  assert.deepEqual(await short.s.ask('buyItem', { item: 'super-click' }), { error: 'Not enough squares', need: 1 });
+  const g = await guestWith(750);
+  assert.deepEqual(await g.s.ask('buyItem', { item: 'superClick' }), { squares: 0, balance: 0 });
+  assert.deepEqual(await g.s.ask('buyItem', { item: 'superClick' }), { error: 'You already own this item' });
+  const short = await guestWith(749);
+  assert.deepEqual(await short.s.ask('buyItem', { item: 'superClick' }), { error: 'Not enough squares', need: 1 });
   const list = (await g.s.ask('items')).list;
-  assert.equal(list.find(i => i.id === 'super-click').owned, true);
+  assert.equal(list.find(i => i.id === 'superClick').owned, true);
 });
 
 test('Super Click: x10 for 5 seconds, then normal; once an hour, even from two devices at once', async () => {
-  const g = await guestWith(28800);
-  await g.s.ask('buyItem', { item: 'super-click' });
+  const g = await guestWith(750);
+  await g.s.ask('buyItem', { item: 'superClick' });
   const other = player({ token: g.token });
   await other.welcome;
-  const answers = await Promise.all([g.s.ask('useItem', { item: 'super-click' }), other.ask('useItem', { item: 'super-click' })]);
+  const answers = await Promise.all([g.s.ask('useItem', { item: 'superClick' }), other.ask('useItem', { item: 'superClick' })]);
   assert.equal(answers.filter(a => a.ok).length, 1, JSON.stringify(answers));
   assert.match(answers.find(a => !a.ok).error, /No uses left/);
   g.s.emit('hit', { x: 1, y: g.y });                     // one tap is 10 hits now: the block is taken
@@ -67,7 +69,7 @@ test('Super Click: x10 for 5 seconds, then normal; once an hour, even from two d
   g.s.emit('hit', { x: 2, y: g.y });                     // after 5 seconds, a tap is one hit again
   const h = await g.s.next('hit', at(2, g.y));
   assert.equal(h.p, 1 / rules.HITS_PER_BLOCK);
-  const again = await g.s.ask('useItem', { item: 'super-click' });
+  const again = await g.s.ask('useItem', { item: 'superClick' });
   assert.equal(again.error, 'No uses left yet');
   assert.ok(again.nextAt > Date.now() + 59 * 60000, 'free again in an hour');
 });
@@ -78,7 +80,7 @@ test('Terraformer: own blocks and empty ones next to them; never gold; 5 an hour
   const world = require('../public/terrain').makeWorld(seed, rules.TERRAIN);
   const cells = (await pool.query('SELECT x, y FROM map_cells WHERE map_id = $1', [id])).rows;
   const gold = cells.find(c => world.at(c.x, c.y) === 'gold');
-  const g = await guestWith(28800);
+  const g = await guestWith(750);
   await g.s.ask('buyItem', { item: 'terraformer' });
   await g.s.ask('switchMap', id); await g.s.next('welcome');
   const watcher = player(); await watcher.welcome; await watcher.ask('switchMap', id); await watcher.next('welcome');
@@ -101,5 +103,5 @@ test('Terraformer: own blocks and empty ones next to them; never gold; 5 an hour
   const fresh = player({ token: g.token });
   const w = await fresh.welcome;
   assert.ok(w.terrain.some(([x, y]) => x === next[0] && y === next[1]), 'a returning player gets the change with the map');
-  assert.equal((await pool.query('SELECT count(*)::int AS n FROM terrain_overrides WHERE map_id = $1', [id])).rows[0].n, 1, 'one block changed, kept for good');
+  assert.equal((await pool.query('SELECT count(*)::int AS n FROM map_cells WHERE map_id = $1 AND terrain IS NOT NULL', [id])).rows[0].n, 1, 'one block changed, kept for good');
 });

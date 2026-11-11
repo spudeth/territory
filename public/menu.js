@@ -53,7 +53,7 @@ fills.main = () => {
   $('hub-name').textContent = myName;
   $('hub-tag').textContent = myAccount ? 'ACCOUNT' : me ? 'GUEST' : 'VISITOR';
   $('hub-map').textContent = mapInfo?.name ?? '';
-  $('hub-squares').textContent = squares;
+  $('hub-squares').textContent = fmtSq(squares);
   const offerLogin = !myAccount && accountsOn;
   $('hub-login').hidden = $('hub-login-note').hidden = !offerLogin;
   $('hub-off').hidden = accountsOn;
@@ -99,7 +99,7 @@ $('wipe-go').addEventListener('click', () => {
 
 // ---------- Reset all progress ----------
 fills.reset = () => {
-  $('reset-squares').textContent = `${squares} square${squares === 1 ? '' : 's'}`;
+  $('reset-squares').textContent = `${fmtSq(squares)} square${squares === 1 ? '' : 's'}`;
   $('reset-word').value = '';
   $('reset-go').disabled = true;
 };
@@ -285,7 +285,7 @@ fills.skins = async () => {
 };
 function drawSkins() {
   $('skins-owned').textContent = `${skinList.filter(s => s.owned).length} owned`;
-  $('skins-squares').textContent = squares;
+  $('skins-squares').textContent = fmtSq(squares);
   $('skins-tabs').replaceChildren(...[...Object.keys(SKIN_TABS), 'Owned'].map(name => {
     const b = document.createElement('button');
     b.type = 'button';
@@ -338,7 +338,7 @@ function drawSkins() {
         b.className = 'btn buy';
         const short = s.price - squares;
         b.disabled = short > 0;
-        b.innerHTML = short > 0 ? `Need ${short.toLocaleString()} more` : `${s.price.toLocaleString()} <img class="sq-icon" src="icons/square.svg" width="12" height="12" alt="squares">`;
+        b.innerHTML = short > 0 ? `Need ${fmtNeed(short)} more` : `${fmtSq(s.price)} <img class="sq-icon" src="icons/square.svg" width="12" height="12" alt="squares">`;
         b.addEventListener('click', () => buySkin(s, b));
         t.append(b);
       }
@@ -390,7 +390,7 @@ fills.upgrades = async () => {
   if (u.error) return fail(u.error);
   upgradeData = u;
   drawUpgrades();
-  $('upg-squares').textContent = squares;
+  $('upg-squares').textContent = fmtSq(squares);
 };
 function drawUpgrades() {
   const u = upgradeData;
@@ -459,7 +459,7 @@ async function buy(up, level, btn) {
   Object.assign(upgradeData, { levels: r.levels, balance: r.balance });
   squares = r.squares;
   updateUI();
-  $('upg-squares').textContent = squares;
+  $('upg-squares').textContent = fmtSq(squares);
   toast(`${up.name} level ${r.levels[up.key]}`, 'good');
   if (view === 'upgrades') drawUpgrades();
 }

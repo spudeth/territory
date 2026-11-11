@@ -45,16 +45,16 @@ async function guestWith(balance) {
   s.take(0, y);
   const { pid, token } = await s.next('you');
   await s.next('claim', at(0, y));
-  await pool.query('UPDATE players SET squares = $2 WHERE id = $1', [pid, balance]);
+  await pool.query('UPDATE players SET squares = $2 WHERE id = $1', [pid, Math.round(balance * 10)]);   // squares -> tenths
   const fresh = player({ token });   // a new connection sees the new balance
   await fresh.welcome;
   return { s: fresh, pid, token, y };
 }
 const levelOf = async (pid, column = 'click_power') => (await pool.query(`SELECT ${column} AS l FROM players WHERE id = $1`, [pid])).rows[0].l;
-const balanceOf = async pid => Number((await pool.query('SELECT squares FROM players WHERE id = $1', [pid])).rows[0].squares);
+const balanceOf = async pid => Number((await pool.query('SELECT squares FROM players WHERE id = $1', [pid])).rows[0].squares) / 10;   // tenths -> squares
 const ledgerOf = async pid => (await pool.query(
   "SELECT delta, balance_after, reason FROM square_ledger WHERE player_id = $1 AND reason LIKE 'upgrade:%' ORDER BY id", [pid]))
-  .rows.map(r => [Number(r.delta), Number(r.balance_after), r.reason]);
+  .rows.map(r => [Number(r.delta) / 10, Number(r.balance_after) / 10, r.reason]);
 
 test('buying at exactly the cost works; one square short is refused; fractions count exactly', async t => {
   useTable(t, 'clickPower', lv([1.5, 2], [22, 40]));
@@ -71,11 +71,11 @@ test('buying at exactly the cost works; one square short is refused; fractions c
 
   const half = await guestWith(21.5);
   assert.deepEqual(await half.s.ask('buyUpgrade', { upgrade: 'clickPower', level: 0 }), { error: 'Not enough squares', need: 0.5 });
-  const over = await guestWith(22.25);
+  const over = await guestWith(22.3);
   const r = await over.s.ask('buyUpgrade', { upgrade: 'clickPower', level: 0 });
-  assert.deepEqual([r.squares, r.balance], [0, 0.25], 'shows 0, keeps the quarter');
-  assert.equal(await balanceOf(over.pid), 0.25);
-  assert.deepEqual(await over.s.ask('upgrades').then(u => u.balance), 0.25, 'the Upgrades screen gets the exact balance');
+  assert.deepEqual([r.squares, r.balance], [0.3, 0.3], 'keeps the tenth (the screen shows 0 unless Show tenths is on)');
+  assert.equal(await balanceOf(over.pid), 0.3);
+  assert.deepEqual(await over.s.ask('upgrades').then(u => u.balance), 0.3, 'the Upgrades screen gets the exact balance');
 });
 
 test('two purchases at the same moment: only one is paid for, from two devices or a double tap', async t => {
@@ -179,7 +179,7 @@ test('reset all progress: blocks, squares, upgrades, stats and achievements go, 
   for (const t of ['player_map_settings', 'player_map_stats', 'player_achievements']) {
     assert.equal((await q(`SELECT count(*)::int AS n FROM ${t} WHERE player_id = $1`)).n, 0, t);
   }
-  assert.deepEqual(await q("SELECT delta::float AS d, reason FROM square_ledger WHERE player_id = $1 ORDER BY id DESC LIMIT 1"),
+  assert.deepEqual(await q("SELECT delta::float / 10 AS d, reason FROM square_ledger WHERE player_id = $1 ORDER BY id DESC LIMIT 1"),
     { d: -50, reason: 'progress reset' });
   const back = player({ token: g.token });   // they come back as a fresh player with the same name
   const w = await back.welcome;
