@@ -1217,3 +1217,7 @@ Full suite: 180/180 (one test expected the old wall refusal without `at`; fixed 
 4. iPhone Safari checks: XOREN-TODO.md section 6 (factory cracks and output, wall batches and look, repair, Demolition picking, music after switching apps and locking).
 
 Stopping.
+
+## Loop 19: plug-in rebuild and optimization (Bob, approved by Xoren 2026-11-11)
+
+#129 | 2026-11-11 | Phase 0: docs/ARCHITECTURE.md (the core and its variables, upgrades as variable changes, the plug-in template, server and browser hooks, core services, what moves where, loading and removing, the measuring plan, first-look waste, the phase plan). No code changed. OPEN Q39-Q47 are in the doc, each with a recommendation. Stopping for Bob's approval.
