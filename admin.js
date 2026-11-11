@@ -124,7 +124,7 @@ function adminRouter({ pool, key, production, hooks, email }) {
           `Joined: ${new Date(q.created_at).toISOString().slice(0, 16).replace('T', ' ')} UTC`,
           `Linked profiles: ${i.linked.length ? i.linked.map(l => `${l.name} (#${l.id})`).join(', ') : 'none'}`,
           `Squares: ${sq(q.squares)}`,
-          `Upgrade tiers: ${Object.entries(q.tiers ?? {}).map(([k, n]) => `${k} ${n}`).join(', ') || 'all tier 1'}; highest level claimed ${q.highest_level ?? 1}`,
+          `Upgrade steps: ${Object.entries(q.upgrade_steps ?? {}).map(([k, n]) => `${k} ${n}`).join(', ') || 'none'}; highest level claimed ${q.highest_level ?? 1}`,
           `Blocks: ${i.blocks.length ? i.blocks.map(b => `${b.name} ${b.blocks}`).join(', ') : 'none'}`,
           `Achievements: ${i.achievements.length ? i.achievements.join(', ') : 'none'}`,
           `Ban: ${ban ? `BANNED ${ban.until ? `until ${new Date(ban.until).toISOString().slice(0, 16).replace('T', ' ')} UTC` : 'permanently'}${ban.reason ? ` (${ban.reason})` : ''}` : 'not banned'}`,

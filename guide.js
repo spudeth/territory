@@ -41,11 +41,15 @@ function renderGuide({ maps = [] } = {}) {
       most prices are a number of work-hours times W(L) at the map's level.</p>`);
 
   sections.push(`<h2 id="upgrades">Upgrades</h2>
-    <p>Each upgrade has tiers 1 to 10; tier 1 is free. Tier N costs <b>c_u × ${n(3600 / E.baseBlockSeconds, 0)} × 2^(N−1)</b> squares, never
-      changes, and can be bought once you've mined a level-N block somewhere. On any map an upgrade works at min(your tier, the map's level).</p>`
+    <p>Each upgrade climbs 10 tiers of <b>${E.stepsPerTier} steps</b> each, from v0 to vmax. Tier N runs from a<sub>N−1</sub> to a<sub>N</sub>,
+      where <b>a<sub>N</sub> = v0 × (vmax ÷ v0)^(N/10)</b>, each step the same ratio. Each step costs 2^(1/${E.stepsPerTier}) times the one before,
+      and a whole tier N costs <b>c_u × ${n(3600 / E.baseBlockSeconds, 0)} × 2^(N−1)</b> squares, so prices rise smoothly and never change. Tier 1 is
+      open from the start; tier N's steps can be bought once you've mined a level-N block somewhere. On a map of level L an upgrade works
+      at most at a<sub>L</sub>, the end of tier L. Values can be fractions: Growth 1.4 means 1 new block and a 40% chance of a second.</p>`
     + Object.entries(economy.tiers).map(([key, u]) => `<h3>${esc(u.name)}</h3><p>${esc(u.about)} (c_u = ${n(u.cu)})</p>`
-      + table(['Tier', 'Value', 'Cost (squares)'], Array.from({ length: catalog.TIER_COUNT }, (_, i) =>
-        [i + 1, unitText(catalog.tierValue(key, i + 1), u.unit), i ? n(catalog.fromTenths(catalog.tierCostTenths(key, i + 1)), 1) : 'free']))).join(''));
+      + table(['Tier', 'From', 'To (end of the tier)', 'First step (squares)', 'Whole tier (squares)'], Array.from({ length: catalog.TIER_COUNT }, (_, i) =>
+        [i + 1, unitText(catalog.anchor(key, i), u.unit), unitText(catalog.anchor(key, i + 1), u.unit),
+          n(catalog.fromTenths(catalog.stepCostTenths(key, i * E.stepsPerTier + 1)), 1), n(catalog.fromTenths(catalog.tierCostTenths(key, i + 1)), 1)]))).join(''));
 
   const factoryPrice = k => catalog.fromTenths(catalog.priceTenths(catalog.CATALOG.get('building:factory'), { L: 1, n: k }));
   sections.push(`<h2 id="factories">Factories</h2>

@@ -43,22 +43,46 @@ const hardness = (hitsPerBlock, birth, t) => hitsPerBlock * 2 ** ((birth | 0 || 
 const payTenths = (H, earn = 1, goldBonusSquares = 0) =>
   Math.floor(H * TENTHS / E.hitsPerSquare * earn + 1e-9) + toTenths(goldBonusSquares);
 
-// ---------- Upgrade tiers ----------
-// The value of tier N (1-10): geometric v0 x (vmax/v0)^((N-1)/9), or the Nth entry of a list.
-function tierValue(key, N) {
-  const u = economy.tiers[key];
-  const n = Math.min(Math.max(1, N | 0), TIER_COUNT);
-  if (u.step === 'list') return u.list[n - 1];
-  return u.v0 * (u.vmax / u.v0) ** ((n - 1) / (TIER_COUNT - 1));
+// ---------- Upgrades: 10 tiers of stepsPerTier steps ----------
+// Anchors a_N (N = 0-10): geometric v0 x (vmax/v0)^(N/10), so a_0 = v0 and a_10 = vmax (or a list: a_0 = v0,
+// a_N = its Nth entry). Tier N's steps climb geometrically from a_(N-1) to a_N in stepsPerTier equal ratio steps.
+// A player owns a number of steps per upgrade (0 to 10 x stepsPerTier); step s is in tier ceil(s / stepsPerTier).
+const STEPS = () => E.stepsPerTier;
+function anchor(key, N) {
+  const u = economy.tiers[key], n = Math.min(Math.max(0, N | 0), TIER_COUNT);
+  if (u.step === 'list') return n === 0 ? u.v0 : u.list[n - 1];
+  return u.v0 * (u.vmax / u.v0) ** (n / TIER_COUNT);
 }
-// The price of buying tier N (2-10), in tenths: c_u x 1200 x 2^(N-1) squares. Fixed forever (uses N, not a map).
-const tierCostTenths = (key, N) => toTenths(economy.tiers[key].cu * W(N));
-// The tier an upgrade works at on a map: min(owned tier, the map's level).
-const effectiveTier = (owned, mapLevel) => Math.max(1, Math.min(owned | 0 || 1, mapLevel | 0 || 1));
-// What each upgrade gives a player with these tiers ({ key: tier }, missing = 1) on a map of level L.
-const effectiveValues = (tiers, L) => Object.fromEntries(Object.keys(economy.tiers).map(k => [k, tierValue(k, effectiveTier(tiers?.[k] ?? 1, L))]));
-// Whether tier N can be bought: the player has first-claimed a block of level N or higher somewhere.
-const tierUnlocked = (N, highestLevel) => (highestLevel | 0) >= N;
+// The value after `s` steps.
+function stepValue(key, s) {
+  const S = STEPS(), n = Math.min(Math.max(0, Math.floor(s)), TIER_COUNT * S);
+  if (n === 0) return anchor(key, 0);
+  const N = Math.ceil(n / S), j = n - (N - 1) * S, from = anchor(key, N - 1), to = anchor(key, N);
+  return from * (to / from) ** (j / S);
+}
+// The tier a step is in (step 0: tier 1, the start).
+const tierOfStep = s => Math.max(1, Math.ceil(s / STEPS()));
+// The value at the end of tier N (a_N); tier 0 is where everyone starts.
+const tierValue = (key, N) => anchor(key, N);
+// The price of step s (1 to 10 x stepsPerTier), in tenths. Within tier N each step costs 2^(1/stepsPerTier) times the
+// one before and the tier totals c_u x 1200 x 2^(N-1), so the steps are one smooth curve:
+//   cost(s) = c_u x 1200 x (r - 1) x r^(s-1), r = 2^(1/stepsPerTier). Fixed forever.
+const stepCostTenths = (key, s) => {
+  const r = 2 ** (1 / STEPS());
+  return toTenths(economy.tiers[key].cu * 1200 * (r - 1) * r ** (s - 1));
+};
+// The whole of tier N (every step in it), in tenths: about c_u x 1200 x 2^(N-1) (each step rounds down).
+const tierCostTenths = (key, N) => {
+  let t = 0;
+  for (let s = (N - 1) * STEPS() + 1; s <= N * STEPS(); s++) t += stepCostTenths(key, s);
+  return t;
+};
+// The steps an upgrade works at on a map of level L: at most the end of tier L (a_L).
+const effectiveSteps = (owned, mapLevel) => Math.min(Math.max(0, owned | 0), Math.max(1, mapLevel | 0) * STEPS());
+// What each upgrade gives a player with these steps ({ key: steps }, missing = 0) on a map of level L.
+const effectiveValues = (steps, L) => Object.fromEntries(Object.keys(economy.tiers).map(k => [k, stepValue(k, effectiveSteps(steps?.[k] ?? 0, L))]));
+// Whether tier N's steps can be bought: tier 1 always; tier N once a level-N block was first-claimed somewhere.
+const tierUnlocked = (N, highestLevel) => N <= 1 || (highestLevel | 0) >= N;
 
 // ---------- Pricing rules ----------
 // Each takes the row and the context { L (the map's level), n (factories owned + 1), H (the block's hardness) }
@@ -66,7 +90,7 @@ const tierUnlocked = (N, highestLevel) => (highestLevel | 0) >= N;
 const PRICING = {
   PV: (row, { L }) => toTenths(row.P * row.V * W(L)),
   Hours: (row, { L }) => toTenths(row.hours * W(L)),
-  Tier: (row, { N }) => tierCostTenths(row.upgrade, N),
+  Step: (row, { s }) => stepCostTenths(row.upgrade, s),
   Factory: (row, { L, n }) => toTenths(E.factoryBuildPaybackHours * E.factoryValuePerHour * W(L) * E.factoryBuildGrowth ** (n - 1)),
   Wall: (row, { H }) => toTenths(E.wallPaybackHours * E.wallStrength * H / E.hitsPerSquare),
 };
@@ -81,7 +105,7 @@ const priceTenths = (row, ctx) => {
 const skinHours = rarity => economy.skinRarity?.[rarity] ?? 0;
 function buildCatalog() {
   const rows = [];
-  for (const key of Object.keys(economy.tiers ?? {})) rows.push({ key: 'upgrade:' + key, kind: 'upgrade', upgrade: key, pricing: 'Tier', effect: key });
+  for (const key of Object.keys(economy.tiers ?? {})) rows.push({ key: 'upgrade:' + key, kind: 'upgrade', upgrade: key, pricing: 'Step', effect: key });
   for (const it of economy.items ?? []) rows.push({ ...it, key: 'item:' + it.id, kind: 'item', pricing: it.pricing, effect: it.effect });
   rows.push({ key: 'building:factory', kind: 'building', pricing: 'Factory', effect: 'factory' });
   rows.push({ key: 'building:wall', kind: 'building', pricing: 'Wall', effect: 'wall' });
@@ -93,4 +117,4 @@ const skinPriceTenths = (skin, L) => toTenths(skinHours(skin.id?.startsWith('fla
 
 const CATALOG_TIERS = economy.tiers;   // the upgrades, from the Upgrades tab: { key: { name, type, v0, vmax, step, cu, unit, about } }
 module.exports = { E, TIER_COUNT, CATALOG_TIERS, TENTHS, toTenths, fromTenths, wholeSquares, level, levelStart, levelProgress, W, hardness, payTenths,
-  tierValue, tierCostTenths, effectiveTier, effectiveValues, tierUnlocked, PRICING, priceTenths, CATALOG, skinPriceTenths, skinHours };
+  STEPS, anchor, stepValue, tierOfStep, tierValue, stepCostTenths, tierCostTenths, effectiveSteps, effectiveValues, tierUnlocked, PRICING, priceTenths, CATALOG, skinPriceTenths, skinHours };

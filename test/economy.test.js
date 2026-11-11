@@ -31,7 +31,7 @@ test('the saved sheet passes and reads every tab as shown; retired Game Rules ke
   assert.deepEqual(Object.keys(e.economy).sort(), Object.keys(economy.ECONOMY_KEYS).sort());
   assert.deepEqual(Object.keys(e.tiers), economy.TIER_KEYS);
   assert.deepEqual(e.tiers.clickPower, { name: 'Click Power', type: 'Income', v0: 1, vmax: 512, step: 'geometric', cu: 4, unit: 'x hits per tap', about: 'Each tap counts as this many hits' });
-  assert.deepEqual(e.tiers.growth.list, [1, 2, 2, 3, 3, 4, 4, 5, 5, 6]);
+  assert.deepEqual([e.tiers.growth.step, e.tiers.growth.v0, e.tiers.growth.vmax, e.economy.stepsPerTier], ['geometric', 1, 6, 90], 'Growth is geometric; 90 steps a tier (loop 17)');
   assert.deepEqual(e.items.map(i => [i.id, i.pricing, i.consumable]), [['superClick', 'PV', false], ['terraformer', 'PV', false], ['demolition', 'Hours', true]]);
   assert.deepEqual(e.skinRarity, { Common: 0.3333, Rare: 1, 'Ultra Rare': 5, Legendary: 20 });
   assert.ok(e.glossary.length >= 20);
@@ -136,7 +136,7 @@ test('npm run sync-rules: writes the file from a saved copy, keeps parts the she
   const report = run('--from', DIR, '--out', out);
   assert.match(report, /defaultBaseBlocks: set to 431,649/);
   const file = JSON.parse(fs.readFileSync(out, 'utf8'));
-  assert.equal(file.tiers.growth.list.length, 10);
+  assert.equal(file.economy.stepsPerTier, 90);
   assert.match(run('--from', DIR, '--out', out), /No changes\./);
 
   // A sheet without the Glossary tab keeps the file's glossary.

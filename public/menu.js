@@ -7,9 +7,9 @@ const menu = $('menu');
 const fills = {};     // view name -> function that fills the view in just before it shows
 let view = null;      // the view showing, or null when the menu is closed
 
-// The Marketplace: one screen with tabs (Upgrades, Skins, Items, Land), each the screen it always was.
-const MARKET_TABS = [['upgrades', 'Upgrades'], ['skins', 'Skins'], ['items', 'Items'], ['land', 'Land']];
-let marketTab = 'upgrades';
+// The Marketplace: one screen with tabs (Skins, Items, Land), each the screen it always was.
+const MARKET_TABS = [['skins', 'Skins'], ['items', 'Items'], ['land', 'Land']];   // Upgrades is its own screen (loop 17)
+let marketTab = 'skins';
 for (const [v] of MARKET_TABS) {
   const bar = document.createElement('div');
   bar.className = 'tabs market-tabs';
@@ -72,7 +72,7 @@ fills.main = () => {
   $('hub-name').textContent = myName;
   $('hub-tag').textContent = myAccount ? 'ACCOUNT' : me ? 'GUEST' : 'VISITOR';
   $('hub-map').textContent = mapInfo?.name ?? '';
-  $('hub-squares').textContent = fmtSq(squares);
+  setNum($('hub-squares'), squares);
   const offerLogin = !myAccount && accountsOn;
   $('hub-login').hidden = $('hub-login-note').hidden = !offerLogin;
   $('hub-off').hidden = accountsOn;
@@ -304,7 +304,7 @@ fills.skins = async () => {
 };
 function drawSkins() {
   $('skins-owned').textContent = `${skinList.filter(s => s.owned).length} owned`;
-  $('skins-squares').textContent = fmtSq(squares);
+  setNum($('skins-squares'), squares);
   $('skins-tabs').replaceChildren(...[...Object.keys(SKIN_TABS), 'Owned'].map(name => {
     const b = document.createElement('button');
     b.type = 'button';
@@ -383,8 +383,9 @@ async function buySkin(s, button) {
 // ---------- Upgrades ----------
 const num = v => (Math.round(v * 100) / 100).toLocaleString(undefined, { minimumFractionDigits: Number.isInteger(v) ? 1 : 0, maximumFractionDigits: 2 });
 const plural = (v, word) => `${word}${v === 1 ? '' : 's'}`;
-// Upgrades are tiers 1-10 (loop 16). Each card: what it does, the tier owned, the value it works at on this map
-// (capped at the map's level), all 10 tiers with their costs, and the next tier's button (or why not).
+// Upgrades (loop 17): 10 tiers of stepsPerTier steps each. Each card: what it does, "Tier 1 · step 12/90", the value
+// now → after the next step, Buy (that step's price) and Buy max (as many steps as you can afford, one purchase),
+// and every tier's end value and total cost. On a map, an upgrade works at most at the end of the map's level's tier.
 const UPGRADE_LOOKS = {
   clickPower: { color: 'var(--orange)', icon: '<path d="M4 0h2v3h2v1H7v1H6v1H5v1H4v1H3V5H1V4h1V3h1V2h1z" fill="#0f131a"/>' },
   defense: { color: 'var(--blue)', icon: '<path d="M0 0h8v4H7v2H6v1H5v1H3V7H2V6H1V4H0z" fill="#0f131a"/>' },
@@ -394,11 +395,18 @@ const UPGRADE_LOOKS = {
   factoryLifetime: { color: 'var(--teal)', icon: '<path d="M2 0h4v1H5v1h1v1h1v4H6v1H2V7H1V3h1V2h1V1H2zM4 3v2h2V4H5V3z" fill="#0f131a"/>' },
   factoryYield: { color: 'var(--pink)', icon: '<path d="M0 8V3l2 1V3l2 1V3l2 1V0h2v8zM3 6h2v1H3z" fill="#0f131a"/>' },
 };
-// A value with its unit: "x2 hits per tap", "3 new blocks", "4.5 hours awake".
-const tierText = (v, unit) => {
-  const n = Number(v.toFixed(v < 10 ? 2 : 1)).toLocaleString();
-  if (v === 1) unit = unit.replace(/blocks$/, 'block');   // "1 new block"
+// A value with its unit: "x2.15 hits per tap", "1.4 new blocks", "4.5 hours awake".
+// d: decimal places (enough to see a step's change; the card picks it).
+const tierText = (v, unit, d = v < 10 ? 2 : 1) => {
+  const n = Number(v.toFixed(d)).toLocaleString(undefined, { maximumFractionDigits: d });
+  if (Number(v.toFixed(d)) === 1) unit = unit.replace(/blocks$/, 'block');   // "1 new block"
   return /^x /.test(unit) ? `×${n} ${unit.slice(2)}` : `${n} ${unit}`;
+};
+// The value after s steps, from the anchors (the same formula as the server's catalog.stepValue).
+const stepValue = (a, s, S) => {
+  if (s <= 0) return a[0];
+  const N = Math.min(a.length - 1, Math.ceil(s / S)), j = s - (N - 1) * S;
+  return a[N - 1] * (a[N] / a[N - 1]) ** (Math.min(j, S) / S);
 };
 
 let upgradeData = null;
@@ -408,77 +416,80 @@ fills.upgrades = async () => {
   if (u.error) return fail(u.error);
   upgradeData = u;
   drawUpgradeCards($('upgrade-list'));
-  $('upg-squares').textContent = fmtSq(squares);
+  setNum($('upg-squares'), squares);
 };
 function drawUpgradeCards(list) {
-  const u = upgradeData;
+  const u = upgradeData, S = u.stepsPerTier, top = 10 * S;
   list.replaceChildren(...u.list.map(up => {
     const look = UPGRADE_LOOKS[up.key] ?? { color: 'var(--raised)', icon: '' };
-    const owned = u.tiers[up.key] ?? 1, working = Math.min(owned, u.mapLevel), next = up.tiers[owned];   // tiers[owned] is tier owned + 1
+    const owned = u.steps[up.key] ?? 0, cap = u.mapLevel * S, working = Math.min(owned, cap), next = u.prices[up.key];
+    const tier = Math.max(1, Math.ceil(owned / S)), step = owned === 0 ? 0 : owned - (tier - 1) * S;
     const card = document.createElement('div');
     card.className = 'card upg';
     card.innerHTML = `<div class="top"><div class="ic"><svg class="pix" width="20" height="20" viewBox="0 0 8 8" aria-hidden="true">${look.icon}</svg></div>`
       + '<div style="display: flex; flex-direction: column"><span class="t"></span><span class="d"></span></div></div>'
       + '<div class="pips" aria-hidden="true"></div><div class="stat"><span></span><span></span></div><p class="cap note" hidden></p>'
       + '<details class="levels-box"><summary>All 10 tiers</summary><ul class="levels"></ul></details>'
-      + '<button class="btn" type="button"></button>';
+      + '<div class="buy-row"><button class="btn buy-one" type="button"></button><button class="btn buy-max" type="button">Buy max</button></div>';
     card.querySelector('.ic').style.background = look.color;
     card.querySelector('.t').textContent = up.name;
     card.querySelector('.t').dataset.info = up.key;   // info.js
     card.querySelector('.d').textContent = up.about;
-    // 10 pips: owned tiers filled; ones above this map's level dimmed (they don't work here).
+    // 10 pips, one per tier: filled as far as the steps go; the part above this map's cap dimmed.
     card.querySelector('.pips').replaceChildren(...up.tiers.map(t => {
-      const p = document.createElement('span');
+      const p = document.createElement('span'), lo = (t.tier - 1) * S, fill = Math.max(0, Math.min(1, (owned - lo) / S));
       p.className = 'pip';
-      if (t.tier <= owned) p.style.background = look.color;
-      if (t.tier <= owned && t.tier > working) p.style.opacity = '0.35';
+      p.style.background = `linear-gradient(90deg, ${look.color} ${fill * 100}%, transparent ${fill * 100}%)`;
+      if (lo >= cap && owned > lo) p.style.opacity = '0.35';
       return p;
     }));
     const [lv, eff] = card.querySelectorAll('.stat span');
-    lv.textContent = `Tier ${owned} of ${up.tiers.length}`;
-    const now = up.tiers[working - 1].value;
-    eff.textContent = next ? `${tierText(now, up.unit)} → ${tierText(next.value, up.unit)}` : tierText(now, up.unit);
-    // Capped: the map's level limits every upgrade here.
+    lv.textContent = owned >= top ? 'Tier 10 · max' : `Tier ${owned === 0 ? 1 : tier} · step ${step}/${S}`;
+    const now = stepValue(up.anchors, working, S);
+    // As many decimals as it takes to see what the next step adds (a step is small: x1.0026 pay).
+    let d = now < 10 ? 2 : 1;
+    while (next && d < 4 && now.toFixed(d) === next.value.toFixed(d)) d++;
+    eff.textContent = next ? `${tierText(now, up.unit, d)} → ${tierText(next.value, up.unit, d)}` : tierText(now, up.unit);
     if (working < owned) {
-      const cap = card.querySelector('.cap');
-      cap.hidden = false;
-      cap.textContent = `Tier ${owned}, working at tier ${working} on this map (level ${u.mapLevel})`;
+      const c = card.querySelector('.cap');
+      c.hidden = false;
+      c.textContent = `Working at the end of tier ${u.mapLevel} on this map (level ${u.mapLevel}): ${tierText(stepValue(up.anchors, cap, S), up.unit)}`;
     }
     card.querySelector('.levels').replaceChildren(...up.tiers.map(t => {
       const li = document.createElement('li');
-      li.className = t.tier === owned ? 'cur' : '';
-      li.textContent = `Tier ${t.tier}: ${tierText(t.value, up.unit)} · ${t.cost ? `${fmtSq(t.cost)} squares` : 'free'}`;
+      li.className = t.tier === tier ? 'cur' : '';
+      li.textContent = `Tier ${t.tier}: up to ${tierText(t.value, up.unit)} · ${S} steps, ${fmtSq(t.cost)} squares in all`;
       return li;
     }));
-    // The button: the next tier, or why not.
-    const btn = card.querySelector('.btn');
-    btn.style.cssText = `background: ${look.color}; color: var(--well)`;
-    const price = n => `<img class="sq-icon" src="icons/square.svg" width="16" height="16" alt="squares"> ${fmtSq(n)}`;
-    if (!next) { btn.disabled = true; btn.textContent = 'MAX'; }
-    else if (u.highest < next.tier) { btn.disabled = true; btn.textContent = `Mine a level-${next.tier} block to unlock`; }
-    else if (u.balance + 1e-9 >= next.cost) {
-      btn.innerHTML = `Tier ${next.tier} · ${price(next.cost)}`;
-      btn.addEventListener('click', () => buyTier(up, next.tier, btn));
+    // The buttons: the next step, or why not; Buy max.
+    const one = card.querySelector('.buy-one'), max = card.querySelector('.buy-max');
+    one.style.cssText = `background: ${look.color}; color: var(--well)`;
+    const price = n => `<img class="sq-icon" src="icons/square.svg" width="14" height="14" alt="squares"> ${fmtSq(n)}`;
+    if (!next) { one.disabled = max.disabled = true; one.textContent = 'MAX'; }
+    else if (u.highest < next.tier) { one.disabled = max.disabled = true; one.textContent = `Mine a level-${next.tier} block to unlock`; }
+    else if (u.balance + 1e-9 >= next.price) {
+      one.innerHTML = `Buy · ${price(next.price)}`;
+      one.addEventListener('click', () => buySteps(up, owned, 1, one));
+      max.addEventListener('click', () => buySteps(up, owned, 'max', max));
     } else {
-      btn.disabled = true;
-      btn.innerHTML = `${price(next.cost)} · Need ${fmtNeed(next.cost - u.balance)} more`;
+      one.disabled = max.disabled = true;
+      one.innerHTML = `${price(next.price)} · Need ${fmtNeed(next.price - u.balance)} more`;
     }
     return card;
   }));
 }
-async function buyTier(up, tier, btn) {
+async function buySteps(up, from, count, btn) {
   btn.disabled = true;   // one tap, one purchase (the server refuses repeats too)
-  const r = await ask('buyUpgrade', { upgrade: up.key, tier });
+  const r = await ask('buyUpgrade', { upgrade: up.key, from, count });
   if (r.error) {
     toast(r.need ? `${r.error}: need ${fmtNeed(r.need)} more` : r.error);
-    return fills[view]?.();
+    return fills.upgrades();
   }
   gameAudio.play('purchase');
-  Object.assign(upgradeData, { tiers: r.tiers, balance: r.balance });
   squares = r.squares;
   updateUI();
-  toast(`${up.name} tier ${tier}`, 'good');
-  fills[view]?.();
+  toast(r.bought > 1 ? `${up.name}: ${r.bought} steps` : `${up.name}: 1 step`, 'good');
+  fills.upgrades();
 }
 
 // ---------- Achievements ----------

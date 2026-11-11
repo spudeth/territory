@@ -33,7 +33,7 @@ Every rule in the game, in plain English. This file is updated whenever a rule c
 - One tap counts as your Click Power in hits (see Upgrades).
 - **Your first block** on a map must be an empty block. It can be anywhere.
 - **After that**, you can only hit blocks that touch your territory up, down, left or right, and never across your own wall. Those blocks can be empty or owned by someone else.
-- You can't hit your own blocks.
+- Tapping your own block does nothing at all: no message, no sound (players often tap once more after a claim).
 - **Only one player's progress counts.** If someone else hits a block, their hits start over from zero and yours are gone.
 - **Cracks fade:** 1 hit of progress for every 60 seconds since the last hit (Game Rules: `crackFadeSeconds`, `crackFadeHits`). A factory's progress never fades.
 - **Nothing is wasted:** hit power to spare from the tap that takes a block counts toward the next block you hit.
@@ -52,28 +52,29 @@ Every rule in the game, in plain English. This file is updated whenever a rule c
 - A player can wipe (clear) all their blocks on a map (Settings → Wipe and restart this map, then type WIPE). It also unlocks their look there. Their walls, factories and listings on that map go too.
 - After a wipe, claiming empty blocks on that map earns squares only once the player owns **more** blocks there than they had when they wiped. The highest count from any wipe is the one that counts.
 
-## Upgrades (tiers)
+## Upgrades (tiers and steps)
 
-Seven upgrades, from the Upgrades tab: Click Power, Earnings, Defense, Growth, Factory Speed, Factory Lifetime, Factory Yield. Each has **tiers 1 to 10**; tier 1 is free and everyone has it.
+Seven upgrades, from the Upgrades tab: Click Power, Earnings, Defense, Growth, Factory Speed, Factory Lifetime, Factory Yield. The Upgrades tile on the welcome screen opens the Upgrades screen.
 
-- **Value of tier N:** geometric, v0 × (vmax ÷ v0)^((N−1)/9), or the Nth number of a `list:` (Growth: 1, 2, 2, 3, 3, 4, 4, 5, 5, 6).
-- **Cost of tier N** (N = 2 to 10): c_u × 1,200 × 2^(N−1) squares. Fixed forever.
-- **Unlocking:** tier N can be bought once you have first-claimed a block of level N or higher, on any map (the game keeps your highest). Locked tiers say "Mine a level-N block to unlock". Tiers are bought in order.
-- **The cap:** on any map, an upgrade works at min(your tier, the map's level). The card says so ("Tier 5, working at tier 2 on this map").
-- Buying is one transaction with your row locked, so a double tap or two devices never buy twice. The new tier works from the next tap on every device and map. Guests can buy; their tiers stay when they make an account.
+- **Anchors:** a_N = v0 × (vmax ÷ v0)^(N/10) for N = 0 to 10, so a_0 = v0 (where everyone starts) and a_10 = vmax.
+- **Steps:** each tier has `Economy: stepsPerTier` (90) steps. Tier N's steps climb from a_(N−1) to a_N in equal ratios. Values can be fractions: Click Power and Defense keep the spare-hit carry-over; for Growth the fractional part is the chance of one more block (1.4 = 1 block and a 40% chance of a second; the roll is seeded by the map, so the same claims grow the same way).
+- **Costs:** within tier N each step costs 2^(1/stepsPerTier) times the one before, and the whole tier totals c_u × 1,200 × 2^(N−1) squares, so tier N+1's first step costs twice tier N's first step, with no jump at the boundary. Prices are fixed forever.
+- **Unlocking:** tier 1 is open from the start. Tier N's steps can be bought once you have first-claimed a block of level N or higher, on any map. Locked steps say "Mine a level-N block to unlock".
+- **The cap:** on a map of level L, an upgrade works at most at a_L, the end of tier L. The card says so.
+- **Buying:** each card shows "Tier 1 · step 12/90", the value now → after the next step, **Buy** (that step's price) and **Buy max** (as many steps as you can afford, in one purchase, never past what's unlocked). Each purchase is one transaction with your row locked, so a double tap or two devices never buy twice. It works from the next tap on every device and map. Guests can buy; their steps stay when they make an account.
 - **Click Power:** hits per tap. **Earnings:** multiplies pay. **Defense:** multiplies the hits others need for your blocks. **Growth:** new map blocks per brand-new block. **Factory Speed, Lifetime, Yield:** see Factories.
 - Super Click multiplies your effective Click Power by 10 for 5 seconds.
 
 ## The Marketplace
 
-The welcome screen's tiles are Marketplace, Upgrades (the Marketplace's Upgrades tab), Awards and Profile. The Marketplace has tabs: Upgrades, Skins, Items and Land.
+The welcome screen's tiles are Marketplace, Upgrades (its own screen), Awards and Profile. The Marketplace has tabs: Skins, Items and Land.
 
 - **Skins** cost their rarity's work-hours × W(L) (Skin Rarity tab; flags are Rare). Owning more never changes the price.
 - **Items** are priced from the Items tab: `PV` = P × V × W(L), or `Hours` × W(L). Super Click and the Terraformer are bought once and used a few times an hour. **Demolition** is used up: each one bought adds one; use it from the item bar on one of your factories or walls, confirm, and it's gone with no refund. It is the only way to remove a factory or a wall.
 
 ## Building
 
-The **Build** button (under the leaderboard) has Factory, Wall, Sell land, and Wake up (only while one of your factories is selected by press and hold). Pick a building, tap a block: a see-through ghost shows there (green, or red with the reason), tap another block to move it, ✓ buys, ✗ cancels.
+The **Build** button (under the leaderboard) has Factory, Wall, Sell land, and Wake up (only while one of your factories is selected by press and hold). A tool that can't be used now says why as soon as it's picked, before any ghost (for example "You need 20 blocks for your first factory (you have 9)."). While a tool is active, map taps only place: they never attack or claim. Pick a building, tap a block: a see-through ghost shows there (green, or red with the reason), tap another block to move it, ✓ buys, ✗ cancels.
 
 ### Factories
 

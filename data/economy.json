@@ -1,6 +1,6 @@
 {
   "source": "https://docs.google.com/spreadsheets/d/1YIivEUXUWMkdw3w3hlmRn7PkTzH6Xry7EJTr8SuFKiM",
-  "syncedAt": "2026-11-11T14:43:07.019Z",
+  "syncedAt": "2026-11-11T15:10:22.297Z",
   "rules": {
     "hitsPerBlock": 10,
     "crackFadeSeconds": 60,
@@ -1090,88 +1090,88 @@
       "stat": "purchases",
       "threshold": 1,
       "secret": false,
-      "description": "Buy 1 upgrade tier",
-      "reward": 240
+      "description": "Buy 1 upgrade step",
+      "reward": 0.9
     },
     {
       "id": "bought-5",
       "name": "Tinkerer",
       "category": "Upgrades",
       "stat": "purchases",
-      "threshold": 3,
+      "threshold": 270,
       "secret": false,
-      "description": "Buy 3 upgrade tiers",
-      "reward": 320
+      "description": "Buy 270 upgrade steps",
+      "reward": 447.6
     },
     {
       "id": "bought-10",
       "name": "Mechanic",
       "category": "Upgrades",
       "stat": "purchases",
-      "threshold": 5,
+      "threshold": 450,
       "secret": false,
-      "description": "Buy 5 upgrade tiers",
-      "reward": 384
+      "description": "Buy 450 upgrade steps",
+      "reward": 875.6
     },
     {
       "id": "bought-25",
       "name": "Engineer",
       "category": "Upgrades",
       "stat": "purchases",
-      "threshold": 10,
+      "threshold": 900,
       "secret": false,
-      "description": "Buy 10 upgrade tiers",
-      "reward": 504
+      "description": "Buy 900 upgrade steps",
+      "reward": 2435.3
     },
     {
       "id": "bought-50",
       "name": "Inventor",
       "category": "Upgrades",
       "stat": "purchases",
-      "threshold": 20,
+      "threshold": 1800,
       "secret": false,
-      "description": "Buy 20 upgrade tiers",
-      "reward": 948
+      "description": "Buy 1,800 upgrade steps",
+      "reward": 9196.2
     },
     {
       "id": "bought-100",
       "name": "Mad Scientist",
       "category": "Upgrades",
       "stat": "purchases",
-      "threshold": 30,
+      "threshold": 2700,
       "secret": false,
-      "description": "Buy 30 upgrade tiers",
-      "reward": 1880
+      "description": "Buy 2,700 upgrade steps",
+      "reward": 27399.4
     },
     {
       "id": "bought-150",
       "name": "Overclocked",
       "category": "Upgrades",
       "stat": "purchases",
-      "threshold": 40,
+      "threshold": 3600,
       "secret": false,
-      "description": "Buy 40 upgrade tiers",
-      "reward": 3954
+      "description": "Buy 3,600 upgrade steps",
+      "reward": 76402.6
     },
     {
       "id": "bought-200",
       "name": "Nearly Maxed",
       "category": "Upgrades",
       "stat": "purchases",
-      "threshold": 50,
+      "threshold": 4500,
       "secret": false,
-      "description": "Buy 50 upgrade tiers",
-      "reward": 8539.2
+      "description": "Buy 4,500 upgrade steps",
+      "reward": 208312.5
     },
     {
       "id": "bought-225",
       "name": "Fully Loaded",
       "category": "Upgrades",
       "stat": "purchases",
-      "threshold": 63,
+      "threshold": 5670,
       "secret": false,
-      "description": "Buy 63 upgrade tiers",
-      "reward": 25306.6
+      "description": "Buy 5,670 upgrade steps",
+      "reward": 758813.8
     },
     {
       "id": "clickpower-1",
@@ -3102,7 +3102,8 @@
     "wallPaybackHours": 1,
     "maxWallsPerBlock": 2,
     "marketFee": 0.05,
-    "marketMinAccountDays": 3
+    "marketMinAccountDays": 3,
+    "stepsPerTier": 90
   },
   "tiers": {
     "clickPower": {
@@ -3140,19 +3141,7 @@
       "type": "Map",
       "v0": 1,
       "vmax": 6,
-      "step": "list",
-      "list": [
-        1,
-        2,
-        2,
-        3,
-        3,
-        4,
-        4,
-        5,
-        5,
-        6
-      ],
+      "step": "geometric",
       "cu": 3,
       "unit": "new blocks",
       "about": "How many new map blocks appear when you mine a new block"
@@ -3315,10 +3304,17 @@
       "home": "Each player"
     },
     {
-      "symbol": "v_N",
-      "name": "Tier value",
-      "meaning": "What an upgrade gives at tier N",
-      "formula": "geometric: v0 x (vmax / v0)^((N-1)/9); list: the Nth value",
+      "symbol": "N",
+      "name": "Tier",
+      "meaning": "Upgrade tier, 1 to 10. Tier 1 is open from the start; each tier is bought in stepsPerTier small steps",
+      "formula": "",
+      "home": "Each player"
+    },
+    {
+      "symbol": "a_N",
+      "name": "Tier end value",
+      "meaning": "What an upgrade gives once all of tier N's steps are bought (a_0 = v0, a_10 = vmax)",
+      "formula": "a_N = v0 x (vmax / v0)^(N/10)",
       "home": "Upgrades tab"
     },
     {
@@ -3331,16 +3327,9 @@
     {
       "symbol": "Tier cost",
       "name": "Tier price",
-      "meaning": "Price of buying tier N (N = 2 to 10). Fixed forever",
-      "formula": "c_u x W(N) = c_u x 1,200 x 2^(N-1)",
-      "home": "Formula"
-    },
-    {
-      "symbol": "Unlock",
-      "name": "Tier unlock",
-      "meaning": "You can buy tier N once you have first-claimed a level-N block",
-      "formula": "",
-      "home": "Rule"
+      "meaning": "Total price of all of tier N's steps. Each step costs a little more than the one before (x 2^(1/stepsPerTier)), so tier N+1 starts at twice tier N's first step",
+      "formula": "c_u x 1,200 x 2^(N-1)",
+      "home": "Formula; Economy stepsPerTier"
     },
     {
       "symbol": "Effective tier",
