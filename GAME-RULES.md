@@ -1,91 +1,105 @@
 # Territory: the game rules
 
-Every rule in the game, in plain English. This file is updated whenever a rule changes.
+Every rule in the game, in plain English. This file is updated whenever a rule changes. The public Game Guide (`/guide`) shows the same rules with every current number, built from the data.
 
-**Where the numbers live:** Xoren's Google Sheet. Every game number is a row on its Game Rules tab (written below as `Game Rules: hitsPerBlock`), and upgrade levels and costs come from the Click Power, Defense, Earnings and Growth tabs. `npm run sync-rules` copies them into `data/economy.json` after checking them; nothing changes for players until that file is merged into main and deployed. The game never reads the sheet itself. The numbers quoted below are the current ones in `data/economy.json`.
+**Where the numbers live:** Xoren's Google Sheet. Game numbers are rows on its Game Rules and Economy tabs (written below as `Economy: tickSeconds`); upgrades come from the Upgrades tab, items from the Items tab, skin prices from the Skin Rarity tab, and the Glossary tab explains every symbol. `npm run sync-rules` copies them into `data/economy.json` after checking them (a tab the sheet doesn't have keeps what the file has); nothing changes for players until that file is merged into main and deployed. The game never reads the sheet itself. The formulas come from the doc "Territory economy: core equations".
 
 ## The map
 
 - Every map has a **seed** (any text; random if none is given). The seed decides everything about the map: the terrain at every block of an endless world, its starting shape, and where each new block appears as it grows. The same seed and the same claims always give the same map. (`public/terrain.js`)
-- A new map starts as an island of 10,240 blocks, about 101 across (Game Rules: `newMapBlocks`). `npm run admin -- create-map <name> --seed <text>`; `map <name>` shows the seed. `--width` and `--height` make a rectangle instead.
+- Every map has **E**, its base blocks: it starts with exactly E blocks, and E never changes. `npm run admin -- create-map <name> --seed <text> --base <E>` (default `Economy: defaultBaseBlocks`, 431,649; the live game refuses E above `maxBaseBlocksOnline` until the database is upgraded). `--width` and `--height` make a rectangle instead (E = width × height). Maps from before loop 16 have E = their starting size.
 - Maps grow. Every time an empty block is claimed, one new block (more with Growth) appears touching the edge of the map. On a seeded map the n-th growth's spot comes from the seed. Water counts as map, so growth can reveal it. (`store.js`, `growMap`)
-- Taking a block from another player does not grow the map.
-- Maps made before seeds have none: they stay all grass and grow at random.
+- **Levels.** A map's level comes from how many blocks have been mined there (first claims by players and factories; Growth's extra blocks don't count) and E: L = 1 + floor(log2(mined ÷ E + 1)), at most `maxLevel` (10). So level 2 starts at E blocks mined, level 3 at 3E, level 4 at 7E, level L at (2^(L−1) − 1) × E. The level is worked out each time, never stored. The top of the screen shows the map's level and a bar to the next. (`catalog.js`)
+- New blocks are **born at the map's current level** and keep that level forever. Each level tints its blocks a little darker; zoomed in, blocks above level 1 show their level number.
 - There can be many maps. A player can switch between them, and the game remembers the last map they were on, on every device. Only an admin can make a new map. Map looks: `grass` or `white` (`store.js`, `STYLES`).
 
 ## Terrain
 
-| Terrain | Rule (Game Rules tab) |
+| Terrain | Factor t (Game Rules tab) |
 |---|---|
-| Grass | normal |
-| Sand | `sandHits` × the normal hits (0.5: fewer) |
-| Forest | `forestHits` × (1.5) |
-| Stone | `stoneHits` × (3) |
+| Grass | 1 |
+| Sand | `sandHits` (0.5) |
+| Forest | `forestHits` (1.5) |
+| Stone | `stoneHits` (3) |
 | Water | can't be claimed; a natural border |
-| Gold | rare; `goldHits` × (1), and `goldBonusSquares` (5) extra squares when first claimed (beyond the wipe floor, like any square) |
+| Gold | `goldHits` (1), and `goldBonusSquares` (5) extra squares when first claimed |
 
-- How much of the world each covers: `waterShare`, `sandShare`, `forestShare`, `stoneShare`, `goldShare`; how big features are: `terrainScale` (blocks across a typical lake or hill). These are shares of the endless world; any one map varies a little.
-- Terrain multiplies with the owner's Defense. Owned blocks keep the owner's color over the terrain.
+- How much of the world each covers: `waterShare`, `sandShare`, `forestShare`, `stoneShare`, `goldShare`; how big features are: `terrainScale`.
+- A block's terrain is stored with the block only when it differs from the seed's (the Terraformer).
 
 ## Taking blocks
 
-- **Defense tops out at ×6** (Xoren: twice the sheet's ×3): the sheet's Defense values are scaled so the top level makes a block 6 times as hard to take; every level shrinks the same way, so stored levels never move. (rules.js, DEFENSE_TOP)
-- **Nothing is wasted:** when your tap takes a block with hit power to spare (e.g. 10 needed, you had 9.4 and tapped 1.5), the spare 0.9 counts toward the next block you hit. So every Click Power level means fewer or equal taps over time. (Bob, loop 12)
-
-- **Every block takes 10 hits to take**, empty or owned. (Game Rules: `hitsPerBlock`)
-- One click counts as 1 hit, times your Click Power (see Upgrades). With no upgrades, 10 clicks take a block.
+- **Hardness:** a block takes H = `hitsPerBlock` × 2^(birth level − 1) × t hits to mine (10 for a level-1 grass block, 20 at level 2, 5,120 at level 10). An owned block takes H × the owner's Defense, plus any walls in the way.
+- One tap counts as your Click Power in hits (see Upgrades).
 - **Your first block** on a map must be an empty block. It can be anywhere.
-- **After that**, you can only hit blocks that touch your territory up, down, left or right. Diagonal doesn't count. Those blocks can be empty or owned by someone else.
+- **After that**, you can only hit blocks that touch your territory up, down, left or right, and never across your own wall. Those blocks can be empty or owned by someone else.
 - You can't hit your own blocks.
-- **Only one player's progress counts.** Progress on a block only counts while the same player keeps hitting it. If someone else hits it, their hits start over from zero and yours are gone.
-- **Cracks fade.** A cracked block loses 1 hit of progress for every 60 seconds since it was last hit, down to zero. (Game Rules: `crackFadeSeconds` and `crackFadeHits`)
-- Progress is kept as a fraction (for example 7.2 hits out of 10). It's never saved, so a server restart clears all cracks.
-- **What players see:** the crack drawing shows progress as a share of the hits needed. The existing art has 2 stages. The first shows from the first hit up to half way, and the second from just past half way. The block also darkens a little with every hit, up to 30% dark just before it's taken. (`public/game.js`, `CRACK_STAGES = 2`)
-- **Tap-rate limit (anti-bot):** the server counts at most 12 taps a second from one player, in short bursts of up to 12; faster taps are ignored. Players who go over are logged each minute (table `tap_limit_log` and the server log) to spot bots later. No bans. (Game Rules: `maxTapsPerSecond`)
-- If two players finish the same block at almost the same moment, the first one saved wins, and the other sees "Someone got there first".
+- **Only one player's progress counts.** If someone else hits a block, their hits start over from zero and yours are gone.
+- **Cracks fade:** 1 hit of progress for every 60 seconds since the last hit (Game Rules: `crackFadeSeconds`, `crackFadeHits`). A factory's progress never fades.
+- **Nothing is wasted:** hit power to spare from the tap that takes a block counts toward the next block you hit.
+- **Tap-rate limit (anti-bot):** at most 12 taps a second from one player (Game Rules: `maxTapsPerSecond`); players who go over are logged.
+- **Press and hold** any block (`Economy: inspectHoldMs`, 400 ms; right-click on a computer) to open its info card: coordinates, terrain, level, hardness, its pay if mined or the hits to take it, its owner, walls, factory and listing. A normal tap never opens it.
 
 ## Squares (the currency)
 
-- Claiming an **empty** block earns 1 square, times your Earnings (see Upgrades). (Game Rules: `squaresPerFirstClaim`)
-- Taking a block from another player earns nothing.
-- **Fractions are kept.** With Earnings ×1.5, every empty block earns 1.5 squares. The exact balance is stored, to 6 decimal places. (a code constant, `rules.js` `SQUARE_DECIMALS`, matching the database columns from `db/migrations/007_fractional_squares.sql`)
-- **Players always see the whole number, rounded down.** A balance of 2.5 shows as 2. (`rules.js`, `shownSquares`)
-- Every change to a balance is written to a ledger, with the exact amount, the new balance, and the map and block it came from.
-- There's no way to spend squares yet.
+- **Squares are counted in tenths** (whole numbers in the database, 64-bit). Every rounding is down. Players see whole squares, rounded down, unless Settings → Show tenths is on (one decimal place everywhere; saved per player).
+- **Pay for mining a new block** = H × 10 ÷ `hitsPerSquare` × Earnings tenths, rounded down, plus the gold bonus. Every 10 hits you put into a new block earn 1 square, so income doesn't depend on level or terrain, only on upgrades. Taking a block from another player earns nothing.
+- **Prices** come from one unit, the work-hour: W(L) = (3600 ÷ `baseBlockSeconds`) × 2^(L−1) squares (1,200 at level 1). Items, buildings and skins cost a number of work-hours × W(L) at the level of the map you're on (or the map picked on the welcome screen); upgrade tiers have fixed prices.
+- Every change to a balance is written to a ledger. Every square spent is destroyed.
 
 ## The wipe rule (anti-farming)
 
-- A player can wipe (clear) all their blocks on a map (Menu → Settings → Wipe and restart this map, then type WIPE).
-- A wipe also unlocks their color, skin and coverage on that map (see below).
-- After a wipe, claiming empty blocks on that map earns squares only once the player owns **more** blocks there than they had when they wiped. Before that, the map still grows, but no squares are earned.
-- If a player wipes more than once, the highest count from any wipe is the one that counts. Wiping again never lowers it. (`rules.js`, `earnsSquares` and `wipeFloorAfterWipe`)
+- A player can wipe (clear) all their blocks on a map (Settings → Wipe and restart this map, then type WIPE). It also unlocks their look there. Their walls, factories and listings on that map go too.
+- After a wipe, claiming empty blocks on that map earns squares only once the player owns **more** blocks there than they had when they wiped. The highest count from any wipe is the one that counts.
 
-## Upgrades
+## Upgrades (tiers)
 
-Each player has a level for four upgrades, which count on every map. Everyone starts at level 0, which is "no upgrade". Each upgrade's tab in the sheet lists its levels with the value after buying each one and its cost in squares (columns Level, Value after, Cost (squares)); the game uses them exactly as written. A level past the end of a table uses its last entry.
+Seven upgrades, from the Upgrades tab: Click Power, Earnings, Defense, Growth, Factory Speed, Factory Lifetime, Factory Yield. Each has **tiers 1 to 10**; tier 1 is free and everyone has it.
 
-**Current levels (first sync, 2026-10-28):**
+- **Value of tier N:** geometric, v0 × (vmax ÷ v0)^((N−1)/9), or the Nth number of a `list:` (Growth: 1, 2, 2, 3, 3, 4, 4, 5, 5, 6).
+- **Cost of tier N** (N = 2 to 10): c_u × 1,200 × 2^(N−1) squares. Fixed forever.
+- **Unlocking:** tier N can be bought once you have first-claimed a block of level N or higher, on any map (the game keeps your highest). Locked tiers say "Mine a level-N block to unlock". Tiers are bought in order.
+- **The cap:** on any map, an upgrade works at min(your tier, the map's level). The card says so ("Tier 5, working at tier 2 on this map").
+- Buying is one transaction with your row locked, so a double tap or two devices never buy twice. The new tier works from the next tap on every device and map. Guests can buy; their tiers stay when they make an account.
+- **Click Power:** hits per tap. **Earnings:** multiplies pay. **Defense:** multiplies the hits others need for your blocks. **Growth:** new map blocks per brand-new block. **Factory Speed, Lifetime, Yield:** see Factories.
+- Super Click multiplies your effective Click Power by 10 for 5 seconds.
 
-| Upgrade | Levels | Level 1 costs | Top value |
-| --- | --- | --- | --- |
-| Click Power | 70 | 22 squares | ×10 (1 hit per click → 10) |
-| Defense | 50 | 124 squares | ×3 (10 hits → 30) |
-| Earnings | 100 | 9 squares | ×10 squares per new block |
-| Growth | 5 | 1,161 squares | 6 new map blocks per new block |
+## The Marketplace
 
-Every level's value and cost is in `data/economy.json`, exactly as in the sheet.
+The welcome screen's tiles are Marketplace, Upgrades (the Marketplace's Upgrades tab), Awards and Profile. The Marketplace has tabs: Upgrades, Skins, Items and Land.
 
-**Buying:** Menu > Upgrades. Each upgrade shows its level, what it does now and after the next level (e.g. "9 → 8 clicks per block"), and a button with the next level's cost from the sheet. Without enough squares the button says how many more are needed; at the top level it says MAX.
-- Guests can buy too (after their first block); upgrades work on every map and stay with the guest when they make an account from their guest profile.
-- A purchase is one database transaction: the exact balance (fractions included) is checked, the cost taken and written to the ledger, and the level raised. Taps at the same moment, from one device or several, take turns, and a tap for a level already bought is refused, so nobody can spend the same squares twice.
-- The new level counts from the very next tap, on every device and map.
+- **Skins** cost their rarity's work-hours × W(L) (Skin Rarity tab; flags are Rare). Owning more never changes the price.
+- **Items** are priced from the Items tab: `PV` = P × V × W(L), or `Hours` × W(L). Super Click and the Terraformer are bought once and used a few times an hour. **Demolition** is used up: each one bought adds one; use it from the item bar on one of your factories or walls, confirm, and it's gone with no refund. It is the only way to remove a factory or a wall.
 
-- **Click Power:** how many hits one click counts as. ×1.2 means each click counts as 1.2 hits.
-- **Defense:** multiplies the hits other players need to take your blocks. ×2 means 20 hits. It never applies to empty blocks.
-- **Earnings:** multiplies the squares you earn per empty block, with fractions kept.
-- **Growth:** how many new map blocks each brand-new block you claim creates (1 with no upgrade). Whole numbers only. Each extra block appears at a random spot on the map's edge, exactly like the normal one.
-- **Example:** with Click Power ×1.2 against Defense ×2, the block needs 10 × 2 = 20 hits. 16 clicks make 19.2 hits, which isn't enough, so it takes 17 clicks.
-- **When the sheet changes the levels, nobody gets weaker.** At the next server start after a merge, each player's level moves to the lowest new level whose value is at least what they had (if no new level is that strong, the top level). Every move is recorded (table `level_remaps`) and listed in the server log. The sync report shows how levels will move.
+## Building
+
+The **Build** button (under the leaderboard) has Factory, Wall, Sell land, and Wake up (only while one of your factories is selected by press and hold). Pick a building, tap a block: a see-through ghost shows there (green, or red with the reason), tap another block to move it, ✓ buys, ✗ cancels.
+
+### Factories
+
+- Only on your own non-water block, one per block, not on land for sale. You may have floor(blocks owned ÷ `factoryBlocksPerFactory`) on a map; if your land drops below that, your newest factories pause until you're back above it.
+- **Price** of your nth factory (n = how many you have + 1) = `factoryBuildPaybackHours` × `factoryValuePerHour` × W(L) × `factoryBuildGrowth`^(n−1).
+- **Mining** happens on the server tick (`tickSeconds`), even while the owner is away, only while the factory is awake: hits per second = (`hitsPerBlock` ÷ `baseBlockSeconds`) × Factory Speed. Its target is the empty, non-water block touching your land closest to it (ties in a fixed seeded order), checked again every step; with none, it idles. Outside its home square (`factoryAreaSize` wide, centred on it) each block of distance adds `factoryDistancePenaltyWh` × W(L) × `hitsPerSquare` hits.
+- Factory hits are the same hits and cracks as a player's, but their progress never fades. Your own taps add to it; anyone else's hit resets it.
+- A finished block becomes yours, counts toward the map's mined total, grows the map with your Growth, pays you Factory Yield squares (never more than the block's normal pay; Earnings doesn't apply) and can unlock tiers.
+- **Lifetime:** after building or waking, a factory works for Factory Lifetime hours, then sleeps (grey, "Zzz"). Wake up is in its info card, or the Build menu while it's selected. There is no wake-all.
+- The free server sleeps: every tick catches up on all the time since the last one, in steps aligned to the clock, so factories give the same result whether the server stayed awake or not. A factory is destroyed when its block is taken.
+
+### Walls
+
+- Tap near the edge of your land: the wall snaps to the nearest outer side of one of your blocks (a side facing a square you don't own). At most `maxWallsPerBlock` (2) per block, on different sides, so corners work. Not on land for sale.
+- **Price** = `wallPaybackHours` × `wallStrength` × H ÷ `hitsPerSquare` squares.
+- An attacker who can only reach a walled block through walled sides hits a **wall first**: it needs `wallStrength` × H hits, cracks and fades like a block, and is destroyed when it breaks.
+- You can never claim or attack across your own wall ("Your wall is in the way").
+- Walls go when their block is taken; otherwise they stay until Demolition removes them.
+
+## The land market
+
+- **Selling:** Build → Sell land, tap your blocks (they must stay connected side to side), enter a price, ✓. Listed blocks show a for-sale marker and can't get new buildings or walls. Cancel from the info card or the Land tab.
+- **Buying:** press and hold a listed block; the card highlights the whole bundle with its price and Buy, then a confirm step. One transaction, so nobody buys it twice. The buyer pays the full price; the seller gets it less `marketFee` (destroyed). Blocks, factories and walls move to the buyer, whose factory limit applies (newest pause). The land needn't touch the buyer's own.
+- Accounts only, at least `marketMinAccountDays` old, to sell or buy.
+- **Any attack on a listed block ends its listing.**
+- The Land tab lists every listing on the map (size, price, seller, levels) with Jump to it.
 
 ## Your look on each map
 

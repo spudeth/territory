@@ -9,6 +9,7 @@ const rules = require('./rules');
 const catalog = require('./catalog');
 const { createTicker } = require('./ticker');
 const fac = require('./factories');
+const { renderGuide } = require('./guide');
 const chat = require('./chat');
 const terrain = require('./public/terrain');
 // How each skin is drawn, for the browser: { id: 'pattern' | 'art' }.
@@ -64,6 +65,17 @@ function createGame(pool, { startTicker = false, email = createEmail(), achievem
   app.get('/api/ip', (req, res) => res.json({ ip: clientIp(req.headers, req.socket.remoteAddress) }));
   if (auth) app.use(auth.router);
   // The one-click unsubscribe link from every email: no login needed (loop 15).
+  // The Game Guide: public, built from data/economy.json on every visit (guide.js).
+  app.get('/guide', async (req, res) => {
+    try {
+      const { rows } = await pool.query("SELECT name, base_blocks::float AS base FROM maps WHERE type = 'official' ORDER BY id");
+      res.type('html').send(renderGuide({ maps: rows }));
+    } catch (err) {
+      console.error(`GUIDE FAILED: ${err.message}`);
+      res.status(500).type('text').send('The guide could not load. Try again in a moment.');
+    }
+  });
+
   app.get('/unsubscribe', async (req, res) => {
     const r = await store.unsubscribeByToken(pool, req.query.t).catch(() => null);
     if (r?.email) email.sync(r.email, false).catch(err => console.error(`AUDIENCE SYNC FAILED: ${err.message}`));
@@ -292,7 +304,6 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
       const now = Date.now(), f = { id: r.id, owner: pid, x, y, built: now, awake: now + awakeMs, processed: fac.stepFloor(now), target: null };
       map.factories.set(key(x, y), f);
       balanceChanged(pid, r.squares);
-      totals.bump(pid, 'purchases');
       totals.bump(pid, 'squaresSpent', info.price);
       io.to(map.room).emit('factory', factoryOut(map, f));
       return { ok: true, squares: catalog.fromTenths(r.squares) };
@@ -309,7 +320,6 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
     if (r.error) return { error: r.error, ...(r.need !== undefined ? { need: catalog.fromTenths(r.need) } : {}) };
     map.walls.set(key(x, y), r.walls);
     balanceChanged(pid, r.squares);
-    totals.bump(pid, 'purchases');
     totals.bump(pid, 'squaresSpent', catalog.fromTenths(price));
     io.to(map.room).emit('walls', { x, y, walls: r.walls });
     return { ok: true, squares: catalog.fromTenths(r.squares) };

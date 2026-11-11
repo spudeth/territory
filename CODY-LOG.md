@@ -1091,3 +1091,53 @@ OPEN Q27: a block's terrain is stored only where it differs from the map seed's 
 #112 | 2026-11-11 | Loop 16 Phase 5: Build menu and factories. Build button under the leaderboard (never over play): Factory, Wall, Sell land, Wake up (greyed unless your factory is selected by press and hold). Placing: pick, tap a block, a see-through green ghost (red with a short reason: "Only on your own land", "Not on water"…), tap elsewhere to move it, ✓ buys, ✗ cancels (build.js; each building is one BUILD_KINDS entry). Factories (migration 022; rules in factories.js): own non-water block, one per block, not on listed land; at most floor(blocks owned / factoryBlocksPerFactory), the newest pause while land is below; price P_F x V_F x W(L) x g^(n-1); destroyed if the block is taken. They mine on the server tick while awake, owner online or not: hits/s = (hitsPerBlock / baseBlockSeconds) x Factory Speed; target = the closest empty non-water block touching the owner's land (ties in a fixed seeded order), re-picked every step; outside the home square + d x factoryDistancePenaltyWh x W(L) x hitsPerSquare hits; same hit and crack as players, tagged factory, never fades (owner taps add, others reset). A finished block is the owner's, counts toward mined, grows the map with their Growth, pays Factory Yield capped at the block's pay, and can raise their highest level. Time runs in clock-aligned tickSeconds steps, so a long sleep gives exactly what ticking every minute would. Lifetime: works Factory Lifetime hours after waking, then sleeps (grey, Zzz); Wake up only from its info card or the Build menu while selected | tests: factories (target and ties, home square and distance penalty, Yield cap, limit and newest pause, building and price, 30 minutes as one catch-up tick vs 30 ticks: identical blocks and squares, asleep does nothing, Wake up, destroyed when taken, Demolition); full suite 162/162. Phase 5 ready to merge
 #113 | 2026-11-11 | Loop 16 Phase 6: walls. Build → Wall, tap near an edge: the ghost snaps to the nearest outer side of one of your blocks (facing a square you don't own); at most maxWallsPerBlock (2) per block on different sides, so corners work; not on listed land. Price P_a x w x H / hitsPerSquare. An attacker whose only ways in run through walled sides hits a wall first: w x H hits, cracks and fades like a block, destroyed with a sound when it breaks. Nobody claims or attacks across their own wall ("Your wall is in the way"); factories don't either. Walls go when their block is taken, otherwise stay until Demolition (walls.js; drawn from art/wall.svg; the info card lists them and which one is in your way) | tests: walls (outer sides only, max 2, wall first and not when another way is open, the outward block, price, breaking at w x H, Demolition, gone when the block is taken); full suite 166/166. Phase 6 ready to merge
 #114 | 2026-11-11 | Loop 16 Phase 7: land market (migration 023 listings; land.js). Build → Sell land: tap your blocks (they must stay connected side to side; the count shows), enter a price, ✓; listed blocks show the for-sale marker (art/for-sale.svg) and can't get new buildings or walls; cancel from the info card or the Land tab. Buying: press and hold a listed block, the card highlights the bundle with price and Buy, then Confirm; one transaction (buyer and seller rows locked), the buyer pays the full price, the seller gets it less marketFee (destroyed), blocks, factories and walls move to the buyer (their factory limit applies: newest pause); land needn't touch the buyer's; accounts only, at least marketMinAccountDays old. Any attack on a listed block (one hit) ends the listing; a block lost any other way ends it too. The Land tab lists every listing on the map (size, price, seller, level range) with Jump to it | tests: market (connected only, account and age, not own blocks, no buildings on listed land, a tenth short, two buys at once pay once, fee destroyed, walls and factory move, cancel, attack ends it, Land tab); full suite 168/168. Phase 7 ready to merge
+#115 | 2026-11-11 | Loop 16 Phase 8: Game Guide, achievements and text. /guide (guide.js): public, no login, the pixel page style, built from data/economy.json on every visit: what the game is, maps and levels (a level table for each official map's E), hardness and pay (every terrain at every level), every upgrade with all 10 tiers' values and costs, factories, walls, items, the market, the skin gallery by rarity with level-1 prices, the achievements (secrets hidden) and the full Glossary tab; linked next to Privacy and Terms on the welcome screen and in Settings. Achievements on upgrade levels and purchase counts moved to tiers (keys kept; "purchases" now counts tiers only; "Spend N squares on upgrades" says "Spend N squares", since it counts every purchase). GAME-RULES.md rewritten for levels, tiers, the cap, factories, walls, the market and Demolition; info.js and the tutorial updated | tests: guide (sections, a table per map, every upgrade, tier 10 cost, the whole glossary, no secrets); full suite 169/169 (+1 Phase 9 test that ran early, before economy-reset existed). Phase 8 ready to merge
+OPEN Q28 (Bob): the tier achievement rows for the Achievements tab (same keys). Thresholds map old levels to tiers 2-10; rewards are placeholders at 5% of that tier's cost (the cap is 50% of the work). CSV:
+    Key,Name,Category,Stat,Threshold,Secret,Description,Reward
+    spent-10,Window Shopper,Spending,squaresSpent,10,,Spend 10 squares,0.1
+    spent-100,First Splurge,Spending,squaresSpent,100,,Spend 100 squares,0.4
+    spent-500,Shopaholic,Spending,squaresSpent,500,,Spend 500 squares,2
+    spent-1k,Big Spender,Spending,squaresSpent,1000,,"Spend 1,000 squares",4
+    spent-5k,High Roller,Spending,squaresSpent,5000,,"Spend 5,000 squares",20
+    spent-10k,Spree,Spending,squaresSpent,10000,,"Spend 10,000 squares",40
+    spent-50k,Splurge Lord,Spending,squaresSpent,50000,,"Spend 50,000 squares",200
+    spent-100k,Bottomless Pockets,Spending,squaresSpent,100000,,"Spend 100,000 squares",400
+    spent-500k,Market Maker,Spending,squaresSpent,500000,,"Spend 500,000 squares",2000
+    spent-1m,All In,Spending,squaresSpent,1000000,,"Spend 1,000,000 squares",4000
+    bought-1,First Upgrade,Upgrades,purchases,1,,Buy 1 upgrade tier,240
+    bought-5,Tinkerer,Upgrades,purchases,3,,Buy 3 upgrade tiers,320
+    bought-10,Mechanic,Upgrades,purchases,5,,Buy 5 upgrade tiers,384
+    bought-25,Engineer,Upgrades,purchases,10,,Buy 10 upgrade tiers,504
+    bought-50,Inventor,Upgrades,purchases,20,,Buy 20 upgrade tiers,948
+    bought-100,Mad Scientist,Upgrades,purchases,30,,Buy 30 upgrade tiers,1880
+    bought-150,Overclocked,Upgrades,purchases,40,,Buy 40 upgrade tiers,3954
+    bought-200,Nearly Maxed,Upgrades,purchases,50,,Buy 50 upgrade tiers,8539.2
+    bought-225,Fully Loaded,Upgrades,purchases,63,,Buy 63 upgrade tiers,25306.6
+    clickpower-1,Stronger Taps,Upgrade levels,level:clickPower,2,,Reach Click Power tier 2,480
+    clickpower-5,Iron Finger,Upgrade levels,level:clickPower,4,,Reach Click Power tier 4,1920
+    clickpower-10,Steel Finger,Upgrade levels,level:clickPower,6,,Reach Click Power tier 6,7680
+    clickpower-25,Diamond Finger,Upgrade levels,level:clickPower,8,,Reach Click Power tier 8,30720
+    clickpower-50,Thunder Finger,Upgrade levels,level:clickPower,9,,Reach Click Power tier 9,61440
+    clickpower-70,Max Power,Upgrade levels,level:clickPower,10,,Reach Click Power tier 10,122880
+    defense-1,Fence Builder,Upgrade levels,level:defense,2,,Reach Defense tier 2,360
+    defense-5,Wall Raiser,Upgrade levels,level:defense,4,,Reach Defense tier 4,1440
+    defense-10,Fortified,Upgrade levels,level:defense,6,,Reach Defense tier 6,5760
+    defense-25,Bastion,Upgrade levels,level:defense,8,,Reach Defense tier 8,23040
+    defense-50,Impenetrable,Upgrade levels,level:defense,10,,Reach Defense tier 10,92160
+    earnings-1,Side Hustle,Upgrade levels,level:earnings,2,,Reach Earnings tier 2,720
+    earnings-5,Day Trader,Upgrade levels,level:earnings,4,,Reach Earnings tier 4,2880
+    earnings-10,Investor,Upgrade levels,level:earnings,6,,Reach Earnings tier 6,11520
+    earnings-25,Banker,Upgrade levels,level:earnings,8,,Reach Earnings tier 8,46080
+    earnings-50,Tycoon,Upgrade levels,level:earnings,9,,Reach Earnings tier 9,92160
+    earnings-100,Golden Goose,Upgrade levels,level:earnings,10,,Reach Earnings tier 10,184320
+    growth-1,Green Thumb,Upgrade levels,level:growth,2,,Reach Growth tier 2,360
+    growth-2,Gardener,Upgrade levels,level:growth,4,,Reach Growth tier 4,1440
+    growth-3,Landscaper,Upgrade levels,level:growth,6,,Reach Growth tier 6,5760
+    growth-4,Terraformer,Upgrade levels,level:growth,8,,Reach Growth tier 8,23040
+    growth-5,World Grower,Upgrade levels,level:growth,10,,Reach Growth tier 10,92160
+OPEN Q29 (Xoren): new and changed text to review.
+  "i" popups (public/info.js): squares, clickPower, defense, earnings, growth (changed); factorySpeed, factoryLifetime, factoryYield, tiers, mapLevel, factories, walls, market (new); skinPrices, items (changed in Phase 4). Each is one or two sentences in that file.
+  Tutorial (public/tutorial.js), the first-square tip: "You earn squares for mining brand-new blocks. Spend them in the Marketplace on upgrades, skins, items and land."
+  GAME-RULES.md: the top half is rewritten (map, levels, terrain, taking blocks, squares, upgrades, Marketplace, building, factories, walls, land market).
+  The Game Guide (/guide): its wording is in guide.js.
+OPEN Q30 (Xoren): every new graphic is a placeholder in public/art/ (factory, factory-asleep, wall, for-sale, level-shades, build, marketplace, demolition, info-card), named in art/manifest.js; replace a file to change it, no code.

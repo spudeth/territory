@@ -2145,7 +2145,7 @@
       "stat": "squaresSpent",
       "threshold": 10,
       "secret": false,
-      "description": "Spend 10 squares on upgrades",
+      "description": "Spend 10 squares",
       "reward": 0.1
     },
     {
@@ -2155,7 +2155,7 @@
       "stat": "squaresSpent",
       "threshold": 100,
       "secret": false,
-      "description": "Spend 100 squares on upgrades",
+      "description": "Spend 100 squares",
       "reward": 0.4
     },
     {
@@ -2165,7 +2165,7 @@
       "stat": "squaresSpent",
       "threshold": 500,
       "secret": false,
-      "description": "Spend 500 squares on upgrades",
+      "description": "Spend 500 squares",
       "reward": 2
     },
     {
@@ -2175,7 +2175,7 @@
       "stat": "squaresSpent",
       "threshold": 1000,
       "secret": false,
-      "description": "Spend 1,000 squares on upgrades",
+      "description": "Spend 1,000 squares",
       "reward": 4
     },
     {
@@ -2185,7 +2185,7 @@
       "stat": "squaresSpent",
       "threshold": 5000,
       "secret": false,
-      "description": "Spend 5,000 squares on upgrades",
+      "description": "Spend 5,000 squares",
       "reward": 20
     },
     {
@@ -2195,7 +2195,7 @@
       "stat": "squaresSpent",
       "threshold": 10000,
       "secret": false,
-      "description": "Spend 10,000 squares on upgrades",
+      "description": "Spend 10,000 squares",
       "reward": 40
     },
     {
@@ -2205,7 +2205,7 @@
       "stat": "squaresSpent",
       "threshold": 50000,
       "secret": false,
-      "description": "Spend 50,000 squares on upgrades",
+      "description": "Spend 50,000 squares",
       "reward": 200
     },
     {
@@ -2215,7 +2215,7 @@
       "stat": "squaresSpent",
       "threshold": 100000,
       "secret": false,
-      "description": "Spend 100,000 squares on upgrades",
+      "description": "Spend 100,000 squares",
       "reward": 400
     },
     {
@@ -2225,7 +2225,7 @@
       "stat": "squaresSpent",
       "threshold": 500000,
       "secret": false,
-      "description": "Spend 500,000 squares on upgrades",
+      "description": "Spend 500,000 squares",
       "reward": 2000
     },
     {
@@ -2235,7 +2235,7 @@
       "stat": "squaresSpent",
       "threshold": 1000000,
       "secret": false,
-      "description": "Spend 1,000,000 squares on upgrades",
+      "description": "Spend 1,000,000 squares",
       "reward": 4000
     },
     {
@@ -2245,308 +2245,308 @@
       "stat": "purchases",
       "threshold": 1,
       "secret": false,
-      "description": "Buy 1 upgrade level",
-      "reward": 0.1
+      "description": "Buy 1 upgrade tier",
+      "reward": 240
     },
     {
       "id": "bought-5",
       "name": "Tinkerer",
       "category": "Upgrades",
       "stat": "purchases",
-      "threshold": 5,
+      "threshold": 3,
       "secret": false,
-      "description": "Buy 5 upgrade levels",
-      "reward": 0.5
+      "description": "Buy 3 upgrade tiers",
+      "reward": 320
     },
     {
       "id": "bought-10",
       "name": "Mechanic",
       "category": "Upgrades",
       "stat": "purchases",
-      "threshold": 10,
+      "threshold": 5,
       "secret": false,
-      "description": "Buy 10 upgrade levels",
-      "reward": 2.1
+      "description": "Buy 5 upgrade tiers",
+      "reward": 384
     },
     {
       "id": "bought-25",
       "name": "Engineer",
       "category": "Upgrades",
       "stat": "purchases",
-      "threshold": 25,
+      "threshold": 10,
       "secret": false,
-      "description": "Buy 25 upgrade levels",
-      "reward": 15
+      "description": "Buy 10 upgrade tiers",
+      "reward": 504
     },
     {
       "id": "bought-50",
       "name": "Inventor",
       "category": "Upgrades",
       "stat": "purchases",
-      "threshold": 50,
+      "threshold": 20,
       "secret": false,
-      "description": "Buy 50 upgrade levels",
-      "reward": 75
+      "description": "Buy 20 upgrade tiers",
+      "reward": 948
     },
     {
       "id": "bought-100",
       "name": "Mad Scientist",
       "category": "Upgrades",
       "stat": "purchases",
-      "threshold": 100,
+      "threshold": 30,
       "secret": false,
-      "description": "Buy 100 upgrade levels",
-      "reward": 300
+      "description": "Buy 30 upgrade tiers",
+      "reward": 1880
     },
     {
       "id": "bought-150",
       "name": "Overclocked",
       "category": "Upgrades",
       "stat": "purchases",
-      "threshold": 150,
+      "threshold": 40,
       "secret": false,
-      "description": "Buy 150 upgrade levels",
-      "reward": 800
+      "description": "Buy 40 upgrade tiers",
+      "reward": 3954
     },
     {
       "id": "bought-200",
       "name": "Nearly Maxed",
       "category": "Upgrades",
       "stat": "purchases",
-      "threshold": 200,
+      "threshold": 50,
       "secret": false,
-      "description": "Buy 200 upgrade levels",
-      "reward": 1500
+      "description": "Buy 50 upgrade tiers",
+      "reward": 8539.2
     },
     {
       "id": "bought-225",
       "name": "Fully Loaded",
       "category": "Upgrades",
       "stat": "purchases",
-      "threshold": 225,
+      "threshold": 63,
       "secret": false,
-      "description": "Buy 225 upgrade levels",
-      "reward": 2000
+      "description": "Buy 63 upgrade tiers",
+      "reward": 25306.6
     },
     {
       "id": "clickpower-1",
       "name": "Stronger Taps",
       "category": "Upgrade levels",
       "stat": "level:clickPower",
-      "threshold": 1,
+      "threshold": 2,
       "secret": false,
-      "description": "Reach Click Power level 1",
-      "reward": 0.1
+      "description": "Reach Click Power tier 2",
+      "reward": 480
     },
     {
       "id": "clickpower-5",
       "name": "Iron Finger",
       "category": "Upgrade levels",
       "stat": "level:clickPower",
-      "threshold": 5,
+      "threshold": 4,
       "secret": false,
-      "description": "Reach Click Power level 5",
-      "reward": 0.5
+      "description": "Reach Click Power tier 4",
+      "reward": 1920
     },
     {
       "id": "clickpower-10",
       "name": "Steel Finger",
       "category": "Upgrade levels",
       "stat": "level:clickPower",
-      "threshold": 10,
+      "threshold": 6,
       "secret": false,
-      "description": "Reach Click Power level 10",
-      "reward": 1.4
+      "description": "Reach Click Power tier 6",
+      "reward": 7680
     },
     {
       "id": "clickpower-25",
       "name": "Diamond Finger",
       "category": "Upgrade levels",
       "stat": "level:clickPower",
-      "threshold": 25,
+      "threshold": 8,
       "secret": false,
-      "description": "Reach Click Power level 25",
-      "reward": 8.5
+      "description": "Reach Click Power tier 8",
+      "reward": 30720
     },
     {
       "id": "clickpower-50",
       "name": "Thunder Finger",
       "category": "Upgrade levels",
       "stat": "level:clickPower",
-      "threshold": 50,
+      "threshold": 9,
       "secret": false,
-      "description": "Reach Click Power level 50",
-      "reward": 100
+      "description": "Reach Click Power tier 9",
+      "reward": 61440
     },
     {
       "id": "clickpower-70",
       "name": "Max Power",
       "category": "Upgrade levels",
       "stat": "level:clickPower",
-      "threshold": 70,
+      "threshold": 10,
       "secret": false,
-      "description": "Reach Click Power level 70",
-      "reward": 750
+      "description": "Reach Click Power tier 10",
+      "reward": 122880
     },
     {
       "id": "defense-1",
       "name": "Fence Builder",
       "category": "Upgrade levels",
       "stat": "level:defense",
-      "threshold": 1,
+      "threshold": 2,
       "secret": false,
-      "description": "Reach Defense level 1",
-      "reward": 0.5
+      "description": "Reach Defense tier 2",
+      "reward": 360
     },
     {
       "id": "defense-5",
       "name": "Wall Raiser",
       "category": "Upgrade levels",
       "stat": "level:defense",
-      "threshold": 5,
+      "threshold": 4,
       "secret": false,
-      "description": "Reach Defense level 5",
-      "reward": 3
+      "description": "Reach Defense tier 4",
+      "reward": 1440
     },
     {
       "id": "defense-10",
       "name": "Fortified",
       "category": "Upgrade levels",
       "stat": "level:defense",
-      "threshold": 10,
+      "threshold": 6,
       "secret": false,
-      "description": "Reach Defense level 10",
-      "reward": 7.9
+      "description": "Reach Defense tier 6",
+      "reward": 5760
     },
     {
       "id": "defense-25",
       "name": "Bastion",
       "category": "Upgrade levels",
       "stat": "level:defense",
-      "threshold": 25,
+      "threshold": 8,
       "secret": false,
-      "description": "Reach Defense level 25",
-      "reward": 50
+      "description": "Reach Defense tier 8",
+      "reward": 23040
     },
     {
       "id": "defense-50",
       "name": "Impenetrable",
       "category": "Upgrade levels",
       "stat": "level:defense",
-      "threshold": 50,
+      "threshold": 10,
       "secret": false,
-      "description": "Reach Defense level 50",
-      "reward": 600
+      "description": "Reach Defense tier 10",
+      "reward": 92160
     },
     {
       "id": "earnings-1",
       "name": "Side Hustle",
       "category": "Upgrade levels",
       "stat": "level:earnings",
-      "threshold": 1,
+      "threshold": 2,
       "secret": false,
-      "description": "Reach Earnings level 1",
-      "reward": 0.1
+      "description": "Reach Earnings tier 2",
+      "reward": 720
     },
     {
       "id": "earnings-5",
       "name": "Day Trader",
       "category": "Upgrade levels",
       "stat": "level:earnings",
-      "threshold": 5,
+      "threshold": 4,
       "secret": false,
-      "description": "Reach Earnings level 5",
-      "reward": 0.2
+      "description": "Reach Earnings tier 4",
+      "reward": 2880
     },
     {
       "id": "earnings-10",
       "name": "Investor",
       "category": "Upgrade levels",
       "stat": "level:earnings",
-      "threshold": 10,
+      "threshold": 6,
       "secret": false,
-      "description": "Reach Earnings level 10",
-      "reward": 0.6
+      "description": "Reach Earnings tier 6",
+      "reward": 11520
     },
     {
       "id": "earnings-25",
       "name": "Banker",
       "category": "Upgrade levels",
       "stat": "level:earnings",
-      "threshold": 25,
+      "threshold": 8,
       "secret": false,
-      "description": "Reach Earnings level 25",
-      "reward": 3.6
+      "description": "Reach Earnings tier 8",
+      "reward": 46080
     },
     {
       "id": "earnings-50",
       "name": "Tycoon",
       "category": "Upgrade levels",
       "stat": "level:earnings",
-      "threshold": 50,
+      "threshold": 9,
       "secret": false,
-      "description": "Reach Earnings level 50",
-      "reward": 40
+      "description": "Reach Earnings tier 9",
+      "reward": 92160
     },
     {
       "id": "earnings-100",
       "name": "Golden Goose",
       "category": "Upgrade levels",
       "stat": "level:earnings",
-      "threshold": 100,
+      "threshold": 10,
       "secret": false,
-      "description": "Reach Earnings level 100",
-      "reward": 5000
+      "description": "Reach Earnings tier 10",
+      "reward": 184320
     },
     {
       "id": "growth-1",
       "name": "Green Thumb",
       "category": "Upgrade levels",
       "stat": "level:growth",
-      "threshold": 1,
+      "threshold": 2,
       "secret": false,
-      "description": "Reach Growth level 1",
-      "reward": 4.6
+      "description": "Reach Growth tier 2",
+      "reward": 360
     },
     {
       "id": "growth-2",
       "name": "Gardener",
       "category": "Upgrade levels",
       "stat": "level:growth",
-      "threshold": 2,
+      "threshold": 4,
       "secret": false,
-      "description": "Reach Growth level 2",
-      "reward": 15
+      "description": "Reach Growth tier 4",
+      "reward": 1440
     },
     {
       "id": "growth-3",
       "name": "Landscaper",
       "category": "Upgrade levels",
       "stat": "level:growth",
-      "threshold": 3,
+      "threshold": 6,
       "secret": false,
-      "description": "Reach Growth level 3",
-      "reward": 30
+      "description": "Reach Growth tier 6",
+      "reward": 5760
     },
     {
       "id": "growth-4",
       "name": "Terraformer",
       "category": "Upgrade levels",
       "stat": "level:growth",
-      "threshold": 4,
+      "threshold": 8,
       "secret": false,
-      "description": "Reach Growth level 4",
-      "reward": 75
+      "description": "Reach Growth tier 8",
+      "reward": 23040
     },
     {
       "id": "growth-5",
       "name": "World Grower",
       "category": "Upgrade levels",
       "stat": "level:growth",
-      "threshold": 5,
+      "threshold": 10,
       "secret": false,
-      "description": "Reach Growth level 5",
-      "reward": 150
+      "description": "Reach Growth tier 10",
+      "reward": 92160
     },
     {
       "id": "sand-1",
