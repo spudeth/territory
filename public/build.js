@@ -41,18 +41,20 @@ const BUILD_KINDS = {
   async function openMenu() {
     if (!me) return toast('Claim a block first');
     const info = await ask('buildInfo');
-    const f = info.factory;
-    const item = (label, sub, onClick, disabled) => {
-      const b = Object.assign(document.createElement('button'), { type: 'button', className: 'btn', disabled: !!disabled });
+    if (info.error) return toast(info.error);
+    const f = info.factory, why = info.reasons ?? {};
+    // A tool that can't be used says why when it's picked, before any ghost appears.
+    const tool = (name, start) => () => (why[name] ? toast(why[name]) : start());
+    const item = (label, sub, onClick, disabled, dim) => {
+      const b = Object.assign(document.createElement('button'), { type: 'button', className: 'btn' + (dim ? ' dim' : ''), disabled: !!disabled });
       b.append(Object.assign(document.createElement('span'), { textContent: label }), Object.assign(document.createElement('small'), { textContent: sub }));
       b.addEventListener('click', () => { menuBox.hidden = true; onClick(); });
       return b;
     };
     menuBox.replaceChildren(
-      item('Factory', f.count >= f.limit ? `Own ${f.needBlocks} more blocks for another factory` : `${fmtSq(f.price)} squares · ${f.count} of ${f.limit}`,
-        () => startPlacing('factory'), f.count >= f.limit),
-      ...(BUILD_KINDS.wall ? [item('Wall', BUILD_KINDS.wall.sub?.() ?? 'Tap near the edge of your land', () => startPlacing('wall'))] : []),
-      ...(window.startSelling ? [item('Sell land', 'Pick connected blocks, then a price', () => window.startSelling())] : []),
+      item('Factory', why.factory ?? `${fmtSq(f.price)} squares · ${f.count} of ${f.limit}`, tool('factory', () => startPlacing('factory')), false, !!why.factory),
+      ...(BUILD_KINDS.wall ? [item('Wall', why.wall ?? BUILD_KINDS.wall.sub?.() ?? 'Tap near the edge of your land', tool('wall', () => startPlacing('wall')), false, !!why.wall)] : []),
+      ...(window.startSelling ? [item('Sell land', why.sell ?? 'Pick connected blocks, then a price', tool('sell', () => window.startSelling()), false, !!why.sell)] : []),
       item('Wake up', selectedFactory ? 'The selected factory' : 'Press and hold one of your factories first', wakeSelected, !selectedFactory));
     menuBox.hidden = false;
   }

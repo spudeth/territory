@@ -120,10 +120,10 @@ function wallRefusal(map, pid, x, y, side) {
 }
 
 // A player's upgrades as they work on a map: { clickPower, defense, earnings, growth, … } values
-// (catalog.effectiveValues: each tier capped at the map's level). Visitors and new players are at tier 1:
-// NO_UPGRADES, and any value missing counts as tier 1's.
+// (catalog.effectiveValues: capped at the end of the map's level's tier). Visitors and new players have no steps:
+// NO_UPGRADES, and any value missing counts as the start value (a_0).
 const NO_UPGRADES = Object.freeze({});
-const value = (eff, key) => eff?.[key] ?? catalog.tierValue(key, 1);
+const value = (eff, key) => eff?.[key] ?? catalog.anchor(key, 0);   // the start (a_0), before any step
 
 // A block's hardness H: hits to mine it = hitsPerBlock x 2^(birth level - 1) x its terrain factor
 // (settings.TERRAIN_HITS; grass, or no terrain, is 1). A block keeps the level it was born at.
@@ -135,8 +135,13 @@ const hitsNeeded = (owner, terrain = 'grass', birth = 1) => hardness(terrain, bi
 // How many hits one click by `attacker` counts as: their Click Power. Progress is kept as a fraction.
 const hitPower = attacker => value(attacker, 'clickPower');
 
-// Map blocks a brand-new claim by a player with these upgrade values creates: their Growth (1 at tier 1).
-const growthBlocks = upgrades => value(upgrades, 'growth');
+// Map blocks a brand-new claim by a player with these upgrade values creates: their Growth, whole part, plus one
+// more with the fractional part as its chance (1.4: 1 block, and a 40% chance of a second). `roll` (0-1) decides;
+// the game passes a seeded one so the same map and claims grow the same way.
+const growthBlocks = (upgrades, roll = Math.random()) => {
+  const v = value(upgrades, 'growth');
+  return Math.floor(v + 1e-9) + (roll < v - Math.floor(v + 1e-9) ? 1 : 0);
+};
 
 // Whether `progress` hits are enough to take a block needing `needed` (allowing for rounding, so 10 x 0.1 is 1).
 const isTaken = (progress, needed) => progress >= needed - 1e-9;

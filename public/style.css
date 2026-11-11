@@ -726,4 +726,31 @@ body.welcome #itembar, body.zooming #itembar { opacity: 0; pointer-events: none;
 #sell-bar .icon-btn { min-width: 44px; min-height: 44px; font-size: 18px; }
 /* The loop 16 floating cards sit over the map: a solid panel, like the HUD. */
 #inspect, #build-menu, #build-bar, #sell-bar { background: var(--panel); color: var(--text); }
-#me .lvl { pointer-events: auto; }
+/* HUD cards (.hud) let taps through to the map, except on what is meant to be tapped: buttons (the Build button, the
+   i buttons), links, inputs and leaderboard rows (a profile). Not while the welcome screen or the zoom hides the HUD. */
+body:not(.welcome):not(.zooming) .hud :is(button, a, input, select, textarea, .info-btn, #board-list li) { pointer-events: auto; }
+.upg .buy-row { display: flex; gap: 8px; }
+.upg .buy-row .buy-one { flex: 1; }
+.upg .buy-row .buy-max { flex: none; padding: 0 12px; }
+#build-menu .btn.dim { opacity: 0.6; }
+
+/* ---------- Loop 17: phones ---------- */
+/* The page never zooms: double taps don't zoom anywhere, and only the map pinches (its own zoom, game.js). Text
+   fields show at 16px or more, or iPhone zooms in when one is tapped. */
+html, body { touch-action: manipulation; }
+input, textarea, select { font-size: 16px; }
+/* Phones: the HUD, cards, menus and text at 78% (CSS zoom keeps their layout), with tap targets kept at 40px or
+   more (52px x 0.78) and text fields at 16px or more (21px x 0.78). */
+@media (max-width: 599px), (max-height: 500px) {
+  :is(#me, #board, #menu-button, #hint, #toast, #popup, #coach, #chat, #itembar, #terra-pick, #inspect, #build-menu, #build-bar, #sell-bar,
+    #info-pop, #menu .panel, #welcome .w-stack, #w-gear, #w-sound, #death > *) { zoom: 0.78; }
+  :is(#me, #board, #menu-button, #chat, #itembar, #terra-pick, #inspect, #build-menu, #build-bar, #sell-bar, #menu .panel, #welcome .w-stack, #death > *)
+    :is(.btn, .icon-btn) { min-height: 52px; }
+  :is(#menu .panel, #inspect, #build-menu, #build-bar, #sell-bar, #chat, #welcome .w-stack) :is(.icon-btn) { min-width: 52px; }
+  :is(#menu-button, #w-gear, #w-sound) { min-height: 52px; min-width: 52px; }
+  .info-btn { width: 52px; height: 52px; margin: -16px -14px -16px -6px; }
+  :is(#chat, #menu .panel, #sell-bar, #welcome .w-stack) :is(input, textarea, select) { font-size: 21px; }
+  #board .build-btn { min-height: 52px; }
+}
+/* A long number shown short (999.9K): tap it for the full number. */
+body:not(.welcome):not(.zooming) .hud [data-full] { pointer-events: auto; cursor: pointer; }

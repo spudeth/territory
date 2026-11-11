@@ -39,6 +39,7 @@ const ECONOMY_KEYS = {
   hitsPerSquare: num(0.1, 1e6),
   defaultBaseBlocks: int(1, 1e9),
   maxLevel: int(1, 30),
+  stepsPerTier: int(1, 1000),
   maxBaseBlocksOnline: int(1, 1e9),
   tickSeconds: num(1, 3600),
   inspectHoldMs: int(50, 5000),

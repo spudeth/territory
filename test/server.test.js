@@ -4,11 +4,11 @@ const http = require('http');
 const { createGame } = require('../app');
 const rules = require('../rules');
 const catalog = require('../catalog');
-// Sets one upgrade's tier values for a test (as a list:, tier 1 first; everyone is at tier 1 on a level-1 map).
+// Sets one upgrade's value for a test, the same at every step (so everyone has it, whatever they bought).
 function useTiers(t, key, list) {
   const saved = catalog.CATALOG_TIERS[key];
   t.after(() => { catalog.CATALOG_TIERS[key] = saved; });
-  catalog.CATALOG_TIERS[key] = { ...saved, step: 'list', list: [...list, ...Array(10 - list.length).fill(list.at(-1))] };
+  catalog.CATALOG_TIERS[key] = { ...saved, step: 'geometric', v0: list[0], vmax: list[0] };   // the same value at every step
 }
 const store = require('../store');
 const { testDb, connectPlayer } = require('./helpers');
@@ -312,7 +312,7 @@ test('menu screens: skins, upgrades and achievement progress come from the real 
   assert.equal(skinList.length, 1 + rules.SKINS.filter(s => s.enabled).length, 'the catalog from the sheet');
   assert.ok(skinList.slice(1).every(s => !s.owned), 'a visitor owns only the plain look');
   const upg = await a.ask('upgrades');
-  assert.deepEqual([upg.tiers, upg.highest, upg.mapLevel, upg.balance], [{}, 1, 1, 0]);
+  assert.deepEqual([upg.steps, upg.highest, upg.mapLevel, upg.balance, upg.stepsPerTier], [{}, 1, 1, 0, catalog.E.stepsPerTier]);
   assert.deepEqual(upg.list.map(u => u.key), Object.keys(catalog.CATALOG_TIERS), 'every upgrade from the Upgrades tab');
   const none = await a.ask('achievements');
   assert.equal(none.list.length, 300);

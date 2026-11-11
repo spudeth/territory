@@ -29,7 +29,7 @@ const DROP_BROKEN_LISTINGS = `WITH broken AS (SELECT l.id FROM listings l WHERE 
   DELETE FROM listings WHERE id IN (SELECT id FROM broken)`;
 
 const hashToken = token => crypto.createHash('sha256').update(token).digest();
-const PLAYER = 'p.id, p.name, p.last_map_id, p.auth_user_id, p.name_changed_at, p.tiers, p.highest_level, p.squares, p.tutorial, p.show_tenths';
+const PLAYER = 'p.id, p.name, p.last_map_id, p.auth_user_id, p.name_changed_at, p.upgrade_steps, p.highest_level, p.squares, p.tutorial, p.show_tenths';
 
 // Only a real string can be a token, so values like {} or "__proto__" never match a player.
 async function findPlayerByToken(pool, token) {
@@ -112,7 +112,7 @@ async function loadMap(pool, mapId) {
   if (!map) return null;
   const [cells, players, stats] = await Promise.all([
     pool.query('SELECT x, y, owner_id, birth_level, terrain, walls, factory_id, listing_id FROM map_cells WHERE map_id = $1', [mapId]),
-    pool.query('SELECT s.player_id, p.name, s.color, s.skin_id, s.coverage, s.unlocked, s.wipe_floor, p.tiers FROM player_map_settings s JOIN players p ON p.id = s.player_id WHERE s.map_id = $1', [mapId]),
+    pool.query('SELECT s.player_id, p.name, s.color, s.skin_id, s.coverage, s.unlocked, s.wipe_floor, p.upgrade_steps FROM player_map_settings s JOIN players p ON p.id = s.player_id WHERE s.map_id = $1', [mapId]),
     pool.query('SELECT * FROM player_map_stats WHERE map_id = $1', [mapId]),
   ]);
   const overrides = cells.rows.filter(c => c.terrain !== null).map(({ x, y, terrain }) => ({ x, y, terrain }));
@@ -488,22 +488,35 @@ async function saveTutorial(pool, playerId, progress) {
   await pool.query('UPDATE players SET tutorial = $2 WHERE id = $1', [playerId, JSON.stringify(progress)]);
 }
 
-// Buys tier N of one upgrade (N = the tier after the one they have), in one transaction with the player row
-// locked, so two taps or two devices can never buy it twice. Tier N needs a level-N block first-claimed somewhere.
-// Returns { tiers, squares } or { error, need? } (need: tenths short).
-async function buyTier(pool, playerId, upgrade, N) {
+// Buys steps of one upgrade, in one transaction with the player row locked, so two taps or two devices never buy
+// the same step twice. `from`: the steps the player saw (a repeated tap is refused); `count`: how many to buy, or
+// 'max' for as many as they can afford (and have unlocked). Each step's tier must be unlocked (tier N: a level-N
+// block first-claimed somewhere). Returns { steps, bought, cost, squares } or { error, need? } (need: tenths short).
+async function buySteps(pool, playerId, upgrade, from, count) {
   return tx(pool, async c => {
-    const { rows: [p] } = await c.query('SELECT tiers, highest_level FROM players WHERE id = $1 FOR UPDATE', [playerId]);
+    const { rows: [p] } = await c.query('SELECT upgrade_steps, highest_level, squares FROM players WHERE id = $1 FOR UPDATE', [playerId]);
     if (!p) return { error: 'No such player' };
-    const have = p.tiers[upgrade] ?? 1;
-    if (N !== have + 1) return { error: N <= have ? 'Already bought' : 'Buy the tiers in order', tiers: p.tiers };
-    if (N > catalog.TIER_COUNT) return { error: 'This upgrade is at its top tier' };
-    if (!catalog.tierUnlocked(N, p.highest_level)) return { error: `Mine a level-${N} block to unlock` };
-    const paid = await spend(c, playerId, catalog.tierCostTenths(upgrade, N), `upgrade:${upgrade}:${N}`);
+    const have = p.upgrade_steps[upgrade] ?? 0, top = catalog.TIER_COUNT * catalog.STEPS();
+    if (from !== have) return { error: 'Already bought', steps: p.upgrade_steps };
+    if (have >= top) return { error: 'This upgrade is at its top' };
+    const next = have + 1;
+    if (!catalog.tierUnlocked(catalog.tierOfStep(next), p.highest_level)) return { error: `Mine a level-${catalog.tierOfStep(next)} block to unlock` };
+    // How many: up to `count` (or as many as the balance allows), never past what is unlocked or the top.
+    const limit = Math.min(top, p.highest_level * catalog.STEPS(), count === 'max' ? top : have + count);
+    let n = 0, cost = 0;
+    const balance = Number(p.squares);
+    while (have + n < limit) {
+      const c1 = catalog.stepCostTenths(upgrade, have + n + 1);
+      if (count === 'max' && cost + c1 > balance) break;
+      cost += c1;
+      n++;
+    }
+    if (!n) return { error: 'Not enough squares', need: catalog.stepCostTenths(upgrade, next) - balance };
+    const paid = await spend(c, playerId, cost, `upgrade:${upgrade}:${have + 1}-${have + n}`);
     if (paid.error) return paid;
-    const tiers = { ...p.tiers, [upgrade]: N };
-    await c.query('UPDATE players SET tiers = $2 WHERE id = $1', [playerId, tiers]);
-    return { tiers, squares: paid.squares };
+    const steps = { ...p.upgrade_steps, [upgrade]: have + n };
+    await c.query('UPDATE players SET upgrade_steps = $2 WHERE id = $1', [playerId, steps]);
+    return { steps, bought: n, cost, squares: paid.squares };
   });
 }
 
@@ -513,7 +526,7 @@ async function logTapLimits(pool, entries) {
     [entries.map(e => e[0]), entries.map(e => e[1])]);
 }
 
-Object.assign(module.exports, { skinsFor, buySkin, starSkin, starSlot, achievementProgress, saveTutorial, buyTier, logTapLimits });
+Object.assign(module.exports, { skinsFor, buySkin, starSkin, starSlot, achievementProgress, saveTutorial, buySteps, logTapLimits });
 
 // ---------- Admin (npm run admin; admin.js) ----------
 
@@ -622,7 +635,7 @@ function deleteAccount(pool, playerId) {
         [playerId, -Number(p.squares)]);
     }
     await c.query(`UPDATE players SET email_updates = false, unsubscribe_token = NULL, name = 'deleted' || id, auth_user_id = NULL, name_changed_at = NULL, last_map_id = NULL,
-      squares = 0, tiers = '{}', highest_level = 1, tutorial = '{}', deleted_at = now() WHERE id = $1`, [playerId]);
+      squares = 0, upgrade_steps = '{}', highest_level = 1, tutorial = '{}', deleted_at = now() WHERE id = $1`, [playerId]);
     // Neon Auth keeps its users in this same database; deleting the user removes their sessions and logins too.
     let authDeleted = false;
     if (p.auth_user_id && (await c.query("SELECT to_regclass('neon_auth.user') AS t")).rows[0].t) {
@@ -657,7 +670,7 @@ function resetProgress(pool, playerId) {
       await c.query("INSERT INTO square_ledger (player_id, delta, balance_after, reason) VALUES ($1, $2, 0, 'progress reset')",
         [playerId, -Number(p.squares)]);
     }
-    await c.query("UPDATE players SET squares = 0, tiers = '{}', highest_level = 1 WHERE id = $1", [playerId]);
+    await c.query("UPDATE players SET squares = 0, upgrade_steps = '{}', highest_level = 1 WHERE id = $1", [playerId]);
     return { maps: maps.map(r => r.map_id) };
   });
 }
@@ -877,7 +890,7 @@ function economyReset(pool, plan) {
   return tx(pool, async c => {
     for (const t of ['listings', 'factories', 'player_items', 'player_inventory', 'item_uses']) await c.query(`DELETE FROM ${t}`);
     await c.query(`INSERT INTO square_ledger (player_id, delta, balance_after, reason) SELECT id, -squares, 0, 'economy reset' FROM players WHERE squares <> 0`);
-    await c.query("UPDATE players SET squares = 0, tiers = '{}', highest_level = 1");
+    await c.query("UPDATE players SET squares = 0, upgrade_steps = '{}', highest_level = 1");
     await c.query('UPDATE player_lives SET ended_at = now() WHERE ended_at IS NULL');
     await c.query('UPDATE player_map_settings SET wipe_floor = 0, unlocked = true');
     for (const m of plan) {

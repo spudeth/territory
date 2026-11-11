@@ -71,7 +71,10 @@
     if (musicBus) musicBus.gain.value = level('music');
   }
 
-  // Starts audio on the first tap or click, then the music.
+  // Who wants to know when music starts or stops (the sound button).
+  const listeners = [];
+  const changed = () => { for (const f of listeners) try { f(); } catch {} };
+  // Starts audio on the first tap or click, then the music. Also brings it back after the phone paused it.
   function unlock() {
     if (!ctx) {
       const AC = window.AudioContext || window.webkitAudioContext;
@@ -79,13 +82,19 @@
       ctx = new AC();
       sfxBus = ctx.createGain(); sfxBus.connect(ctx.destination);
       musicBus = ctx.createGain(); musicBus.connect(ctx.destination);
+      ctx.onstatechange = changed;
       applyLevels();
     }
-    if (ctx.state === 'suspended') ctx.resume();
+    // iPhone says "interrupted" after a call, the lock screen or another app; any state but running needs a resume.
+    if (ctx.state !== 'running') ctx.resume().then(changed, () => {});
     if (!musicStarted) { musicStarted = true; startMusic(); }
   }
-  addEventListener('pointerdown', unlock, true);
-  addEventListener('keydown', unlock, true);
+  // Any first touch counts (phones accept some of these and not others).
+  for (const ev of ['pointerdown', 'touchend', 'click', 'keydown']) addEventListener(ev, unlock, { capture: true, passive: true });
+  // Back from another app or the lock screen: resume now if the phone allows it, or on the next touch (above).
+  addEventListener('visibilitychange', () => { if (!document.hidden && ctx) unlock(); changed(); });
+  addEventListener('pageshow', () => { if (ctx) unlock(); });
+  addEventListener('focus', () => { if (ctx && !document.hidden) unlock(); });
 
   // The station playing, and its source with its own fade, so a station change can fade it out.
   let station = 0, track = null, loads = 0;
@@ -100,6 +109,7 @@
       src.connect(fade).connect(musicBus);
       src.start();
       track = { src, fade };
+      changed();
     } catch { if (mine === loads) musicStarted = false; }   // try again on the next tap
   }
 
@@ -154,7 +164,10 @@
     Object.assign(settings[key], change);
     try { localStorage.setItem('territory-' + key, JSON.stringify(settings[key])); } catch {}
     applyLevels();
+    changed();
   }
+  // Whether music is really playing right now (on in Settings, audio running, a track loaded).
+  const musicPlaying = () => !!(ctx && ctx.state === 'running' && track && !settings.music.muted && settings.music.volume > 0);
 
-  Object.assign(exports, { play, set, settings, configure, changeStation });
+  Object.assign(exports, { play, set, settings, configure, changeStation, musicPlaying, resume: unlock, onChange: f => listeners.push(f) });
 })(typeof module === 'object' ? module.exports : (window.gameAudio = {}));

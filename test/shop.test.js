@@ -1,4 +1,4 @@
-// Buying upgrade tiers with squares, guest-to-account carry-over and the tap-rate limit (the dev database, a
+// Buying upgrade steps with squares, guest-to-account carry-over and the tap-rate limit (the dev database, a
 // throwaway schema).
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
@@ -42,81 +42,87 @@ async function guestWith(balance, { highest = 1, mapId = null } = {}) {
   if (mapId && w.map.id !== mapId) { await fresh.ask('switchMap', mapId); await fresh.next('welcome', d => d.map.id === mapId); }
   return { s: fresh, pid, token, y };
 }
-const tiersOf = async pid => (await pool.query('SELECT tiers FROM players WHERE id = $1', [pid])).rows[0].tiers;
+const stepsOf = async pid => (await pool.query('SELECT upgrade_steps FROM players WHERE id = $1', [pid])).rows[0].upgrade_steps;
 const balanceOf = async pid => Number((await pool.query('SELECT squares FROM players WHERE id = $1', [pid])).rows[0].squares) / 10;   // tenths -> squares
 const ledgerOf = async pid => (await pool.query(
   "SELECT delta, balance_after, reason FROM square_ledger WHERE player_id = $1 AND reason LIKE 'upgrade:%' ORDER BY id", [pid]))
   .rows.map(r => [Number(r.delta) / 10, Number(r.balance_after) / 10, r.reason]);
-const COST2 = catalog.tierCostTenths('clickPower', 2) / 10;   // c_u x 1200 x 2 = 9,600 squares
+const S = catalog.E.stepsPerTier;
+const STEP1 = catalog.stepCostTenths('clickPower', 1) / 10;   // the first step's price, squares
+const sumSteps = (key, from, to) => { let t = 0; for (let s = from; s <= to; s++) t += catalog.stepCostTenths(key, s); return t / 10; };
 
-test('a tier is locked until a block of its level is first-claimed; then exactly the cost works; a tenth short is refused', async () => {
-  const locked = await guestWith(COST2);
-  assert.deepEqual(await locked.s.ask('buyUpgrade', { upgrade: 'clickPower', tier: 2 }), { error: 'Mine a level-2 block to unlock' });
-  const short = await guestWith(COST2 - 0.1, { highest: 2 });
-  assert.deepEqual(await short.s.ask('buyUpgrade', { upgrade: 'clickPower', tier: 2 }), { error: 'Not enough squares', need: 0.1 });
-  assert.equal(await balanceOf(short.pid), COST2 - 0.1, 'nothing taken');
-  const g = await guestWith(COST2 + 0.5, { highest: 2 });
-  const r = await g.s.ask('buyUpgrade', { upgrade: 'clickPower', tier: 2 });
-  assert.deepEqual(r, { tiers: { clickPower: 2 }, squares: 0.5, balance: 0.5 });
-  assert.deepEqual(await tiersOf(g.pid), { clickPower: 2 });
-  assert.deepEqual(await ledgerOf(g.pid), [[-COST2, 0.5, 'upgrade:clickPower:2']]);
+test('steps: tier 1 is open from the start; exactly a step\'s price buys it; a tenth short is refused; the screen shows tier and step', async () => {
+  const short = await guestWith(STEP1 - 0.1);
+  assert.deepEqual(await short.s.ask('buyUpgrade', { upgrade: 'clickPower', from: 0, count: 1 }), { error: 'Not enough squares', need: 0.1 });
+  assert.equal(await balanceOf(short.pid), STEP1 - 0.1, 'nothing taken');
+  const g = await guestWith(STEP1 + 0.5);
+  assert.deepEqual(await g.s.ask('buyUpgrade', { upgrade: 'clickPower', from: 0, count: 1 }), { steps: { clickPower: 1 }, bought: 1, squares: 0.5, balance: 0.5 });
+  assert.deepEqual(await stepsOf(g.pid), { clickPower: 1 });
+  assert.deepEqual(await ledgerOf(g.pid), [[-STEP1, 0.5, 'upgrade:clickPower:1-1']]);
   const screen = await g.s.ask('upgrades');
-  assert.deepEqual([screen.tiers, screen.highest, screen.mapLevel], [{ clickPower: 2 }, 2, 1]);
+  assert.deepEqual([screen.steps, screen.highest, screen.mapLevel, screen.stepsPerTier], [{ clickPower: 1 }, 1, 1, S]);
   const cp = screen.list.find(u => u.key === 'clickPower');
-  assert.equal(cp.tiers.length, 10);
-  assert.deepEqual(cp.tiers[0], { tier: 1, value: 1, cost: 0 });
-  assert.equal(cp.tiers[1].cost, COST2);
+  assert.equal(cp.anchors.length, 11);
+  assert.equal(cp.anchors[0], 1);
+  assert.deepEqual(screen.prices.clickPower, { value: catalog.stepValue('clickPower', 2), price: catalog.stepCostTenths('clickPower', 2) / 10, tier: 1 });
   assert.equal(screen.list.length, 7, 'all seven upgrades from the Upgrades tab');
+  assert.deepEqual(await g.s.ask('buyUpgrade', { upgrade: 'clickPower', from: 0, count: 1 }), { error: 'Already bought' }, 'a repeated tap is refused');
+});
+
+test('Buy max: as many steps as you can afford, in one purchase, never past what is unlocked', async () => {
+  const want = sumSteps('earnings', 1, 10);
+  const g = await guestWith(want + 1);   // ten steps and a bit
+  const r = await g.s.ask('buyUpgrade', { upgrade: 'earnings', from: 0, count: 'max' });
+  assert.deepEqual([r.bought, r.steps.earnings], [10, 10]);
+  assert.equal(await balanceOf(g.pid), 1, 'the rest stays');
+  assert.equal((await ledgerOf(g.pid)).length, 1, 'one purchase');
+  // With plenty of squares but only level-1 blocks mined, it stops at the end of tier 1.
+  const rich = await guestWith(sumSteps('growth', 1, 2 * S) + 100);
+  const m = await rich.s.ask('buyUpgrade', { upgrade: 'growth', from: 0, count: 'max' });
+  assert.equal(m.steps.growth, S, 'the end of tier 1');
+  assert.deepEqual(await rich.s.ask('buyUpgrade', { upgrade: 'growth', from: S, count: 1 }), { error: 'Mine a level-2 block to unlock' });
+  await pool.query('UPDATE players SET highest_level = 2 WHERE id = $1', [rich.pid]);
+  assert.equal((await rich.s.ask('buyUpgrade', { upgrade: 'growth', from: S, count: 1 })).steps.growth, S + 1, 'tier 2 opens with a level-2 block');
 });
 
 test('two purchases at the same moment: only one is paid for, from two devices or a double tap', async () => {
-  const g = await guestWith(COST2 * 3, { highest: 3 });
+  const g = await guestWith(STEP1 * 3);
   const other = player({ token: g.token });
   await other.welcome;
-  const answers = await Promise.all([g.s.ask('buyUpgrade', { upgrade: 'clickPower', tier: 2 }), other.ask('buyUpgrade', { upgrade: 'clickPower', tier: 2 }),
-    g.s.ask('buyUpgrade', { upgrade: 'clickPower', tier: 2 })]);
-  assert.equal(answers.filter(a => a.tiers).length, 1, 'one bought');
-  assert.deepEqual(await tiersOf(g.pid), { clickPower: 2 });
+  const answers = await Promise.all([g.s.ask('buyUpgrade', { upgrade: 'clickPower', from: 0, count: 1 }), other.ask('buyUpgrade', { upgrade: 'clickPower', from: 0, count: 1 }),
+    g.s.ask('buyUpgrade', { upgrade: 'clickPower', from: 0, count: 'max' })]);
+  assert.equal(answers.filter(a => a.steps).length, 1, 'one bought');
   assert.equal((await ledgerOf(g.pid)).length, 1);
 });
 
-test('tiers are bought in order, up to tier 10; costs are c_u x 1200 x 2^(N-1) and never change', async () => {
-  const total = Array.from({ length: 9 }, (_, i) => catalog.tierCostTenths('growth', i + 2)).reduce((a, b) => a + b, 0) / 10;
-  const g = await guestWith(total, { highest: 10 });
-  assert.deepEqual(await g.s.ask('buyUpgrade', { upgrade: 'growth', tier: 3 }), { error: 'Buy the tiers in order' });
-  for (let N = 2; N <= 10; N++) assert.deepEqual((await g.s.ask('buyUpgrade', { upgrade: 'growth', tier: N })).tiers, { growth: N }, `tier ${N}`);
-  assert.equal(await balanceOf(g.pid), 0);
-  assert.deepEqual(await g.s.ask('buyUpgrade', { upgrade: 'growth', tier: 11 }), { error: 'This upgrade is at its top tier' });
-  assert.deepEqual(await g.s.ask('buyUpgrade', { upgrade: 'nope', tier: 2 }), { error: 'Unknown upgrade' });
-});
-
-test('an upgrade works at min(tier owned, map level): capped on a level-1 map, full on a level-2 one, from the very next tap', async () => {
+test('an upgrade works at most at the end of the map level\'s tier: capped on a level-1 map, more on a level-2 one, from the next tap', async () => {
   const id = await store.createMap(pool, { name: 'Level Two', width: 6, height: 6 });   // E = 36
   await pool.query('UPDATE maps SET mined = 36 WHERE id = $1', [id]);   // level 2 before anyone loads it
-  const g = await guestWith(COST2, { highest: 2, mapId: id });
-  await g.s.ask('buyUpgrade', { upgrade: 'clickPower', tier: 2 });
-  assert.equal((await g.s.ask('upgrades')).mapLevel, 2);
-  // Click Power x2: 5 taps take a 10-hit block here.
-  for (let i = 0; i < 5; i++) g.s.emit('hit', { x: 1, y: g.y });
-  await g.s.next('claim', d => d.x === 1 && d.y === g.y && d.pid === g.pid);
-  // On the level-1 map it works at tier 1: 5 taps are not enough.
-  await g.s.ask('switchMap', db.mapId);
-  await g.s.next('welcome', d => d.map.id === db.mapId);
-  g.s.take(30, 30);
-  const you = await g.s.next('claim', d => d.x === 30 && d.y === 30);
-  assert.equal(you.pid, g.pid, 'a first block on the other map (10 taps)');
-  for (let i = 0; i < 5; i++) g.s.emit('hit', { x: 31, y: 30 });
-  const crack = await g.s.next('hit', d => d.x === 31 && d.y === 30 && d.p > 0.4);
-  assert.equal(crack.p, 0.5, 'five taps of x1 are half of ten hits');
+  const g = await guestWith(0, { highest: 2, mapId: id });
+  await pool.query(`UPDATE players SET upgrade_steps = '{"clickPower": ${2 * S}}' WHERE id = $1`, [g.pid]);   // the end of tier 2: x a_2
+  const fresh = player({ token: g.token });
+  const w = await fresh.welcome;
+  assert.equal(w.map.id, id);
+  const a2 = catalog.anchor('clickPower', 2), taps2 = Math.ceil(10 / a2 - 1e-9);
+  for (let i = 0; i < taps2; i++) fresh.emit('hit', { x: 1, y: g.y });
+  await fresh.next('claim', d => d.x === 1 && d.y === g.y && d.pid === g.pid);
+  // On the level-1 map it works at a_1: the same taps are not enough.
+  await fresh.ask('switchMap', db.mapId);
+  await fresh.next('welcome', d => d.map.id === db.mapId);
+  fresh.take(30, 30);
+  await fresh.next('claim', d => d.x === 30 && d.y === 30);
+  for (let i = 0; i < taps2; i++) fresh.emit('hit', { x: 31, y: 30 });
+  const crack = await fresh.next('hit', d => d.x === 31 && d.y === 30 && d.p > 0.3);
+  assert.ok(crack.p < 1, `capped at a_1 (${catalog.anchor('clickPower', 1).toFixed(2)} a tap): ${taps2} taps are not enough`);
 });
 
-test("a guest's tiers come with them when they make an account from their guest profile", async () => {
-  const g = await guestWith(COST2, { highest: 2 });
-  await g.s.ask('buyUpgrade', { upgrade: 'clickPower', tier: 2 });
+test("a guest's steps come with them when they make an account from their guest profile", async () => {
+  const g = await guestWith(STEP1);
+  await g.s.ask('buyUpgrade', { upgrade: 'clickPower', from: 0, count: 1 });
   const { player: account, upgraded } = await store.accountPlayer(pool, 'test-' + crypto.randomUUID(), g.pid);
   assert.equal(upgraded, true);
   assert.equal(account.id, g.pid, 'the guest row becomes the account');
-  assert.deepEqual(account.tiers, { clickPower: 2 });
+  assert.deepEqual(account.upgrade_steps, { clickPower: 1 });
 });
 
 test('taps over the rate limit are ignored, and players who hit it are logged', async t => {
@@ -150,14 +156,14 @@ test('taps over the rate limit are ignored, and players who hit it are logged', 
 
 test('reset all progress: blocks, squares, upgrades, stats and achievements go, everywhere; other devices reload', async () => {
   const g = await guestWith(50);
-  await pool.query("UPDATE players SET tiers = '{\"clickPower\": 2, \"defense\": 3}', highest_level = 3 WHERE id = $1", [g.pid]);
+  await pool.query("UPDATE players SET upgrade_steps = '{\"clickPower\": 120, \"defense\": 200}', highest_level = 3 WHERE id = $1", [g.pid]);
   const other = player({ token: g.token });   // a second device
   await other.welcome;
   const reloaded = other.next('notice', n => n.kind === 'reset');
   assert.deepEqual(await g.s.ask('resetProgress'), { ok: true });
   await reloaded;
   const q = async sql => (await pool.query(sql, [g.pid])).rows[0];
-  assert.deepEqual(await q('SELECT squares::float AS s, tiers AS t, highest_level AS h, name IS NOT NULL AS named FROM players WHERE id = $1'),
+  assert.deepEqual(await q('SELECT squares::float AS s, upgrade_steps AS t, highest_level AS h, name IS NOT NULL AS named FROM players WHERE id = $1'),
     { s: 0, t: {}, h: 1, named: true });
   assert.equal((await q('SELECT count(*)::int AS n FROM map_cells WHERE owner_id = $1')).n, 0);
   for (const t of ['player_map_settings', 'player_map_stats', 'player_achievements']) {

@@ -103,14 +103,14 @@ test('building: on your own land, priced P_F x V_F x W(L) x g^(n-1); one per fac
   const s = player({ token });
   await onMap(s, id);
   const info = await s.ask('buildInfo');
-  assert.deepEqual(info.factory, { count: 0, limit: 1, price: price / 10, needBlocks: 0 });
+  assert.deepEqual(info.factory, { count: 0, limit: 1, price: price / 10, needBlocks: 0, reason: null });
   assert.deepEqual(await s.ask('build', { kind: 'factory', x: 0, y: 11 }), { error: 'Only on your own land' });
   const built = s.next('factory');
   assert.deepEqual(await s.ask('build', { kind: 'factory', x: 0, y: 0 }), { ok: true, squares: price / 10 });
   const f = await built;
   assert.equal(f.owner, pid);
-  assert.ok(Math.abs(f.awakeUntil - Date.now() - catalog.tierValue('factoryLifetime', 1) * 3600000) < 60000, 'awake for Factory Lifetime hours');
-  assert.deepEqual(await s.ask('build', { kind: 'factory', x: 1, y: 0 }), { error: `Own ${E.factoryBlocksPerFactory} more blocks for another factory` });
+  assert.ok(Math.abs(f.awakeUntil - Date.now() - catalog.anchor('factoryLifetime', 0) * 3600000) < 60000, 'awake for Factory Lifetime hours');
+  assert.deepEqual(await s.ask('build', { kind: 'factory', x: 1, y: 0 }), { error: `Own ${E.factoryBlocksPerFactory} more blocks for another factory (you have ${E.factoryBlocksPerFactory}).` });
   assert.equal((await s.ask('buildInfo')).factory.price, catalog.priceTenths(catalog.CATALOG.get('building:factory'), { L: 1, n: 2 }) / 10, 'the next costs g times more');
   const card = await s.ask('inspect', { x: 0, y: 0 });
   assert.deepEqual([card.factory.mine, card.factory.paused], [true, false]);

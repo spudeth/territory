@@ -24,7 +24,7 @@
   // ---------- The Items screen ----------
   fills.items = () => { drawScreen(); load(); };
   function drawScreen() {
-    $('items-squares').textContent = fmtSq(squares);
+    setNum($('items-squares'), squares);
     $('items-list').replaceChildren(...items.map(i => {
       const c = document.createElement('div');
       c.className = 'item-card';

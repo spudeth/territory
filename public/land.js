@@ -34,7 +34,6 @@ let landHighlight = null;       // the listing whose bundle the info card highli
     draw();
   }
   window.startSelling = () => {
-    if (!myAccount) return toast('Only accounts can buy and sell land');
     landSelect = new Set();
     $('sell-price').value = '';
     bar.hidden = false;

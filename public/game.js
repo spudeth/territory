@@ -6,6 +6,21 @@ let me = null, myName = '', myColor = '#888', cells = null, players = {}, hits =
 let showTenths = false;
 const fmtSq = n => showTenths ? (Math.floor(Number(n) * 10 + 1e-6) / 10).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
   : Math.floor(Number(n) + 1e-9).toLocaleString();
+// Where space is tight, a long number is shown short and rounded down (999,980 -> 999.9K, 1,250,000 -> 1.25M);
+// setNum puts it in an element, with the full number on tap (data-full) and as its tooltip.
+function fmtShort(n) {
+  const v = Math.floor(Number(n) + 1e-9), down = (x, d) => Math.floor(x * 10 ** d + 1e-9) / 10 ** d;
+  if (v < 100000) return fmtSq(n);
+  if (v < 1e6) return down(v / 1e3, 1).toLocaleString() + 'K';
+  if (v < 1e9) return down(v / 1e6, 2).toLocaleString() + 'M';
+  return down(v / 1e9, 2).toLocaleString() + 'B';
+}
+function setNum(el, n, unit = 'squares') {
+  const short = fmtShort(n), full = fmtSq(n);
+  el.textContent = short;
+  if (short !== full) { el.dataset.full = `${full} ${unit}`; el.title = el.dataset.full; } else { delete el.dataset.full; el.removeAttribute('title'); }
+}
+addEventListener('click', e => { const el = e.target.closest?.('[data-full]'); if (el) toast(el.dataset.full, 'good'); });
 const fmtNeed = n => showTenths ? (Math.ceil(Number(n) * 10 - 1e-6) / 10).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
   : Math.ceil(Number(n) - 1e-9).toLocaleString();
 let myAccount = false, accountsOn = false, renameAt = null;   // logged in?  logins set up?  when renaming is allowed again
@@ -191,6 +206,8 @@ function lookAt(x, y) {
 }
 
 // Show the whole map, or zoom in on our territory if we have one.
+// How close the game starts on your land: further out on phones, so more blocks fit.
+const playScale = () => (Math.min(innerWidth, innerHeight) < 600 ? 28 : 40);
 function initialView() {
   const mine = [...cells].filter(([, o]) => me && o === me).map(([k]) => k.split(',').map(Number));
   let cx = (bounds.x0 + bounds.x1) / 2, cy = (bounds.y0 + bounds.y1) / 2;
@@ -198,7 +215,7 @@ function initialView() {
   if (mine.length) {
     cx = mine.reduce((s, [x]) => s + x, 0) / mine.length + 0.5;
     cy = mine.reduce((s, [, y]) => s + y, 0) / mine.length + 0.5;
-    scale = Math.max(scale, 40);
+    scale = Math.max(scale, playScale());
   }
   ox = innerWidth / 2 - cx * scale;
   oy = innerHeight / 2 - cy * scale;
@@ -561,6 +578,7 @@ canvas.addEventListener('wheel', e => {
 }, { passive: false });
 
 document.addEventListener('gesturestart', e => e.preventDefault());   // stop iOS page zoom
+document.addEventListener('touchmove', e => { if (e.touches.length > 1 && e.target !== canvas) e.preventDefault(); }, { passive: false });
 addEventListener('resize', clampView);
 addEventListener('visibilitychange', () => { if (!document.hidden) draw(); });   // water starts moving again
 document.fonts?.ready.then(draw);   // the label font arrives after the first frames
@@ -589,7 +607,7 @@ function updateUI() {
   $('me-color').style.background = myColor;
   const mine = (me && counts[me]) || 0;
   $('me-count').textContent = `${mine} block${mine === 1 ? '' : 's'}`;
-  $('me-squares').textContent = fmtSq(squares);
+  setNum($('me-squares'), squares);
   // The map's level and how far it is to the next one.
   $('lvl-n').textContent = `Level ${mapLevel.level}`;
   const pct = mapLevel.to === null ? 100 : Math.floor(100 * (mapLevel.mined - mapLevel.from) / (mapLevel.to - mapLevel.from));
@@ -609,7 +627,7 @@ function updateUI() {
     li.children[1].classList.toggle('online', online.has(String(pid)));
     li.style.cursor = 'pointer';
     li.onclick = () => openProfile(pid);
-    li.children[2].textContent = n;
+    setNum(li.children[2], n, 'blocks');
     return li;
   }));
   if (!top.length) $('board-list').innerHTML = '<li class="empty">No blocks claimed yet</li>';
@@ -748,6 +766,7 @@ socket.on('squares', n => {
 socket.on('stat', d => onStat(d));                  // menu.js
 socket.on('achievement', a => onAchievement(a));    // menu.js
 socket.on('denied', msg => {
+  if (msg === 'You already own this block') return;   // an older server: tapping your own block is silent
   toast(msg);
   gameAudio.play('denied');
   if (/next to your territory/.test(msg)) tell('denied:range');

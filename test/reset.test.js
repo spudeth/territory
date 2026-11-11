@@ -34,7 +34,7 @@ test('economy-reset: clears owners, levels, squares, tiers, items, factories, wa
   const { rows: more } = await pool.query('SELECT x, y FROM map_cells WHERE map_id = $1 AND owner_id IS NULL ORDER BY x, y LIMIT 5', [id]);
   for (const c of more) await claim(pool, id, g.playerId, c.x, c.y);
   const auth = crypto.randomUUID();
-  await pool.query(`UPDATE players SET auth_user_id = $2, squares = 12345, tiers = '{"clickPower": 3}', highest_level = 3, star_pattern = 'checker' WHERE id = $1`, [g.playerId, auth]);
+  await pool.query(`UPDATE players SET auth_user_id = $2, squares = 12345, upgrade_steps = '{"clickPower": 200}', highest_level = 3, star_pattern = 'checker' WHERE id = $1`, [g.playerId, auth]);
   await pool.query("INSERT INTO skins (id, name, image, is_free, price_squares) VALUES ('checker', 'Checker', 'checker.png', false, 100) ON CONFLICT DO NOTHING");
   await pool.query("INSERT INTO player_skins (player_id, skin_id, source) VALUES ($1, 'checker', 'squares')", [g.playerId]);
   await pool.query("INSERT INTO player_achievements (player_id, achievement_id) VALUES ($1, 'first-block')", [g.playerId]);
@@ -57,8 +57,8 @@ test('economy-reset: clears owners, levels, squares, tiers, items, factories, wa
   assert.match(r.out, /Backup saved/);
 
   const q = async (sql, p = [g.playerId]) => (await pool.query(sql, p)).rows;
-  assert.deepEqual((await q('SELECT name, auth_user_id, squares::int AS s, tiers, highest_level AS h, star_pattern FROM players WHERE id = $1'))[0],
-    { name: g.name, auth_user_id: auth, s: 0, tiers: {}, h: 1, star_pattern: 'checker' }, 'account and name kept; squares and tiers gone; stars kept');
+  assert.deepEqual((await q('SELECT name, auth_user_id, squares::int AS s, upgrade_steps, highest_level AS h, star_pattern FROM players WHERE id = $1'))[0],
+    { name: g.name, auth_user_id: auth, s: 0, upgrade_steps: {}, h: 1, star_pattern: 'checker' }, 'account and name kept; squares and tiers gone; stars kept');
   assert.equal((await q('SELECT count(*)::int AS n FROM player_skins WHERE player_id = $1'))[0].n, 1, 'owned skins kept');
   assert.equal((await q('SELECT count(*)::int AS n FROM player_achievements WHERE player_id = $1'))[0].n, 1, 'achievements kept');
   for (const t of ['player_items', 'player_inventory', 'factories', 'listings']) assert.equal(await db.count(`SELECT count(*) FROM ${t}`), 0, t);

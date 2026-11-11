@@ -231,7 +231,7 @@ test('delete-account erases the login, email and personal data, frees the name, 
 
   assert.equal(await db.count('SELECT count(*) FROM neon_auth."user" WHERE id = $1', [authId]), 0);
   assert.equal(await db.count('SELECT count(*) FROM neon_auth.session WHERE "userId" = $1', [authId]), 0);
-  const { rows: [p] } = await pool.query('SELECT name, auth_user_id, squares, deleted_at, tiers FROM players WHERE id = $1', [g.pid]);
+  const { rows: [p] } = await pool.query('SELECT name, auth_user_id, squares, deleted_at, upgrade_steps FROM players WHERE id = $1', [g.pid]);
   assert.equal(p.name, 'deleted' + g.pid);
   assert.equal(p.auth_user_id, null);
   assert.equal(Number(p.squares), 0);

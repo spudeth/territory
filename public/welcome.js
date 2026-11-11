@@ -26,7 +26,7 @@
   // ---------- Where the camera goes ----------
   // Returning players: the middle of their territory. Everyone else: a random open patch of empty blocks.
   function chooseTarget() {
-    const s = Math.min(MAX_SCALE, Math.max(Math.min(innerWidth, innerHeight) * 0.92 / mapSpan(), 40));
+    const s = Math.min(MAX_SCALE, Math.max(Math.min(innerWidth, innerHeight) * 0.92 / mapSpan(), playScale()));
     const mine = [], open8 = [], open4 = [], empty = [];
     for (const [k, o] of cells) {
       const [x, y] = k.split(',').map(Number);
@@ -154,7 +154,7 @@
     $('w-name').textContent = myName || 'Connecting…';
     $('w-color').style.background = myColor;
     $('w-tag').textContent = myAccount ? 'ACCOUNT' : 'GUEST';
-    $('w-squares').textContent = fmtSq(squares);
+    setNum($('w-squares'), squares);
     $('w-login').hidden = myAccount || !accountsOn;
     drawSound();
     drawPicker();
@@ -243,12 +243,15 @@
 
   // Sound on or off: effects and music together.
   function drawSound() {
-    const off = gameAudio.settings.sfx.muted && gameAudio.settings.music.muted;
+    const off = !gameAudio.musicPlaying();
     $('w-sound').setAttribute('aria-label', off ? 'Sound on' : 'Sound off');
     $('w-sound').setAttribute('aria-pressed', off);
     $('w-sound').innerHTML = `<svg class="pix" width="18" height="18" aria-hidden="true"><use href="#i-${off ? 'muted' : 'sound'}"/></svg>`;
   }
+  gameAudio.onChange(drawSound);
   $('w-sound').addEventListener('click', () => {
+    // Music on in Settings but not playing yet (no touch yet, or the phone paused it): this tap starts it.
+    if (!gameAudio.settings.music.muted && !gameAudio.musicPlaying()) return gameAudio.resume();
     const off = !(gameAudio.settings.sfx.muted && gameAudio.settings.music.muted);
     gameAudio.set('sfx', { muted: off });
     gameAudio.set('music', { muted: off });

@@ -52,26 +52,46 @@ test('hardness and pay at each level and terrain: pay tracks hits (1 square per 
   assert.equal(catalog.payTenths(10, 1.292), 12, 'Earnings applies, rounded down');
 });
 
-test('tiers: geometric or list values, costs c_u x 1200 x 2^(N-1), unlock and the map-level cap', () => {
-  assert.equal(catalog.tierValue('clickPower', 1), 1);
-  assert.ok(Math.abs(catalog.tierValue('clickPower', 2) - 2) < 1e-9, 'x2 a tier: 512^(1/9) = 2');
-  assert.ok(Math.abs(catalog.tierValue('clickPower', 10) - 512) < 1e-9);
-  assert.ok(Math.abs(catalog.tierValue('earnings', 10) - 10) < 1e-9);
-  assert.deepEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(N => catalog.tierValue('growth', N)), [1, 2, 2, 3, 3, 4, 4, 5, 5, 6]);
-  assert.equal(catalog.tierCostTenths('clickPower', 2), 4 * 1200 * 2 * 10, 'c_u 4: 9,600 squares');
-  assert.equal(catalog.tierCostTenths('clickPower', 10), 4 * 1200 * 512 * 10);
+test('upgrades in steps: anchors a_N = v0 x (vmax/v0)^(N/10); stepsPerTier geometric steps per tier; costs one smooth curve; the cap is a_L', () => {
+  const S = catalog.E.stepsPerTier, near = (a, b, msg) => assert.ok(Math.abs(a - b) < 1e-9 * Math.max(1, b), `${msg}: ${a} vs ${b}`);
+  assert.equal(S, 90);
+  near(catalog.anchor('clickPower', 0), 1, 'a_0 = v0');
+  near(catalog.anchor('clickPower', 10), 512, 'a_10 = vmax');
+  near(catalog.anchor('clickPower', 5), 512 ** 0.5, 'a_5');
+  near(catalog.anchor('growth', 10), 6, 'Growth is geometric now');
+  near(catalog.stepValue('clickPower', 0), 1, 'no steps: the start');
+  near(catalog.stepValue('clickPower', S), catalog.anchor('clickPower', 1), 'the end of tier 1 is a_1');
+  near(catalog.stepValue('clickPower', S + 45), catalog.anchor('clickPower', 1) * (catalog.anchor('clickPower', 2) / catalog.anchor('clickPower', 1)) ** 0.5, 'half way through tier 2');
+  near(catalog.stepValue('clickPower', 10 * S), 512, 'the top');
+  for (let s = 1; s <= 10 * S; s++) assert.ok(catalog.stepValue('clickPower', s) > catalog.stepValue('clickPower', s - 1), `step ${s} goes up`);
+  assert.equal(catalog.tierOfStep(0), 1);
+  assert.equal(catalog.tierOfStep(S), 1);
+  assert.equal(catalog.tierOfStep(S + 1), 2);
+  // Costs: each step 2^(1/S) times the one before; tier N totals about c_u x 1200 x 2^(N-1); tier N+1's first step is twice tier N's.
+  const r = 2 ** (1 / S);
+  for (const N of [1, 2, 5, 10]) {
+    const total = catalog.fromTenths(catalog.tierCostTenths('clickPower', N)), want = 4 * 1200 * 2 ** (N - 1);
+    assert.ok(Math.abs(total - want) / want < 0.002, `tier ${N}: ${total} vs ${want}`);
+  }
+  assert.ok(Math.abs(catalog.stepCostTenths('clickPower', S + 1) / catalog.stepCostTenths('clickPower', 1) - 2) < 0.01, 'twice the first step of the tier before');
+  assert.ok(Math.abs(catalog.stepCostTenths('clickPower', 2) / catalog.stepCostTenths('clickPower', 1) - r) < 0.01, 'no jump between steps');
+  assert.ok(Math.abs(catalog.stepCostTenths('clickPower', S + 1) / catalog.stepCostTenths('clickPower', S) - r) < 0.01, 'no jump at a tier boundary');
+  // Unlocks and the cap.
+  assert.equal(catalog.tierUnlocked(1, 1), true, 'tier 1 is open from the start');
   assert.equal(catalog.tierUnlocked(3, 2), false);
   assert.equal(catalog.tierUnlocked(3, 3), true);
-  assert.equal(catalog.effectiveTier(5, 2), 2, 'tier 5 works at tier 2 on a level-2 map');
-  assert.equal(catalog.effectiveTier(2, 5), 2);
+  assert.equal(catalog.effectiveSteps(5 * S, 2), 2 * S, 'on a level-2 map: at most the end of tier 2');
+  assert.equal(catalog.effectiveSteps(30, 5), 30);
+  near(catalog.effectiveValues({ clickPower: 5 * S }, 2).clickPower, catalog.anchor('clickPower', 2), 'works at a_2 on a level-2 map');
+  near(catalog.effectiveValues({}, 1).defense, 1, 'no steps: the start');
 });
 
-test('every pricing rule: PV, Hours, Tier, Factory, Wall; skins by rarity hours (flags are Rare)', () => {
+test('every pricing rule: PV, Hours, Step, Factory, Wall; skins by rarity hours (flags are Rare)', () => {
   const superClick = catalog.CATALOG.get('item:superClick');
   assert.equal(catalog.priceTenths(superClick, { L: 1 }), 7500, 'the doc: 0.625 x W(1) = 750 squares');
   assert.equal(catalog.priceTenths(superClick, { L: 3 }), 30000);
   assert.equal(catalog.priceTenths(catalog.CATALOG.get('item:demolition'), { L: 1 }), 6000, '0.5 hours = 600 squares');
-  assert.equal(catalog.priceTenths(catalog.CATALOG.get('upgrade:earnings'), { N: 3, L: 9 }), 6 * 1200 * 4 * 10, 'tiers use N, not the level');
+  assert.equal(catalog.priceTenths(catalog.CATALOG.get('upgrade:earnings'), { s: 7, L: 9 }), catalog.stepCostTenths('earnings', 7), 'steps use their number, not the level');
   const factory = catalog.CATALOG.get('building:factory');
   assert.equal(catalog.priceTenths(factory, { L: 1, n: 1 }), catalog.toTenths(48 * 0.05 * 1200));
   assert.equal(catalog.priceTenths(factory, { L: 1, n: 3 }), catalog.toTenths(48 * 0.05 * 1200 * 1.15 ** 2));

@@ -25,6 +25,7 @@
   },
   "devDependencies": {
     "@neon/config": "^1.9.5",
+    "puppeteer-core": "^23.11.1",
     "socket.io-client": "^4.8.1"
   }
 }
