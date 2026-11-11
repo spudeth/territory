@@ -684,7 +684,8 @@ socket.on('player', ({ pid, name, color, skin, coverage }) => {
   players[pid] = { name, color, skin, coverage };
   if (pid === me) { myColor = color; mySkin = skin; myCoverage = coverage; locked = true; updateUI(); }
 });
-socket.on('hit', ({ x, y, p }) => {
+socket.on('hit', ({ x, y, p, side }) => {
+  if (side) return window.wallHit?.({ x, y, side, p });   // a wall's crack (walls.js)
   const k = key(x, y), mine = Date.now() - (myTaps.get(k) ?? 0) < 1500;
   if (gameAudio.isTap(hits.get(k), p) && !mine) gameAudio.play('tap', screenAt(x, y));
   if (mine) tell('hit', { x, y, p });   // tutorial: the tap counter

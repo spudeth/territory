@@ -11,7 +11,6 @@ const rules = require('./rules');
 
 const { E } = catalog;
 const key = (x, y) => x + ',' + y;
-const NEIGHBORS = [[-1, 0], [1, 0], [0, -1], [0, 1]];
 const STEP_MS = () => E.tickSeconds * 1000;
 // The step boundary at or before `ms`.
 const stepFloor = ms => Math.floor(ms / STEP_MS()) * STEP_MS();
@@ -33,9 +32,9 @@ function chooseTarget(map, owner, fx, fy, seed) {
   for (const [k, o] of map.cells) {
     if (o !== owner) continue;
     const [x, y] = k.split(',').map(Number);
-    for (const [dx, dy] of NEIGHBORS) {
+    for (const [side, [dx, dy]] of Object.entries(rules.SIDES)) {
       const nx = x + dx, ny = y + dy, nk = key(nx, ny);
-      if (seen.has(nk)) continue;
+      if (seen.has(nk) || rules.hasWall(map, x, y, side)) continue;
       seen.add(nk);
       if (map.cells.get(nk) !== null || map.terrainAt(nx, ny) === 'water') continue;   // missing (undefined) or owned
       const d = (nx - fx) ** 2 + (ny - fy) ** 2, r = tieRank(seed, nx, ny);

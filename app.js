@@ -117,13 +117,14 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
         const map = { id: m.id, name: m.name, style: m.style, seed: m.seed, overrides, base: m.base, mined: m.mined,
           level: () => catalog.level(map.mined, map.base),
           terrainAt: (x, y) => overrides.get(key(x, y)) ?? (world ? world.at(x, y) : 'grass'),
-          room: 'map:' + m.id, cells: new Map(), counts: new Map(), birth: new Map(),   // birth: "x,y" -> level, when above 1
+          room: 'map:' + m.id, cells: new Map(), counts: new Map(), birth: new Map(), walls: new Map(),   // birth: "x,y" -> level, when above 1; walls: "x,y" -> [{ side, hits }]
           players: new Map(m.players.map(p => [p.player_id, { name: p.name, color: p.color, skin: p.skin_id, coverage: p.coverage,
             unlocked: p.unlocked, wipeFloor: p.wipe_floor, upgrades: upgradesOf(p) }])),
           hits: new Map(), claiming: new Set(), queue: Promise.resolve() };
         for (const c of m.cells) {
           map.cells.set(key(c.x, c.y), c.owner_id);
           if (c.birth_level > 1) map.birth.set(key(c.x, c.y), c.birth_level);
+          if (c.walls?.length) map.walls.set(key(c.x, c.y), c.walls);
           if (c.owner_id) map.counts.set(c.owner_id, (map.counts.get(c.owner_id) || 0) + 1);
         }
         // Factories: "x,y" -> { id, owner, x, y, built, awake (ms), processed (ms), target }. Their saved progress is
@@ -230,6 +231,9 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
     else if (String(owner) !== String(pid)) info.hits = rules.hitsNeeded(tiersOn(map.players.get(owner)?.upgrades, map), terrain, level);
     const f = map.factories.get(k);
     if (f) info.factory = { ...factoryOut(map, f), mine: String(f.owner) === String(pid), target: f.target };
+    if (map.walls.has(k)) info.walls = map.walls.get(k).map(w => ({ ...w }));
+    // Someone else's walled block: a wall comes first when every way in runs through one.
+    if (pid && owner !== null && String(owner) !== String(pid)) { const side = rules.wallFirst(map, pid, x, y); if (side) info.wallFirst = side; }
     return info;
   }
 
@@ -286,6 +290,31 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
       return { ok: true, squares: catalog.fromTenths(r.squares) };
     },
   };
+
+  // A wall on one side of your block: P_a x w x H / hitsPerSquare; it takes w x H hits to break.
+  builders.wall = async (map, pid, { x, y, side }) => {
+    const refusal = rules.wallRefusal(map, pid, x, y, side);
+    if (refusal) return { error: refusal };
+    const H = rules.hardness(map.terrainAt(x, y), map.birth.get(key(x, y)) ?? 1);
+    const price = catalog.priceTenths(catalog.CATALOG.get('building:wall'), { H }), hits = catalog.E.wallStrength * H;
+    const r = await store.buildWall(pool, { mapId: map.id, playerId: pid, x, y, side, price, hits, max: rules.MAX_WALLS });
+    if (r.error) return { error: r.error, ...(r.need !== undefined ? { need: catalog.fromTenths(r.need) } : {}) };
+    map.walls.set(key(x, y), r.walls);
+    balanceChanged(pid, r.squares);
+    totals.bump(pid, 'purchases');
+    totals.bump(pid, 'squaresSpent', catalog.fromTenths(price));
+    io.to(map.room).emit('walls', { x, y, walls: r.walls });
+    return { ok: true, squares: catalog.fromTenths(r.squares) };
+  };
+  // A wall's price on (x, y), for the ghost (squares).
+  const wallPrice = (map, x, y) => catalog.fromTenths(catalog.priceTenths(catalog.CATALOG.get('building:wall'), { H: rules.hardness(map.terrainAt(x, y), map.birth.get(key(x, y)) ?? 1) }));
+  // A wall broke (or was demolished): gone from the block, for everyone.
+  function dropWall(map, x, y, side, broken) {
+    const k = key(x, y), rest = (map.walls.get(k) ?? []).filter(w => w.side !== side);
+    if (rest.length) map.walls.set(k, rest); else map.walls.delete(k);
+    map.hits.delete(k + '|' + side);
+    io.to(map.room).emit('walls', { x, y, walls: rest, ...(broken ? { broken: side } : {}) });
+  }
 
   // A factory took (x, y): the same claim as a player's, paying its owner Factory Yield (capped at the block's pay).
   async function factoryClaim(map, f, x, y) {
@@ -371,6 +400,11 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
   // What Demolition can remove: { target: { check(map, x, y, side) -> refusal or null, remove(client, map, x, y, side)
   // in the item's transaction, removed(map, x, y, side) after } }. Factories and walls add themselves.
   const demolishers = {
+    wall: {
+      check: (map, x, y, side) => (rules.hasWall(map, x, y, side) ? null : 'There is no wall there'),
+      remove: (c, map, x, y, side) => store.removeWall(c, map.id, x, y, side),
+      removed: (map, x, y, side) => dropWall(map, x, y, side, false),
+    },
     factory: {
       check: (map, x, y) => (map.factories.has(key(x, y)) ? null : 'There is no factory there'),
       remove: (c, map, x, y) => store.removeFactory(c, map.id, x, y),
@@ -436,6 +470,11 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
   function setOwner(map, k, pid) {
     const old = map.cells.get(k);
     if (old !== pid && map.factories?.has(k)) dropFactory(map, k);
+    if (old !== pid && map.walls?.has(k)) {
+      map.walls.delete(k);
+      const [x, y] = k.split(',').map(Number);
+      io.to(map.room).emit('walls', { x, y, walls: [] });
+    }
     if (old) map.counts.set(old, map.counts.get(old) - 1);
     if (pid) map.counts.set(pid, (map.counts.get(pid) || 0) + 1);
     map.cells.set(k, pid);
@@ -452,8 +491,8 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
     h.n = d.n;
     h.at = d.at;
     if (!h.n) map.hits.delete(k);
-    const [x, y] = k.split(',').map(Number);
-    io.to(map.room).emit('hit', { x, y, p: share(h) });
+    const [at, side] = k.split('|'), [x, y] = at.split(',').map(Number);
+    io.to(map.room).emit('hit', { x, y, ...(side ? { side } : {}), p: share(h) });
   }
   const sweep = setInterval(() => {
     const now = Date.now();
@@ -666,10 +705,11 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
         // [x, y, owner] or [x, y, owner, birth level] for blocks above level 1
         cells: [...map.cells].map(([k, owner]) => { const b = map.birth.get(k); return b ? [...k.split(',').map(Number), owner, b] : [...k.split(',').map(Number), owner]; }),
         players: Object.fromEntries([...map.players].map(([pid, { upgrades, ...shown }]) => [pid, shown])),
-        hits: [...map.hits].map(([k, h]) => [...k.split(',').map(Number), share(h)]),
+        hits: [...map.hits].filter(([k]) => !k.includes('|')).map(([k, h]) => [...k.split(',').map(Number), share(h)]),   // not walls' cracks
         chat: chats.get(map.id) ?? [],
         terrain: [...map.overrides].map(([k, t]) => [...k.split(',').map(Number), t]),   // Terraformer changes
         factories: [...map.factories.values()].map(f => factoryOut(map, f)),
+        walls: [...map.walls].map(([k, w]) => [...k.split(',').map(Number), w]),
         build: { blocksPerFactory: catalog.E.factoryBlocksPerFactory, maxWallsPerBlock: catalog.E.maxWallsPerBlock, areaSize: catalog.E.factoryAreaSize },
       });
     }
@@ -830,6 +870,10 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
         }
       }
 
+      // Every way in runs through the owner's walls: the hit goes to a wall first (it needs w x H hits).
+      const wallSide = me.pid && rules.wallFirst(map, me.pid, x, y);
+      if (wallSide) return hitWall(x, y, wallSide);
+
       // Progress only counts while the same player keeps hitting the block, and fades when they stop.
       // Each click adds the player's Click Power; the owner's Defense sets the hits needed.
       const by = me.pid ?? 'visitor:' + socket.id, now = Date.now();
@@ -857,6 +901,26 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
         clearCrack(x, y);
       });
     });
+
+    function hitWall(x, y, side) {
+      const k = key(x, y), kw = k + '|' + side, now = Date.now(), wall = map.walls.get(k).find(w => w.side === side);
+      let h = map.hits.get(kw);
+      if (h) decay(map, kw, h, now);
+      h = map.hits.get(kw);
+      if (h?.by !== me.pid) map.hits.set(kw, h = { by: me.pid, n: 0 });
+      h.at = now;
+      h.need = wall.hits;
+      const boost = superClicks.get(String(me.pid));
+      h.n += rules.hitPower(tiersOn(upgrades, map)) * (boost && boost.until > now ? boost.value : 1);
+      if (!rules.isTaken(h.n, h.need)) return io.to(map.room).emit('hit', { x, y, side, p: share(h) });
+      map.hits.delete(kw);
+      const here = map;
+      serial(here, async () => {
+        if (!rules.hasWall(here, x, y, side)) return;
+        await store.removeWall(pool, here.id, x, y, side);
+        dropWall(here, x, y, side, true);
+      }).catch(err => console.error(`WALL BREAK FAILED (map ${here.id}, ${kw}): ${err.message}`));
+    }
 
     // Clears this player's whole territory on this map, and unlocks their color, skin and coverage here.
     socket.on('wipe', () => {
@@ -1115,7 +1179,9 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
     socket.on('buildInfo', (...args) => {
       const reply = args.at(-1);
       if (typeof reply !== 'function') return;
-      reply({ factory: me.pid ? factoryInfo(map, me.pid) : null, balance: catalog.fromTenths(me.squares) });
+      const at = args.length > 1 && Number.isInteger(args[0]?.x) && Number.isInteger(args[0]?.y) ? args[0] : null;
+      reply({ factory: me.pid ? factoryInfo(map, me.pid) : null, balance: catalog.fromTenths(me.squares),
+        ...(at && map.cells.has(key(at.x, at.y)) ? { wallPrice: wallPrice(map, at.x, at.y) } : {}) });
     });
     // Wakes one of your factories: { x, y }. It works for its Factory Lifetime hours from now.
     socket.on('wakeFactory', async (p, reply) => {

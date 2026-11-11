@@ -736,6 +736,31 @@ async function removeFactory(c, mapId, x, y) {
 const factoryStep = now => Math.floor(now / (catalog.E.tickSeconds * 1000)) * catalog.E.tickSeconds * 1000;
 Object.assign(module.exports, { buildFactory, wakeFactory, saveFactories, factoryMaps, removeFactory });
 
+// ---------- Walls (loop 16) ----------
+// Builds a wall on one side of the player's block for `price` tenths (player row and block locked). `hits`: what it
+// takes to break (w x H). Returns { walls, squares } or { error }.
+function buildWall(pool, { mapId, playerId, x, y, side, price, hits, max }) {
+  return tx(pool, async c => {
+    await c.query('SELECT 1 FROM players WHERE id = $1 FOR UPDATE', [playerId]);
+    const { rows: [cell] } = await c.query('SELECT owner_id, walls, listing_id FROM map_cells WHERE map_id = $1 AND x = $2 AND y = $3 FOR UPDATE', [mapId, x, y]);
+    if (!cell || String(cell.owner_id) !== String(playerId)) return { error: 'Only on your own land' };
+    if (cell.listing_id) return { error: 'Not on land for sale' };
+    if (cell.walls.some(w => w.side === side)) return { error: 'There is a wall there already' };
+    if (cell.walls.length >= max) return { error: `At most ${max} walls on one block` };
+    const paid = await spend(c, playerId, price, 'build:wall');
+    if (paid.error) return paid;
+    const walls = [...cell.walls, { side, hits }];
+    await c.query('UPDATE map_cells SET walls = $4 WHERE map_id = $1 AND x = $2 AND y = $3', [mapId, x, y, JSON.stringify(walls)]);
+    return { walls, squares: paid.squares };
+  });
+}
+// Removes one wall (broken, or Demolition inside its transaction: pass the client).
+async function removeWall(c, mapId, x, y, side) {
+  await c.query(`UPDATE map_cells SET walls = COALESCE((SELECT jsonb_agg(w) FROM jsonb_array_elements(walls) w WHERE w->>'side' <> $4), '[]')
+    WHERE map_id = $1 AND x = $2 AND y = $3`, [mapId, x, y, side]);
+}
+Object.assign(module.exports, { buildWall, removeWall });
+
 // Settings > Show tenths (loop 16).
 const setShowTenths = (pool, playerId, on) => pool.query('UPDATE players SET show_tenths = $2 WHERE id = $1', [playerId, on]);
 Object.assign(module.exports, { setShowTenths, spend, FREED });
