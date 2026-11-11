@@ -96,11 +96,11 @@ test('a wall: priced wallPriceWh x W(L), w x H hits to break, broken for good; D
   sb.take(1, 0);
   await sb.next('claim', d => d.x === 1 && d.y === 0);
 
-  // Demolition removes one of your walls, no refund.
+  // Demolition clears the block's walls, no refund; one Demolition for the block, however many walls.
   assert.deepEqual(await sa.ask('build', { kind: 'wall', x: 0, y: 0, side: 'n' }), { ok: true, built: 1, price: price / 10, squares: demo / 10 });
+  await pool.query(`UPDATE map_cells SET walls = walls || '[{"side":"s","hits":20}]' WHERE map_id = $1 AND x = 0 AND y = 0`, [id]);   // a second wall
   await sa.ask('buyItem', { item: 'demolition' });
-  assert.deepEqual(await sa.ask('useItem', { item: 'demolition', x: 0, y: 0, target: 'wall', side: 's' }), { error: 'There is no wall there' });
-  assert.equal((await sa.ask('useItem', { item: 'demolition', x: 0, y: 0, target: 'wall', side: 'n' })).ok, true);
+  assert.equal((await sa.ask('useItem', { item: 'demolition', blocks: [[0, 0]] })).ok, true);
   assert.deepEqual((await pool.query('SELECT walls FROM map_cells WHERE map_id = $1 AND x = 0 AND y = 0', [id])).rows[0].walls, []);
 });
 

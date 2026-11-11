@@ -71,11 +71,11 @@ Seven upgrades, from the Upgrades tab: Click Power, Earnings, Defense, Growth, F
 The welcome screen's tiles are Marketplace, Upgrades (its own screen), Awards and Profile. The Marketplace has tabs: Skins, Items and Land.
 
 - **Skins** cost their rarity's work-hours × W(L) (Skin Rarity tab; flags are Rare). Owning more never changes the price.
-- **Items** are priced from the Items tab: `PV` = P × V × W(L), or `Hours` × W(L). Super Click and the Terraformer are bought once and used a few times an hour. **Demolition** is used up: each one bought adds one; use it from the item bar on one of your factories or walls, confirm, and it's gone with no refund. It is the only way to remove a factory or a wall.
+- **Items** are priced from the Items tab: `PV` = P × V × W(L), or `Hours` × W(L). Super Click and the Terraformer are bought once and used a few times an hour. **Demolition** is used up, and can be bought singly or in batches (a − / + picker on the Items tab, 1 to 100 at a time, each at the full price). Use it from the item bar (loop 18): tap your blocks to pick them (each turns red; tap again to drop it; you can't pick more blocks than you have Demolitions), then ✓: everything built on each block (its walls and factory) is gone, no refund. One Demolition per block with something on it; blocks with nothing on them use none. It is the only way to remove a factory or a wall.
 
 ## Building
 
-The **Build** button (under the leaderboard) has Factory, Wall, Sell land, and Wake up (only while one of your factories is selected by press and hold). A tool that can't be used now says why as soon as it's picked, before any ghost (for example "You need 20 blocks for your first factory (you have 9)."). While a tool is active, map taps only place: they never attack or claim. Pick a building, tap a block: a see-through ghost shows there (green, or red with the reason), tap another block to move it, ✓ buys, ✗ cancels.
+The **Build** button (under the leaderboard) has Factory, Wall and Sell land (loop 18: Wake up is only on a factory's info card). A tool that can't be used now says why as soon as it's picked, before any ghost (for example "You need 20 blocks for your first factory (you have 9)."). While a tool is active, map taps only place: they never attack or claim. Pick a building, tap a block: a see-through ghost shows there (green, or red with the reason), tap another block to move it, ✓ buys, ✗ cancels.
 
 ### Factories
 
@@ -84,13 +84,14 @@ The **Build** button (under the leaderboard) has Factory, Wall, Sell land, and W
 - **Mining** (loop 18: hit by hit) goes on even while the owner is away, only while the factory is awake. A factory picks its target and hits it until it is taken, one whole hit at a time: hits per second = (`hitsPerBlock` ÷ `baseBlockSeconds`) × Factory Speed (capped at the target block's level), so 1 hit every 6 seconds at 0.05; the fraction of a hit carries over. Everyone watching the map sees each hit as it happens (the server runs watched maps every second; the tick catches up the rest and saves). Its target is the empty, non-water block touching your land closest to it (ties in a fixed seeded order), chosen again each minute, after each block it takes, and when the target stops being one; with none, it idles. Outside its home square (`factoryAreaSize` wide, centred on it) each block of distance adds `factoryDistancePenaltyWh` × W(L) × `hitsPerSquare` hits.
 - Factory hits are the same hits and cracks as a player's, but their progress never fades. Your own taps add to it; anyone else's hit resets it.
 - A finished block becomes yours, counts toward the map's mined total, grows the map with your Growth, pays you Factory Yield squares (never more than the block's normal pay; Earnings doesn't apply) and can unlock tiers.
-- **Lifetime:** after building or waking, a factory works for Factory Lifetime hours, then sleeps (grey, "Zzz"). Wake up is in its info card, or the Build menu while it's selected. There is no wake-all.
+- **Lifetime:** after building or waking, a factory works for Factory Lifetime hours, then sleeps (grey, "Zzz"). Wake up is on its info card (press and hold the factory). There is no wake-all. The card also shows its **output**: new blocks an hour at its current target (its hits an hour ÷ that block's hits), "when awake" while it sleeps or is paused.
 - The free server sleeps: every tick catches up on all the time since the last one, in one-second steps aligned to the clock, so factories give the same result whether the server stayed awake or not. A factory is destroyed when its block is taken.
 
 ### Walls
 
-- Tap near the edge of your land: the wall snaps to the nearest outer side of one of your blocks (a side facing a square you don't own). At most `maxWallsPerBlock` (2) per block, on different sides, so corners work. Not on land for sale.
-- **Price** = `wallPaybackHours` × `wallStrength` × H ÷ `hitsPerSquare` squares.
+- **Placing (loop 18):** Build → Wall, then tap the edges of your land: each tap snaps to the nearest outer side of one of your blocks (a side facing a square you don't own) and a wall shows there at half strength. Tap more sides to add; tap a faint one again to drop it; a side where a wall can't go shows nothing. The bar shows how many and the total price; ✓ builds them all in one purchase (all or nothing), ✗ cancels. At most `maxWallsPerBlock` (2) per block, on different sides, so corners work. Not on land for sale.
+- **Price** of each wall = `wallPriceWh` (0.01) × W(L of its block) × max(1, √(walls you own on this map) ÷ 2) squares, counting the walls you owned before the batch, so the whole batch has one multiplier.
+- **Look:** solid, thicker than the territory border and drawn over it, with a shadow along its inner edge (30% of the border's thickness, in the border's colour 50% darker).
 - An attacker who can only reach a walled block through walled sides hits a **wall first**: it needs `wallStrength` × H hits, cracks and fades like a block, and is destroyed when it breaks.
 - You can never claim or attack across your own wall ("Your wall is in the way").
 - Walls go when their block is taken; otherwise they stay until Demolition removes them.
@@ -167,12 +168,16 @@ Xoren can run these with `npm run admin` (see ADMIN.md). Each is recorded in the
 - **Deleting an account** empties the player's blocks everywhere, erases their login and personal data, frees their name, and keeps only an anonymous row for the squares ledger.
 - **Squares** given or taken by an admin go through the ledger like any other change; a balance never goes below 0.
 
+## Phones
+
+- On phones (narrower than 600 or lower than 500 CSS pixels) the territory border is 60% thinner (loop 18).
+
 ## Sound and music
 
 - Every sound effect is made in code (`public/sfx.js`); Xoren picked one option per sound on the sound test page (`public/audio.js`, `PICKS`).
 - Your own sounds always play at full volume. Another player's taps, claims and new blocks play only when they're near what you're looking at: quieter further from the middle of the screen, silent past about one screen away, and coming from the left or right speaker by where they are. (Game Rules: `soundHearingDistance` and `soundOthersVolume`)
 - At most 6 sounds play at once; other players' sounds are skipped past that, your own never are. (Game Rules: `soundMaxAtOnce`)
-- Music: "Keep your dream alive!" (CC0, see CREDITS.md) loops quietly once you first tap or click; browsers don't allow sound before that. Default volumes: sound effects 70%, music 25%. (Game Rules: `defaultEffectsVolume` and `defaultMusicVolume`)
+- Music: "Keep your dream alive!" (CC0, see CREDITS.md) loops quietly once you first tap or click; browsers don't allow sound before that. Coming back to the game (from another app or the lock screen): if music is on but its audio clock isn't moving, the audio is made again and the station starts over; if the phone won't allow it without a touch, the next touch starts it. Default volumes: sound effects 70%, music 25%. (Game Rules: `defaultEffectsVolume` and `defaultMusicVolume`)
 - Menu > Settings > Sound has a slider and a mute button for each, saved on that device.
 
 ## Tutorial and tips

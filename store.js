@@ -795,7 +795,11 @@ async function removeWall(c, mapId, x, y, side) {
   await c.query(`UPDATE map_cells SET walls = COALESCE((SELECT jsonb_agg(w) FROM jsonb_array_elements(walls) w WHERE w->>'side' <> $4), '[]')
     WHERE map_id = $1 AND x = $2 AND y = $3`, [mapId, x, y, side]);
 }
-Object.assign(module.exports, { buildWalls, removeWall });
+// Removes every wall on a block (Demolition, inside its transaction).
+async function clearWalls(c, mapId, x, y) {
+  await c.query("UPDATE map_cells SET walls = '[]' WHERE map_id = $1 AND x = $2 AND y = $3", [mapId, x, y]);
+}
+Object.assign(module.exports, { buildWalls, removeWall, clearWalls });
 
 // ---------- The land market (loop 16) ----------
 // Whether a player may trade land: an account at least `minDays` old.
@@ -981,18 +985,19 @@ async function itemsFor(pool, playerId) {
       nextAt: recent.length ? recent[0].used_at.getTime() + i.perMinutes * 60000 : null };
   });
 }
-// Buys an item for `price` tenths, in one transaction with the player row locked (a double tap pays once).
-function buyItem(pool, playerId, item, price) {
+// Buys an item for `price` tenths (each; a consumable may come `qty` at a time), in one transaction with the player
+// row locked (a double tap pays once).
+function buyItem(pool, playerId, item, price, qty = 1) {
   return tx(pool, async c => {
     const { rows: [p] } = await c.query('SELECT squares FROM players WHERE id = $1 FOR UPDATE', [playerId]);
     if (!p) return { error: 'Claim a block first' };
     if (!item.consumable && (await c.query('SELECT 1 FROM player_items WHERE player_id = $1 AND item_id = $2', [playerId, item.id])).rowCount) return { error: 'You already own this item' };
-    const paid = await spend(c, playerId, price, 'item:' + item.id);
+    const paid = await spend(c, playerId, price * qty, 'item:' + item.id + (qty > 1 ? ` x${qty}` : ''));
     if (paid.error) return paid;
     if (item.consumable) {
-      const { rows: [inv] } = await c.query(`INSERT INTO player_inventory (player_id, item_id, count) VALUES ($1, $2, 1)
-        ON CONFLICT (player_id, item_id) DO UPDATE SET count = player_inventory.count + 1 RETURNING count`, [playerId, item.id]);
-      return { squares: paid.squares, price, count: inv.count };
+      const { rows: [inv] } = await c.query(`INSERT INTO player_inventory (player_id, item_id, count) VALUES ($1, $2, $3)
+        ON CONFLICT (player_id, item_id) DO UPDATE SET count = player_inventory.count + $3 RETURNING count`, [playerId, item.id, qty]);
+      return { squares: paid.squares, price: price * qty, count: inv.count };
     }
     await c.query('INSERT INTO player_items (player_id, item_id) VALUES ($1, $2)', [playerId, item.id]);
     return { squares: paid.squares, price };
@@ -1000,17 +1005,17 @@ function buyItem(pool, playerId, item, price) {
 }
 // Uses an owned item if a use is free (checked with the player row locked, so two devices can't both use the last
 // one). `apply(c)` runs in the same transaction (e.g. the terrain change); a refusal from it rolls everything back.
-// Returns { ok, usesLeft, nextAt } or { error, nextAt }.
-function useItem(pool, playerId, item, mapId, apply = async () => null) {
+// Returns { ok, usesLeft, nextAt } or { error, nextAt }. `n`: how many of a consumable this takes (Demolition: one a block).
+function useItem(pool, playerId, item, mapId, apply = async () => null, n = 1) {
   return tx(pool, async c => {
     await c.query('SELECT 1 FROM players WHERE id = $1 FOR UPDATE', [playerId]);
     // A consumable: one from the inventory, used up.
     if (item.consumable) {
-      const { rows: [inv] } = await c.query('UPDATE player_inventory SET count = count - 1 WHERE player_id = $1 AND item_id = $2 AND count > 0 RETURNING count', [playerId, item.id]);
-      if (!inv) return { error: `You have no ${item.name} left` };
+      const { rows: [inv] } = await c.query('UPDATE player_inventory SET count = count - $3 WHERE player_id = $1 AND item_id = $2 AND count >= $3 RETURNING count', [playerId, item.id, n]);
+      if (!inv) return { error: n === 1 ? `You have no ${item.name} left` : `Not enough ${item.name}: this needs ${n}` };
       const refused = await apply(c);
       if (refused) throw Object.assign(new Error(refused), { refusal: true });
-      await c.query('INSERT INTO item_uses (player_id, item_id, map_id) VALUES ($1, $2, $3)', [playerId, item.id, mapId]);
+      await c.query('INSERT INTO item_uses (player_id, item_id, map_id) SELECT $1, $2, $3 FROM generate_series(1, $4)', [playerId, item.id, mapId, n]);
       return { ok: true, count: inv.count, usesLeft: inv.count, nextAt: null };
     }
     if (!(await c.query('SELECT 1 FROM player_items WHERE player_id = $1 AND item_id = $2', [playerId, item.id])).rowCount) return { error: "You don't own this item" };

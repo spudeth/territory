@@ -207,6 +207,8 @@ function lookAt(x, y) {
 
 // Show the whole map, or zoom in on our territory if we have one.
 // How close the game starts on your land: further out on phones, so more blocks fit.
+// Phones: the same test as the stylesheet's phone rules.
+const onPhone = () => matchMedia('(max-width: 599px), (max-height: 500px)').matches;
 const playScale = () => (Math.min(innerWidth, innerHeight) < 600 ? 28 : 40);
 function initialView() {
   const mine = [...cells].filter(([, o]) => me && o === me).map(([k]) => k.split(',').map(Number));
@@ -242,7 +244,8 @@ function render() {
   const Y = r => Math.round((oy + r * scale) * dpr);
   const ownerAt = (x, y) => cells.get(key(x, y));   // undefined where there is no block
   const iOwnSome = !!me && [...cells.values()].includes(me);
-  const border = Math.max(2, Math.round(scale * dpr / 16));   // one texel thick
+  // One texel thick; on phones 60% thinner (loop 18), so small blocks keep their look.
+  const border = onPhone() ? Math.max(1, Math.round(scale * dpr / 16 * 0.4)) : Math.max(2, Math.round(scale * dpr / 16));
 
   const c0 = Math.max(bounds.x0, Math.floor(-ox / scale)), c1 = Math.min(bounds.x1, Math.ceil((innerWidth - ox) / scale));
   const r0 = Math.max(bounds.y0, Math.floor(-oy / scale)), r1 = Math.min(bounds.y1, Math.ceil((innerHeight - oy) / scale));
@@ -377,6 +380,22 @@ function render() {
           }
         }
       }
+    }
+  }
+
+  // Walls on top of the borders, solid, each with its shadow (walls.js).
+  window.drawWalls?.(ctx, X, Y, r0, r1, c0, c1, o => border * skins.borderTexels(lookOf(o).kind));
+  // Blocks picked for Demolition: the whole block red (items.js).
+  if (typeof demolishing !== 'undefined' && demolishing.size) {
+    for (const k of demolishing) {
+      const [x, y] = k.split(',').map(Number);
+      if (x < c0 || x >= c1 || y < r0 || y >= r1) continue;
+      const x0 = X(x), y0 = Y(y), bw = X(x + 1) - x0, bh = Y(y + 1) - y0;
+      ctx.fillStyle = 'rgba(255,77,77,0.6)';
+      ctx.fillRect(x0, y0, bw, bh);
+      ctx.strokeStyle = '#ff4d4d';
+      ctx.lineWidth = Math.max(2, Math.round(dpr * 2));
+      ctx.strokeRect(x0 + 1, y0 + 1, bw - 2, bh - 2);
     }
   }
 

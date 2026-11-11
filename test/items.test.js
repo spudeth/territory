@@ -106,17 +106,21 @@ test('Terraformer: own blocks and empty ones next to them; never gold; 5 an hour
   assert.equal((await pool.query('SELECT count(*)::int AS n FROM map_cells WHERE map_id = $1 AND terrain IS NOT NULL', [id])).rows[0].n, 1, 'one block changed, kept for good');
 });
 
-test('Demolition is used up: each purchase adds one to the inventory at its Hours price; using one needs a factory or wall', async () => {
+test('Demolition is used up: bought singly or in batches at its Hours price each; a block with nothing built uses none', async () => {
   const DEMO = rules.ITEMS.find(i => i.id === 'demolition');
   const price = catalog.priceTenths(catalog.CATALOG.get('item:demolition'), { L: 1 }) / 10;
   assert.equal(price, 600, '0.5 work-hours at level 1');
-  const g = await guestWith(price * 2);
+  const g = await guestWith(price * 4);
   assert.equal((await g.s.ask('buyItem', { item: 'demolition' })).count, 1);
-  assert.deepEqual(await g.s.ask('buyItem', { item: 'demolition' }), { squares: 0, balance: 0, count: 2 }, 'bought again: two');
+  assert.deepEqual(await g.s.ask('buyItem', { item: 'demolition', qty: 4 }), { error: 'Not enough squares', need: price }, 'four at once: four times the price');
+  assert.deepEqual(await g.s.ask('buyItem', { item: 'demolition', qty: 3 }), { squares: 0, balance: 0, count: 4 }, 'three at once: four in all');
+  assert.deepEqual(await g.s.ask('buyItem', { item: 'superClick', qty: 2 }), { error: 'Pick how many, 1 to 100' }, 'batches are for used-up items only');
+  assert.deepEqual(await g.s.ask('buyItem', { item: 'demolition', qty: 0 }), { error: 'Pick how many, 1 to 100' });
   const list = (await g.s.ask('items')).list;
-  assert.deepEqual(['count', 'owned', 'consumable'].map(k => list.find(i => i.id === 'demolition')[k]), [2, true, true]);
+  assert.deepEqual(['count', 'owned', 'consumable'].map(k => list.find(i => i.id === 'demolition')[k]), [4, true, true]);
   assert.equal(DEMO.consumable, true);
-  // There is nothing to demolish on a plain block.
-  assert.deepEqual(await g.s.ask('useItem', { item: 'demolition', x: 0, y: g.y, target: 'statue' }), { error: 'Pick one of your factories or walls' });
-  assert.equal((await pool.query("SELECT count FROM player_inventory WHERE player_id = $1 AND item_id = 'demolition'", [g.pid])).rows[0].count, 2, 'none used');
+  // Nothing built on the block: nothing to clear, none used.
+  assert.deepEqual(await g.s.ask('useItem', { item: 'demolition', blocks: [[0, g.y]] }), { error: 'Nothing is built on those blocks' });
+  assert.deepEqual(await g.s.ask('useItem', { item: 'demolition', blocks: [[5, g.y]] }), { error: 'Only your own blocks' });
+  assert.equal((await pool.query("SELECT count FROM player_inventory WHERE player_id = $1 AND item_id = 'demolition'", [g.pid])).rows[0].count, 4, 'none used');
 });

@@ -250,7 +250,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
     else if (owner === null) info.pay = catalog.fromTenths(rules.firstClaimTenths(tiersOn(upgrades, level), terrain, level));
     else if (String(owner) !== String(pid)) info.hits = rules.hitsNeeded(tiersOn(map.players.get(owner)?.upgrades, level), terrain, level);
     const f = map.factories.get(k);
-    if (f) info.factory = { ...factoryOut(map, f), mine: String(f.owner) === String(pid), target: f.target };
+    if (f) info.factory = { ...factoryOut(map, f), mine: String(f.owner) === String(pid), target: f.target, perHour: factoryPerHour(map, f) };
     if (map.walls.has(k)) info.walls = map.walls.get(k).map(w => ({ ...w }));
     if (map.listings.has(k)) info.listing = { ...listingOut(map, map.listingInfo.get(map.listings.get(k))), mine: String(map.listingInfo.get(map.listings.get(k)).seller) === String(pid) };
     // Someone else's walled block: a wall comes first when every way in runs through one.
@@ -275,6 +275,14 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
   // The owner's upgrades on a level-L block (a factory's target; for its lifetime, the block it stands on).
   const ownerValues = (map, owner, L) => tiersOn(map.players.get(owner)?.upgrades, L);
   const levelAt = (map, x, y) => map.birth.get(key(x, y)) ?? 1;
+  // New blocks an hour a factory mines (its info card): its rate on its target (or the one it would pick next),
+  // over that block's hits. 0 with nothing to mine.
+  function factoryPerHour(map, f) {
+    const t = f.target && fac.stillTarget(map, f.owner, f.target) ? f.target : fac.chooseTarget(map, f.owner, f.x, f.y, `${map.seed}:${f.x},${f.y}`);
+    if (!t) return 0;
+    const rate = fac.hitsPerSecond(ownerValues(map, f.owner, levelAt(map, t.x, t.y)).factorySpeed);
+    return rate * 3600 / fac.hitsFor(map, t.x, t.y, f.x, f.y, map.level());
+  }
   const ownFactories = (map, owner) => [...map.factories.values()].filter(f => String(f.owner) === String(owner));
   // The owner's newest factories pause while their land is below the limit.
   const pausedOn = (map, owner) => fac.pausedIds(ownFactories(map, owner).map(f => ({ id: f.id, builtAt: f.built })), map.counts.get(owner) || 0);
@@ -512,20 +520,21 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
     }
   });
 
-  // What Demolition can remove: { target: { check(map, x, y, side) -> refusal or null, remove(client, map, x, y, side)
-  // in the item's transaction, removed(map, x, y, side) after } }. Factories and walls add themselves.
+  // What Demolition clears from a block (loop 18: everything built on it): { kind: { has(map, x, y), remove(client,
+  // map, x, y) in the item's transaction, removed(map, x, y) after } }. A new building is one more entry.
   const demolishers = {
-    wall: {
-      check: (map, x, y, side) => (rules.hasWall(map, x, y, side) ? null : 'There is no wall there'),
-      remove: (c, map, x, y, side) => store.removeWall(c, map.id, x, y, side),
-      removed: (map, x, y, side) => dropWall(map, x, y, side, false),
+    walls: {
+      has: (map, x, y) => !!map.walls.get(key(x, y))?.length,
+      remove: (c, map, x, y) => store.clearWalls(c, map.id, x, y),
+      removed: (map, x, y) => { for (const w of [...(map.walls.get(key(x, y)) ?? [])]) dropWall(map, x, y, w.side, false); },
     },
     factory: {
-      check: (map, x, y) => (map.factories.has(key(x, y)) ? null : 'There is no factory there'),
+      has: (map, x, y) => map.factories.has(key(x, y)),
       remove: (c, map, x, y) => store.removeFactory(c, map.id, x, y),
       removed: (map, x, y) => dropFactory(map, key(x, y)),
     },
   };
+  const builtOn = (map, x, y) => Object.values(demolishers).filter(d => d.has(map, x, y));
 
   // A first claim on a map (by a player or a factory): its mined count goes up; everyone there sees the level's
   // progress (the level is worked out from mined and E).
@@ -1244,10 +1253,13 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
       if (!me.pid) return reply({ error: 'Claim a block first' });
       const item = rules.ITEMS.find(i => i.id === p?.item && i.enabled && i.effect in store.USABLE);
       if (!item) return reply({ error: 'That item is not for sale' });
+      // Consumables (Demolition) come singly or in batches (loop 18): { item, qty } of 1 to 100.
+      const qty = p.qty === undefined ? 1 : p.qty;
+      if (!Number.isInteger(qty) || qty < 1 || qty > 100 || (qty > 1 && !item.consumable)) return reply({ error: 'Pick how many, 1 to 100' });
       if (buying) return reply({ error: 'One purchase at a time' });
       buying = true;
       try {
-        const r = await store.buyItem(pool, me.pid, item, itemPrice(item));
+        const r = await store.buyItem(pool, me.pid, item, itemPrice(item), qty);
         if (r.error) return reply(squaresOut(r));
         balanceChanged(me.pid, r.squares);
         totals.bump(me.pid, 'squaresSpent', catalog.fromTenths(r.price));
@@ -1276,18 +1288,21 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
           }
           return done(r);
         }
-        // Demolition: removes one of your factories or walls (what can be removed: `demolishers`), no refund.
+        // Demolition (loop 18): { item, blocks: [[x, y], …] } of yours; everything built on each (walls, factory) goes,
+        // no refund. One Demolition per block with something on it; blocks with nothing use none. All or nothing.
         if (item.effect === 'demolish') {
-          const { x, y, target, side } = p;
-          const d = demolishers[target];
-          if (!Number.isInteger(x) || !Number.isInteger(y) || !d) return reply({ error: 'Pick one of your factories or walls' });
+          const blocks = Array.isArray(p.blocks) && p.blocks.length <= 500 && p.blocks.every(b => Array.isArray(b) && Number.isInteger(b[0]) && Number.isInteger(b[1])) ? p.blocks : null;
+          if (!blocks?.length) return reply({ error: 'Pick blocks of yours to clear' });
           await serial(here, async () => {
-            if (here.cells.get(key(x, y)) !== me.pid) return reply({ error: 'Only your own factories and walls' });
-            const refusal = d.check(here, x, y, side);
-            if (refusal) return reply({ error: refusal });
-            const r = await store.useItem(pool, me.pid, item, here.id, c => d.remove(c, here, x, y, side));
-            if (r.ok) d.removed(here, x, y, side);
-            done(r);
+            const list = [...new Map(blocks.map(([x, y]) => [key(x, y), [x, y]])).values()];
+            if (list.some(([x, y]) => here.cells.get(key(x, y)) !== me.pid)) return reply({ error: 'Only your own blocks' });
+            const built = list.filter(([x, y]) => builtOn(here, x, y).length);
+            if (!built.length) return reply({ error: 'Nothing is built on those blocks' });
+            const r = await store.useItem(pool, me.pid, item, here.id, async c => {
+              for (const [x, y] of built) for (const d of builtOn(here, x, y)) await d.remove(c, here, x, y);
+            }, built.length);
+            if (r.ok) for (const [x, y] of built) for (const d of builtOn(here, x, y)) d.removed(here, x, y);
+            done(r.ok ? { ...r, cleared: built.length } : r);
           });
           return;
         }

@@ -185,14 +185,14 @@ test('a factory is destroyed when its block is taken; Demolition removes one for
   const s = player({ token });
   await onMap(s, id);
   await s.ask('buyItem', { item: 'demolition' });
-  assert.deepEqual(await s.ask('useItem', { item: 'demolition', x: 2, y: 0, target: 'factory' }), { error: 'There is no factory there' });
-  const r = await s.ask('useItem', { item: 'demolition', x: 1, y: 0, target: 'factory' });
-  assert.equal(r.ok, true);
+  // Its block and a bare one: only the block with the factory uses a Demolition.
+  const r = await s.ask('useItem', { item: 'demolition', blocks: [[1, 0], [2, 0]] });
+  assert.deepEqual([r.ok, r.cleared, r.count], [true, 1, 0]);
   assert.equal(await db.count('SELECT count(*) FROM factories WHERE map_id = $1', [id]), 0);
   assert.equal((await s.ask('inspect', { x: 1, y: 0 })).factory, undefined);
 });
 
-test('live (loop 18): someone watching sees each factory hit as it happens, one every 6 seconds at tier 1', async () => {
+test('live (loop 18): someone watching sees each factory hit as it happens, one every 6 seconds at tier 1; its card shows blocks an hour', async () => {
   const n = E.factoryBlocksPerFactory;
   const { id, pid, token } = await landed('Live', n);
   const start = fac.stepFloor(Date.now()) - 60000;
@@ -208,4 +208,7 @@ test('live (loop 18): someone watching sees each factory hit as it happens, one 
   assert.equal(seen.length, 5, `30 seconds at 1/6 hit a second: 5 hits (${JSON.stringify(shares)})`);
   assert.deepEqual(shares, [1, 2, 3, 4, 5].map(h => h / H), 'one hit at a time, each shown');
   assert.ok(seen.every(d => d.x === seen[0].x && d.y === seen[0].y), 'all on its one target');
+  // Its info card shows its output: 600 hits an hour on 10-hit blocks = 60 new blocks an hour.
+  const card = await s.ask('inspect', { x: 5, y: 1 });
+  assert.ok(Math.abs(card.factory.perHour - 60) < 1e-6, String(card.factory.perHour));
 });

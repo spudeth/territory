@@ -91,10 +91,37 @@
   }
   // Any first touch counts (phones accept some of these and not others).
   for (const ev of ['pointerdown', 'touchend', 'click', 'keydown']) addEventListener(ev, unlock, { capture: true, passive: true });
-  // Back from another app or the lock screen: resume now if the phone allows it, or on the next touch (above).
-  addEventListener('visibilitychange', () => { if (!document.hidden && ctx) unlock(); changed(); });
-  addEventListener('pageshow', () => { if (ctx) unlock(); });
-  addEventListener('focus', () => { if (ctx && !document.hidden) unlock(); });
+  // Back from another app or the lock screen (loop 18): resume; then, if music should be playing but the audio
+  // clock isn't moving (iPhone often leaves it stuck), throw the old audio away, make it again and start the
+  // station over. If the phone won't allow sound without a touch, the next touch starts it (above).
+  const musicWanted = () => !settings.music.muted && settings.music.volume > 0;
+  let checking = false;
+  async function comeBack() {
+    if (!ctx || document.hidden || checking) return;
+    checking = true;
+    try {
+      unlock();
+      if (!musicWanted()) return;
+      const t0 = ctx.currentTime;
+      await new Promise(r => setTimeout(r, 400));
+      if (document.hidden || (ctx.state === 'running' && ctx.currentTime > t0 + 0.1 && track)) return;   // playing
+      remake();
+    } finally { checking = false; changed(); }
+  }
+  function remake() {
+    const old = ctx;
+    try { track?.src.stop(); } catch {}
+    track = null;
+    ctx = null;
+    for (const k of Object.keys(buffers)) delete buffers[k];   // made for the old audio
+    playing.clear();
+    try { old.close().catch(() => {}); } catch {}
+    musicStarted = false;
+    unlock();   // new audio, and the music again (suspended until a touch if the phone insists)
+  }
+  addEventListener('visibilitychange', () => { if (!document.hidden) comeBack(); changed(); });
+  addEventListener('pageshow', comeBack);
+  addEventListener('focus', comeBack);
 
   // The station playing, and its source with its own fade, so a station change can fade it out.
   let station = 0, track = null, loads = 0;
