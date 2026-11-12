@@ -1,0 +1,36 @@
+# Territory palette. Map art uses only these colours: art/render.js refuses any other.
+# A new colour is added here in the same commit as the art that needs it, so it shows in review.
+# One per line: name, then #rrggbb (or #rrggbbaa for see-through), then where it comes from.
+
+# Ground: the grass tiles (Kenney Tiny Town) and our terrain tiles, public/tiles/
+grass             #84c669   tile_0000-0002, forest
+grass-light       #8bd87d   tile_0001
+grass-dark        #65a556   tile_0001, tile_0002, forest
+flower-yellow     #fdbe53   tile_0002, gold
+flower-orange     #e38628   tile_0002, gold
+white             #ffffff   tile_0002, gold
+forest-light      #58aa54   terrain-forest
+forest            #3e8948   terrain-forest
+forest-dark       #2c683a   terrain-forest
+trunk             #805434   terrain-forest
+trunk-dark        #644028   terrain-forest
+sand-light        #f6e4ac   terrain-sand
+sand              #ecd28c   terrain-sand
+sand-dark         #d6b670   terrain-sand
+stone-light       #b8bac2   terrain-stone, gold
+stone             #9698a0   terrain-stone, gold
+stone-dark        #767882   terrain-stone, gold
+water-light       #96cdf0   terrain-water
+water             #4e9edc   terrain-water
+water-dark        #408ac8   terrain-water
+
+# The floating island's underside and the clouds, drawn in public/game.js
+cliff-dirt        #7a4e2a   island underside
+cliff-dirt-dark   #5c3a1e   island underside
+cliff-rock        #5a5e6b   island underside
+ink               #41444f   island underside (cliff rock, dark); also outlines and eyes
+cloud-shade       #d7deea   clouds
+shadow            #00000038 island underside shadow (22% black): ground shadows on any terrain
+
+# Added for art
+blush             #f4a0b4   art/ghost: cheeks
