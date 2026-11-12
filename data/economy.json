@@ -3043,13 +3043,7 @@
     "tickSeconds": 60,
     "inspectHoldMs": 400,
     "marketFee": 0.05,
-    "marketMinAccountDays": 3,
-    "factoryBlocksPerFactory": 20,
-    "factoryBuildPaybackHours": 48,
-    "factoryValuePerHour": 0.05,
-    "factoryBuildGrowth": 1.15,
-    "factoryAreaSize": 5,
-    "factoryDistancePenaltyWh": 0.0005
+    "marketMinAccountDays": 3
   },
   "tiers": {
     "clickPower": {

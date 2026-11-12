@@ -33,7 +33,7 @@ async function withBlocks(n) {
   assert.equal(w.map.id, id);
   return s;
 }
-const per = catalog.E.factoryBlocksPerFactory;
+const per = require('../plugins/factories/data.json').factoryBlocksPerFactory;
 
 test('0 blocks: every tool says why, before placing', async () => {
   const s = await withBlocks(0);
@@ -69,7 +69,7 @@ test('40 blocks: two factories, each priced g times the one before', async () =>
   const first = (await s.ask('buildInfo')).factory.price;
   assert.equal((await s.ask('build', { kind: 'factory', x: 1, y: 1 })).ok, true);
   const info = await s.ask('buildInfo');
-  assert.ok(Math.abs(info.factory.price - first * catalog.E.factoryBuildGrowth) < 0.2, `${info.factory.price} vs ${first} x g`);
+  assert.ok(Math.abs(info.factory.price - first * require('../plugins/factories/data.json').factoryBuildGrowth) < 0.2, `${info.factory.price} vs ${first} x g`);
   assert.equal((await s.ask('build', { kind: 'factory', x: 2, y: 2 })).ok, true);
   assert.equal((await s.ask('buildInfo')).reasons.factory, `Own ${per} more blocks for another factory (you have 40).`);
   assert.equal((await s.ask('build', { kind: 'wall', x: 9, y: 3, side: 's' })).ok, true);

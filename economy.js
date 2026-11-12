@@ -17,10 +17,7 @@ const int = (min, max = Infinity) => ({ integer: true, min, max });
 const num = (min, max = Infinity) => ({ integer: false, min, max });
 // Loop 16: the new economy tabs. Each is optional in the sheet: a missing tab keeps its part of data/economy.json.
 const ECONOMY_TAB = 'Economy', TIERS_TAB = 'Upgrades', RARITY_TAB = 'Skin Rarity', GLOSSARY_TAB = 'Glossary';
-// Loop 19: the walls' and factories' numbers have their own tabs (same columns as Economy). Until they move into their
-// plug-ins they're read into the same `economy` part; a key may also still be on the Economy tab (an older sheet).
-const FACTORIES_TAB = 'Factories';   // Walls: the walls plug-in's own tab (loop 19, Phase 4)
-const KEY_TABS = [ECONOMY_TAB, FACTORIES_TAB];
+// Loop 19: the Walls and Factories tabs belong to their plug-ins (plugins/<name>/data.js), not to this file.
 const ECONOMY_COLUMNS = ['Key', 'Value', 'Unit', 'What it means'];
 // Loop 18: each upgrade's tiers and steps, and the curves of its gains and prices (catalog.js has the formulas).
 const TIER_COLUMNS = ['Key', 'Name', 'Type', 'Tier 1 start', 'Tier 1 max', 'Multiplier per tier', 'Tiers', 'Steps per tier',
@@ -31,7 +28,7 @@ const GLOSSARY_COLUMNS = ['Symbol', 'Name', 'What it means', 'Formula', 'Where t
 // (an older sheet), the names agreed in Q39 are used.
 const VARIABLE_COLUMN = 'Variable';
 const TIER_FIELDS = ['variable', 'start', 'max1', 'mult', 'tiers', 'steps', 'tierWh', 'priceCurve', 'gainCurve'];   // what describeChanges compares
-const TABS = [RULES_TAB, ACHIEVEMENTS_TAB, SKINS_TAB, ECONOMY_TAB, FACTORIES_TAB, TIERS_TAB, RARITY_TAB, GLOSSARY_TAB];
+const TABS = [RULES_TAB, ACHIEVEMENTS_TAB, SKINS_TAB, ECONOMY_TAB, TIERS_TAB, RARITY_TAB, GLOSSARY_TAB];
 // Old tabs the sync no longer reads (loop 16): Inputs, Summary, Click Power, Defense, Earnings, Growth.
 // Game Rules keys still allowed but ignored, with a warning.
 const RETIRED_RULES = ['squaresPerFirstClaim', 'newMapBlocks'];
@@ -41,8 +38,6 @@ const RETIRED_ECONOMY = ['stepsPerTier', 'wallPaybackHours'];
 // Economy keys the sheet may not have yet: a missing row is a warning, and the sync keeps the file's value.
 const NEW_ECONOMY = [];
 const LEGACY_VARIABLE = require('./variables').LEGACY_UPGRADE_VARIABLE;
-// Each key's home tab: Walls and Factories for theirs, Economy for the rest.
-const homeTab = k => (/^factory/.test(k) ? FACTORIES_TAB : ECONOMY_TAB);
 const ECONOMY_KEYS = {
   baseBlockSeconds: num(0.1, 3600),
   hitsPerSquare: num(0.1, 1e6),
@@ -51,12 +46,6 @@ const ECONOMY_KEYS = {
   maxBaseBlocksOnline: int(1, 1e9),
   tickSeconds: num(1, 3600),
   inspectHoldMs: int(50, 5000),
-  factoryBlocksPerFactory: int(1, 1e6),
-  factoryBuildPaybackHours: num(0, 1e6),
-  factoryValuePerHour: num(0, 1e6),
-  factoryBuildGrowth: num(1, 100),
-  factoryAreaSize: int(1, 101),
-  factoryDistancePenaltyWh: num(0, 1e6),
   marketFee: num(0, 1),
   marketMinAccountDays: num(0, 3650),
 };
@@ -257,12 +246,10 @@ function validate(tabs, { hasFile = () => true, variables = require('./variables
   }
   // The loop 16 tabs. Each one found by its header row; a missing one is left out, and the sync keeps that part
   // of data/economy.json.
-  // Economy, Walls and Factories: Key, Value rows. Each key once, on its own tab (or, from an older sheet, on Economy).
+  // Economy: Key, Value rows, each key once. (Walls and Factories: their plug-ins' own tabs.)
   let economyRules = null;
   const seenE = new Map();   // key -> the tab it was on
-  // Without the Economy tab the whole part is left out (the sync keeps the file's), whatever the other two say.
-  const economyHere = has(ECONOMY_TAB, 'Unit') && has(ECONOMY_TAB, 'Key');
-  for (const tab of economyHere ? KEY_TABS : []) {
+  for (const tab of [ECONOMY_TAB]) {
     const ec = has(tab, 'Unit') && has(tab, 'Key') ? table(tab, ECONOMY_COLUMNS) : null;
     if (!ec) continue;
     economyRules ??= {};
@@ -272,8 +259,7 @@ function validate(tabs, { hasFile = () => true, variables = require('./variables
       if (RETIRED_ECONOMY.includes(k)) { seenE.set(k, tab); return warnings.push(`${tab}: "${k}" is retired and ignored; the row can be deleted`); }
       const spec = ECONOMY_KEYS[k];
       if (!spec) return errors.push(`${where(tab, kc, row, 'Key')}: unknown key "${k}"`);
-      if (tab !== ECONOMY_TAB && homeTab(k) !== tab) return errors.push(`${where(tab, kc, row, 'Key')}: "${k}" belongs on the ${homeTab(k)} tab`);
-      if (seenE.has(k)) return errors.push(`${where(tab, kc, row, 'Key')}: "${k}" appears twice${seenE.get(k) !== tab ? ` (also on ${seenE.get(k)})` : ''}`);
+      if (seenE.has(k)) return errors.push(`${where(tab, kc, row, 'Key')}: "${k}" appears twice`);
       seenE.set(k, tab);
       const n = num1(tab, vc, row, 'Value', r[vc] ?? '', spec, k);
       if (n !== null) economyRules[k] = n;
@@ -282,10 +268,9 @@ function validate(tabs, { hasFile = () => true, variables = require('./variables
   if (economyRules) {
     for (const k of Object.keys(ECONOMY_KEYS)) {
       if (seenE.has(k)) continue;
-      if (NEW_ECONOMY.includes(k)) warnings.push(`${homeTab(k)}: no row for "${k}" yet; keeping the value in data/economy.json`);
-      else errors.push(`${homeTab(k)}: no row for "${k}"`);
+      if (NEW_ECONOMY.includes(k)) warnings.push(`${ECONOMY_TAB}: no row for "${k}" yet; keeping the value in data/economy.json`);
+      else errors.push(`${ECONOMY_TAB}: no row for "${k}"`);
     }
-    if (economyRules.factoryAreaSize % 2 === 0) errors.push(`${seenE.get('factoryAreaSize')}: factoryAreaSize must be odd, so the factory is in the middle (not ${economyRules.factoryAreaSize})`);
   }
   // Upgrades (loop 18): one row per upgrade. Tier 1 runs from its start to its max; each later tier doubles (the
   // multiplier); each tier is bought in S steps, priced and gaining along log curves (catalog.js).
@@ -389,4 +374,4 @@ function describeChanges(before, after) {
   return lines.length ? lines : ['No changes.'];
 }
 
-module.exports = { sheetKit, ECONOMY_TAB, FACTORIES_TAB, TIERS_TAB, RARITY_TAB, GLOSSARY_TAB, VARIABLE_COLUMN, TIER_COLUMNS, homeTab, ECONOMY_KEYS, RETIRED_RULES, RETIRED_ECONOMY, NEW_ECONOMY, RULES_TAB, ACHIEVEMENTS_TAB, SKINS_TAB, SKIN_KINDS, RARITIES, skinFiles, STATS, TABS, RULE_KEYS, parseCsv, parseNumber, validate, describeChanges };
+module.exports = { sheetKit, ECONOMY_TAB, TIERS_TAB, RARITY_TAB, GLOSSARY_TAB, VARIABLE_COLUMN, TIER_COLUMNS, ECONOMY_KEYS, RETIRED_RULES, RETIRED_ECONOMY, NEW_ECONOMY, RULES_TAB, ACHIEVEMENTS_TAB, SKINS_TAB, SKIN_KINDS, RARITIES, skinFiles, STATS, TABS, RULE_KEYS, parseCsv, parseNumber, validate, describeChanges };

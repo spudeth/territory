@@ -1,15 +1,10 @@
 // ---------- Art manifest (loop 16) ----------
 // Every graphic added in the economy update lives in public/art/ and is named only here. To change one, replace
 // its file (same name and size ratio); no code changes. All are placeholders in the game's pixel style.
-//   factory          a factory on its block (awake)
-//   factoryAsleep    a factory that has run out of time ("Zzz", greyed)
-//   wall             a wall along one side of a block (drawn stretched along the side; 16 x 4)
 //   forSale          the marker on a listed block
 //   levelShades      10 pixels in a row: the tint over a level-1 to level-10 block (colour and opacity)
-//   build, marketplace, demolition, infoCard   icons (drawn in the current text colour where shown inline)
+//   build, marketplace, infoCard   icons (drawn in the current text colour where shown inline)
 const ART = {
-  factory: 'art/factory.svg',
-  factoryAsleep: 'art/factory-asleep.svg',
   forSale: 'art/for-sale.svg',
   levelShades: 'art/level-shades.svg',
   build: 'art/build.svg',

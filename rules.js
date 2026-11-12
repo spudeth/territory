@@ -97,6 +97,14 @@ const OPPOSITE = { n: 's', s: 'n', e: 'w', w: 'e' };
 // The sides of (x, y) that touch `pid`'s land ('n': the block above is theirs).
 const adjacentSides = (map, pid, x, y) => Object.keys(SIDES).filter(s => map.cells.get(key(x + SIDES[s][0], y + SIDES[s][1])) === pid);
 
+// A fixed, seeded number for (seed, x, y) (loop 16): growth's rolls, and factories' ties, come out the same every time.
+function tieRank(seed, x, y) {
+  let h = Math.imul(String(seed).split('').reduce((a, c) => Math.imul(a ^ c.charCodeAt(0), 16777619), 2166136261), 1) >>> 0;
+  h = Math.imul(h ^ (x * 73856093), 2654435761) >>> 0;
+  h = Math.imul(h ^ (y * 19349663), 2246822519) >>> 0;
+  return h;
+}
+
 // A player's upgrades as they work on a block: { clickPower, defense, earnings, growth, … } values
 // (upgrades.effectiveValues: capped at the end of the block's level's tier). Visitors and new players have no steps:
 // NO_UPGRADES, and any value missing counts as the tier 1 start.
@@ -156,5 +164,5 @@ const earnsSquares = (ownedAfterClaim, wipeFloor) => ownedAfterClaim > wipeFloor
 const wipeFloorAfterWipe = (wipeFloor, ownedAtWipe) => Math.max(wipeFloor, ownedAtWipe);
 
 // The rules read the numbers from this same object, so tests can try other dial values.
-module.exports = Object.assign(settings, { key, NEIGHBORS, NO_UPGRADES, hitError, connected, SIDES, OPPOSITE, adjacentSides, hardness, hitsNeeded, hitPower, growthBlocks, isTaken,
+module.exports = Object.assign(settings, { key, NEIGHBORS, NO_UPGRADES, hitError, connected, tieRank, SIDES, OPPOSITE, adjacentSides, hardness, hitsNeeded, hitPower, growthBlocks, isTaken,
   firstClaimTenths, shownSquares, decayCrack, tapAllowed, earnsSquares, wipeFloorAfterWipe });

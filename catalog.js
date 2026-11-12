@@ -51,7 +51,6 @@ const PRICING = {
   PV: (row, { L }) => toTenths(row.P * row.V * W(L)),
   Hours: (row, { L }) => toTenths(row.hours * W(L)),
   Step: (row, { s }) => require('./upgrades').stepCostTenths(row.upgrade, s),   // required here: upgrades.js needs this file
-  Factory: (row, { L, n }) => toTenths(E.factoryBuildPaybackHours * E.factoryValuePerHour * W(L) * E.factoryBuildGrowth ** (n - 1)),
 };
 const priceTenths = (row, ctx) => {
   const rule = PRICING[row.pricing];
@@ -65,7 +64,6 @@ const skinHours = rarity => economy.skinRarity?.[rarity] ?? 0;
 function buildCatalog() {
   const rows = [];
   for (const key of Object.keys(economy.tiers ?? {})) rows.push({ key: 'upgrade:' + key, kind: 'upgrade', upgrade: key, pricing: 'Step', effect: key });
-  rows.push({ key: 'building:factory', kind: 'building', pricing: 'Factory', effect: 'factory' });
   return new Map(rows.map(r => [r.key, r]));
 }
 const CATALOG = buildCatalog();

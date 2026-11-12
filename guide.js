@@ -11,7 +11,7 @@ const table = (head, rows) => `<div class="scroll"><table><thead><tr>${head.map(
   + rows.map(r => `<tr>${r.map(c => `<td>${esc(c)}</td>`).join('')}</tr>`).join('') + '</tbody></table></div>';
 const unitText = (v, unit) => (/^x /.test(unit) ? `×${n(v)} ${unit.slice(2)}` : `${n(v)} ${unit}`);
 
-// pluginSections(helpers): each plug-in's section, [{ id, title, html }] (loop 19), shown after Walls.
+// pluginSections(helpers): each plug-in's section, [{ id, title, html }] (loop 19), shown after Upgrades, in plug-in order.
 function renderGuide({ maps = [], pluginSections = () => [] } = {}) {
   const shown = new Set(upgrades.available(require('./variables').declared()));   // upgrades whose variable exists (loop 19)
   const E = catalog.E, L = Array.from({ length: E.maxLevel }, (_, i) => i + 1);
@@ -62,17 +62,6 @@ function renderGuide({ maps = [], pluginSections = () => [] } = {}) {
           n(catalog.fromTenths(upgrades.stepCostTenths(key, i * u.steps + 1)), 1), n(catalog.fromTenths(upgrades.stepCostTenths(key, (i + 1) * u.steps)), 1),
           n(catalog.fromTenths(upgrades.tierCostTenths(key, i + 1)), 1)]))).join(''));
 
-  const factoryPrice = k => catalog.fromTenths(catalog.priceTenths(catalog.CATALOG.get('building:factory'), { L: 1, n: k }));
-  sections.push(`<h2 id="factories">Factories</h2>
-    <p>Build one on your own land (Build → Factory). It mines the closest empty block touching your land, on its own, even while you're away,
-      at (${rules.HITS_PER_BLOCK} ÷ ${n(E.baseBlockSeconds)}) × Factory Speed hits a second. Outside its ${E.factoryAreaSize}×${E.factoryAreaSize}
-      home square each block of distance adds ${n(E.factoryDistancePenaltyWh)} × W(L) × ${n(E.hitsPerSquare)} hits. Each block it mines pays
-      Factory Yield squares (never more than the block's own pay). After waking it works for Factory Lifetime hours, then sleeps until you wake it
-      from its info card.</p>
-    <p class="formula">Price of your nth factory = ${n(E.factoryBuildPaybackHours)} × ${n(E.factoryValuePerHour)} × W(L) × ${n(E.factoryBuildGrowth)}^(n−1)</p>
-    <p>You may have 1 factory per ${E.factoryBlocksPerFactory} blocks you own; if your land shrinks, your newest ones pause. Level 1 prices:
-      ${[1, 2, 3, 4, 5].map(k => `#${k}: ${n(factoryPrice(k), 1)}`).join(', ')}.</p>`);
-
   const extra = pluginSections({ n, table, esc, E, catalog });
   for (const p of extra) sections.push(p.html);
 
@@ -121,7 +110,7 @@ function renderGuide({ maps = [], pluginSections = () => [] } = {}) {
   <main>
     <h1>Game Guide</h1>
     <p class="sub">Every number here comes straight from the game's rules, so it's always current.</p>
-    <nav>${[['play', 'Playing'], ['levels', 'Levels'], ['pay', 'Pay'], ['upgrades', 'Upgrades'], ['factories', 'Factories'], ['walls', 'Walls'],
+    <nav>${[['play', 'Playing'], ['levels', 'Levels'], ['pay', 'Pay'], ['upgrades', 'Upgrades'],
       ...extra.map(p => [p.id, p.title]), ['market', 'Market'], ['skins', 'Skins'], ['achievements', 'Achievements'], ['glossary', 'Glossary']].map(([id, t]) => `<a href="#${id}">${t}</a>`).join('')}</nav>
     ${sections.join('\n')}
     <p class="links foot"><a href="/">Back to the game</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></p>

@@ -29,9 +29,9 @@ test('the saved sheet passes and reads every tab as shown; retired Game Rules ke
   assert.deepEqual(e.achievements[0], { id: 'first-block', name: 'First Block', category: 'Claiming', stat: 'claims', threshold: 1, secret: false, description: 'Claim 1 empty block', reward: 0.5 });
   assert.equal(e.economy.defaultBaseBlocks, 431649);
   assert.equal(e.economy.marketFee, 0.05);
-  // Loop 19: Economy and Factories are read into one part; each key once, on its own tab. (Walls: the walls plug-in's.)
+  // Loop 19: Economy only; the Walls and Factories tabs are their plug-ins' (plugins/<name>/test).
   assert.deepEqual(Object.keys(e.economy).sort(), Object.keys(economy.ECONOMY_KEYS).sort());
-  assert.deepEqual([e.economy.wallPriceWh, e.economy.factoryAreaSize, economy.homeTab('factoryAreaSize'), economy.homeTab('marketFee')], [undefined, 5, 'Factories', 'Economy']);
+  assert.deepEqual([e.economy.wallPriceWh, e.economy.factoryAreaSize], [undefined, undefined]);
   assert.deepEqual(Object.keys(e.tiers), ['clickPower', 'earnings', 'defense', 'growth', 'factorySpeed', 'factoryLifetime', 'factoryYield']);
   assert.deepEqual(Object.values(e.tiers).map(u => u.variable), ['clickPower', 'earnings', 'defense', 'growth', 'factories.speed', 'factories.lifetime', 'factories.yield'],
     'no Variable column yet: the names agreed in Q39');
@@ -60,7 +60,7 @@ test('a missing tab, or the first tab returned in its place, is refused by name;
   for (const part of ['economy', 'tiers', 'skinRarity', 'glossary']) assert.equal(r.economy[part], undefined, part);
 });
 
-test('the Economy, Walls and Factories tabs: unknown, missing, twice, on the wrong tab, out of range, not whole and not a number are refused by cell', () => {
+test('the Economy tab: unknown, missing, twice, a plug-in key, out of range, not whole and not a number are refused by cell', () => {
   const tab = saved().Economy;
   const row = k => economy.parseCsv(tab).findIndex(r => r[0] === k);
   const check = (csv, expected) => {
@@ -74,22 +74,8 @@ test('the Economy, Walls and Factories tabs: unknown, missing, twice, on the wro
   check(setCell(tab, row('marketFee'), 1, '1.5'), `Economy, cell B${row('marketFee') + 1} ("Value"): marketFee must be between 0 and 1, not 1.5`);
   check(setCell(tab, row('defaultBaseBlocks'), 1, '1.5'), `Economy, cell B${row('defaultBaseBlocks') + 1} ("Value"): defaultBaseBlocks must be a whole number, not 1.5`);
   check(setCell(tab, row('baseBlockSeconds'), 1, 'three'), `Economy, cell B${row('baseBlockSeconds') + 1} ("Value"): "three" is not a number (baseBlockSeconds)`);
-  // The walls' and factories' own tabs.
-  const fac = saved().Factories, frow = k => economy.parseCsv(fac).findIndex(r => r[0] === k);
-  const checkTab = (name, csv, expected) => {
-    const tabs = saved();
-    tabs[name] = csv;
-    assert.ok(errorsWith(tabs).includes(expected), `${expected}\n  got: ${errorsWith(tabs).join(' | ')}`);
-  };
-  checkTab('Factories', setCell(fac, frow('factoryAreaSize'), 1, '4'), 'Factories: factoryAreaSize must be odd, so the factory is in the middle (not 4)');
-  checkTab('Factories', setCell(fac, frow('factoryAreaSize'), 0, 'marketFee'), `Factories, cell A${frow('factoryAreaSize') + 1} ("Key"): "marketFee" belongs on the Economy tab`);
-  checkTab('Factories', setCell(fac, frow('factoryAreaSize'), 0, 'factoryAreaSise'), 'Factories: no row for "factoryAreaSize"');
-  // An older sheet with a factory key still on Economy: accepted, but not on both.
-  checkTab('Economy', tab + '\nfactoryAreaSize,5,blocks,old row', `Factories, cell A${frow('factoryAreaSize') + 1} ("Key"): "factoryAreaSize" appears twice (also on Economy)`);
-  const old = saved();
-  old.Economy = tab + '\n' + economy.parseCsv(fac).slice(1).map(r => r.map(c => JSON.stringify(c)).join(',')).join('\n');
-  delete old.Factories;
-  assert.deepEqual(economy.validate(old).errors, [], 'factory rows on the Economy tab of an older sheet');
+  // Factory keys belong to the factories plug-in's Factories tab now.
+  check(tab + '\nfactoryAreaSize,5,blocks,old row', `Economy, cell A${economy.parseCsv(tab).length + 1} ("Key"): unknown key "factoryAreaSize"`);
 });
 
 test('the Upgrades tab: unknown upgrades, bad numbers and missing rows are refused by cell', () => {

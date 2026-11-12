@@ -117,12 +117,10 @@ async function loadMap(pool, mapId) {
     pool.query('SELECT * FROM player_map_stats WHERE map_id = $1', [mapId]),
   ]);
   const overrides = cells.rows.filter(c => c.terrain !== null).map(({ x, y, terrain }) => ({ x, y, terrain }));
-  const factories = (await pool.query(`SELECT id, owner_id, x, y, extract(epoch FROM built_at) * 1000 AS built, extract(epoch FROM awake_until) * 1000 AS awake,
-    extract(epoch FROM processed_at) * 1000 AS processed, target_x, target_y, progress FROM factories WHERE map_id = $1`, [mapId])).rows;
   const listings = (await pool.query(`SELECT l.id, l.seller_id, l.price, extract(epoch FROM l.created_at) * 1000 AS created,
     array_agg(c.x ORDER BY c.x, c.y) AS xs, array_agg(c.y ORDER BY c.x, c.y) AS ys FROM listings l JOIN map_cells c ON c.listing_id = l.id
     WHERE l.map_id = $1 GROUP BY l.id`, [mapId])).rows;
-  return { ...map, cells: cells.rows, players: players.rows, stats: stats.rows, overrides, factories, listings };
+  return { ...map, cells: cells.rows, players: players.rows, stats: stats.rows, overrides, listings };   // plug-ins load their own (factories)
 }
 
 async function cellOwner(pool, mapId, x, y) {
@@ -720,53 +718,7 @@ async function setEmailUpdates(pool, playerId, on, source) {
   await pool.query('INSERT INTO email_consent_log (player_id, subscribed, source) VALUES ($1, $2, $3)', [playerId, on, source]);
   return { on: p.email_updates, token: p.unsubscribe_token, email: await accountEmail(pool, p.auth_user_id) };
 }
-// ---------- Factories (loop 16) ----------
-// Builds a factory on the player's own block for `price` tenths, in one transaction with the player row locked,
-// so two taps never build two or pay twice; the block must still be theirs, bare and not for sale, and they must
-// still be under their limit (`limit`: how many they may have on this map). Returns the factory row or { error }.
-function buildFactory(pool, { mapId, playerId, x, y, price, limit, awakeMs, now = Date.now() }) {
-  return tx(pool, async c => {
-    await c.query('SELECT 1 FROM players WHERE id = $1 FOR UPDATE', [playerId]);
-    const { rows: [cell] } = await c.query('SELECT owner_id, factory_id, listing_id FROM map_cells WHERE map_id = $1 AND x = $2 AND y = $3 FOR UPDATE', [mapId, x, y]);
-    if (!cell || String(cell.owner_id) !== String(playerId)) return { error: 'Only on your own land' };
-    if (cell.factory_id) return { error: 'There is a factory here already' };
-    if (cell.listing_id) return { error: 'Not on land for sale' };
-    const { rows: [n] } = await c.query('SELECT count(*)::int AS n FROM factories WHERE map_id = $1 AND owner_id = $2', [mapId, playerId]);
-    if (n.n >= limit) return { error: 'You have all the factories your land allows' };
-    const paid = await spend(c, playerId, price, 'build:factory');
-    if (paid.error) return paid;
-    const { rows: [f] } = await c.query(`INSERT INTO factories (map_id, owner_id, x, y, built_at, awake_until, processed_at)
-      VALUES ($1, $2, $3, $4, to_timestamp($5 / 1000.0), to_timestamp($6 / 1000.0), to_timestamp($7 / 1000.0)) RETURNING id`,
-      [mapId, playerId, x, y, now, now + awakeMs, factoryStep(now)]);
-    await c.query('UPDATE map_cells SET factory_id = $4 WHERE map_id = $1 AND x = $2 AND y = $3', [mapId, x, y, f.id]);
-    return { id: f.id, squares: paid.squares };
-  });
-}
-// Wakes a factory: it works for `awakeMs` from now; time asleep never counts.
-async function wakeFactory(pool, id, playerId, awakeMs, now = Date.now()) {
-  const { rows: [f] } = await pool.query(`UPDATE factories SET awake_until = to_timestamp($3 / 1000.0),
-    processed_at = GREATEST(processed_at, to_timestamp($4 / 1000.0)) WHERE id = $1 AND owner_id = $2 RETURNING id`, [id, playerId, now + awakeMs, factoryStep(now)]);
-  return !!f;
-}
-// Saves where the tick got to with each factory: [{ id, processed, tx, ty, progress }].
-async function saveFactories(pool, list) {
-  if (!list.length) return;
-  await pool.query(`UPDATE factories f SET processed_at = to_timestamp(v.p / 1000.0), target_x = v.tx, target_y = v.ty, progress = v.g
-    FROM unnest($1::bigint[], $2::float8[], $3::int[], $4::int[], $5::float8[]) AS v (id, p, tx, ty, g) WHERE f.id = v.id`,
-    [list.map(f => f.id), list.map(f => f.processed), list.map(f => f.tx), list.map(f => f.ty), list.map(f => f.progress)]);
-}
-// Maps with a factory the tick still has to bring up to `until` (ms).
-async function factoryMaps(pool, until) {
-  const { rows } = await pool.query('SELECT DISTINCT map_id FROM factories WHERE processed_at < LEAST(awake_until, to_timestamp($1 / 1000.0))', [until]);
-  return rows.map(r => r.map_id);
-}
-// Removes a factory (Demolition), inside the item's transaction.
-async function removeFactory(c, mapId, x, y) {
-  await c.query('UPDATE map_cells SET factory_id = NULL WHERE map_id = $1 AND x = $2 AND y = $3', [mapId, x, y]);
-  await c.query('DELETE FROM factories WHERE map_id = $1 AND x = $2 AND y = $3', [mapId, x, y]);
-}
-const factoryStep = now => Math.floor(now / 1000) * 1000;   // factories.js steps: one second (loop 18)
-Object.assign(module.exports, { buildFactory, wakeFactory, saveFactories, factoryMaps, removeFactory });
+// Factories: the factories plug-in (plugins/factories, loop 19). Freeing a block still clears its factory here.
 
 // Walls: the walls plug-in has its own (plugins/walls/server.js); their column is map_cells.walls (Q42).
 
