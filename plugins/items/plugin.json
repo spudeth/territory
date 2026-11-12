@@ -5,8 +5,9 @@
   ],
   "client": [
     "text.js",
-    "style.css",
+    "/art/styles/items.css",
     "client.js"
   ],
+  "art": "art/items",
   "variables": {}
 }

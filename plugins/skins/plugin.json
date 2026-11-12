@@ -8,5 +8,6 @@
     "text.js",
     "client.js"
   ],
+  "art": "art/skins",
   "variables": {}
 }

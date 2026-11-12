@@ -9,15 +9,15 @@ const SKIN_KINDS = ['pattern', 'art'];          // pattern: drawn in the owner's
 const RARITIES = ['Common', 'Rare', 'Ultra Rare', 'Legendary'];
 const RARITY_TAB = 'Skin Rarity';
 const RARITY_COLUMNS = ['Rarity', 'Work-hours', 'What it means'];
-// The image files every skin needs, in look/: one block, and the large one for Full area coverage.
+// The image files every skin needs, in art/skins/: one block, and the large one for Full area coverage.
 const skinFiles = key => [`${key}.png`, `${key}-large.png`];
-const LOOK = path.join(__dirname, 'look');
+const LOOK = path.join(__dirname, '..', '..', 'art', 'skins');
 
-// tabs: { Skins: csv, 'Skin Rarity': csv }; kit: economy.sheetKit(tabs, errors). hasFile(name): whether look/ has
+// tabs: { Skins: csv, 'Skin Rarity': csv }; kit: economy.sheetKit(tabs, errors). hasFile(name): whether art/skins/ has
 // that image (tests pass their own). Returns { skins, skinRarity }, or null when neither tab is there.
 function validate(tabs, kit, errors, warnings = [], { hasFile = f => fs.existsSync(path.join(LOOK, f)), current = readCurrent() } = {}) {
   const { where, table, has, num1, num, parseCsv, parseNumber } = kit;
-  // Skins: one row each, with its images in look/. Enabled "no" keeps a skin out of the shop (owners keep it).
+  // Skins: one row each, with its images in art/skins/. Enabled "no" keeps a skin out of the shop (owners keep it).
   const skins = [], skinKeys = new Set();
   // No Skins tab yet (Google returns the first tab for an unknown name): skins stay as they are (the sync keeps them).
   const skinsTab = typeof tabs[SKINS_TAB] === 'string' && parseCsv(tabs[SKINS_TAB])[0]?.some(c => c.trim() === 'Kind');
@@ -37,7 +37,7 @@ function validate(tabs, kit, errors, warnings = [], { hasFile = f => fs.existsSy
       if (price === null || !Number.isInteger(price) || price < 1) bad.push(`${at(4)}: "${rawPrice}" must be a whole number of squares, 1 or more`);
       if (!collection) bad.push(`${at(5)}: blank`);
       if (!/^(yes|no)$/i.test(enabled)) bad.push(`${at(6)}: "${enabled}" must be yes or no`);
-      for (const f of /^[a-z0-9-]+$/.test(key) ? skinFiles(key) : []) if (!hasFile(f)) bad.push(`${at(0)}: no image plugins/skins/look/${f}`);
+      for (const f of /^[a-z0-9-]+$/.test(key) ? skinFiles(key) : []) if (!hasFile(f)) bad.push(`${at(0)}: no image art/skins/${f}`);
       if (bad.length) return errors.push(...bad);
       skins.push({ id: key, name, kind, rarity, price, collection, enabled: /^yes$/i.test(enabled) });
     });

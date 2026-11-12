@@ -3,11 +3,11 @@
 // scripts/perf/measure.js and scripts/perf/shots.js, which talk to it over IPC. No game code is changed to measure.
 const path = require('path');
 const ROOT = path.join(__dirname, '..', '..');
-const { testDb, newGuest, claim } = require(ROOT + '/test/helpers');
-const store = require(ROOT + '/store');
-const rules = require(ROOT + '/rules');
-const terrain = require(ROOT + '/public/terrain');
-const { createGame } = require(ROOT + '/app');
+const { testDb, newGuest, claim } = require(ROOT + '/tests/helpers');
+const store = require(ROOT + '/server/store');
+const rules = require(ROOT + '/server/rules');
+const terrain = require(ROOT + '/client/terrain');
+const { createGame } = require(ROOT + '/server/app');
 
 const PORT = Number(process.env.PERF_PORT || 3099);
 const counts = { queries: 0, tx: 0, pin: 0, pout: 0, bin: 0, bout: 0 };

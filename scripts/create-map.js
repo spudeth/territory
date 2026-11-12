@@ -1,10 +1,10 @@
 // Makes a new official map of empty blocks. Players can switch to it straight away.
 //   npm run create-map -- --name "Snowfield" --style white --width 32 --height 32
 // Uses the database in .env.local (or DATABASE_URL). On the production branch it also needs --production.
-const rules = require('../rules');
+const rules = require('../server/rules');
 const path = require('path');
 const { createPool } = require('../db');
-const store = require('../store');
+const store = require('../server/store');
 
 for (const f of ['.env.local', '.env']) {
   try { process.loadEnvFile(path.join(__dirname, '..', f)); } catch {}

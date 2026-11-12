@@ -1,9 +1,9 @@
 // ---------- Skins in the browser (loop 15; a plug-in since loop 19) ----------
 // How territories look (the look hook game.js asks: plain, a pattern in the owner's color, or art; per block or one
 // image over the whole area), the Skins tab of the Marketplace (buy, star), the skin and coverage choices on the
-// setup screen, and favorites on the profile. Images are in look/ (<id>.png, <id>-large.png, <id>-anim.png).
+// setup screen, and favorites on the profile. Images are in art/skins/ (<id>.png, <id>-large.png, <id>-anim.png).
 (function () {
-  const LOOK = '/plugins/skins/look/';
+  const LOOK = '/art/skins/';
   let kinds = {}, animated = [];   // from the welcome: { id: 'pattern' | 'art' }, and the animated (Legendary) ids
   Object.assign(INFO, SkinsText.info);
 
@@ -22,7 +22,7 @@
   <span class="right" id="skins-owned"></span>
 </div>
 <p style="margin: 0; font-size: 15px; line-height: 1.35; color: var(--soft)">Buy skins with squares. Owned skins work on every map: you pick one when you first enter a map. Prices follow this map's level.</p>
-<div class="split" style="align-items: center"><span data-info="skinPrices">Your squares</span><span class="chip"><img class="sq-icon" src="icons/square.svg" width="14" height="14" alt=""><span id="skins-squares">0</span></span></div>
+<div class="split" style="align-items: center"><span data-info="skinPrices">Your squares</span><span class="chip"><img class="sq-icon" src="art/icons/square.svg" width="14" height="14" alt=""><span id="skins-squares">0</span></span></div>
 <div class="tabs yellow" role="tablist" aria-label="Collections" id="skins-tabs"></div>
 <input class="field" id="skins-search" type="search" placeholder="Search skins, e.g. Japan" autocomplete="off" aria-label="Search skins">
 <div id="catalog"></div>
@@ -118,7 +118,7 @@
           b.className = 'btn buy';
           const short = s.price - squares;
           b.disabled = short > 0;
-          b.innerHTML = short > 0 ? `Need ${fmtNeed(short)} more` : `${fmtSq(s.price)} <img class="sq-icon" src="icons/square.svg" width="12" height="12" alt="squares">`;
+          b.innerHTML = short > 0 ? `Need ${fmtNeed(short)} more` : `${fmtSq(s.price)} <img class="sq-icon" src="art/icons/square.svg" width="12" height="12" alt="squares">`;
           b.addEventListener('click', () => buySkin(s, b));
           t.append(b);
         }

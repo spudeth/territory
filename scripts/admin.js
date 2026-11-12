@@ -7,7 +7,7 @@
 const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
-const { COMMANDS } = require('../admin-spec');
+const { COMMANDS } = require('../server/admin-spec');
 
 const ROOT = path.join(__dirname, '..');
 

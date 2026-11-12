@@ -3,12 +3,12 @@ const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
-const { createGame } = require('../../../app');
-const economy = require('../../../economy');
-const catalog = require('../../../catalog');
-const store = require('../../../store');
-const skins = require('../../../public/skins');
-const { testDb, connectPlayer } = require('../../../test/helpers');
+const { createGame } = require('../../../server/app');
+const economy = require('../../../server/economy');
+const catalog = require('../../../server/catalog');
+const store = require('../../../server/store');
+const skins = require('../../../client/skins');
+const { testDb, connectPlayer } = require('../../../tests/helpers');
 const data = require('../data');
 const D = require('../data.json');
 const SKINS = D.skins;
@@ -23,7 +23,7 @@ test('the catalog: 6 patterns and the flags of every UN member plus regions, eac
   assert.ok(flags.length >= 199, `${flags.length} flags`);
   assert.ok(flags.every(s => s.kind === 'art' && s.rarity === 'Rare'), 'flags are art, rare');
   assert.equal(new Set(flags.map(s => s.price)).size, 1, 'one price for all flags');
-  for (const s of SKINS) for (const f of data.skinFiles(s.id)) assert.ok(fs.existsSync(path.join(__dirname, '..', 'look', f)), f);
+  for (const s of SKINS) for (const f of data.skinFiles(s.id)) assert.ok(fs.existsSync(path.join(__dirname, '..', '..', '..', 'art', 'skins', f)), f);
 });
 
 test('art skins get the thicker border in the owner color; Full area images cover without stretching', () => {
@@ -45,7 +45,7 @@ test('the Skins and Skin Rarity tabs are data.json; bad rows are named by cell; 
   lines[2] = 'checker,Again,pattern,Common,100,,yes';
   const errors = read({ ...tabs, Skins: lines.join('\n') }, { hasFile: f => !f.includes('flag-fr') }).errors;
   for (const re of [/"shiny" must be pattern or art/, /"Epic" must be Common, Rare, Ultra Rare, Legendary/, /"cheap" must be a whole number/,
-    /"maybe" must be yes or no/, /"checker" appears twice/, /\("Collection"\): blank/, /no image plugins\/skins\/look\/flag-fr\.png/]) {
+    /"maybe" must be yes or no/, /"checker" appears twice/, /\("Collection"\): blank/, /no image art\/skins\/flag-fr\.png/]) {
     assert.ok(errors.some(e => re.test(e)), `${re} in:\n${errors.join('\n')}`);
   }
   const rarity = tabs['Skin Rarity'].split(/\r?\n/);

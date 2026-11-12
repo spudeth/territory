@@ -2,11 +2,11 @@
 // everyone seeing terrain changes. The dev database, a throwaway schema.
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const { createGame } = require('../../../app');
-const rules = require('../../../rules');
-const catalog = require('../../../catalog');
-const store = require('../../../store');
-const { testDb, connectPlayer } = require('../../../test/helpers');
+const { createGame } = require('../../../server/app');
+const rules = require('../../../server/rules');
+const catalog = require('../../../server/catalog');
+const store = require('../../../server/store');
+const { testDb, connectPlayer } = require('../../../tests/helpers');
 
 let db, pool, game, url;
 const sockets = [];
@@ -78,7 +78,7 @@ test('Super Click: x10 for 5 seconds, then normal; once an hour, even from two d
 test('Terraformer: own blocks and empty ones next to them; never gold; 5 an hour; everyone sees it', async () => {
   const seed = 'terraform test';
   const id = await store.createMap(pool, { name: 'Terra', seed, blocks: 3000 });
-  const world = require('../../../public/terrain').makeWorld(seed, rules.TERRAIN);
+  const world = require('../../../client/terrain').makeWorld(seed, rules.TERRAIN);
   const cells = (await pool.query('SELECT x, y FROM map_cells WHERE map_id = $1', [id])).rows;
   const gold = cells.find(c => world.at(c.x, c.y) === 'gold');
   const g = await guestWith(750);
@@ -129,8 +129,8 @@ test('Demolition is used up: bought singly or in batches at its Hours price each
 test('as a plug-in (loop 19): its browser files are served, the welcome lists them, and its Game Guide section shows', async () => {
   const s = player();
   const w = await s.welcome;
-  assert.deepEqual(w.plugins.find(p => p.name === 'items').files.map(f => f.replace(/[?]v=[0-9a-f]+$/, '')), ['/plugins/items/text.js', '/plugins/items/style.css', '/plugins/items/client.js']);
-  for (const f of ['text.js', 'style.css', 'client.js', 'look/demolition.png']) assert.equal((await fetch(`${url}/plugins/items/${f}`)).status, 200, f);
+  assert.deepEqual(w.plugins.find(p => p.name === 'items').files.map(f => f.replace(/[?]v=[0-9a-f]+$/, '')), ['/plugins/items/text.js', '/art/styles/items.css', '/plugins/items/client.js']);
+  for (const f of ['/plugins/items/text.js', '/art/styles/items.css', '/plugins/items/client.js', '/art/items/demolition.png']) assert.equal((await fetch(url + f)).status, 200, f);
   assert.equal((await fetch(`${url}/plugins/items/server.js`)).status, 404, 'never its server code');
   const html = await (await fetch(url + '/guide')).text();
   assert.ok(html.includes('<h2 id="items">Items</h2>') && html.includes('href="#items"') && html.includes('Super Click'), 'its Guide section and link');

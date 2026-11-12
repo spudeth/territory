@@ -7,5 +7,6 @@
     "text.js",
     "client.js"
   ],
+  "art": "art/walls",
   "variables": {}
 }
