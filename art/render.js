@@ -147,7 +147,7 @@ for (const file of files) {
   if (check) {
     const old = fs.existsSync(pngFile) ? fs.readFileSync(pngFile) : null, oldRows = old && pngRows(old);
     if (!oldRows || !oldRows.equals(pixels.raw) || old.readUInt32BE(16) !== pixels.W || old.readUInt32BE(20) !== pixels.h) problems.push(`${rel(pngFile)} is missing or out of date`);
-    const oldJson = fs.existsSync(jsonFile) ? fs.readFileSync(jsonFile, 'utf8') : null;
+    const oldJson = fs.existsSync(jsonFile) ? fs.readFileSync(jsonFile, 'utf8').replace(/\r\n/g, '\n') : null;   // Windows checkouts
     if (oldJson !== json) problems.push(`${rel(jsonFile)} is ${json === null ? 'not needed' : oldJson === null ? 'missing' : 'out of date'}`);
   } else {
     fs.writeFileSync(pngFile, png(pixels));
