@@ -10,7 +10,7 @@ const fs = require('fs');
 const zlib = require('zlib');
 const { fork } = require('child_process');
 const puppeteer = require('puppeteer-core');
-const { connectPlayer } = require('../../test/helpers');
+const { connectPlayer } = require('../../tests/helpers');
 
 const LABEL = process.argv[2] || 'before';
 const CHROME = process.env.CHROME || 'C:/Program Files/Google/Chrome/Application/chrome.exe';

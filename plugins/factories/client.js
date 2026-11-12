@@ -3,7 +3,7 @@
 // info card's factory section (status, output, target, Wake up for yours).
 (function () {
   let factories = new Map();   // "x,y" -> { x, y, owner, awakeUntil, paused }
-  const art = name => Object.assign(new Image(), { src: `/plugins/factories/look/${name}.png`, onload: () => draw() });
+  const art = name => Object.assign(new Image(), { src: `/art/factories/${name}.png`, onload: () => draw() });
   const awakeArt = art('factory'), asleepArt = art('factory-asleep');
   Object.assign(INFO, FactoriesText.info);
 
@@ -59,7 +59,7 @@
       }
       return box;
     },
-    // Factories on the map, under the territory borders: awake or asleep art (look/, 16 px per block), drawn crisp.
+    // Factories on the map, under the territory borders: awake or asleep art (art/factories/, 16 px per block), drawn crisp.
     drawUnder(ctx, { X, Y, r0, r1, c0, c1 }) {
       const now = Date.now();
       for (const f of factories.values()) {

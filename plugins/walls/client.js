@@ -14,7 +14,7 @@
   const SIDES = { n: [0, -1], e: [1, 0], s: [0, 1], w: [-1, 0] };
   const OPPOSITE = { n: 's', s: 'n', e: 'w', w: 'e' };
   const SIDE_NAMES = { n: 'top', e: 'right', s: 'bottom', w: 'left' };
-  const art = Object.assign(new Image(), { src: '/plugins/walls/look/wall.png' });
+  const art = Object.assign(new Image(), { src: '/art/walls/wall.png' });
   art.onload = () => draw();
   Object.assign(INFO, WallsText.info);
 
@@ -109,7 +109,7 @@
       }
       return box;
     },
-    // Walls along their sides (look/wall.png: the wall is the art's top quarter, stretched), solid, on top of the
+    // Walls along their sides (art/walls/wall.png: the wall is the art's top quarter, stretched), solid, on top of the
     // territory border, each casting a shadow on its inner edge (30% of the border's thickness, in the border's
     // colour 50% darker); darker as they crack. The batch being placed shows at half strength.
     drawOver(ctx, { X, Y, r0, r1, c0, c1, borderOf }) {

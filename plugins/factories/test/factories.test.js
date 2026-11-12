@@ -2,12 +2,12 @@
 // after a long sleep, lifetime and waking, and destruction on a throwaway schema in the dev database.
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const { createGame } = require('../../../app');
-const catalog = require('../../../catalog');
-const upgrades = require('../../../upgrades');
-const rules = require('../../../rules');
-const store = require('../../../store');
-const { testDb, newGuest, claim, connectPlayer } = require('../../../test/helpers');
+const { createGame } = require('../../../server/app');
+const catalog = require('../../../server/catalog');
+const upgrades = require('../../../server/upgrades');
+const rules = require('../../../server/rules');
+const store = require('../../../server/store');
+const { testDb, newGuest, claim, connectPlayer } = require('../../../tests/helpers');
 const D = require('../data.json');
 const fac = require('../rules')(catalog, rules, D);
 
@@ -61,7 +61,7 @@ test('Yield is never more than the block\'s normal pay; the limit is 1 per facto
 });
 
 test('the Factories tab is data.json; factoryAreaSize must be odd; the price is P_F x V_F x W(L) x g^(n-1); the guide section', () => {
-  const economy = require('../../../economy'), data = require('../data');
+  const economy = require('../../../server/economy'), data = require('../data');
   const csv = require('fs').readFileSync(require('path').join(__dirname, 'Factories.csv'), 'utf8');
   const read = tab => { const errors = [], out = data.validate({ Factories: tab }, economy.sheetKit({ Factories: tab }, errors), errors); return { errors, out }; };
   assert.deepEqual(read(csv), { errors: [], out: D }, 'the saved tab is data.json');
@@ -76,7 +76,7 @@ test('the Factories tab is data.json; factoryAreaSize must be odd; the price is 
   assert.equal(fac.priceTenths(1, 1), catalog.toTenths(48 * 0.05 * 1200));
   assert.equal(fac.priceTenths(1, 3), catalog.toTenths(48 * 0.05 * 1200 * 1.15 ** 2));
   // The guide: its section, after Upgrades, with its numbers.
-  const { renderGuide } = require('../../../guide');
+  const { renderGuide } = require('../../../server/guide');
   let section = null;
   require('../server')({ ...fakeApi(), on: (hook, fn) => { if (hook === 'guide') section = fn; } });
   const html = renderGuide({ pluginSections: helpers => [section(helpers)] });

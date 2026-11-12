@@ -1,7 +1,7 @@
 // The achievements plug-in's sheet tab (loop 19): Achievements (one row each) -> data.json { achievements }.
 // npm run sync-rules calls validate() with the core's sheet tools. The stats an achievement may use are the core's
 // (economy.STATS: the ones the game counts).
-const { STATS } = require('../../economy');
+const { STATS } = require('../../server/economy');
 const ACHIEVEMENTS_TAB = 'Achievements';
 const ACHIEVEMENT_COLUMNS = ['Key', 'Name', 'Category', 'Stat', 'Threshold', 'Secret', 'Description', 'Reward'];
 

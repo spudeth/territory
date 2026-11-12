@@ -3,14 +3,14 @@
   "version": "1.0.0",
   "private": true,
   "description": "A tiny multiplayer block-claiming game",
-  "main": "server.js",
+  "main": "server/server.js",
   "engines": {
     "node": "24.x"
   },
   "scripts": {
-    "start": "node server.js",
-    "build": "node --check server.js",
-    "test": "node --test --test-concurrency=1 \"test/*.test.js\" \"plugins/*/test/*.test.js\"",
+    "start": "node server/server.js",
+    "build": "node --check server/server.js",
+    "test": "node --test --test-concurrency=1 \"tests/*.test.js\" \"plugins/*/test/*.test.js\"",
     "backup": "node scripts/backup.js",
     "create-map": "node scripts/create-map.js",
     "sync-rules": "node scripts/sync-rules.js",

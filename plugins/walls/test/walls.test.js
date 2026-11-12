@@ -2,11 +2,11 @@
 // throwaway schema in the dev database.
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const { createGame } = require('../../../app');
-const catalog = require('../../../catalog');
-const rules = require('../../../rules');
-const store = require('../../../store');
-const { testDb, newGuest, claim, connectPlayer } = require('../../../test/helpers');
+const { createGame } = require('../../../server/app');
+const catalog = require('../../../server/catalog');
+const rules = require('../../../server/rules');
+const store = require('../../../server/store');
+const { testDb, newGuest, claim, connectPlayer } = require('../../../tests/helpers');
 const D = require('../data.json');
 const W = require('../rules').wallRules(rules, D.maxWallsPerBlock);
 // The core's hit check, then the walls plug-in's (as app.js asks it).
@@ -49,7 +49,7 @@ test('attacking: through walls only, the wall is hit first; your own wall blocks
 });
 
 test('the Walls tab and the price: wallPriceWh x W(L) x max(1, sqrt(walls owned) / 2)', () => {
-  const economy = require('../../../economy'), data = require('../data');
+  const economy = require('../../../server/economy'), data = require('../data');
   const csv = require('fs').readFileSync(require('path').join(__dirname, 'Walls.csv'), 'utf8');
   const errors = [], out = data.validate({ Walls: csv }, economy.sheetKit({ Walls: csv }, errors), errors);
   assert.deepEqual([errors, out], [[], D], 'the saved tab is data.json');

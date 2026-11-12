@@ -8,8 +8,8 @@
 // one reads is skipped with a warning (Charts is display only).
 const fs = require('fs');
 const path = require('path');
-const economy = require('../economy');
-const plugins = require('../plugins');
+const economy = require('../server/economy');
+const plugins = require('../server/plugins');
 const IGNORED_TABS = ['Charts'];
 
 const SHEET = '1YIivEUXUWMkdw3w3hlmRn7PkTzH6Xry7EJTr8SuFKiM';

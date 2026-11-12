@@ -2,8 +2,8 @@
 // hidden until earned, and progress from before is caught up on connecting.
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const { createGame } = require('../../../app');
-const { testDb, connectPlayer } = require('../../../test/helpers');
+const { createGame } = require('../../../server/app');
+const { testDb, connectPlayer } = require('../../../tests/helpers');
 
 let db, pool, game, url;
 const sockets = [];

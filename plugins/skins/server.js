@@ -109,7 +109,7 @@ module.exports = api => {
     + rarities.map(([r]) => {
       const list = SKINS.filter(s => s.enabled && (s.id.startsWith('flag-') ? 'Rare' : s.rarity) === r);
       return list.length ? `<h3>${esc(r)} (${list.length})</h3><div class="gallery">${list.map(s =>
-        `<figure><img src="plugins/skins/look/${esc(s.id)}.png" alt="" width="40" height="40" loading="lazy"><figcaption>${esc(s.name)}</figcaption></figure>`).join('')}</div>` : '';
+        `<figure><img src="art/skins/${esc(s.id)}.png" alt="" width="40" height="40" loading="lazy"><figcaption>${esc(s.name)}</figcaption></figure>`).join('')}</div>` : '';
     }).join('') };
   });
 };

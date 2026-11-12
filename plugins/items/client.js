@@ -5,7 +5,7 @@
 // (Plugins.add below, addMarketTab) and the page's shared helpers (socket, toast, cells, …).
 (function () {
   let demolishing = new Set();   // "x,y": blocks picked for Demolition (shown red, drawOver below)
-  const LOOK = '/plugins/items/look/';
+  const LOOK = '/art/items/';
   Object.assign(INFO, ItemsText.info);   // its "i" texts (text.js)
   // Its pieces of the page: the item bar, the Terraformer's and Demolition's picker, and the Marketplace tab.
   const bar = Object.assign(document.createElement('div'), { id: 'itembar', hidden: true });
@@ -18,7 +18,7 @@
       <h1>MARKETPLACE</h1>
     </div>
     <p style="margin: 0; font-size: 15px; color: var(--soft)">${ItemsText.marketIntro}</p>
-    <div class="split" style="align-items: center"><span data-info="items">Your squares</span><span class="chip"><img class="sq-icon" src="icons/square.svg" width="14" height="14" alt=""><span id="items-squares">0</span></span></div>
+    <div class="split" style="align-items: center"><span data-info="items">Your squares</span><span class="chip"><img class="sq-icon" src="art/icons/square.svg" width="14" height="14" alt=""><span id="items-squares">0</span></span></div>
     <div id="items-list" class="items-list"></div>` });
   const ICONS = {
     clickMultiplier: '<svg class="pix" width="26" height="26" viewBox="0 0 8 8" aria-hidden="true"><path d="M4 0h3L5 3h2L2 8l1-4H1z" fill="#0f131a"/></svg>',
@@ -62,7 +62,7 @@
           const short = i.price * qty - squares;
           b.disabled = short > 0;
           b.innerHTML = short > 0 ? `Need ${fmtNeed(short)} more`
-            : `Buy${qty > 1 ? ' ' + qty : ''} ${fmtSq(i.price * qty)} <img class="sq-icon" src="icons/square.svg" width="14" height="14" alt="squares">`;
+            : `Buy${qty > 1 ? ' ' + qty : ''} ${fmtSq(i.price * qty)} <img class="sq-icon" src="art/icons/square.svg" width="14" height="14" alt="squares">`;
           if (n) n.textContent = qty;
         };
         let n = null;
@@ -184,7 +184,7 @@
       const b = document.createElement('button');
       b.type = 'button';
       b.title = t[0].toUpperCase() + t.slice(1);
-      b.style.backgroundImage = `url(tiles/${t === 'grass' ? 'tile_0000' : 'terrain-' + t + (t === 'water' ? '-0' : '')}.png)`;
+      b.style.backgroundImage = `url(art/tiles/${t === 'grass' ? 'tile_0000' : 'terrain-' + t + (t === 'water' ? '-0' : '')}.png)`;
       b.addEventListener('click', async () => {
         const r = await ask('items:use', { item: item.id, x: c.x, y: c.y, terrain: t });
         if (r.error) return toast(r.nextAt ? `${r.error}: free in ${fmt(r.nextAt - Date.now())}` : r.error);

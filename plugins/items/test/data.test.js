@@ -3,7 +3,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
-const economy = require('../../../economy');
+const economy = require('../../../server/economy');
 const data = require('../data');
 
 const saved = fs.readFileSync(path.join(__dirname, 'Items.csv'), 'utf8');

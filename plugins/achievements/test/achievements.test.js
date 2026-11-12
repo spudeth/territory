@@ -49,7 +49,7 @@ test('bad definitions are refused', () => {
 });
 
 test('the Achievements tab is data.json; bad rows are named by cell; without the tab data.json stays', () => {
-  const fs = require('fs'), path = require('path'), economy = require('../../../economy'), data = require('../data');
+  const fs = require('fs'), path = require('path'), economy = require('../../../server/economy'), data = require('../data');
   const read = tabs => { const errors = [], out = data.validate(tabs, economy.sheetKit(tabs, errors), errors); return { errors, out }; };
   const csv = fs.readFileSync(path.join(__dirname, 'Achievements.csv'), 'utf8');
   const ok = read({ Achievements: csv });
@@ -69,10 +69,10 @@ test('the Achievements tab is data.json; bad rows are named by cell; without the
 });
 
 test('the guide lists every achievement, secrets as "???"', () => {
-  const { renderGuide } = require('../../../guide');
+  const { renderGuide } = require('../../../server/guide');
   const D = require('../data.json');
   let section = null;
-  require('../server')({ options: {}, plugin: { data: D }, catalog: require('../../../catalog'), rules: require('../../../rules'),
+  require('../server')({ options: {}, plugin: { data: D }, catalog: require('../../../server/catalog'), rules: require('../../../server/rules'),
     on: (hook, fn) => { if (hook === 'guide') section = fn; }, socket() {} });
   const html = renderGuide({ pluginSections: helpers => [section(helpers)] });
   assert.ok(html.includes('href="#achievements">Achievements</a>') && html.includes(D.achievements.find(a => !a.secret).name));

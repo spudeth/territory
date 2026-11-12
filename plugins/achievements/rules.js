@@ -2,7 +2,7 @@
 // Each is earned once per player, the first time one of their stats reaches its threshold, and pays its reward
 // in squares. Stats are listed in economy.js (STATS); most count up, bestRank counts down ("#3 or better").
 // Ids are stored in the database: never reuse or rename one; add new ones instead.
-const { COUNTS_DOWN } = require('../../totals');   // the core's: bestRank counts down
+const { COUNTS_DOWN } = require('../../server/totals');   // the core's: bestRank counts down
 
 // The checks a stat event needs, found by stat name so hundreds of definitions stay cheap.
 function index(definitions) {

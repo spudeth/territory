@@ -7,6 +7,7 @@
     "text.js",
     "client.js"
   ],
+  "art": "art/factories",
   "variables": {
     "factories.speed": 0.05,
     "factories.lifetime": 4,
