@@ -1,0 +1,5 @@
+{
+  "order": 50,
+  "client": ["client.js"],
+  "variables": { "hello.size": 3 }
+}

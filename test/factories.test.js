@@ -4,6 +4,7 @@ const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { createGame } = require('../app');
 const catalog = require('../catalog');
+const upgrades = require('../upgrades');
 const fac = require('../factories');
 const rules = require('../rules');
 const store = require('../store');
@@ -109,7 +110,7 @@ test('building: on your own land, priced P_F x V_F x W(L) x g^(n-1); one per fac
   assert.deepEqual(await s.ask('build', { kind: 'factory', x: 0, y: 0 }), { ok: true, squares: price / 10 });
   const f = await built;
   assert.equal(f.owner, pid);
-  assert.ok(Math.abs(f.awakeUntil - Date.now() - catalog.tierValue('factoryLifetime', 0) * 3600000) < 60000, 'awake for Factory Lifetime hours');
+  assert.ok(Math.abs(f.awakeUntil - Date.now() - upgrades.tierValue('factoryLifetime', 0) * 3600000) < 60000, 'awake for Factory Lifetime hours');
   assert.deepEqual(await s.ask('build', { kind: 'factory', x: 1, y: 0 }), { error: `Own ${E.factoryBlocksPerFactory} more blocks for another factory (you have ${E.factoryBlocksPerFactory}).` });
   assert.equal((await s.ask('buildInfo')).factory.price, catalog.priceTenths(catalog.CATALOG.get('building:factory'), { L: 1, n: 2 }) / 10, 'the next costs g times more');
   const card = await s.ask('inspect', { x: 0, y: 0 });
@@ -180,13 +181,13 @@ test('a factory is destroyed when its block is taken; Demolition removes one for
   await gone;
   assert.equal(await db.count('SELECT count(*) FROM factories WHERE map_id = $1 AND x = 0 AND y = 0', [id]), 0);
   // Demolition: the owner removes their other factory.
-  const price = catalog.priceTenths(catalog.CATALOG.get('item:demolition'), { L: 1 });
+  const price = catalog.priceTenths(require('../plugins/items/data.json').items.find(i => i.id === 'demolition'), { L: 1 });
   await pool.query('UPDATE players SET squares = $2 WHERE id = $1', [pid, price]);
   const s = player({ token });
   await onMap(s, id);
-  await s.ask('buyItem', { item: 'demolition' });
+  await s.ask('items:buy', { item: 'demolition' });
   // Its block and a bare one: only the block with the factory uses a Demolition.
-  const r = await s.ask('useItem', { item: 'demolition', blocks: [[1, 0], [2, 0]] });
+  const r = await s.ask('items:use', { item: 'demolition', blocks: [[1, 0], [2, 0]] });
   assert.deepEqual([r.ok, r.cleared, r.count], [true, 1, 0]);
   assert.equal(await db.count('SELECT count(*) FROM factories WHERE map_id = $1', [id]), 0);
   assert.equal((await s.ask('inspect', { x: 1, y: 0 })).factory, undefined);

@@ -1,0 +1,7 @@
+Key,Value,Unit,What it means
+factoryBlocksPerFactory,20,blocks,You may own 1 factory for every this many blocks you own
+factoryBuildPaybackHours,48,hours,P_F: payback hours used in a factory's build price
+factoryValuePerHour,0.05,work-hours/hour,"V_F: value one base factory gives per hour, used in its build price"
+factoryBuildGrowth,1.15,x,g: each factory you own makes the next one cost this much more
+factoryAreaSize,5,blocks,"A factory's home square is this many blocks wide, centered on it (5 = 25 blocks)"
+factoryDistancePenaltyWh,0.0005,work-hours,Extra work a factory needs for each block of distance its target lies outside its home square

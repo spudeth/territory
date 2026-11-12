@@ -1,0 +1,4 @@
+Key,Value,Unit,What it means
+wallStrength,2,x hardness,w: hits to break a wall = w x the block's hardness H
+wallPriceWh,0.01,work-hours,"Wall price = this x W(L of the block) x max(1, sqrt(walls you own on this map) / 2). One price for every wall in a batch"
+maxWallsPerBlock,2,walls,"Most walls one block can have, each on a different outer side (2 lets you build corners)"

@@ -33,6 +33,7 @@ let landHighlight = null;       // the listing whose bundle the info card highli
     $('sell-ok').disabled = !ok || !(Number($('sell-price').value) > 0);
     draw();
   }
+  addBuildTool({ id: 'sell', order: 30, label: 'Sell land', sub: () => 'Pick connected blocks, then a price', start: () => window.startSelling() });
   window.startSelling = () => {
     landSelect = new Set();
     $('sell-price').value = '';

@@ -7,7 +7,12 @@ const store = require('./store');
 const { adminRouter, bannedMessage } = require('./admin');
 const rules = require('./rules');
 const catalog = require('./catalog');
+const upgrades = require('./upgrades');
 const { createTicker } = require('./ticker');
+const pluginHost = require('./plugins');
+const { tx } = require('./db');
+const variables = require('./variables');
+const path = require('path');
 const fac = require('./factories');
 const { renderGuide } = require('./guide');
 const chat = require('./chat');
@@ -24,7 +29,7 @@ const { key } = rules;
 // A player's upgrade steps ({ key: steps }, missing = 0). What they give on a level-L block: tiersOn(steps, L), each
 // upgrade capped at the end of tier L (loop 18: the block's level, not the map's).
 const upgradesOf = row => ({ ...(row.upgrade_steps ?? {}) });
-const tiersOn = (steps, L) => catalog.effectiveValues(steps, L);
+const tiersOn = (steps, L) => upgrades.effectiveValues(steps, L);
 
 // Behind Render the socket address is a proxy's. Cloudflare (in front of every public Render service) sets
 // CF-Connecting-IP and overwrites any value the visitor sends, so prefer it. X-Forwarded-For is only a fallback:
@@ -49,7 +54,8 @@ function guestLimiter(limit, windowMs) {
 //   publicUrl: the site's address (https://territory.sarl); requests for any other host, such as www or
 //              the onrender.com address, are sent there. Unset locally.
 function createGame(pool, { startTicker = false, email = createEmail(), achievementList = achievements.DEFINITIONS, guestsPerIp = rules.GUESTS_PER_IP, crackDecayMs = rules.CRACK_DECAY_SECONDS * 1000,
-  auth = null, publicUrl = null, tapsPerSecond = null, tapLogMs = 60 * 1000, adminKey = null } = {}) {
+  auth = null, publicUrl = null, tapsPerSecond = null, tapLogMs = 60 * 1000, adminKey = null, plugins = null, pluginDir = pluginHost.DIR } = {}) {
+  // plugins: the plug-in folders to load (names), or null for every folder in pluginDir (loop 19; tests use a fixture folder).
   // adminKey: the secret npm run admin must send (ADMIN_KEY); without it, admin commands are off.
   // The server counts as production when it has a publicUrl; admin commands then need --prod.
   // tapsPerSecond: the tap-rate limit, or null for rules.MAX_TAPS_PER_SECOND (tests that tap like a bot raise it)
@@ -70,7 +76,7 @@ function createGame(pool, { startTicker = false, email = createEmail(), achievem
   app.get('/guide', async (req, res) => {
     try {
       const { rows } = await pool.query("SELECT name, base_blocks::float AS base FROM maps WHERE type = 'official' ORDER BY id");
-      res.type('html').send(renderGuide({ maps: rows }));
+      res.type('html').send(renderGuide({ maps: rows, pluginSections: helpers => hooks.collect('guide', helpers) }));
     } catch (err) {
       console.error(`GUIDE FAILED: ${err.message}`);
       res.status(500).type('text').send('The guide could not load. Try again in a moment.');
@@ -90,6 +96,19 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
   // Browsers check every file for a newer version (a quick "not modified" when unchanged), so after an update
   // nobody keeps running old game code from their cache. Also serves /privacy and /terms.
   app.use(express.static(__dirname + '/public', { extensions: ['html'], setHeaders: res => res.setHeader('Cache-Control', 'no-cache') }));
+
+  // Plug-ins (loop 19): only their browser files and look/ are served, never their server code.
+  const loadedPlugins = pluginHost.list({ dir: pluginDir, names: plugins });
+  const hooks = pluginHost.createHooks();
+  for (const p of loadedPlugins) {
+    for (const f of p.client) app.get(`/plugins/${p.name}/${f}`, (req, res) => res.set('Cache-Control', 'no-cache').sendFile(path.join(p.dir, f)));
+    app.use(`/plugins/${p.name}/look`, express.static(path.join(p.dir, 'look'), { setHeaders: res => res.setHeader('Cache-Control', 'no-cache') }));
+  }
+  // The variables this game has (the core's and its plug-ins'), and so the upgrades that show: those changing one.
+  const known = variables.declared(loadedPlugins);
+  const shownUpgrades = new Set(upgrades.available(known));
+  // Plug-in socket events, named "<plug-in>:<event>": [[name, handler(ctx, …args)]], added to every connection.
+  const pluginEvents = [];
 
   const server = http.createServer(app);
   // Large messages (the whole map on joining: 1.4 MB at 100,000 blocks) are compressed, fast setting, to about
@@ -242,12 +261,12 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
 
   // A block as the info card shows it, for player `pid` (with `upgrades`): coordinates, terrain, level and
   // hardness; its pay if mined, or the hits to take it; its owner. Later phases add walls, factories, listings.
-  function blockInfo(map, x, y, pid, upgrades) {
+  function blockInfo(map, x, y, pid, steps) {
     const k = key(x, y), owner = map.cells.get(k) ?? null, terrain = map.terrainAt(x, y), level = map.birth.get(k) ?? 1;
     const H = rules.hardness(terrain, level);
     const info = { x, y, terrain, level, hardness: H, owner: owner && { pid: owner, name: map.players.get(owner)?.name ?? null } };
     if (terrain === 'water') info.water = true;
-    else if (owner === null) info.pay = catalog.fromTenths(rules.firstClaimTenths(tiersOn(upgrades, level), terrain, level));
+    else if (owner === null) info.pay = catalog.fromTenths(rules.firstClaimTenths(tiersOn(steps, level), terrain, level));
     else if (String(owner) !== String(pid)) info.hits = rules.hitsNeeded(tiersOn(map.players.get(owner)?.upgrades, level), terrain, level);
     const f = map.factories.get(k);
     if (f) info.factory = { ...factoryOut(map, f), mine: String(f.owner) === String(pid), target: f.target, perHour: factoryPerHour(map, f) };
@@ -259,14 +278,14 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
   }
 
   // Every upgrade: [{ key, name, type, unit, about, start, max1, mult, gain, steps (a tier), tiers: [{ tier, from, to, cost: the
-  // whole tier in squares }] }]: enough for the screen to work out any step's value (catalog.stepValue). Worked out once.
+  // whole tier in squares }] }]: enough for the screen to work out any step's value (upgrades.stepValue). Worked out once.
   let upgradeListCache = null;
-  const upgradeList = () => (upgradeListCache ??= Object.entries(catalog.CATALOG_TIERS).map(([key, u]) => ({ key, name: u.name, type: u.type, unit: u.unit, about: u.about,
+  const upgradeList = () => (upgradeListCache ??= Object.entries(catalog.CATALOG_TIERS).filter(([key]) => shownUpgrades.has(key)).map(([key, u]) => ({ key, name: u.name, type: u.type, unit: u.unit, about: u.about,
     start: u.start, max1: u.max1, mult: u.mult, gain: u.gainCurve, steps: u.steps,
-    tiers: Array.from({ length: u.tiers }, (_, i) => ({ tier: i + 1, from: catalog.lo(key, i + 1), to: catalog.hi(key, i + 1), cost: catalog.fromTenths(catalog.tierCostTenths(key, i + 1)) })) })));
+    tiers: Array.from({ length: u.tiers }, (_, i) => ({ tier: i + 1, from: upgrades.lo(key, i + 1), to: upgrades.hi(key, i + 1), cost: catalog.fromTenths(upgrades.tierCostTenths(key, i + 1)) })) })));
   // For one upgrade at `s` steps: the next step's value and price (squares), or null at the top.
-  const nextPrices = (key, s) => s >= catalog.topStep(key) ? null
-    : { value: catalog.stepValue(key, s + 1), price: catalog.fromTenths(catalog.stepCostTenths(key, s + 1)), tier: catalog.tierOfStep(key, s + 1) };
+  const nextPrices = (key, s) => s >= upgrades.topStep(key) ? null
+    : { value: upgrades.stepValue(key, s + 1), price: catalog.fromTenths(upgrades.stepCostTenths(key, s + 1)), tier: upgrades.tierOfStep(key, s + 1) };
 
   // Growth's fractional part is a chance of one more block: a seeded roll, so the same map and claims grow the same way.
   const growRoll = (map, x, y) => fac.tieRank(`grow:${map.seed}:${map.mined}`, x, y) / 4294967296;
@@ -280,7 +299,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
   function factoryPerHour(map, f) {
     const t = f.target && fac.stillTarget(map, f.owner, f.target) ? f.target : fac.chooseTarget(map, f.owner, f.x, f.y, `${map.seed}:${f.x},${f.y}`);
     if (!t) return 0;
-    const rate = fac.hitsPerSecond(ownerValues(map, f.owner, levelAt(map, t.x, t.y)).factorySpeed);
+    const rate = fac.hitsPerSecond(ownerValues(map, f.owner, levelAt(map, t.x, t.y))['factories.speed']);
     return rate * 3600 / fac.hitsFor(map, t.x, t.y, f.x, f.y, map.level());
   }
   const ownFactories = (map, owner) => [...map.factories.values()].filter(f => String(f.owner) === String(owner));
@@ -317,8 +336,8 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
     const { rows: [p] } = await pool.query('SELECT auth_user_id IS NOT NULL AS account, created_at > now() - make_interval(secs => $2 * 86400) AS young FROM players WHERE id = $1',
       [pid, catalog.E.marketMinAccountDays]);
     return {
-      factory: factoryInfo(map, pid).reason,
-      wall: owned ? null : 'Claim a block first: walls go on the edge of your land.',
+      // Each building tool's own reason (builders[kind].reason), then the land market's.
+      ...Object.fromEntries(Object.entries(builders).map(([kind, b]) => [kind, b.reason?.(map, pid) ?? null])),
       sell: !p?.account ? 'Only accounts can buy and sell land.' : p.young ? `Accounts can trade land once they are ${catalog.E.marketMinAccountDays} days old.`
         : owned ? null : 'You have no land on this map to sell.',
     };
@@ -330,7 +349,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
       if (refusal) return { error: refusal };
       const info = factoryInfo(map, pid);
       if (info.reason) return { error: info.reason };
-      const price = catalog.toTenths(info.price), awakeMs = ownerValues(map, pid, levelAt(map, x, y)).factoryLifetime * 3600000;
+      const price = catalog.toTenths(info.price), awakeMs = ownerValues(map, pid, levelAt(map, x, y))['factories.lifetime'] * 3600000;
       const r = await store.buildFactory(pool, { mapId: map.id, playerId: pid, x, y, price, limit: info.limit, awakeMs });
       if (r.error) return { error: r.error, ...(r.need !== undefined ? { need: catalog.fromTenths(r.need) } : {}) };
       const now = Date.now(), f = { id: r.id, owner: pid, x, y, built: now, awake: now + awakeMs, processed: fac.stepFloor(now), target: null };
@@ -348,6 +367,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
   const wallPriceTenths = (map, x, y, owned) => catalog.wallPriceTenths(levelAt(map, x, y), owned);
   const MAX_WALL_BATCH = 200;
   // { walls: [{ x, y, side }] } (or one { x, y, side }): all of them or none.
+  builders.factory.reason = (map, pid) => factoryInfo(map, pid).reason;
   builders.wall = async (map, pid, p) => {
     const list = Array.isArray(p.walls) ? p.walls : [{ x: p.x, y: p.y, side: p.side }];
     if (!list.length || list.length > MAX_WALL_BATCH || !list.every(w => Number.isInteger(w?.x) && Number.isInteger(w?.y) && typeof w.side === 'string')) {
@@ -378,6 +398,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
     totals.bump(pid, 'squaresSpent', catalog.fromTenths(price));
     return { ok: true, built: list.length, price: catalog.fromTenths(price), squares: catalog.fromTenths(r.squares) };
   };
+  builders.wall.reason = (map, pid) => (map.counts.get(pid) ? null : 'Claim a block first: walls go on the edge of your land.');
   // What a wall costs here for this player now, by block level (squares): { 1: price, 2: price, … } for the levels
   // on this map, so the preview can total a batch; and the multiplier from the walls they own.
   const wallPrices = (map, pid) => {
@@ -418,7 +439,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
   async function factoryClaim(map, f, x, y) {
     const owner = f.owner, k = key(x, y), level = map.birth.get(k) ?? 1, eff = ownerValues(map, owner, level);
     const r = await store.claimBlock(pool, { mapId: map.id, x, y, from: null, playerId: owner, newGuest: null, color: null,
-      grow: rules.growthBlocks(eff, growRoll(map, x, y)), birth: catalog.level(map.mined + 1, map.base), level, earn: fac.yieldTenths(eff.factoryYield, map, x, y) });
+      grow: rules.growthBlocks(eff, growRoll(map, x, y)), birth: catalog.level(map.mined + 1, map.base), level, earn: fac.yieldTenths(eff['factories.yield'], map, x, y) });
     if (r.conflict) {
       setOwner(map, k, await store.cellOwner(pool, map.id, x, y));
       io.to(map.room).emit('claim', { x, y, pid: map.cells.get(k) });
@@ -446,7 +467,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
     const pick = () => (f.target = fac.chooseTarget(map, f.owner, f.x, f.y, `${map.seed}:${f.x},${f.y}`));   // ties: the same seeded order every time
     if (!f.target || t % 60000 === 0 || !fac.stillTarget(map, f.owner, f.target)) pick();
     if (!f.target) { f.charge = 0; return false; }   // nothing to mine: it idles
-    f.charge = (f.charge ?? 0) + fac.hitsPerSecond(ownerValues(map, f.owner, levelAt(map, f.target.x, f.target.y)).factorySpeed) * secs;
+    f.charge = (f.charge ?? 0) + fac.hitsPerSecond(ownerValues(map, f.owner, levelAt(map, f.target.x, f.target.y))['factories.speed']) * secs;
     let hits = Math.floor(f.charge + 1e-9), took = false;
     f.charge = Math.max(0, f.charge - hits);
     while (hits > 0) {
@@ -520,9 +541,10 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
     }
   });
 
-  // What Demolition clears from a block (loop 18: everything built on it): { kind: { has(map, x, y), remove(client,
-  // map, x, y) in the item's transaction, removed(map, x, y) after } }. A new building is one more entry.
-  const demolishers = {
+  // What's built on a block (loop 18; a core service since loop 19): { kind: { has(map, x, y), remove(client, map, x, y)
+  // inside a transaction, removed(map, x, y) after it } }. Demolition clears a block through this, so it never touches
+  // walls or factories itself. A new building is one more entry.
+  const builtProviders = {
     walls: {
       has: (map, x, y) => !!map.walls.get(key(x, y))?.length,
       remove: (c, map, x, y) => store.clearWalls(c, map.id, x, y),
@@ -534,7 +556,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
       removed: (map, x, y) => dropFactory(map, key(x, y)),
     },
   };
-  const builtOn = (map, x, y) => Object.values(demolishers).filter(d => d.has(map, x, y));
+  const builtOn = (map, x, y) => Object.values(builtProviders).filter(d => d.has(map, x, y));
 
   // A first claim on a map (by a player or a factory): its mined count goes up; everyone there sees the level's
   // progress (the level is worked out from mined and E).
@@ -550,7 +572,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
     const [values, progress, played] = await Promise.all([totals.values(pid), store.achievementProgress(pool, pid), store.mapsPlayed(pool, pid)]);
     const out = { ...values, owned: progress.best.owned, bestSquare: progress.best.bestSquare, bestLine: progress.best.bestLine,
       mapsPlayed: played, achievements: progress.earned.filter(e => knownIds.has(e.id)).length };
-    for (const k of Object.keys(catalog.CATALOG_TIERS)) out['level:' + k] = catalog.tierOfStep(k, levels[k] ?? 0);   // each upgrade's tier
+    for (const k of Object.keys(catalog.CATALOG_TIERS)) out['level:' + k] = upgrades.tierOfStep(k, levels[k] ?? 0);   // each upgrade's tier
     out.tiers = Object.keys(catalog.CATALOG_TIERS).reduce((n, k) => n + (levels[k] ?? 0), 0);   // steps bought in all
     if (account) out.account = 1;
     return { values: out, earned: progress.earned };
@@ -583,6 +605,16 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
     for (const [k, v] of lostTo) if (v.at < old) lostTo.delete(k);
   }, 60000);
   reign.unref();
+
+  // A block's terrain changed for good (saved already): everyone sees it; water frees the block (loop 19: a core
+  // service; the Terraformer item uses it).
+  function terrainSet(map, x, y, terrain) {
+    const k = key(x, y), owner = map.cells.get(k);
+    map.overrides.set(k, terrain);
+    map.hits.delete(k);
+    io.to(map.room).emit('terrain', { x, y, terrain });
+    if (terrain === 'water' && owner) { setOwner(map, k, null); io.to(map.room).emit('claim', { x, y, pid: null }); statChanged(map, owner, 'owned', map.counts.get(owner) || 0); }
+  }
 
   // Runs claims and wipes on one map in arrival order, so each sees the result of the one before.
   function serial(map, fn) {
@@ -673,6 +705,9 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
       for (const s of io.sockets.sockets.values()) if (s.data.mapId !== undefined && String(s.data.mapId) === String(id)) s.data.reenter(fresh);
     }
     return {
+      // Plug-ins' saved data, inside the admin's transaction (loop 19): an account deleted, the economy reset.
+      accountDeleted: (c, playerId) => hooks.run('accountDeleted', c, playerId),
+      reset: c => hooks.run('reset', c),
       // Disconnects these players' connections with a message (kind: kicked, banned, deleted). Returns how many.
       kick(ids, kind, message) {
         const list = socketsOf(ids);
@@ -711,9 +746,11 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
     };
   }
 
-  // Items (loop 14). Super Click: pid -> { until, value } while it runs.
-  const superClicks = new Map();
-  const TERRAFORM_TO = ['grass', 'sand', 'forest', 'stone', 'water'];   // never gold
+  // Modifiers (loop 19): a variable multiplied for a while for one player (Super Click: clickPower x 10 for 5 seconds).
+  // pid -> [{ variable, factor, until }]. factorOf multiplies the ones still running.
+  const modifiers = new Map();
+  const addModifier = (pid, variable, factor, until) => modifiers.set(String(pid), [...(modifiers.get(String(pid)) ?? []).filter(m => m.until > Date.now()), { variable, factor, until }]);
+  const factorOf = (pid, variable, now = Date.now()) => (modifiers.get(String(pid)) ?? []).reduce((f, m) => (m.variable === variable && m.until > now ? f * m.factor : f), 1);
 
   // A death: shown at once on the player's connections on that map; one that happens while they're away waits
   // for their return (store.unseenDeath, on entering the map).
@@ -757,7 +794,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
     // What the browser sends: the guest's secret token (if it has one), a login token (if logged in), and
     // upgrade = true when the player has just signed up from their guest profile.
     const { token, jwt, upgrade } = socket.handshake.auth || {};
-    let me, map, upgrades, upgraded = false, loginFailed = false;
+    let me, map, mySteps, upgraded = false, loginFailed = false;
     try {
       // Returning guests are recognised by their secret token. Visitors get a name and color to show,
       // but no database row until their first claim.
@@ -782,7 +819,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
       me = player ? { pid: player.id, name: player.name, account: !!player.auth_user_id, renameAt: renameAt(player.name_changed_at), squares: Number(player.squares),
           tutorial: player.tutorial, showTenths: player.show_tenths, highest: player.highest_level }
         : { pid: null, name: guestName(), account: false, renameAt: null, squares: 0, tutorial: null, showTenths: false };
-      upgrades = player ? upgradesOf(player) : rules.NO_UPGRADES;
+      mySteps = player ? upgradesOf(player) : rules.NO_UPGRADES;
       if (upgraded) renamed(me.pid, me.name);   // the guest's old name was showing to everyone
       map = (player?.last_map_id && await getMap(player.last_map_id)) || await getMap(await getDefaultMapId());
       if (player && player.last_map_id !== map.id) await store.setLastMap(pool, player.id, map.id);
@@ -792,7 +829,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
       return socket.disconnect();
     }
     socket.data.me = me;
-    socket.data.setUpgrades = u => { upgrades = u; };   // a purchase on any device changes them at once
+    socket.data.setUpgrades = u => { mySteps = u; };   // a purchase on any device changes them at once
     socket.data.reenter = fresh => enter(fresh);         // an admin reloaded this map: send it again
     // Color, skin and coverage are fixed on the first claim on a map (or the first since a wipe there). Until
     // then they are only proposals, which the player picks on the setup screen (the 'setup' event).
@@ -803,7 +840,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
     if (me.pid) {
       if (me.account) totals.best(me.pid, 'account', 1);
       if (me.tutorial?.done) totals.best(me.pid, 'tutorialDone', 1);
-      catchUp(me.pid, upgrades, me.account).catch(err => console.error(`CATCH-UP FAILED (player ${me.pid}): ${err.message}`));
+      catchUp(me.pid, mySteps, me.account).catch(err => console.error(`CATCH-UP FAILED (player ${me.pid}): ${err.message}`));
     }
     // This visit, for the Sessions achievements and some secrets.
     const session = { claims: 0, recent: [], forestRun: 0, pokes: 0, minute: null, visitorTaps: 0, spare: 0 };
@@ -852,6 +889,8 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
         walls: [...map.walls].map(([k, w]) => [...k.split(',').map(Number), w]),
         listings: [...map.listingInfo.values()].map(l => listingOut(map, l)),
         build: { blocksPerFactory: catalog.E.factoryBlocksPerFactory, maxWallsPerBlock: catalog.E.maxWallsPerBlock, areaSize: catalog.E.factoryAreaSize },
+        plugins: pluginHost.clientList(loadedPlugins),   // the browser loads these after the map is drawn
+        pluginData: Object.fromEntries(hooks.collectBy('welcome', map, me.pid)),   // each plug-in's part, by name
       });
     }
     // upgraded: the guest profile just became an account; the browser can forget its guest token
@@ -888,7 +927,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
       const st = stats.afterClaim(me.pid ? statsOf(map, me.pid) : stats.empty(),
         { owns, x, y, owned: (map.counts.get(me.pid) || 0) + 1, from });
       const ground = map.terrainAt(x, y);
-      const level = map.birth.get(k) ?? 1, eff = tiersOn(upgrades, level);
+      const level = map.birth.get(k) ?? 1, eff = tiersOn(mySteps, level);
       const earn = rules.firstClaimTenths(eff, ground, level);
       const r = await store.claimBlock(pool, { mapId: map.id, x, y, from, playerId: me.pid, newGuest,
         color: joining ? color : null, coverage, skin, earn, grow: rules.growthBlocks(eff, growRoll(map, x, y)), stats: st.stats,
@@ -915,7 +954,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
       }
       if (r.joinedMap) {
         const before = map.players.get(me.pid);
-        map.players.set(me.pid, { name: me.name, color, skin, coverage, unlocked: false, wipeFloor: before?.wipeFloor ?? 0, upgrades });
+        map.players.set(me.pid, { name: me.name, color, skin, coverage, unlocked: false, wipeFloor: before?.wipeFloor ?? 0, upgrades: mySteps });
         io.to(map.room).emit('player', { pid: me.pid, name: me.name, color, skin, coverage });
       }
       setOwner(map, k, me.pid);
@@ -1040,8 +1079,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
       if (h?.by !== by) { map.hits.set(k, h = { by, n: session.spare }); session.spare = 0; }
       h.at = now;
       h.need = need;
-      const boost = superClicks.get(String(me.pid));   // Super Click: x value until it runs out
-      h.n += rules.hitPower(tiersOn(upgrades, level)) * (boost && boost.until > now ? boost.value : 1);
+      h.n += rules.hitPower(tiersOn(mySteps, level)) * factorOf(me.pid, 'clickPower', now);
       if (!rules.isTaken(h.n, need)) return io.to(map.room).emit('hit', { x, y, p: share(h) });
 
       session.spare = Math.max(0, h.n - need);
@@ -1063,8 +1101,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
       const h = map.hits.get(k);
       if (!h) return;
       totals.bump(me.pid, 'taps');
-      const boost = superClicks.get(String(me.pid));
-      h.n -= rules.hitPower(tiersOn(upgrades, map.birth.get(k) ?? 1)) * (boost && boost.until > now ? boost.value : 1);
+      h.n -= rules.hitPower(tiersOn(mySteps, map.birth.get(k) ?? 1)) * factorOf(me.pid, 'clickPower', now);
       if (h.n > 1e-9) return io.to(map.room).emit('hit', { x, y, p: share(h) });
       map.hits.delete(k);
       io.to(map.room).emit('hit', { x, y, p: 0 });
@@ -1078,8 +1115,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
       if (h?.by !== me.pid) map.hits.set(kw, h = { by: me.pid, n: 0 });
       h.at = now;
       h.need = wall.hits;
-      const boost = superClicks.get(String(me.pid));
-      h.n += rules.hitPower(tiersOn(upgrades, map.birth.get(k) ?? 1)) * (boost && boost.until > now ? boost.value : 1);
+      h.n += rules.hitPower(tiersOn(mySteps, map.birth.get(k) ?? 1)) * factorOf(me.pid, 'clickPower', now);
       if (!rules.isTaken(h.n, h.need)) return io.to(map.room).emit('hit', { x, y, side, p: share(h) });
       map.hits.delete(kw);
       const here = map;
@@ -1189,7 +1225,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
       if (!pid) return reply({ list: shown(new Set()), earned: [], values: {} });
       try {
         const theirs = other ? (await pool.query('SELECT upgrade_steps, highest_level, auth_user_id FROM players WHERE id = $1', [other])).rows[0] : null;
-        const levels = theirs ? upgradesOf(theirs) : upgrades, account = theirs ? !!theirs.auth_user_id : me.account;
+        const levels = theirs ? upgradesOf(theirs) : mySteps, account = theirs ? !!theirs.auth_user_id : me.account;
         const { values, earned: rows } = await progressValues(pid, levels, account);
         reply({ list: shown(new Set(rows.map(e => e.id))), earned: rows, values });
       } catch { reply({ error: 'Could not load achievements. Try again.' }); }
@@ -1199,11 +1235,14 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
     // steps: { key: steps owned } (missing = 0); highest: the highest block level they've ever first-claimed (unlocks);
     // mapLevel: this map's level; list: each upgrade from the Upgrades tab with its curve and each tier's range and
     // total cost. On a level-L block an upgrade works at most at the end of tier L.
+    // Plug-in events: each gets { socket, me, map } as they are when it arrives.
+    for (const [name, fn] of pluginEvents) socket.on(name, (...args) => fn({ socket, me, map, mySteps }, ...args));
+
     socket.on('upgrades', (...args) => {
       const reply = args.at(-1);   // with or without an argument before it
       if (typeof reply !== 'function') return;
-      reply({ steps: upgrades, highest: me.highest ?? 1, mapLevel: map.level(), list: upgradeList(),
-        prices: Object.fromEntries(Object.keys(catalog.CATALOG_TIERS).map(k => [k, nextPrices(k, upgrades[k] ?? 0)])), balance: catalog.fromTenths(me.squares) });
+      reply({ steps: mySteps, highest: me.highest ?? 1, mapLevel: map.level(), list: upgradeList(),
+        prices: Object.fromEntries([...shownUpgrades].map(k => [k, nextPrices(k, mySteps[k] ?? 0)])), balance: catalog.fromTenths(me.squares) });
     });
 
     // Saves this player's tutorial progress: { step: id or null, done, tips: [ids] }. Visitors keep theirs in
@@ -1226,7 +1265,6 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
 
     let buying = false;   // one purchase at a time per connection (skins and upgrades)
     // Prices at the level of the map this player is on (catalog.js); answers carry squares, not tenths.
-    const itemPrice = item => catalog.priceTenths(catalog.CATALOG.get('item:' + item.id), { L: map.level() });
     const squaresOut = r => ({ ...r, ...(r.need !== undefined ? { need: catalog.fromTenths(r.need) } : {}) });
 
     // Settings > Show tenths: one decimal place everywhere (remembered per player).
@@ -1239,101 +1277,6 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
         reply({ on: !!on });
       } catch { reply({ error: 'Could not save that. Try again.' }); }
     });
-    // Items (loop 14): the list with what this player owns and how many uses are left.
-    socket.on('items', async (...args) => {
-      const reply = args.at(-1);
-      if (typeof reply !== 'function') return;
-      try {
-        const list = (await store.itemsFor(pool, me.pid)).map(i => ({ ...i, price: catalog.fromTenths(itemPrice(i)) }));
-        reply({ list, balance: catalog.fromTenths(me.squares) });
-      } catch { reply({ error: 'Could not load items. Try again.' }); }
-    });
-    socket.on('buyItem', async (p, reply) => {
-      if (typeof reply !== 'function') return;
-      if (!me.pid) return reply({ error: 'Claim a block first' });
-      const item = rules.ITEMS.find(i => i.id === p?.item && i.enabled && i.effect in store.USABLE);
-      if (!item) return reply({ error: 'That item is not for sale' });
-      // Consumables (Demolition) come singly or in batches (loop 18): { item, qty } of 1 to 100.
-      const qty = p.qty === undefined ? 1 : p.qty;
-      if (!Number.isInteger(qty) || qty < 1 || qty > 100 || (qty > 1 && !item.consumable)) return reply({ error: 'Pick how many, 1 to 100' });
-      if (buying) return reply({ error: 'One purchase at a time' });
-      buying = true;
-      try {
-        const r = await store.buyItem(pool, me.pid, item, itemPrice(item), qty);
-        if (r.error) return reply(squaresOut(r));
-        balanceChanged(me.pid, r.squares);
-        totals.bump(me.pid, 'squaresSpent', catalog.fromTenths(r.price));
-        io.to('player:' + me.pid).emit('itemsChanged');
-        reply({ squares: catalog.fromTenths(r.squares), balance: catalog.fromTenths(r.squares), ...(r.count !== undefined ? { count: r.count } : {}) });
-      } catch (err) {
-        console.error(`ITEM PURCHASE FAILED (player ${me.pid}, ${p?.item}): ${err.message}`);
-        reply({ error: 'Could not buy that. Try again.' });
-      } finally { buying = false; }
-    });
-    // Uses an owned item: { item } for Super Click; { item, x, y, terrain } for the Terraformer (on this map).
-    // Limits are checked on the server, per player across every map. Answers { ok, usesLeft, nextAt } or { error }.
-    socket.on('useItem', async (p, reply) => {
-      if (typeof reply !== 'function') return;
-      if (!me.pid) return reply({ error: 'Claim a block first' });
-      const item = rules.ITEMS.find(i => i.id === p?.item);
-      if (!item) return reply({ error: 'Unknown item' });
-      const here = map, done = r => { if (r.ok) io.to('player:' + me.pid).emit('itemsChanged'); reply(r); };
-      try {
-        if (item.effect === 'clickMultiplier') {
-          const r = await store.useItem(pool, me.pid, item, here.id);
-          if (r.ok) {
-            const until = Date.now() + item.seconds * 1000;
-            superClicks.set(String(me.pid), { until, value: item.value });
-            io.to('player:' + me.pid).emit('superClick', { until, value: item.value });
-          }
-          return done(r);
-        }
-        // Demolition (loop 18): { item, blocks: [[x, y], …] } of yours; everything built on each (walls, factory) goes,
-        // no refund. One Demolition per block with something on it; blocks with nothing use none. All or nothing.
-        if (item.effect === 'demolish') {
-          const blocks = Array.isArray(p.blocks) && p.blocks.length <= 500 && p.blocks.every(b => Array.isArray(b) && Number.isInteger(b[0]) && Number.isInteger(b[1])) ? p.blocks : null;
-          if (!blocks?.length) return reply({ error: 'Pick blocks of yours to clear' });
-          await serial(here, async () => {
-            const list = [...new Map(blocks.map(([x, y]) => [key(x, y), [x, y]])).values()];
-            if (list.some(([x, y]) => here.cells.get(key(x, y)) !== me.pid)) return reply({ error: 'Only your own blocks' });
-            const built = list.filter(([x, y]) => builtOn(here, x, y).length);
-            if (!built.length) return reply({ error: 'Nothing is built on those blocks' });
-            const r = await store.useItem(pool, me.pid, item, here.id, async c => {
-              for (const [x, y] of built) for (const d of builtOn(here, x, y)) await d.remove(c, here, x, y);
-            }, built.length);
-            if (r.ok) for (const [x, y] of built) for (const d of builtOn(here, x, y)) d.removed(here, x, y);
-            done(r.ok ? { ...r, cleared: built.length } : r);
-          });
-          return;
-        }
-        if (item.effect === 'terraform') {
-          const { x, y, terrain } = p;
-          if (!Number.isInteger(x) || !Number.isInteger(y) || !TERRAFORM_TO.includes(terrain)) return reply({ error: 'Pick a block and grass, sand, forest, stone or water' });
-          await serial(here, async () => {
-            const k = key(x, y), owner = here.cells.get(k);
-            if (owner === undefined) return reply({ error: 'That is not a block' });
-            const mine = owner === me.pid, nextToMine = owner === null && rules.NEIGHBORS.some(([dx, dy]) => here.cells.get(key(x + dx, y + dy)) === me.pid);
-            if (!mine && !nextToMine) return reply({ error: 'Only your own blocks, or empty ones touching your land' });
-            if (here.terrainAt(x, y) === 'gold') return reply({ error: "Gold can't be changed" });
-            if (here.terrainAt(x, y) === terrain) return reply({ error: `It's already ${terrain}` });
-            const r = await store.useItem(pool, me.pid, item, here.id, c => store.setTerrain(c, here.id, x, y, terrain));
-            if (r.ok) {
-              here.overrides.set(k, terrain);
-              here.hits.delete(k);
-              io.to(here.room).emit('terrain', { x, y, terrain });
-              if (terrain === 'water' && owner) { setOwner(here, k, null); io.to(here.room).emit('claim', { x, y, pid: null }); statChanged(here, owner, 'owned', here.counts.get(owner) || 0); }
-            }
-            done(r);
-          });
-          return;
-        }
-        reply({ error: 'Unknown item' });
-      } catch (err) {
-        console.error(`ITEM USE FAILED (player ${me.pid}, ${p?.item}): ${err.message}`);
-        reply({ error: 'Could not use that. Try again.' });
-      }
-    });
-
     // A player's profile ({ pid }): see store.profile. Achievements as the list's names (known ids only), and
     // whether they have the game open right now.
     // Builds on this map: { kind: 'factory' | 'wall', x, y, side? }. Answers { ok, squares } or { error, need? }.
@@ -1417,7 +1360,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
           const r = await store.buyListing(pool, { id: l.id, buyerId: me.pid, fee: catalog.E.marketFee, minDays: catalog.E.marketMinAccountDays, look });
           if (r.error) return reply({ error: r.error, ...(r.need !== undefined ? { need: catalog.fromTenths(r.need) } : {}) });
           if (r.joined || !mine) {
-            here.players.set(me.pid, { name: me.name, ...look, unlocked: false, wipeFloor: 0, upgrades });
+            here.players.set(me.pid, { name: me.name, ...look, unlocked: false, wipeFloor: 0, upgrades: mySteps });
             io.to(here.room).emit('player', { pid: me.pid, name: me.name, ...look });
           }
           // The sale: listing gone, then the blocks (with their factories and walls) change hands.
@@ -1450,7 +1393,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
       if (!f || String(f.owner) !== String(me.pid)) return reply({ error: 'Not your factory' });
       try {
         await serial(here, async () => {
-          const now = Date.now(), awakeMs = ownerValues(here, f.owner, levelAt(here, f.x, f.y)).factoryLifetime * 3600000;
+          const now = Date.now(), awakeMs = ownerValues(here, f.owner, levelAt(here, f.x, f.y))['factories.lifetime'] * 3600000;
           await store.wakeFactory(pool, f.id, f.owner, awakeMs, now);
           f.awake = now + awakeMs;
           f.processed = Math.max(f.processed, fac.stepFloor(now));
@@ -1466,7 +1409,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
       if (!p || !Number.isInteger(p.x) || !Number.isInteger(p.y)) return reply({ error: 'Unknown block' });
       const k = key(p.x, p.y);
       if (!map.cells.has(k)) return reply({ error: 'There is no block there' });
-      reply(blockInfo(map, p.x, p.y, me.pid, upgrades));
+      reply(blockInfo(map, p.x, p.y, me.pid, mySteps));
     });
 
     socket.on('profile', async (p, reply) => {
@@ -1541,7 +1484,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
     socket.on('buyUpgrade', async (p, reply) => {
       if (typeof reply !== 'function') return;
       if (!me.pid) return reply({ error: 'Claim a block first' });
-      if (!p || !(p.upgrade in catalog.CATALOG_TIERS) || !Number.isInteger(p.from) || !(p.count === 'max' || (Number.isInteger(p.count) && p.count >= 1 && p.count <= 1000))) {
+      if (!p || !shownUpgrades.has(p.upgrade) || !Number.isInteger(p.from) || !(p.count === 'max' || (Number.isInteger(p.count) && p.count >= 1 && p.count <= 1000))) {
         return reply({ error: 'Unknown upgrade' });
       }
       if (buying) return reply({ error: 'One purchase at a time' });
@@ -1552,8 +1495,8 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
         upgradesChanged(me.pid, r.steps, r.squares);
         totals.bump(me.pid, 'purchases', r.bought);
         totals.bump(me.pid, 'squaresSpent', catalog.fromTenths(r.cost));
-        totals.best(me.pid, 'level:' + p.upgrade, catalog.tierOfStep(p.upgrade, r.steps[p.upgrade]));
-        reply({ steps: upgrades, bought: r.bought, squares: catalog.fromTenths(r.squares), balance: catalog.fromTenths(r.squares) });
+        totals.best(me.pid, 'level:' + p.upgrade, upgrades.tierOfStep(p.upgrade, r.steps[p.upgrade]));
+        reply({ steps: mySteps, bought: r.bought, squares: catalog.fromTenths(r.squares), balance: catalog.fromTenths(r.squares) });
       } catch (err) {
         console.error(`PURCHASE FAILED (player ${me.pid}, ${p.upgrade}): ${err.message}`);
         reply({ error: 'Could not buy that. Try again.' });
@@ -1614,8 +1557,33 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
     });
   });
 
+  // The plug-ins start last, when everything they may call exists. Their api (docs/ARCHITECTURE.md): hooks, their
+  // own socket events, and the core's services; it grows as plug-ins move out of the core.
+  pluginHost.start(loadedPlugins, {
+    on: hooks.on,
+    socket: (event, fn) => pluginEvents.push([event, fn]),
+    io, pool, store, catalog, rules, upgrades, variables: known,
+    tx: fn => tx(pool, fn),                                   // a database transaction
+    spend: (c, pid, tenths, reason) => store.spend(c, pid, tenths, reason),
+    serial,                                                   // runs fn after everything queued on that map
+    money: { changed: (pid, tenths) => balanceChanged(pid, tenths) },
+    stats: { bump: (pid, name, n) => totals.bump(pid, name, n) },
+    toPlayer: (pid, event, data) => io.to('player:' + pid).emit(event, data),
+    modifiers: { add: addModifier, factor: factorOf },
+    blocks: {
+      owner: (map, x, y) => map.cells.get(key(x, y)),        // undefined: no such block; null: empty
+      terrainAt: (map, x, y) => map.terrainAt(x, y),
+      touches: (map, x, y, pid) => rules.NEIGHBORS.some(([dx, dy]) => map.cells.get(key(x + dx, y + dy)) === pid),
+      builtOn: (map, x, y) => builtOn(map, x, y).length > 0,
+      clear: async (c, map, x, y) => { for (const d of builtOn(map, x, y)) await d.remove(c, map, x, y); },
+      cleared: (map, x, y) => { for (const d of builtOn(map, x, y)) d.removed(map, x, y); },
+      setTerrain: (c, map, x, y, terrain) => store.setTerrain(c, map.id, x, y, terrain),
+      terrainSet: (map, x, y, terrain) => terrainSet(map, x, y, terrain),
+    },
+  });
+
   if (startTicker) ticker.start();
-  return { server, io, events, totals, ticker, liveFactories };
+  return { server, io, events, totals, ticker, liveFactories, plugins: loadedPlugins.map(p => p.name), hooks };
 }
 
 module.exports = { createGame };

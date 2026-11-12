@@ -1,0 +1,4 @@
+Key,Name,Description,Effect,Effect value,Duration (seconds),Uses,Per (minutes),Consumable,Pricing,V (work-hours/hour),P (payback hours),Hours,Enabled
+superClick,Super Click,Your taps hit 10 times harder for 5 seconds. Once an hour.,clickMultiplier,10,5,1,60,no,PV,0.0125,50,,yes
+terraformer,Terraformer,Change the terrain of one block. 5 blocks per hour.,terraform,,,5,60,no,PV,0.0125,50,,yes
+demolition,Demolition,Clears everything built on one of your blocks (walls and factory). Used up when used.,demolish,,,1,,yes,Hours,,,0.5,yes

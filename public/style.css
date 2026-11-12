@@ -636,15 +636,6 @@ body.dying #map { filter: grayscale(.85) brightness(.8); transition: filter .6s 
 .item-card .act { grid-column: 1 / -1; }
 .item-card .buy { width: 100%; min-height: 44px; background: var(--gold); color: var(--well); gap: 6px; }
 .item-card .buy:disabled { background: var(--raised); color: var(--muted); }
-#itembar { position: fixed; left: calc(16px + env(safe-area-inset-left)); bottom: calc(80px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 6px; z-index: 4; }
-#itembar .btn { min-height: 40px; padding: 0 12px; font-size: 14px; justify-content: flex-start; gap: 8px; background: var(--panel); }
-#itembar .btn.on { background: var(--gold); color: var(--well); }
-#itembar .btn:disabled { opacity: .7; }
-body.welcome #itembar, body.zooming #itembar { opacity: 0; pointer-events: none; }
-#terra-pick { position: fixed; left: 50%; bottom: calc(140px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 21; background: var(--panel);
-  padding: 10px; display: flex; flex-direction: column; gap: 8px; align-items: center; max-width: calc(100% - 32px); }
-#terra-choices { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
-#terra-choices button { width: 48px; height: 48px; padding: 0; border: 3px solid var(--ink); image-rendering: pixelated; background-size: cover; cursor: pointer; }
 .catalog .star { min-height: 36px; font-size: 18px; color: var(--muted); background: var(--raised); }
 .catalog .star.on { color: var(--well); background: var(--gold); }
 
@@ -703,9 +694,6 @@ body.welcome #itembar, body.zooming #itembar { opacity: 0; pointer-events: none;
 /* ---------- Loop 16: the Marketplace tabs ---------- */
 .market-tabs { margin-bottom: 4px; }
 .item-card .act .have { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; text-align: right; }
-.item-card .act .qty { display: flex; gap: 6px; justify-content: flex-end; align-items: center; margin-bottom: 6px; }
-.item-card .act .qty .btn { width: 44px; min-width: 44px; height: 44px; padding: 0; font-size: 20px; }
-.item-card .act .qty .n { min-width: 2.5em; text-align: center; font-weight: 600; }
 
 /* ---------- Loop 16: Build ---------- */
 #board .build-btn { width: 100%; margin-top: 8px; min-height: 44px; gap: 6px; font-size: 13px; }
@@ -745,9 +733,9 @@ input, textarea, select { font-size: 16px; }
 /* Phones: the HUD, cards, menus and text at 78% (CSS zoom keeps their layout), with tap targets kept at 40px or
    more (52px x 0.78) and text fields at 16px or more (21px x 0.78). */
 @media (max-width: 599px), (max-height: 500px) {
-  :is(#me, #board, #menu-button, #hint, #toast, #popup, #coach, #chat, #itembar, #terra-pick, #inspect, #build-menu, #build-bar, #sell-bar,
+  :is(#me, #board, #menu-button, #hint, #toast, #popup, #coach, #chat, #inspect, #build-menu, #build-bar, #sell-bar,
     #info-pop, #menu .panel, #welcome .w-stack, #w-gear, #w-sound, #death > *) { zoom: 0.78; }
-  :is(#me, #board, #menu-button, #chat, #itembar, #terra-pick, #inspect, #build-menu, #build-bar, #sell-bar, #menu .panel, #welcome .w-stack, #death > *)
+  :is(#me, #board, #menu-button, #chat, #inspect, #build-menu, #build-bar, #sell-bar, #menu .panel, #welcome .w-stack, #death > *)
     :is(.btn, .icon-btn) { min-height: 52px; }
   :is(#menu .panel, #inspect, #build-menu, #build-bar, #sell-bar, #chat, #welcome .w-stack) :is(.icon-btn) { min-width: 52px; }
   :is(#menu-button, #w-gear, #w-sound) { min-height: 52px; min-width: 52px; }

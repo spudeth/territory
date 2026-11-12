@@ -15,7 +15,6 @@ const ART = {
   levelShades: 'art/level-shades.svg',
   build: 'art/build.svg',
   marketplace: 'art/marketplace.svg',
-  demolition: 'art/demolition.svg',
   infoCard: 'art/info-card.svg',
 };
 

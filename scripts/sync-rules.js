@@ -4,9 +4,13 @@
 //   npm run sync-rules -- --from <folder>   use saved tabs instead (<Tab name>.csv), e.g. test/fixtures/sheet
 // It refuses to write if any check fails, and names each cell and why. Changes reach players only when the
 // file is merged into main and deployed. The game never reads the sheet itself.
+// Loop 19: each plug-in with a data.js reads its own tabs (plugin.json "tabs") into its own data.json; a tab no
+// one reads is skipped with a warning (Charts is display only).
 const fs = require('fs');
 const path = require('path');
 const economy = require('../economy');
+const plugins = require('../plugins');
+const IGNORED_TABS = ['Charts'];
 
 const SHEET = '1YIivEUXUWMkdw3w3hlmRn7PkTzH6Xry7EJTr8SuFKiM';
 const OUT = path.join(__dirname, '..', 'data', 'economy.json');
@@ -32,7 +36,10 @@ async function main() {
   const from = arg('from');
   const tabs = {};
   const ids = from ? null : await tabIds();
-  for (const tab of economy.TABS) {
+  const withData = plugins.list().filter(p => fs.existsSync(path.join(p.dir, 'data.js')));
+  const allTabs = [...economy.TABS, ...withData.flatMap(p => p.tabs)];
+  for (const t of ids?.keys() ?? []) if (!allTabs.includes(t) && !IGNORED_TABS.includes(t)) console.warn(`Warning: no installed plug-in reads the "${t}" tab; skipped`);
+  for (const tab of allTabs) {
     if (from) {
       const file = path.join(from, tab + '.csv');
       if (fs.existsSync(file)) tabs[tab] = fs.readFileSync(file, 'utf8');
@@ -44,6 +51,11 @@ async function main() {
 
   const hasFile = f => fs.existsSync(path.join(__dirname, '..', 'public', f));   // skins need their images
   const { economy: next, errors, warnings = [] } = economy.validate(tabs, { hasFile });
+  // Each plug-in's tabs, with the same tools. null: its tab isn't there (its data.json stays as it is).
+  const pluginParts = withData.map(p => {
+    const before = errors.length, part = require(path.join(p.dir, 'data.js')).validate(tabs, economy.sheetKit(tabs, errors), errors, warnings);
+    return { p, part: errors.length > before ? null : part };
+  });
   for (const w of warnings) console.warn('Warning: ' + w);
   if (errors.length) {
     console.error(`The sheet has ${errors.length} problem${errors.length === 1 ? '' : 's'}; nothing was written:`);
@@ -55,14 +67,24 @@ async function main() {
   const out = arg('out') ?? OUT;
   const before = fs.existsSync(out) ? JSON.parse(fs.readFileSync(out, 'utf8')) : null;
   // A tab missing from the sheet keeps its part of the current file (Skins, Items and the loop 16 tabs).
-  for (const part of ['skins', 'items', 'economy', 'tiers', 'skinRarity', 'glossary']) if (!next[part] && before?.[part]) next[part] = before[part];
+  for (const part of ['skins', 'economy', 'tiers', 'skinRarity', 'glossary']) if (!next[part] && before?.[part]) next[part] = before[part];
   // A new Economy key the sheet doesn't have yet keeps the file's value (economy.NEW_ECONOMY).
   for (const k of economy.NEW_ECONOMY) if (next.economy && next.economy[k] === undefined && before?.economy?.[k] !== undefined) next.economy[k] = before.economy[k];
   if (!next.skins) next.skins = [];
-  if (!next.items) next.items = [];
+  delete next.items;   // the items plug-in's now (plugins/items/data.json)
   console.log('Changes:');
   for (const line of economy.describeChanges(before, next)) console.log('  - ' + line);
+  // A plug-in's file goes next to its folder, or, with --out (tests), under <out's folder>/plugins/<name>/.
+  const pluginOut = p => (arg('out') ? path.join(path.dirname(arg('out')), 'plugins', p.name, 'data.json') : path.join(p.dir, 'data.json'));
+  for (const { p, part } of pluginParts.filter(x => x.part)) {
+    const was = fs.existsSync(pluginOut(p)) ? fs.readFileSync(pluginOut(p), 'utf8') : null;
+    console.log(`  - ${p.name}: ${was === JSON.stringify(part, null, 2) + '\n' ? 'no changes' : 'changed'}`);
+  }
   if (arg('check')) return console.log('Checked only (--check): nothing was written.');
+  for (const { p, part } of pluginParts.filter(x => x.part)) {
+    fs.mkdirSync(path.dirname(pluginOut(p)), { recursive: true });
+    fs.writeFileSync(pluginOut(p), JSON.stringify(part, null, 2) + '\n');
+  }
 
   const file = { source: from ? `saved copy: ${from}` : `https://docs.google.com/spreadsheets/d/${SHEET}`,
     syncedAt: new Date().toISOString(), ...next };

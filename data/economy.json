@@ -1,6 +1,6 @@
 {
   "source": "https://docs.google.com/spreadsheets/d/1YIivEUXUWMkdw3w3hlmRn7PkTzH6Xry7EJTr8SuFKiM",
-  "syncedAt": "2026-11-11T15:10:22.297Z",
+  "syncedAt": "2026-11-11T23:01:54.857Z",
   "rules": {
     "hitsPerBlock": 10,
     "crackFadeSeconds": 60,
@@ -1091,7 +1091,7 @@
       "threshold": 1,
       "secret": false,
       "description": "Buy 1 upgrade step",
-      "reward": 0.9
+      "reward": 0.5
     },
     {
       "id": "bought-5",
@@ -1101,7 +1101,7 @@
       "threshold": 270,
       "secret": false,
       "description": "Buy 270 upgrade steps",
-      "reward": 447.6
+      "reward": 1074.4
     },
     {
       "id": "bought-10",
@@ -1111,7 +1111,7 @@
       "threshold": 450,
       "secret": false,
       "description": "Buy 450 upgrade steps",
-      "reward": 875.6
+      "reward": 2448.8
     },
     {
       "id": "bought-25",
@@ -1121,7 +1121,7 @@
       "threshold": 900,
       "secret": false,
       "description": "Buy 900 upgrade steps",
-      "reward": 2435.3
+      "reward": 7188.8
     },
     {
       "id": "bought-50",
@@ -1131,7 +1131,7 @@
       "threshold": 1800,
       "secret": false,
       "description": "Buy 1,800 upgrade steps",
-      "reward": 9196.2
+      "reward": 28177.5
     },
     {
       "id": "bought-100",
@@ -1141,7 +1141,7 @@
       "threshold": 2700,
       "secret": false,
       "description": "Buy 2,700 upgrade steps",
-      "reward": 27399.4
+      "reward": 84132.6
     },
     {
       "id": "bought-150",
@@ -1151,7 +1151,7 @@
       "threshold": 3600,
       "secret": false,
       "description": "Buy 3,600 upgrade steps",
-      "reward": 76402.6
+      "reward": 234606.9
     },
     {
       "id": "bought-200",
@@ -1161,17 +1161,17 @@
       "threshold": 4500,
       "secret": false,
       "description": "Buy 4,500 upgrade steps",
-      "reward": 208312.5
+      "reward": 645506.6
     },
     {
       "id": "bought-225",
       "name": "Fully Loaded",
       "category": "Upgrades",
       "stat": "purchases",
-      "threshold": 5670,
+      "threshold": 6300,
       "secret": false,
-      "description": "Buy 5,670 upgrade steps",
-      "reward": 758813.8
+      "description": "Buy all 6,300 upgrade steps",
+      "reward": 5155919.7
     },
     {
       "id": "clickpower-1",
@@ -3034,56 +3034,6 @@
       "reward": 150
     }
   ],
-  "items": [
-    {
-      "id": "superClick",
-      "name": "Super Click",
-      "description": "Your taps hit 10 times harder for 5 seconds. Once an hour.",
-      "effect": "clickMultiplier",
-      "value": 10,
-      "seconds": 5,
-      "uses": 1,
-      "perMinutes": 60,
-      "consumable": false,
-      "pricing": "PV",
-      "V": 0.0125,
-      "P": 50,
-      "hours": null,
-      "enabled": true
-    },
-    {
-      "id": "terraformer",
-      "name": "Terraformer",
-      "description": "Change the terrain of one block. 5 blocks per hour.",
-      "effect": "terraform",
-      "value": 0,
-      "seconds": 0,
-      "uses": 5,
-      "perMinutes": 60,
-      "consumable": false,
-      "pricing": "PV",
-      "V": 0.0125,
-      "P": 50,
-      "hours": null,
-      "enabled": true
-    },
-    {
-      "id": "demolition",
-      "name": "Demolition",
-      "description": "Removes one of your factories or walls. Used up when used.",
-      "effect": "demolish",
-      "value": 0,
-      "seconds": 0,
-      "uses": 1,
-      "perMinutes": 0,
-      "consumable": true,
-      "pricing": "Hours",
-      "V": null,
-      "P": null,
-      "hours": 0.5,
-      "enabled": true
-    }
-  ],
   "economy": {
     "baseBlockSeconds": 3,
     "hitsPerSquare": 10,
@@ -3092,22 +3042,23 @@
     "maxBaseBlocksOnline": 50000,
     "tickSeconds": 60,
     "inspectHoldMs": 400,
+    "marketFee": 0.05,
+    "marketMinAccountDays": 3,
+    "wallStrength": 2,
+    "wallPriceWh": 0.01,
+    "maxWallsPerBlock": 2,
     "factoryBlocksPerFactory": 20,
     "factoryBuildPaybackHours": 48,
     "factoryValuePerHour": 0.05,
     "factoryBuildGrowth": 1.15,
     "factoryAreaSize": 5,
-    "factoryDistancePenaltyWh": 0.0005,
-    "wallStrength": 2,
-    "maxWallsPerBlock": 2,
-    "marketFee": 0.05,
-    "marketMinAccountDays": 3,
-    "wallPriceWh": 0.01
+    "factoryDistancePenaltyWh": 0.0005
   },
   "tiers": {
     "clickPower": {
       "name": "Click Power",
       "type": "Income",
+      "variable": "clickPower",
       "start": 1,
       "max1": 10,
       "mult": 2,
@@ -3122,6 +3073,7 @@
     "earnings": {
       "name": "Earnings",
       "type": "Income",
+      "variable": "earnings",
       "start": 1,
       "max1": 2,
       "mult": 2,
@@ -3136,6 +3088,7 @@
     "defense": {
       "name": "Defense",
       "type": "Protection",
+      "variable": "defense",
       "start": 1,
       "max1": 2,
       "mult": 2,
@@ -3150,6 +3103,7 @@
     "growth": {
       "name": "Growth",
       "type": "Map",
+      "variable": "growth",
       "start": 1,
       "max1": 2,
       "mult": 2,
@@ -3164,6 +3118,7 @@
     "factorySpeed": {
       "name": "Factory Speed",
       "type": "Income",
+      "variable": "factories.speed",
       "start": 0.05,
       "max1": 0.1,
       "mult": 2,
@@ -3178,6 +3133,7 @@
     "factoryLifetime": {
       "name": "Factory Lifetime",
       "type": "Income",
+      "variable": "factories.lifetime",
       "start": 4,
       "max1": 8,
       "mult": 2,
@@ -3192,6 +3148,7 @@
     "factoryYield": {
       "name": "Factory Yield",
       "type": "Income",
+      "variable": "factories.yield",
       "start": 1,
       "max1": 2,
       "mult": 2,
@@ -3326,43 +3283,43 @@
     {
       "symbol": "N",
       "name": "Tier",
-      "meaning": "Upgrade tier, 1 to 10. Everyone starts at tier 1",
+      "meaning": "Upgrade tier, 1 to 10. Tier 1 is open from the start; each tier is bought in S small steps",
       "formula": "",
-      "home": "Each player"
+      "home": "Each player; Upgrades tab Steps per tier"
     },
     {
-      "symbol": "N",
-      "name": "Tier",
-      "meaning": "Upgrade tier, 1 to 10. Tier 1 is open from the start; each tier is bought in stepsPerTier small steps",
-      "formula": "",
-      "home": "Each player"
-    },
-    {
-      "symbol": "a_N",
-      "name": "Tier end value",
-      "meaning": "What an upgrade gives once all of tier N's steps are bought (a_0 = v0, a_10 = vmax)",
-      "formula": "a_N = v0 x (vmax / v0)^(N/10)",
+      "symbol": "lo_N, hi_N",
+      "name": "Tier range",
+      "meaning": "What an upgrade gives at the start and the end of tier N. Every tier max is the last one times the multiplier",
+      "formula": "lo_1 = Tier 1 start; lo_N = Tier 1 max x m^(N-2); hi_N = Tier 1 max x m^(N-1)",
       "home": "Upgrades tab"
     },
     {
-      "symbol": "c_u",
-      "name": "Upgrade weight",
-      "meaning": "How many work-hours an upgrade is worth",
-      "formula": "",
-      "home": "Upgrades tab"
+      "symbol": "Step value",
+      "name": "Value after step s",
+      "meaning": "Big gains on the first steps, flattening toward the tier max",
+      "formula": "lo_N + (hi_N - lo_N) x ln(1 + g x s / S) / ln(1 + g)",
+      "home": "Upgrades tab Gain curve (g)"
     },
     {
-      "symbol": "Tier cost",
-      "name": "Tier price",
-      "meaning": "Total price of all of tier N's steps. Each step costs a little more than the one before (x 2^(1/stepsPerTier)), so tier N+1 starts at twice tier N's first step",
-      "formula": "c_u x 1,200 x 2^(N-1)",
-      "home": "Formula; Economy stepsPerTier"
+      "symbol": "Step price",
+      "name": "Price of step s",
+      "meaning": "Cheap at first, then rising and flattening toward the end of the tier",
+      "formula": "T x W(N) x ln(1 + c x s / S) / sum of ln(1 + c x j / S) for j = 1 to S",
+      "home": "Upgrades tab Price curve (c)"
+    },
+    {
+      "symbol": "T",
+      "name": "Tier cost",
+      "meaning": "Work-hours to buy all of one tier's steps, priced at that tier's level",
+      "formula": "T x W(N) squares",
+      "home": "Upgrades tab Tier cost"
     },
     {
       "symbol": "Effective tier",
       "name": "Tier in use",
-      "meaning": "Your upgrades work at most at the level of the map you're on",
-      "formula": "min(your tier, map level)",
+      "meaning": "Your upgrades work at most up to the level of the block you act on",
+      "formula": "min(your tier, the block's level)",
       "home": "Rule"
     },
     {
@@ -3396,9 +3353,9 @@
     {
       "symbol": "Wall price",
       "name": "Wall price",
-      "meaning": "Price of one wall",
-      "formula": "P_a x w x H / hitsPerSquare",
-      "home": "Economy tab"
+      "meaning": "Price of one wall; the same for every wall in a batch",
+      "formula": "wallPriceWh x W(L of the block) x max(1, sqrt(walls you own on this map) / 2)",
+      "home": "Economy wallPriceWh"
     },
     {
       "symbol": "Skin price",
