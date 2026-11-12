@@ -13,9 +13,6 @@ const SKIN_KINDS = ['pattern', 'art'];          // pattern: drawn in the owner's
 const RARITIES = ['Common', 'Rare', 'Ultra Rare', 'Legendary'];
 // The image files every skin needs, under public/: one block, and the large one for Full area coverage.
 const skinFiles = key => [`skins/${key}.png`, `skins/${key}-large.png`];
-const ITEMS_TAB = 'Items';
-// The kinds of effect the game knows (a new kind needs code; a new item of a known kind needs only a row).
-const ITEM_EFFECTS = ['clickMultiplier', 'terraform', 'demolish'];
 const int = (min, max = Infinity) => ({ integer: true, min, max });
 const num = (min, max = Infinity) => ({ integer: false, min, max });
 // Loop 16: the new economy tabs. Each is optional in the sheet: a missing tab keeps its part of data/economy.json.
@@ -28,16 +25,13 @@ const ECONOMY_COLUMNS = ['Key', 'Value', 'Unit', 'What it means'];
 // Loop 18: each upgrade's tiers and steps, and the curves of its gains and prices (catalog.js has the formulas).
 const TIER_COLUMNS = ['Key', 'Name', 'Type', 'Tier 1 start', 'Tier 1 max', 'Multiplier per tier', 'Tiers', 'Steps per tier',
   'Tier cost (work hours)', 'Price curve', 'Gain curve', 'Unit', 'What it does'];
-const NEW_ITEM_COLUMNS = ['Key', 'Name', 'Description', 'Effect', 'Effect value', 'Duration (seconds)', 'Uses', 'Per (minutes)', 'Consumable',
-  'Pricing', 'V (work-hours/hour)', 'P (payback hours)', 'Hours', 'Enabled'];
 const RARITY_COLUMNS = ['Rarity', 'Work-hours', 'What it means'];
 const GLOSSARY_COLUMNS = ['Symbol', 'Name', 'What it means', 'Formula', 'Where the number lives'];
 // Loop 19: any upgrade is a row; it changes the variable in its Variable column (variables.js). Without the column
 // (an older sheet), the names agreed in Q39 are used.
 const VARIABLE_COLUMN = 'Variable';
-const PRICINGS = ['PV', 'Hours'];   // how an item's price is worked out (catalog.js)
 const TIER_FIELDS = ['variable', 'start', 'max1', 'mult', 'tiers', 'steps', 'tierWh', 'priceCurve', 'gainCurve'];   // what describeChanges compares
-const TABS = [RULES_TAB, ACHIEVEMENTS_TAB, SKINS_TAB, ITEMS_TAB, ECONOMY_TAB, WALLS_TAB, FACTORIES_TAB, TIERS_TAB, RARITY_TAB, GLOSSARY_TAB];
+const TABS = [RULES_TAB, ACHIEVEMENTS_TAB, SKINS_TAB, ECONOMY_TAB, WALLS_TAB, FACTORIES_TAB, TIERS_TAB, RARITY_TAB, GLOSSARY_TAB];
 // Old tabs the sync no longer reads (loop 16): Inputs, Summary, Click Power, Defense, Earnings, Growth.
 // Game Rules keys still allowed but ignored, with a warning.
 const RETIRED_RULES = ['squaresPerFirstClaim', 'newMapBlocks'];
@@ -150,12 +144,14 @@ const cellName = (col, row) => String.fromCharCode(65 + col) + (row + 1);
 // Returns { economy: { rules, upgrades }, errors: [] } or { economy: null, errors: ['…'] }.
 // hasFile(path): whether a file exists under public/ (the sync passes one; skins need their images).
 // variables: { name: base } the upgrades may change (default: the core's and every plug-in folder's).
-function validate(tabs, { hasFile = () => true, variables = require('./variables').declared() } = {}) {
-  const errors = [];
+// The tools for reading tabs, for the core's tabs and each plug-in's data.js (loop 19): every problem goes in
+// `errors`, naming its cell. where(tab, col, row, header) names a cell; table(tab, columns) finds the columns by name
+// in row 1 ({ rows, at } or null); has(tab, col) tells whether a tab has that column; num1(...) reads a number
+// against a spec from int() or num().
+function sheetKit(tabs, errors) {
   const where = (tab, col, row, header) => `${tab}, cell ${cellName(col, row)}${header ? ` ("${header}")` : ''}`;
-
-  // Each tab's columns, found by name in its header row. A missing tab shows up here too: for an unknown
-  // tab name, Google's export returns the first tab instead, whose header row is different.
+  // A missing tab shows up here too: for an unknown tab name, Google's export returns the first tab instead, whose
+  // header row is different.
   function table(tab, columns) {
     if (typeof tabs[tab] !== 'string') { errors.push(`${tab}: the tab is missing`); return null; }
     const rows = parseCsv(tabs[tab]).filter(r => r.some(c => c.trim() !== ''));
@@ -168,10 +164,24 @@ function validate(tabs, { hasFile = () => true, variables = require('./variables
     }
     return { rows: rows.slice(1), at };
   }
+  const has = (tab, col) => typeof tabs[tab] === 'string' && parseCsv(tabs[tab])[0]?.some(c => c.trim() === col);
+  const num1 = (tab, c, row, header, raw, spec, k) => {
+    const n = parseNumber(raw);
+    if (raw.trim() === '') { errors.push(`${where(tab, c, row, header)}: blank${k ? ` (${k})` : ''}`); return null; }
+    if (n === null) { errors.push(`${where(tab, c, row, header)}: "${raw}" is not a number${k ? ` (${k})` : ''}`); return null; }
+    if (spec.integer && !Number.isInteger(n)) { errors.push(`${where(tab, c, row, header)}: ${k ?? header} must be a whole number, not ${n}`); return null; }
+    if (n < spec.min || n > spec.max) {
+      errors.push(`${where(tab, c, row, header)}: ${k ?? header} must be ${spec.max === Infinity ? `at least ${spec.min}` : `between ${spec.min} and ${spec.max}`}, not ${n}`);
+      return null;
+    }
+    return n;
+  };
+  return { where, table, has, num1, int, num, parseCsv, parseNumber };
+}
 
-  // The old per-upgrade level tabs are no longer read (loop 16); data/economy.json keeps their tables until
-  // the tier upgrades replace them.
-  const warnings = [];
+function validate(tabs, { hasFile = () => true, variables = require('./variables').declared() } = {}) {
+  const errors = [], warnings = [];
+  const { where, table, has, num1 } = sheetKit(tabs, errors);
   const rules = {}, seen = new Set();
   const t = table(RULES_TAB, RULES_COLUMNS);
   if (t) {
@@ -250,18 +260,6 @@ function validate(tabs, { hasFile = () => true, variables = require('./variables
   }
   // The loop 16 tabs. Each one found by its header row; a missing one is left out, and the sync keeps that part
   // of data/economy.json.
-  const has = (tab, col) => typeof tabs[tab] === 'string' && parseCsv(tabs[tab])[0]?.some(c => c.trim() === col);
-  const num1 = (tab, c, row, header, raw, spec, k) => {
-    const n = parseNumber(raw);
-    if (raw.trim() === '') { errors.push(`${where(tab, c, row, header)}: blank${k ? ` (${k})` : ''}`); return null; }
-    if (n === null) { errors.push(`${where(tab, c, row, header)}: "${raw}" is not a number${k ? ` (${k})` : ''}`); return null; }
-    if (spec.integer && !Number.isInteger(n)) { errors.push(`${where(tab, c, row, header)}: ${k ?? header} must be a whole number, not ${n}`); return null; }
-    if (n < spec.min || n > spec.max) {
-      errors.push(`${where(tab, c, row, header)}: ${k ?? header} must be ${spec.max === Infinity ? `at least ${spec.min}` : `between ${spec.min} and ${spec.max}`}, not ${n}`);
-      return null;
-    }
-    return n;
-  };
   // Economy, Walls and Factories: Key, Value rows. Each key once, on its own tab (or, from an older sheet, on Economy).
   let economyRules = null;
   const seenE = new Map();   // key -> the tab it was on
@@ -320,39 +318,7 @@ function validate(tabs, { hasFile = () => true, variables = require('./variables
       tiers[key] = { name: cell(1), type: cell(2), variable, start, max1, mult, tiers: count, steps, tierWh, priceCurve, gainCurve, unit: cell(11), about: cell(12) };
     });
   }
-  // Items: one row each. Pricing PV (P x V x W(L)) or Hours (Hours x W(L)).
-  let newItems = null;
-  const ni = has(ITEMS_TAB, 'Pricing') ? table(ITEMS_TAB, NEW_ITEM_COLUMNS) : null;
-  if (ni) {
-    newItems = [];
-    const ids = new Set();
-    ni.rows.forEach((r, i) => {
-      const row = i + 1, cell = j => (r[ni.at[j]] ?? '').trim(), at = j => where(ITEMS_TAB, ni.at[j], row, NEW_ITEM_COLUMNS[j]);
-      const opt = (j, spec) => cell(j) === '' ? null : num1(ITEMS_TAB, ni.at[j], row, NEW_ITEM_COLUMNS[j], cell(j), spec);
-      const before = errors.length;
-      const key = cell(0);
-      if (!/^[a-zA-Z0-9]+(-[a-zA-Z0-9]+)*$/.test(key)) errors.push(`${at(0)}: "${key}" must be letters, digits and dashes`);
-      else if (ids.has(key)) errors.push(`${at(0)}: "${key}" appears twice`);
-      ids.add(key);
-      if (!cell(1)) errors.push(`${at(1)}: blank`);
-      if (!cell(2)) errors.push(`${at(2)}: blank`);
-      const effect = cell(3);
-      if (!ITEM_EFFECTS.includes(effect)) errors.push(`${at(3)}: unknown effect "${effect}" (one of: ${ITEM_EFFECTS.join(', ')})`);
-      const value = opt(4, num(0)), seconds = opt(5, num(0)), uses = opt(6, int(1, 1000)), per = opt(7, num(1));
-      if (!/^(yes|no)$/i.test(cell(8))) errors.push(`${at(8)}: "${cell(8)}" must be yes or no`);
-      const consumable = /^yes$/i.test(cell(8));
-      if (!consumable && (uses === null || per === null)) errors.push(`${at(6)}: a reusable item needs Uses and Per (minutes)`);
-      const pricing = cell(9);
-      if (!PRICINGS.includes(pricing)) errors.push(`${at(9)}: "${pricing}" must be ${PRICINGS.join(' or ')}`);
-      const V = opt(10, num(0)), P = opt(11, num(0)), hours = opt(12, num(0));
-      if (pricing === 'PV' && (V === null || P === null)) errors.push(`${at(10)}: PV pricing needs V and P`);
-      if (pricing === 'Hours' && hours === null) errors.push(`${at(12)}: Hours pricing needs Hours`);
-      if (!/^(yes|no)$/i.test(cell(13))) errors.push(`${at(13)}: "${cell(13)}" must be yes or no`);
-      if (errors.length > before) return;
-      newItems.push({ id: key, name: cell(1), description: cell(2), effect, value: value ?? 0, seconds: seconds ?? 0, uses: uses ?? 1,
-        perMinutes: per ?? 0, consumable, pricing, V, P, hours, enabled: /^yes$/i.test(cell(13)) });
-    });
-  }
+  // Items: plugins/items/data.js (loop 19).
   // Skin Rarity: work-hours per rarity (a skin's price = hours x W(L)).
   let skinRarity = null;
   const sr = has(RARITY_TAB, 'Work-hours') ? table(RARITY_TAB, RARITY_COLUMNS) : null;
@@ -379,7 +345,7 @@ function validate(tabs, { hasFile = () => true, variables = require('./variables
       glossary.push({ symbol, name, meaning, formula, home });
     });
   }
-  const parts = { ...(skinsTab ? { skins } : {}), ...(newItems ? { items: newItems } : {}), ...(economyRules ? { economy: economyRules } : {}),
+  const parts = { ...(skinsTab ? { skins } : {}), ...(economyRules ? { economy: economyRules } : {}),
     ...(tiers ? { tiers } : {}), ...(skinRarity ? { skinRarity } : {}), ...(glossary ? { glossary } : {}) };
   return errors.length ? { economy: null, errors, warnings } : { economy: { rules, achievements, ...parts }, errors, warnings };
 }
@@ -418,7 +384,6 @@ function describeChanges(before, after) {
   };
   rows('Achievements', before?.achievements, after.achievements);
   rows('Skins', before?.skins, after.skins);
-  rows('Items', before?.items, after.items);
   rows('Glossary', before?.glossary, after.glossary);
   for (const [r, h] of Object.entries(after.skinRarity ?? {})) {
     const a = before?.skinRarity?.[r];
@@ -427,4 +392,4 @@ function describeChanges(before, after) {
   return lines.length ? lines : ['No changes.'];
 }
 
-module.exports = { ECONOMY_TAB, WALLS_TAB, FACTORIES_TAB, TIERS_TAB, RARITY_TAB, GLOSSARY_TAB, VARIABLE_COLUMN, TIER_COLUMNS, homeTab, ECONOMY_KEYS, RETIRED_RULES, RETIRED_ECONOMY, NEW_ECONOMY, PRICINGS, RULES_TAB, ACHIEVEMENTS_TAB, SKINS_TAB, ITEMS_TAB, ITEM_EFFECTS, SKIN_KINDS, RARITIES, skinFiles, STATS, TABS, RULE_KEYS, parseCsv, parseNumber, validate, describeChanges };
+module.exports = { sheetKit, ECONOMY_TAB, WALLS_TAB, FACTORIES_TAB, TIERS_TAB, RARITY_TAB, GLOSSARY_TAB, VARIABLE_COLUMN, TIER_COLUMNS, homeTab, ECONOMY_KEYS, RETIRED_RULES, RETIRED_ECONOMY, NEW_ECONOMY, RULES_TAB, ACHIEVEMENTS_TAB, SKINS_TAB, SKIN_KINDS, RARITIES, skinFiles, STATS, TABS, RULE_KEYS, parseCsv, parseNumber, validate, describeChanges };

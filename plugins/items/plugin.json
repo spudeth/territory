@@ -1,0 +1,12 @@
+{
+  "order": 10,
+  "tabs": [
+    "Items"
+  ],
+  "client": [
+    "text.js",
+    "style.css",
+    "client.js"
+  ],
+  "variables": {}
+}

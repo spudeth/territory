@@ -59,6 +59,7 @@ let wallPreview = new Map();  // "x,y|side" -> { x, y, side }: the batch being p
     done: r => (r.built === 1 ? 'Wall built' : `${r.built} walls built`),
   };
 
+  Plugins.add('walls', { built: k => !!walls.get(k)?.length });
   addBuildTool({ id: 'wall', order: 20, label: 'Wall', sub: () => BUILD_KINDS.wall.sub(), start: info => startPlacing('wall', info) });
 
   socket.on('welcome', data => {

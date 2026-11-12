@@ -5,6 +5,7 @@
 //   drawUnder(ctx, view)  draw before the territory borders; drawOver(ctx, view) after them
 //   tap(block, sx, sy)    take a map tap while one of its tools is on (return true)
 //   infoCard(info)        a section for the info card (an element, or null)
+//   built(key)            whether it has something built on block "x,y" (Demolition asks every plug-in)
 // Plug-in code loads after the map is first drawn, so it never holds the map up (Q44).
 const Plugins = (() => {
   const all = [];          // [{ name, …hooks }] in the order they were added
@@ -32,7 +33,9 @@ const Plugins = (() => {
       for (const p of list ?? []) for (const f of p.files) {
         if (files.has(f)) continue;
         files.add(f);
-        document.body.append(Object.assign(document.createElement('script'), { src: f, async: false }));
+        // A stylesheet goes in the head; scripts run in the order listed.
+        if (f.endsWith('.css')) document.head.append(Object.assign(document.createElement('link'), { rel: 'stylesheet', href: f }));
+        else document.body.append(Object.assign(document.createElement('script'), { src: f, async: false }));
       }
     },
   };

@@ -98,10 +98,10 @@ test('upgrades (loop 18): tier ranges, log-curve values and prices, the Charts t
 });
 
 test('every pricing rule: PV, Hours, Step, Factory, Wall; skins by rarity hours (flags are Rare)', () => {
-  const superClick = catalog.CATALOG.get('item:superClick');
+  const superClick = require('../plugins/items/data.json').items.find(i => i.id === 'superClick');
   assert.equal(catalog.priceTenths(superClick, { L: 1 }), 7500, 'the doc: 0.625 x W(1) = 750 squares');
   assert.equal(catalog.priceTenths(superClick, { L: 3 }), 30000);
-  assert.equal(catalog.priceTenths(catalog.CATALOG.get('item:demolition'), { L: 1 }), 6000, '0.5 hours = 600 squares');
+  assert.equal(catalog.priceTenths(require('../plugins/items/data.json').items.find(i => i.id === 'demolition'), { L: 1 }), 6000, '0.5 hours = 600 squares');
   assert.equal(catalog.priceTenths(catalog.CATALOG.get('upgrade:earnings'), { s: 7, L: 9 }), upgrades.stepCostTenths('earnings', 7), 'steps use their number, not the level');
   const factory = catalog.CATALOG.get('building:factory');
   assert.equal(catalog.priceTenths(factory, { L: 1, n: 1 }), catalog.toTenths(48 * 0.05 * 1200));

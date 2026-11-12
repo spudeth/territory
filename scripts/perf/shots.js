@@ -60,7 +60,7 @@ async function shoot(browser, name, vp) {
   await p.evaluate(() => document.getElementById('build-ok').click()); await wait(1500);
   await view(g.edge[1], s + 40); await shot('walls');
   // Demolition: three bought, two blocks picked.
-  await p.evaluate(() => ask('buyItem', { item: 'demolition', qty: 3 })); await wait(1200);
+  await p.evaluate(() => ask('items:buy', { item: 'demolition', qty: 3 })); await wait(1200);
   await p.evaluate(() => [...document.querySelectorAll('#itembar .btn')].find(b => b.innerText.includes('Demolition'))?.click()); await wait(500);
   await view(g.edge[1], s + 12);
   await tap(g.edge[0]); await tap(g.edge[1]);

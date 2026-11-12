@@ -39,7 +39,7 @@ test('the saved sheet passes and reads every tab as shown; retired Game Rules ke
   assert.deepEqual(e.tiers.clickPower, { name: 'Click Power', type: 'Income', variable: 'clickPower', start: 1, max1: 10, mult: 2, tiers: 10, steps: 90, tierWh: 12, priceCurve: 9, gainCurve: 9,
     unit: 'x hits per tap', about: 'Each tap counts as this many hits' });
   assert.deepEqual([e.tiers.factorySpeed.start, e.tiers.factorySpeed.max1], [0.05, 0.1]);
-  assert.deepEqual(e.items.map(i => [i.id, i.pricing, i.consumable]), [['superClick', 'PV', false], ['terraformer', 'PV', false], ['demolition', 'Hours', true]]);
+  assert.equal(e.items, undefined, "the Items tab is the items plug-in's (loop 19)");
   assert.deepEqual(e.skinRarity, { Common: 0.3333, Rare: 1, 'Ultra Rare': 5, Legendary: 20 });
   assert.ok(e.glossary.length >= 20);
   assert.deepEqual(e.glossary[0].symbol, 'E');
@@ -54,11 +54,11 @@ test('a missing tab, or the first tab returned in its place, is refused by name;
   assert.match(errorsWith(fallback)[0], /^Game Rules: no column "Key", "Value", "What it means" in row 1/);
   // Google returns the first tab (Economy) for a tab that doesn't exist: each new tab is then left out.
   const none = saved();
-  for (const t of ['Upgrades', 'Items', 'Skin Rarity', 'Glossary']) none[t] = none.Economy;
+  for (const t of ['Upgrades', 'Skin Rarity', 'Glossary']) none[t] = none.Economy;
   delete none.Economy;
   const r = economy.validate(none);
   assert.deepEqual(r.errors, []);
-  for (const part of ['economy', 'tiers', 'items', 'skinRarity', 'glossary']) assert.equal(r.economy[part], undefined, part);
+  for (const part of ['economy', 'tiers', 'skinRarity', 'glossary']) assert.equal(r.economy[part], undefined, part);
 });
 
 test('the Economy, Walls and Factories tabs: unknown, missing, twice, on the wrong tab, out of range, not whole and not a number are refused by cell', () => {
@@ -112,20 +112,12 @@ test('the Upgrades tab: unknown upgrades, bad numbers and missing rows are refus
   check(setCell(tab, row('clickPower'), 10, 'x'), `Upgrades, cell K${row('clickPower') + 1} ("Gain curve"): "x" is not a number`);
 });
 
-test('the Items, Skin Rarity and Glossary tabs: bad rows are named by cell', () => {
-  const items = saved().Items;
+test('the Skin Rarity and Glossary tabs: bad rows are named by cell', () => {
   const check = (tab, csv, expected) => {
     const tabs = saved();
     tabs[tab] = csv;
     assert.ok(errorsWith(tabs).includes(expected), `${expected}\n  got: ${errorsWith(tabs).join(' | ')}`);
   };
-  check('Items', setCell(items, 1, 3, 'explode'), `Items, cell D2 ("Effect"): unknown effect "explode" (one of: ${economy.ITEM_EFFECTS.join(', ')})`);
-  check('Items', setCell(items, 1, 9, 'Free'), 'Items, cell J2 ("Pricing"): "Free" must be PV or Hours');
-  check('Items', setCell(items, 1, 10, ''), 'Items, cell K2 ("V (work-hours/hour)"): PV pricing needs V and P');
-  check('Items', setCell(items, 3, 12, ''), 'Items, cell M4 ("Hours"): Hours pricing needs Hours');
-  check('Items', setCell(items, 1, 6, ''), 'Items, cell G2 ("Uses"): a reusable item needs Uses and Per (minutes)');
-  check('Items', setCell(items, 1, 8, 'maybe'), 'Items, cell I2 ("Consumable"): "maybe" must be yes or no');
-  check('Items', setCell(items, 2, 0, 'superClick'), 'Items, cell A3 ("Key"): "superClick" appears twice');
   const rarity = saved()['Skin Rarity'];
   check('Skin Rarity', setCell(rarity, 1, 0, 'Mythic'), 'Skin Rarity, cell A2 ("Rarity"): "Mythic" must be Common, Rare, Ultra Rare, Legendary');
   check('Skin Rarity', setCell(rarity, 2, 1, '0'), 'Skin Rarity, cell B3 ("Work-hours"): Work-hours must be at least 0.0001, not 0');
@@ -146,10 +138,9 @@ test('the change report says what changed in plain English', () => {
   before.economy.marketFee = 0.1;
   before.tiers.clickPower.tierWh = 5;
   before.skinRarity.Rare = 2;
-  before.items.pop();
   const lines = economy.describeChanges(before, after);
   for (const l of ['hitsPerBlock: 3 → 10', 'marketFee: 0.1 → 0.05', 'squaresPerFirstClaim: retired (no longer used)', 'Click Power: tierWh 5 → 12',
-    'Rare skins: 2 → 1 work-hours', 'Items: 3 in all; 1 added, 0 removed, 0 changed']) assert.ok(lines.includes(l), `${l}\n${lines.join('\n')}`);
+    'Rare skins: 2 → 1 work-hours']) assert.ok(lines.includes(l), `${l}\n${lines.join('\n')}`);
   assert.deepEqual(economy.describeChanges(after, after), ['No changes.']);
 });
 

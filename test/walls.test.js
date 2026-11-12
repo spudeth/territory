@@ -66,7 +66,7 @@ test('a wall: priced wallPriceWh x W(L), w x H hits to break, broken for good; D
   await claim(pool, id, a.playerId, 1, 0);
   const H = rules.HITS_PER_BLOCK, price = catalog.priceTenths(catalog.CATALOG.get('building:wall'), { L: 1, owned: 0 });
   assert.equal(price, catalog.toTenths(catalog.E.wallPriceWh * catalog.W(1)));
-  const demo = catalog.priceTenths(catalog.CATALOG.get('item:demolition'), { L: 1 });
+  const demo = catalog.priceTenths(require('../plugins/items/data.json').items.find(i => i.id === 'demolition'), { L: 1 });
   await pool.query('UPDATE players SET squares = $2 WHERE id = $1', [a.playerId, price * 2 + demo]);
   const sa = player({ token: a.token });
   await onMap(sa, id);
@@ -99,8 +99,8 @@ test('a wall: priced wallPriceWh x W(L), w x H hits to break, broken for good; D
   // Demolition clears the block's walls, no refund; one Demolition for the block, however many walls.
   assert.deepEqual(await sa.ask('build', { kind: 'wall', x: 0, y: 0, side: 'n' }), { ok: true, built: 1, price: price / 10, squares: demo / 10 });
   await pool.query(`UPDATE map_cells SET walls = walls || '[{"side":"s","hits":20}]' WHERE map_id = $1 AND x = 0 AND y = 0`, [id]);   // a second wall
-  await sa.ask('buyItem', { item: 'demolition' });
-  assert.equal((await sa.ask('useItem', { item: 'demolition', blocks: [[0, 0]] })).ok, true);
+  await sa.ask('items:buy', { item: 'demolition' });
+  assert.equal((await sa.ask('items:use', { item: 'demolition', blocks: [[0, 0]] })).ok, true);
   assert.deepEqual((await pool.query('SELECT walls FROM map_cells WHERE map_id = $1 AND x = 0 AND y = 0', [id])).rows[0].walls, []);
 });
 

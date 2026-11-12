@@ -58,6 +58,7 @@ let factories = new Map();   // "x,y" -> { x, y, owner, awakeUntil, paused }
 
   // Factories on the map, under the territory borders: awake or asleep art.
   Plugins.add('factories', {
+    built: k => factories.has(k),
     drawUnder(ctx, { X, Y, r0, r1, c0, c1 }) {
       const awake = artImage('factory', draw), asleep = artImage('factoryAsleep', draw), now = Date.now();
       for (const f of factories.values()) {

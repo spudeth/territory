@@ -280,7 +280,7 @@ function adminRouter({ pool, key, production, hooks, email }) {
           'Everyone is disconnected and reconnects to the fresh game.'] };
       },
       async run({ plan }) {
-        await store.economyReset(pool, plan);
+        await store.economyReset(pool, plan, c => hooks.reset?.(c));
         hooks.reloadAll('The game was reset for the economy update. Reload the page to start again.');
         return [`The economy was reset: ${plural(plan.length, 'map')} made again at level 1.`];
       },
@@ -358,7 +358,7 @@ function adminRouter({ pool, key, production, hooks, email }) {
       },
       async run({ p }) {
         hooks.kick([p.id], 'deleted', 'This account has been deleted.');
-        const r = await store.deleteAccount(pool, p.id);
+        const r = await store.deleteAccount(pool, p.id, c => hooks.accountDeleted?.(c, p.id));
         await hooks.reloadMaps(r.maps);
         return [`Deleted ${p.name}. Their blocks are empty on ${plural(r.maps.length, 'map')}; ${r.authDeleted ? 'their login was erased from Neon Auth' : 'there was no Neon Auth login to erase'}. The name "${p.name}" is free.`];
       },

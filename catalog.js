@@ -69,7 +69,6 @@ const skinHours = rarity => economy.skinRarity?.[rarity] ?? 0;
 function buildCatalog() {
   const rows = [];
   for (const key of Object.keys(economy.tiers ?? {})) rows.push({ key: 'upgrade:' + key, kind: 'upgrade', upgrade: key, pricing: 'Step', effect: key });
-  for (const it of economy.items ?? []) rows.push({ ...it, key: 'item:' + it.id, kind: 'item', pricing: it.pricing, effect: it.effect });
   rows.push({ key: 'building:factory', kind: 'building', pricing: 'Factory', effect: 'factory' });
   rows.push({ key: 'building:wall', kind: 'building', pricing: 'Wall', effect: 'wall' });
   return new Map(rows.map(r => [r.key, r]));

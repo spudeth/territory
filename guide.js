@@ -11,7 +11,8 @@ const table = (head, rows) => `<div class="scroll"><table><thead><tr>${head.map(
   + rows.map(r => `<tr>${r.map(c => `<td>${esc(c)}</td>`).join('')}</tr>`).join('') + '</tbody></table></div>';
 const unitText = (v, unit) => (/^x /.test(unit) ? `×${n(v)} ${unit.slice(2)}` : `${n(v)} ${unit}`);
 
-function renderGuide({ maps = [] } = {}) {
+// pluginSections(helpers): each plug-in's section, [{ id, title, html }] (loop 19), shown after Walls.
+function renderGuide({ maps = [], pluginSections = () => [] } = {}) {
   const shown = new Set(upgrades.available(require('./variables').declared()));   // upgrades whose variable exists (loop 19)
   const E = catalog.E, L = Array.from({ length: E.maxLevel }, (_, i) => i + 1);
   const terrains = Object.entries(rules.TERRAIN_HITS);
@@ -80,10 +81,8 @@ function renderGuide({ maps = [] } = {}) {
     <p class="formula">Price of each wall = ${n(E.wallPriceWh)} × W(the block's level) × max(1, √(walls you own on this map) ÷ 2) squares</p>
     <p>The walls you own are counted before the batch, so every wall in one batch has the same multiplier.</p>`);
 
-  sections.push(`<h2 id="items">Items</h2>`
-    + table(['Item', 'What it does', 'Price at level 1', 'Formula'], economy.items.filter(i => i.enabled).map(i => [i.name, i.description,
-      n(catalog.fromTenths(catalog.priceTenths(catalog.CATALOG.get('item:' + i.id), { L: 1 })), 1),
-      i.pricing === 'PV' ? `${n(i.P)} × ${n(i.V, 4)} × W(L)` : `${n(i.hours)} × W(L)`])));
+  const extra = pluginSections({ n, table, esc, E, catalog });
+  for (const p of extra) sections.push(p.html);
 
   sections.push(`<h2 id="market">The land market</h2>
     <p>Accounts at least ${n(E.marketMinAccountDays)} days old can sell connected blocks of their land (Build → Sell land) at any price, and
@@ -131,7 +130,7 @@ function renderGuide({ maps = [] } = {}) {
     <h1>Game Guide</h1>
     <p class="sub">Every number here comes straight from the game's rules, so it's always current.</p>
     <nav>${[['play', 'Playing'], ['levels', 'Levels'], ['pay', 'Pay'], ['upgrades', 'Upgrades'], ['factories', 'Factories'], ['walls', 'Walls'],
-      ['items', 'Items'], ['market', 'Market'], ['skins', 'Skins'], ['achievements', 'Achievements'], ['glossary', 'Glossary']].map(([id, t]) => `<a href="#${id}">${t}</a>`).join('')}</nav>
+      ...extra.map(p => [p.id, p.title]), ['market', 'Market'], ['skins', 'Skins'], ['achievements', 'Achievements'], ['glossary', 'Glossary']].map(([id, t]) => `<a href="#${id}">${t}</a>`).join('')}</nav>
     ${sections.join('\n')}
     <p class="links foot"><a href="/">Back to the game</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></p>
   </main>

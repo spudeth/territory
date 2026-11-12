@@ -619,7 +619,8 @@ function wipeMap(pool, mapId, size = null) {
 // Deletes an account for good. Their blocks everywhere go empty; their login, sessions, email codes and
 // personal data are erased, in Neon Auth too; their name is freed. The row stays, anonymous, because the
 // squares ledger refers to it. Returns { maps: ids of maps where they had blocks, authDeleted }.
-function deleteAccount(pool, playerId) {
+// also(c): the plug-ins' part, in the same transaction (loop 19).
+function deleteAccount(pool, playerId, also = async () => {}) {
   return tx(pool, async c => {
     const { rows: [p] } = await c.query('SELECT auth_user_id, squares FROM players WHERE id = $1 FOR UPDATE', [playerId]);
     const { rows: maps } = await c.query('SELECT DISTINCT map_id FROM map_cells WHERE owner_id = $1', [playerId]);
@@ -627,10 +628,11 @@ function deleteAccount(pool, playerId) {
     await c.query(DROP_ORPHAN_FACTORIES);
     await c.query(DROP_BROKEN_LISTINGS);
     for (const t of ['player_tokens', 'player_map_settings', 'player_map_stats', 'player_achievements', 'player_skins',
-      'tap_limit_log', 'bans', 'player_totals', 'player_lives', 'player_items', 'player_inventory', 'item_uses', 'email_consent_log']) {
+      'tap_limit_log', 'bans', 'player_totals', 'player_lives', 'email_consent_log']) {
       await c.query(`DELETE FROM ${t} WHERE player_id = $1`, [playerId]);
     }
     await c.query('DELETE FROM player_links WHERE account_id = $1 OR guest_id = $1', [playerId]);
+    await also(c);
     if (Number(p.squares) > 0) {
       await c.query("INSERT INTO square_ledger (player_id, delta, balance_after, reason) VALUES ($1, $2, 0, 'account deleted')",
         [playerId, -Number(p.squares)]);
@@ -898,9 +900,11 @@ async function resetPlan(pool) {
 // (written to the ledger), upgrade tiers and highest level, items and their uses, factories, walls and listings;
 // official maps are made again from their seeds and E. Keeps: accounts, names, owned skins, stars and earned
 // achievements. Never run on production by Cody; Xoren runs it.
-function economyReset(pool, plan) {
+// also(c): the plug-ins' part, in the same transaction (loop 19).
+function economyReset(pool, plan, also = async () => {}) {
   return tx(pool, async c => {
-    for (const t of ['listings', 'factories', 'player_items', 'player_inventory', 'item_uses']) await c.query(`DELETE FROM ${t}`);
+    for (const t of ['listings', 'factories']) await c.query(`DELETE FROM ${t}`);
+    await also(c);
     await c.query(`INSERT INTO square_ledger (player_id, delta, balance_after, reason) SELECT id, -squares, 0, 'economy reset' FROM players WHERE squares <> 0`);
     await c.query("UPDATE players SET squares = 0, upgrade_steps = '{}', highest_level = 1");
     await c.query('UPDATE player_lives SET ended_at = now() WHERE ended_at IS NULL');
@@ -970,66 +974,7 @@ async function unseenDeath(pool, playerId, mapId) {
 const markLifeSeen = (pool, id) => pool.query('UPDATE player_lives SET seen = true WHERE id = $1', [id]);
 Object.assign(module.exports, { lifeClaim, endLife, unseenDeath, markLifeSeen });
 
-// ---------- Items (loop 14) ----------
-// The item effects that have a handler (app.js useItem); an item of any other effect stays out of the shop.
-const USABLE = { clickMultiplier: true, terraform: true, demolish: true };
-// A use frees up `perMinutes` after it was made (a rolling window). For each item: owned, uses left now, and when
-// the next one frees up (null when none are used up).
-async function itemsFor(pool, playerId) {
-  const owned = new Set(playerId ? (await pool.query('SELECT item_id FROM player_items WHERE player_id = $1', [playerId])).rows.map(r => r.item_id) : []);
-  const counts = new Map(playerId ? (await pool.query('SELECT item_id, count FROM player_inventory WHERE player_id = $1', [playerId])).rows.map(r => [r.item_id, r.count]) : []);
-  const uses = playerId ? (await pool.query("SELECT item_id, used_at FROM item_uses WHERE player_id = $1 AND used_at > now() - interval '1 day' ORDER BY used_at", [playerId])).rows : [];
-  return rules.ITEMS.filter(i => (i.enabled || owned.has(i.id) || counts.get(i.id)) && i.effect in USABLE).map(i => {
-    if (i.consumable) return { ...i, count: counts.get(i.id) ?? 0, owned: (counts.get(i.id) ?? 0) > 0, usesLeft: counts.get(i.id) ?? 0, nextAt: null };
-    const recent = uses.filter(u => u.item_id === i.id && Date.now() - u.used_at.getTime() < i.perMinutes * 60000);
-    return { ...i, owned: owned.has(i.id), usesLeft: Math.max(0, i.uses - recent.length),
-      nextAt: recent.length ? recent[0].used_at.getTime() + i.perMinutes * 60000 : null };
-  });
-}
-// Buys an item for `price` tenths (each; a consumable may come `qty` at a time), in one transaction with the player
-// row locked (a double tap pays once).
-function buyItem(pool, playerId, item, price, qty = 1) {
-  return tx(pool, async c => {
-    const { rows: [p] } = await c.query('SELECT squares FROM players WHERE id = $1 FOR UPDATE', [playerId]);
-    if (!p) return { error: 'Claim a block first' };
-    if (!item.consumable && (await c.query('SELECT 1 FROM player_items WHERE player_id = $1 AND item_id = $2', [playerId, item.id])).rowCount) return { error: 'You already own this item' };
-    const paid = await spend(c, playerId, price * qty, 'item:' + item.id + (qty > 1 ? ` x${qty}` : ''));
-    if (paid.error) return paid;
-    if (item.consumable) {
-      const { rows: [inv] } = await c.query(`INSERT INTO player_inventory (player_id, item_id, count) VALUES ($1, $2, $3)
-        ON CONFLICT (player_id, item_id) DO UPDATE SET count = player_inventory.count + $3 RETURNING count`, [playerId, item.id, qty]);
-      return { squares: paid.squares, price: price * qty, count: inv.count };
-    }
-    await c.query('INSERT INTO player_items (player_id, item_id) VALUES ($1, $2)', [playerId, item.id]);
-    return { squares: paid.squares, price };
-  });
-}
-// Uses an owned item if a use is free (checked with the player row locked, so two devices can't both use the last
-// one). `apply(c)` runs in the same transaction (e.g. the terrain change); a refusal from it rolls everything back.
-// Returns { ok, usesLeft, nextAt } or { error, nextAt }. `n`: how many of a consumable this takes (Demolition: one a block).
-function useItem(pool, playerId, item, mapId, apply = async () => null, n = 1) {
-  return tx(pool, async c => {
-    await c.query('SELECT 1 FROM players WHERE id = $1 FOR UPDATE', [playerId]);
-    // A consumable: one from the inventory, used up.
-    if (item.consumable) {
-      const { rows: [inv] } = await c.query('UPDATE player_inventory SET count = count - $3 WHERE player_id = $1 AND item_id = $2 AND count >= $3 RETURNING count', [playerId, item.id, n]);
-      if (!inv) return { error: n === 1 ? `You have no ${item.name} left` : `Not enough ${item.name}: this needs ${n}` };
-      const refused = await apply(c);
-      if (refused) throw Object.assign(new Error(refused), { refusal: true });
-      await c.query('INSERT INTO item_uses (player_id, item_id, map_id) SELECT $1, $2, $3 FROM generate_series(1, $4)', [playerId, item.id, mapId, n]);
-      return { ok: true, count: inv.count, usesLeft: inv.count, nextAt: null };
-    }
-    if (!(await c.query('SELECT 1 FROM player_items WHERE player_id = $1 AND item_id = $2', [playerId, item.id])).rowCount) return { error: "You don't own this item" };
-    const { rows } = await c.query(`SELECT used_at FROM item_uses WHERE player_id = $1 AND item_id = $2 AND used_at > now() - make_interval(mins => $3)
-      ORDER BY used_at`, [playerId, item.id, item.perMinutes]);
-    if (rows.length >= item.uses) return { error: 'No uses left yet', nextAt: rows[0].used_at.getTime() + item.perMinutes * 60000 };
-    const refused = await apply(c);
-    if (refused) throw Object.assign(new Error(refused), { refusal: true });
-    await c.query('INSERT INTO item_uses (player_id, item_id, map_id) VALUES ($1, $2, $3)', [playerId, item.id, mapId]);
-    const used = [...rows.map(r => r.used_at.getTime()), Date.now()];
-    return { ok: true, usesLeft: item.uses - used.length, nextAt: used[0] + item.perMinutes * 60000 };
-  }).catch(err => { if (err.refusal) return { error: err.message }; throw err; });
-}
+// ---------- Terrain (the Terraformer item, plugins/items, uses it through the core) ----------
 // Terraformer: a block's terrain for good. Water can't be owned, so a block turned to water is freed.
 async function setTerrain(c, mapId, x, y, terrain) {
   await c.query('UPDATE map_cells SET terrain = $4 WHERE map_id = $1 AND x = $2 AND y = $3', [mapId, x, y, terrain]);
@@ -1039,7 +984,7 @@ async function setTerrain(c, mapId, x, y, terrain) {
     await c.query(DROP_BROKEN_LISTINGS);
   }
 }
-Object.assign(module.exports, { USABLE, itemsFor, buyItem, useItem, setTerrain });
+Object.assign(module.exports, { setTerrain });
 
 // An account's email, from Neon Auth (null for guests, or where Neon Auth isn't in this database).
 async function accountEmail(pool, authUserId) {

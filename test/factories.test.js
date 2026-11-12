@@ -181,13 +181,13 @@ test('a factory is destroyed when its block is taken; Demolition removes one for
   await gone;
   assert.equal(await db.count('SELECT count(*) FROM factories WHERE map_id = $1 AND x = 0 AND y = 0', [id]), 0);
   // Demolition: the owner removes their other factory.
-  const price = catalog.priceTenths(catalog.CATALOG.get('item:demolition'), { L: 1 });
+  const price = catalog.priceTenths(require('../plugins/items/data.json').items.find(i => i.id === 'demolition'), { L: 1 });
   await pool.query('UPDATE players SET squares = $2 WHERE id = $1', [pid, price]);
   const s = player({ token });
   await onMap(s, id);
-  await s.ask('buyItem', { item: 'demolition' });
+  await s.ask('items:buy', { item: 'demolition' });
   // Its block and a bare one: only the block with the factory uses a Demolition.
-  const r = await s.ask('useItem', { item: 'demolition', blocks: [[1, 0], [2, 0]] });
+  const r = await s.ask('items:use', { item: 'demolition', blocks: [[1, 0], [2, 0]] });
   assert.deepEqual([r.ok, r.cleared, r.count], [true, 1, 0]);
   assert.equal(await db.count('SELECT count(*) FROM factories WHERE map_id = $1', [id]), 0);
   assert.equal((await s.ask('inspect', { x: 1, y: 0 })).factory, undefined);

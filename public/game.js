@@ -126,6 +126,12 @@ const clouds = [];
 
 // Skin images (public/skins/<id>.png, and -large.png for Full area), loaded the first time they're needed.
 const skinImages = new Map();
+// Art of any size (16, 32, 64, … pixels) is drawn scaled to the block, crisp (loop 19). An animation is a sprite sheet
+// of square frames side by side (the art standard: 64x64 frames); frameOf(img) is the frame showing now, one every
+// ANIM_MS, and frameSize(img) a frame's width. Plug-ins use these too.
+const ANIM_MS = 220;
+const frameSize = img => img.naturalHeight;
+const frameOf = img => Math.floor(performance.now() / ANIM_MS) % Math.max(1, Math.round(img.naturalWidth / img.naturalHeight));
 function skinImage(id, large, anim) {
   const k = id + (large ? '-large' : '') + (anim ? '-anim' : '');
   if (!skinImages.has(k)) skinImages.set(k, Object.assign(new Image(), { src: `skins/${k}.png`, onload: draw }));
@@ -252,7 +258,6 @@ function render() {
 
   const waterFrame = Math.floor(performance.now() / WATER_FRAME_MS) % 2;
   let waterShown = false, animShown = false;   // keep redrawing while water or an animated skin is on screen
-  const animFrame = Math.floor(performance.now() / 220) % 4;
   const fullArea = new Map();   // owner -> their visible blocks, for Full area skins
   const white = mapInfo?.style === 'white' && !world;
   for (let y = r0; y < r1; y++) {
@@ -283,7 +288,7 @@ function render() {
         // art in their color. Art: the image as it is. Full area skins are drawn over the whole territory below.
         const look = lookOf(o), img = look.kind !== 'default' && !look.full && skinImage(look.id, false, look.anim);
         if (look.full) { (fullArea.get(o) ?? fullArea.set(o, []).get(o)).push([x, y]); }
-        else if (img && look.anim) { animShown = true; ctx.drawImage(img, animFrame * img.naturalWidth / 4, 0, img.naturalWidth / 4, img.naturalHeight, x0, y0, bw, bh); }
+        else if (img && look.anim) { animShown = true; ctx.drawImage(img, frameOf(img) * frameSize(img), 0, frameSize(img), img.naturalHeight, x0, y0, bw, bh); }
         else if (img) ctx.drawImage(img, x0, y0, bw, bh);
         if (look.kind !== 'art' && !(look.full && look.kind === 'pattern')) {
           ctx.fillStyle = players[o]?.color || '#888';
@@ -303,7 +308,7 @@ function render() {
   for (const [o, mine] of fullArea) {
     const look = lookOf(o), img = skinImage(look.id, true, look.anim);
     if (!img) continue;
-    const fw = look.anim ? img.naturalWidth / 4 : img.naturalWidth;
+    const fw = look.anim ? frameSize(img) : img.naturalWidth;
     if (look.anim) animShown = true;
     let bx0 = Infinity, by0 = Infinity, bx1 = -Infinity, by1 = -Infinity;
     for (const [k, owner] of cells) {
@@ -316,7 +321,7 @@ function render() {
     ctx.beginPath();
     for (const [x, y] of mine) ctx.rect(X(x), Y(y), X(x + 1) - X(x), Y(y + 1) - Y(y));
     ctx.clip();
-    ctx.drawImage(img, look.anim ? animFrame * fw : 0, 0, fw, img.naturalHeight, sx + fit.dx, sy + fit.dy, fit.dw, fit.dh);
+    ctx.drawImage(img, look.anim ? frameOf(img) * fw : 0, 0, fw, img.naturalHeight, sx + fit.dx, sy + fit.dy, fit.dw, fit.dh);
     if (look.kind === 'pattern') {
       ctx.globalCompositeOperation = 'color';
       ctx.fillStyle = players[o]?.color || '#888';
@@ -387,20 +392,7 @@ function render() {
 
   // Walls on top of the borders, solid, each with its shadow (walls.js).
   window.drawWalls?.(ctx, X, Y, r0, r1, c0, c1, o => border * skins.borderTexels(lookOf(o).kind));
-  Plugins.run('drawOver', ctx, view);    // plug-ins: over the borders
-  // Blocks picked for Demolition: the whole block red (items.js).
-  if (typeof demolishing !== 'undefined' && demolishing.size) {
-    for (const k of demolishing) {
-      const [x, y] = k.split(',').map(Number);
-      if (x < c0 || x >= c1 || y < r0 || y >= r1) continue;
-      const x0 = X(x), y0 = Y(y), bw = X(x + 1) - x0, bh = Y(y + 1) - y0;
-      ctx.fillStyle = 'rgba(255,77,77,0.6)';
-      ctx.fillRect(x0, y0, bw, bh);
-      ctx.strokeStyle = '#ff4d4d';
-      ctx.lineWidth = Math.max(2, Math.round(dpr * 2));
-      ctx.strokeRect(x0 + 1, y0 + 1, bw - 2, bh - 2);
-    }
-  }
+  Plugins.run('drawOver', ctx, view);    // plug-ins: over the borders (Demolition's picked blocks, …)
 
   // Water ripples: draw again for the next frame while water is on screen (not while the tab is hidden).
   if ((waterShown || animShown) && !waterTimer && !document.hidden) {
@@ -581,7 +573,6 @@ function pointerEnd(e) {
     const tagHit = tagBoxes.find(b => e.clientX >= b.x && e.clientX < b.x + b.w && e.clientY >= b.y && e.clientY < b.y + b.h);
     if (tagHit) openProfile(tagHit.owner);   // exactly the tag; the block around it still attacks
     else if (c && window.buildTap?.(c, e.clientX, e.clientY)) { /* placing a building (build.js) */ }
-    else if (c && window.itemTap?.(c)) { /* the Terraformer took this tap (items.js) */ }
     else if (c && Plugins.first('tap', c, e.clientX, e.clientY)) { /* a plug-in's tool took this tap (loop 19) */ }
     // Someone else's block or an empty one: a hit. Your own: only if it's cracked (a repair); otherwise nothing at all.
     else if (c && (!(me && cells.get(key(c.x, c.y)) === me) || hits.has(key(c.x, c.y)))) {

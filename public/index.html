@@ -115,13 +115,6 @@
   </div>
 
   <!-- A message from the server that ends the game for now: banned, kicked, account deleted, restored -->
-  <!-- The item bar (owned items, uses and timers) and the Terraformer's terrain picker (items.js) -->
-  <div id="itembar" hidden></div>
-  <div class="card" id="terra-pick" hidden>
-    <span id="terra-msg">Tap one of your blocks, or an empty one next to your land</span>
-    <div id="terra-choices"></div>
-    <button class="btn" type="button" id="terra-cancel">Cancel</button>
-  </div>
   <!-- Death on this map (loop 13): what the life was, then RESPAWN or MENU -->
   <div id="flash"></div>
   <div id="death" hidden>
@@ -381,16 +374,6 @@
         <button class="btn" type="button" id="pf-mute" hidden></button>
       </section>
 
-      <!-- Items (loop 14): bought once, used within limits -->
-      <section data-view="items" hidden>
-        <div class="head">
-          <button class="btn icon-btn" type="button" data-go="main" aria-label="Back to menu"><svg class="pix" width="16" height="16" aria-hidden="true"><use href="#i-back"/></svg></button>
-          <h1>MARKETPLACE</h1>
-        </div>
-        <p style="margin: 0; font-size: 15px; color: var(--soft)">Abilities are bought once and are yours for good; each can be used a few times an hour. Some, like Demolition, are used up. Prices follow this map's level.</p>
-        <div class="split" style="align-items: center"><span data-info="items">Your squares</span><span class="chip"><img class="sq-icon" src="icons/square.svg" width="14" height="14" alt=""><span id="items-squares">0</span></span></div>
-        <div id="items-list" class="items-list"></div>
-      </section>
 
       <!-- Reset all progress confirmation -->
       <section data-view="reset" hidden>
@@ -554,6 +537,6 @@
   <script src="factories.js"></script>
   <script src="walls.js"></script>
   <script src="land.js"></script>
-  <script src="items.js"></script>
+  <script src="start.js"></script>
 </body>
 </html>

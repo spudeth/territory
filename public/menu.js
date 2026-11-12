@@ -7,25 +7,43 @@ const menu = $('menu');
 const fills = {};     // view name -> function that fills the view in just before it shows
 let view = null;      // the view showing, or null when the menu is closed
 
-// The Marketplace: one screen with tabs (Skins, Items, Land), each the screen it always was.
-const MARKET_TABS = [['skins', 'Skins'], ['items', 'Items'], ['land', 'Land']];   // Upgrades is its own screen (loop 17)
+// The Marketplace: one screen with tabs, each the screen it always was: [view, label, order]. The core has Skins and
+// Land; plug-ins add theirs with addMarketTab (loop 19). Upgrades is its own screen (loop 17).
+const MARKET_TABS = [['skins', 'Skins', 10], ['land', 'Land', 30]];
 let marketTab = 'skins';
-for (const [v] of MARKET_TABS) {
-  const bar = document.createElement('div');
-  bar.className = 'tabs market-tabs';
-  bar.setAttribute('role', 'tablist');
-  bar.setAttribute('aria-label', 'Marketplace');
-  bar.replaceChildren(...MARKET_TABS.map(([t, label]) => {
-    const b = Object.assign(document.createElement('button'), { type: 'button', textContent: label });
-    b.setAttribute('role', 'tab');
-    b.setAttribute('aria-selected', t === v);
-    b.addEventListener('click', () => { if (t !== v) show(t); });
-    return b;
-  }));
-  menu.querySelector(`[data-view="${v}"] .head`).after(bar);
+function drawMarketTabs() {
+  MARKET_TABS.sort((a, b) => a[2] - b[2]);
+  for (const [v] of MARKET_TABS) {
+    const section = menu.querySelector(`[data-view="${v}"]`);
+    section.querySelector('.market-tabs')?.remove();
+    const bar = document.createElement('div');
+    bar.className = 'tabs market-tabs';
+    bar.setAttribute('role', 'tablist');
+    bar.setAttribute('aria-label', 'Marketplace');
+    bar.replaceChildren(...MARKET_TABS.map(([t, label]) => {
+      const b = Object.assign(document.createElement('button'), { type: 'button', textContent: label });
+      b.setAttribute('role', 'tab');
+      b.setAttribute('aria-selected', t === v);
+      b.addEventListener('click', () => { if (t !== v) show(t); });
+      return b;
+    }));
+    section.querySelector('.head').after(bar);
+  }
+}
+drawMarketTabs();
+// A plug-in's Marketplace tab: a <section data-view="id"> made from `html` (a .head first), its label and place, and
+// fill() to run just before it shows. Returns the section.
+function addMarketTab({ id, label, order = 100, html, fill }) {
+  const section = Object.assign(document.createElement('section'), { hidden: true, innerHTML: html });
+  section.dataset.view = id;
+  menu.querySelector('[data-view="land"]').before(section);
+  MARKET_TABS.push([id, label, order]);
+  if (fill) fills[id] = fill;
+  drawMarketTabs();
+  return section;
 }
 function show(name) {
-  if (name === 'market') name = marketTab;
+  if (name === 'market') name = MARKET_TABS.some(([t]) => t === marketTab) ? marketTab : MARKET_TABS[0][0];
   if (MARKET_TABS.some(([t]) => t === name)) marketTab = name;
   if (name !== 'achievements' && typeof achTarget !== 'undefined') achTarget = null;
   if (name === 'main') return closeMenu();   // the old menu hub: the welcome screen is underneath now

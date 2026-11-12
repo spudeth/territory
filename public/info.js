@@ -22,7 +22,6 @@ const INFO = {
   skinPrices: 'A skin costs a set number of work-hours for its rarity, in squares at this map\'s level, so prices are fair at every level. Flags are Rare.',
   secrets: 'Secret achievements stay hidden as ??? until you find them. Each one is a small surprise.',
   rank: 'Ranks count on busy maps only: at least 10 players with blocks, and you need 100 blocks yourself. Ties count against you.',
-  items: 'Abilities are bought once and are yours for good; each can be used a few times an hour, on any map. Demolition is used up, bought one or many at a time: each one clears everything built on one of your blocks (walls and factory), with no refund.',
   online: 'A green dot means the player has the game open right now.',
   starring: 'Star one pattern and one art skin as your favorites. They show at the top here and on your profile.',
 };

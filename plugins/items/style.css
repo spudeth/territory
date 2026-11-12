@@ -1,0 +1,18 @@
+/* The items plug-in (loop 19: moved from public/style.css): the item bar, the picker, the quantity picker. */
+#itembar { position: fixed; left: calc(16px + env(safe-area-inset-left)); bottom: calc(80px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 6px; z-index: 4; }
+#itembar .btn { min-height: 40px; padding: 0 12px; font-size: 14px; justify-content: flex-start; gap: 8px; background: var(--panel); }
+#itembar .btn.on { background: var(--gold); color: var(--well); }
+#itembar .btn:disabled { opacity: .7; }
+body.welcome #itembar, body.zooming #itembar { opacity: 0; pointer-events: none; }
+#terra-pick { position: fixed; left: 50%; bottom: calc(140px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 21; background: var(--panel);
+  padding: 10px; display: flex; flex-direction: column; gap: 8px; align-items: center; max-width: calc(100% - 32px); }
+#terra-choices { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+#terra-choices button { width: 48px; height: 48px; padding: 0; border: 3px solid var(--ink); image-rendering: pixelated; background-size: cover; cursor: pointer; }
+.item-card .act .qty { display: flex; gap: 6px; justify-content: flex-end; align-items: center; margin-bottom: 6px; }
+.item-card .act .qty .btn { width: 44px; min-width: 44px; height: 44px; padding: 0; font-size: 20px; }
+.item-card .act .qty .n { min-width: 2.5em; text-align: center; font-weight: 600; }
+/* Phones: the same 78% as the core HUD, with tap targets kept at 40px or more (public/style.css). */
+@media (max-width: 599px), (max-height: 500px) {
+  :is(#itembar, #terra-pick) { zoom: 0.78; }
+  :is(#itembar, #terra-pick) :is(.btn, .icon-btn) { min-height: 52px; }
+}

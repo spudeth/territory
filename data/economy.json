@@ -1,6 +1,6 @@
 {
   "source": "https://docs.google.com/spreadsheets/d/1YIivEUXUWMkdw3w3hlmRn7PkTzH6Xry7EJTr8SuFKiM",
-  "syncedAt": "2026-11-11T22:49:22.017Z",
+  "syncedAt": "2026-11-11T23:01:54.857Z",
   "rules": {
     "hitsPerBlock": 10,
     "crackFadeSeconds": 60,
@@ -3032,56 +3032,6 @@
       "secret": true,
       "description": "Wipe a territory of 1,000 blocks or more",
       "reward": 150
-    }
-  ],
-  "items": [
-    {
-      "id": "superClick",
-      "name": "Super Click",
-      "description": "Your taps hit 10 times harder for 5 seconds. Once an hour.",
-      "effect": "clickMultiplier",
-      "value": 10,
-      "seconds": 5,
-      "uses": 1,
-      "perMinutes": 60,
-      "consumable": false,
-      "pricing": "PV",
-      "V": 0.0125,
-      "P": 50,
-      "hours": null,
-      "enabled": true
-    },
-    {
-      "id": "terraformer",
-      "name": "Terraformer",
-      "description": "Change the terrain of one block. 5 blocks per hour.",
-      "effect": "terraform",
-      "value": 0,
-      "seconds": 0,
-      "uses": 5,
-      "perMinutes": 60,
-      "consumable": false,
-      "pricing": "PV",
-      "V": 0.0125,
-      "P": 50,
-      "hours": null,
-      "enabled": true
-    },
-    {
-      "id": "demolition",
-      "name": "Demolition",
-      "description": "Clears everything built on one of your blocks (walls and factory). Used up when used.",
-      "effect": "demolish",
-      "value": 0,
-      "seconds": 0,
-      "uses": 1,
-      "perMinutes": 0,
-      "consumable": true,
-      "pricing": "Hours",
-      "V": null,
-      "P": null,
-      "hours": 0.5,
-      "enabled": true
     }
   ],
   "economy": {
