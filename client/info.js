@@ -14,8 +14,6 @@ const INFO = {
   wipeFloor: 'After a wipe, you only earn squares again once you own more blocks here than you had when you wiped. It stops wipe-and-reclaim farming.',
   terrain: 'Sand takes fewer taps, forest more, and stone many more. Water can\'t be claimed, and gold pays bonus squares the first time it\'s claimed.',
   secrets: 'Secret achievements stay hidden as ??? until you find them. Each one is a small surprise.',
-  rank: 'Ranks count on busy maps only: at least 10 players with blocks, and you need 100 blocks yourself. Ties count against you.',
-  online: 'A green dot means the player has the game open right now.',
 };
 
 (function () {

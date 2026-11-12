@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npm test || { echo '{\"decision\":\"block\",\"reason\":\"npm test failed - fix tests before committing\"}'; exit 0; }",
+            "if": "Bash(git commit*)",
+            "timeout": 120
+          }
+        ]
+      }
+    ]
+  }
+}

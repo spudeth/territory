@@ -393,7 +393,26 @@ async function mapsFor(pool, playerId) {
   return rows;
 }
 
-Object.assign(module.exports, { STYLES, listMaps, createMap, mapsFor });
+// The global top 10: each player's best rank on any one map (not a sum across maps), same eligibility rules as
+// an in-game rank (rankOn in app.js) — at least RANK_MIN_PLAYERS ranked players on the map, at least
+// RANK_MIN_BLOCKS blocks owned. Ties go to whoever owns more blocks on their best map.
+async function globalBoard(pool) {
+  const { rows } = await pool.query(`
+    WITH owned AS (SELECT map_id, owner_id, count(*)::int AS n FROM map_cells WHERE owner_id IS NOT NULL GROUP BY 1, 2),
+    mapsize AS (SELECT map_id, count(*)::int AS players FROM owned GROUP BY 1),
+    ranked AS (SELECT o.map_id, o.owner_id, o.n,
+      1 + (SELECT count(*)::int FROM owned o2 WHERE o2.map_id = o.map_id AND o2.n > o.n) AS rank
+      FROM owned o JOIN mapsize ms ON ms.map_id = o.map_id AND ms.players >= $2
+      WHERE o.n >= $1),
+    best AS (SELECT DISTINCT ON (owner_id) owner_id, map_id, n, rank FROM ranked ORDER BY owner_id, rank ASC, n DESC)
+    SELECT b.owner_id AS id, p.name, s.color, m.name AS map, b.n AS blocks, b.rank AS rank
+    FROM best b JOIN players p ON p.id = b.owner_id JOIN maps m ON m.id = b.map_id
+    LEFT JOIN player_map_settings s ON s.map_id = b.map_id AND s.player_id = b.owner_id
+    ORDER BY b.rank ASC, b.n DESC LIMIT 10`, [rules.RANK_MIN_BLOCKS, rules.RANK_MIN_PLAYERS]);
+  return rows;
+}
+
+Object.assign(module.exports, { STYLES, listMaps, createMap, mapsFor, globalBoard });
 
 // Skins: the skins plug-in (plugins/skins, loop 19).
 

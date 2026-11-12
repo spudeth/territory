@@ -32,7 +32,8 @@ test('an achievement fires once and pays its reward once, even after reconnectin
   s.take(0, y);
   const { pid, token } = await s.next('you');
   const a = await s.next('achievements:earned', d => d.id === 'first-block');
-  assert.deepEqual([a.name, a.reward, a.category], ['First Block', 0.5, 'Claiming']);
+  const def = require('../data.json').achievements.find(d => d.id === 'first-block');
+  assert.deepEqual([a.name, a.reward, a.category], [def.name, def.reward, def.category]);
   await new Promise(r => setTimeout(r, 300));   // 1 for the block, 0.5 for the achievement
   assert.equal(await ledger(pid, 'achievement:first-block'), 1);
 
@@ -69,12 +70,14 @@ test('progress from before (lifetime totals) is caught up on connecting, with it
   s.take(0, row++);
   const { pid, token } = await s.next('you');
   await s.next('achievements:earned', d => d.id === 'first-block');
+  const crossed = require('../data.json').achievements.filter(d => d.stat === 'claims' && d.threshold <= 1000), top = crossed.at(-1);
+  assert.ok(crossed.length >= 5, 'the ladder has tiers up to 1,000');
   await pool.query("INSERT INTO player_totals (player_id, stat, value) VALUES ($1, 'claims', 1000) ON CONFLICT (player_id, stat) DO UPDATE SET value = 1000", [pid]);
   game.totals.forget(pid);   // as after a restart: the server reads the totals again
   const back = player({ token });
   await back.welcome;
-  await back.next('achievements:earned', d => d.id === 'claims-500');   // now the 1,000-block tier
-  for (const id of ['claims-5', 'claims-100', 'claims-500']) assert.equal(await ledger(pid, 'achievement:' + id), 1, id);
+  await back.next('achievements:earned', d => d.id === top.id);   // the highest claims tier within 1,000
+  for (const { id } of [crossed[1], crossed[4], top]) assert.equal(await ledger(pid, 'achievement:' + id), 1, id);
   const v = (await back.ask('achievements:list')).values;
   assert.ok(v.claims >= 1000 && v.achievements >= 7, JSON.stringify(v).slice(0, 200));
 });

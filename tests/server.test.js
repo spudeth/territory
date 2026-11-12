@@ -314,7 +314,7 @@ test('menu screens: skins, upgrades and achievement progress come from the real 
   assert.deepEqual([upg.steps, upg.highest, upg.mapLevel, upg.balance], [{}, 1, 1, 0]);
   assert.deepEqual(upg.list.map(u => u.key), Object.keys(catalog.CATALOG_TIERS), 'every upgrade from the Upgrades tab');
   const none = await a.ask('achievements:list');
-  assert.equal(none.list.length, 300);
+  assert.equal(none.list.length, require('../plugins/achievements/data.json').achievements.length);
   assert.deepEqual([none.earned, none.values], [[], {}], 'a visitor has nothing yet');
   a.take(10, 28);
   await a.next('achievements:earned', d => d.id === 'first-block');

@@ -19,31 +19,44 @@ function addBuildTool(tool) {
   const btn = Object.assign(document.createElement('button'), { type: 'button', className: 'btn build-btn', id: 'build-btn', hidden: !BUILD_MENU.length });
   btn.innerHTML = `<img class="pix" src="${ART.build}" width="16" height="16" alt="">Build`;
   $('board').append(btn);
-  const menuBox = Object.assign(document.createElement('div'), { id: 'build-menu', className: 'card', hidden: true });
+  const menuBox = Object.assign(document.createElement('div'), { id: 'build-overlay', hidden: true });
+  menuBox.innerHTML = '<div class="card" id="build-menu"><button class="btn icon-btn close" type="button" aria-label="Close">'
+    + '<svg class="pix" width="14" height="14" aria-hidden="true"><use href="#i-close"/></svg></button>'
+    + '<div class="sec">YOUR CHEST</div><div class="catalog" id="build-menu-list"></div></div>';
   document.body.append(menuBox);
+  const menuList = menuBox.querySelector('#build-menu-list');
+  menuBox.querySelector('#build-menu .close').addEventListener('click', () => closeMenu());
   const bar = Object.assign(document.createElement('div'), { id: 'build-bar', className: 'card', hidden: true });
   bar.innerHTML = '<span id="build-msg"></span><button class="btn icon-btn" type="button" id="build-ok" aria-label="Build here">✓</button>'
     + '<button class="btn icon-btn" type="button" id="build-cancel" aria-label="Cancel">✗</button>';
   document.body.append(bar);
   let placing = null;   // the BUILD_KINDS entry being placed
 
+  // The map details info button steps aside while the chest or the placement bar is up, so Build stays the only option.
+  function syncInfoBtn() { $('md-info').hidden = !menuBox.hidden || !bar.hidden; }
+  function closeMenu() { menuBox.hidden = true; syncInfoBtn(); }
   async function openMenu() {
     if (!me) return toast('Claim a block first');
     const info = await ask('buildInfo');
     if (info.error) return toast(info.error);
     const why = info.reasons ?? {};
-    // A tool that can't be used says why when it's picked, before any ghost appears.
+    // Only what's actually usable right now goes in the chest; what you haven't unlocked yet just isn't there.
+    const have = BUILD_MENU.filter(t => !why[t.id]);
     const item = t => {
-      const b = Object.assign(document.createElement('button'), { type: 'button', className: 'btn' + (why[t.id] ? ' dim' : '') });
-      b.append(Object.assign(document.createElement('span'), { textContent: t.label }), Object.assign(document.createElement('small'), { textContent: why[t.id] ?? t.sub(info) }));
-      b.addEventListener('click', () => { menuBox.hidden = true; if (why[t.id]) toast(why[t.id]); else t.start(info); });
+      const b = Object.assign(document.createElement('button'), { type: 'button', className: 'tile' });
+      b.innerHTML = `<img class="pix" src="${ART.build}" width="26" height="26" alt="">`;
+      b.append(Object.assign(document.createElement('span'), { className: 'nm', textContent: t.label }),
+        Object.assign(document.createElement('span'), { className: 'rar', textContent: t.sub(info) }));
+      b.addEventListener('click', () => { closeMenu(); t.start(info); });
       return b;
     };
-    menuBox.replaceChildren(...BUILD_MENU.map(item));
+    menuList.className = have.length ? 'catalog' : '';
+    menuList.replaceChildren(...(have.length ? have.map(item) : [Object.assign(document.createElement('p'), { className: 'note', textContent: "You don't have any items." })]));
     menuBox.hidden = false;
+    syncInfoBtn();
   }
-  btn.addEventListener('click', e => { e.stopPropagation(); if (!menuBox.hidden) menuBox.hidden = true; else openMenu(); });
-  addEventListener('click', e => { if (!menuBox.contains(e.target) && e.target !== btn) menuBox.hidden = true; });
+  btn.addEventListener('click', e => { e.stopPropagation(); if (!menuBox.hidden) closeMenu(); else openMenu(); });
+  menuBox.addEventListener('click', e => { if (e.target === menuBox) closeMenu(); });
 
   window.startPlacing = function startPlacing(kind, info) {
     placing = BUILD_KINDS[kind];
@@ -53,10 +66,11 @@ function addBuildTool(tool) {
     $('build-msg').classList.remove('bad');
     $('build-ok').disabled = true;
     bar.hidden = false;
+    syncInfoBtn();
     closeInspect?.();
     draw();
   };
-  function stopPlacing() { placing?.stop?.(); placing = null; buildGhost = null; bar.hidden = true; draw(); }
+  function stopPlacing() { placing?.stop?.(); placing = null; buildGhost = null; bar.hidden = true; syncInfoBtn(); draw(); }
   $('build-cancel').addEventListener('click', stopPlacing);
   $('build-ok').addEventListener('click', async () => {
     if (!placing || (placing.multi ? !placing.count() : !buildGhost?.ok)) return;

@@ -37,6 +37,14 @@ let inspecting = null;   // the block on the card, { x, y }, or null
     return box;
   });
 
+  // Build: press-and-hold a block, then Build here, instead of a standing button (loop 21 redesign).
+  inspectSections.push(info => {
+    if (info.water || !BUILD_MENU?.length || info.owner?.pid !== me) return null;
+    const btn = Object.assign(document.createElement('button'), { type: 'button', className: 'btn ic-build', textContent: 'Build' });
+    btn.addEventListener('click', () => { closeInspect(); document.getElementById('build-btn')?.click(); });
+    return btn;
+  });
+
   window.openInspect = async c => {
     inspecting = c;
     card.replaceChildren(Object.assign(document.createElement('div'), { className: 'ic-head', textContent: 'Loading…' }));

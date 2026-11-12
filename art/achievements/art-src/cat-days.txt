@@ -1,0 +1,25 @@
+# cat-days: calendar page with red header, date dots and today marked
+frame 16 16
+
+color o ink
+color R red
+color w white
+color d stone-dark
+
+--- 1: cat-days
+................
+................
+....o......o....
+..oooooooooooo..
+..oRRRRRRRRRRo..
+..oRRRRRRRRRRo..
+..owwwwwwwwwwo..
+..owdwdwdwwwwo..
+..owwwwwwwwwwo..
+..owdwdwdwdwwo..
+..owwwwwwwwwwo..
+..owdwdwRRwwwo..
+..owwwwwwwwwwo..
+..oooooooooooo..
+................
+................

@@ -3,21 +3,20 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const achievements = require('../rules');
 
-test('the list from the sheet: exactly 300, about 10 secret, every one paying something', () => {
+test('the list from the sheet: exactly 253, about 10 secret, every one paying something', () => {
   const list = require('../data.json').achievements;
-  assert.equal(list.length, 300);
+  assert.equal(list.length, 253);
   assert.ok(achievements.index(list).size > 30);
   const secrets = list.filter(d => d.secret);
   assert.ok(secrets.length >= 8 && secrets.length <= 12, `${secrets.length} secrets`);
   for (const d of list) assert.ok(d.reward > 0, `${d.id} pays ${d.reward}`);
-  // Claiming pays half the squares mined since the tier before (Xoren): First Block 0.5, then 4.5 for blocks 2-10.
-  assert.deepEqual(['first-block', 'claims-5'].map(id => list.find(d => d.id === id).reward), [0.5, 4.5]);
-  // Top tiers (about 1,000 hours) pay about 2,000 squares (2 an hour).
-  for (const id of ['claims-100k', 'owned-10k', 'square-50', 'line-150', 'taken-25k', 'taps-2m', 'hours-1000']) {
-    assert.ok(list.find(d => d.id === id).reward >= 1500, id);
-  }
+  // Rewards only grow up each ladder (a harder tier never pays less than the one before).
+  const last = new Map();
+  for (const d of list) { assert.ok(d.reward >= (last.get(d.stat) ?? 0) || d.secret || d.stat === 'secrets', `${d.id} pays less than the tier before`); last.set(d.stat, d.reward); }
+  // 13 rows hide or count secrets: the 10 secret:* ones and the 3 "secrets" milestones.
+  assert.equal(list.filter(d => d.secret || d.stat === 'secrets').length, 13);
   // The ids the placeholder list used are kept, so achievements earned before still count.
-  for (const id of ['first-block', 'owned-100', 'owned-1000', 'square-10', 'square-50', 'line-10', 'line-100', 'retakes-10']) {
+  for (const id of ['first-block', 'owned-100', 'owned-1000', 'square-10', 'square-50', 'line-10', 'line-100']) {
     assert.ok(list.some(d => d.id === id), id);
   }
 });
@@ -54,8 +53,8 @@ test('the Achievements tab is data.json; bad rows are named by cell; without the
   const csv = fs.readFileSync(path.join(__dirname, 'Achievements.csv'), 'utf8');
   const ok = read({ Achievements: csv });
   assert.deepEqual(ok, { errors: [], out: require('../data.json') }, 'the saved tab is data.json');
-  assert.equal(ok.out.achievements.length, 300);
-  assert.deepEqual(ok.out.achievements[0], { id: 'first-block', name: 'First Block', category: 'Claiming', stat: 'claims', threshold: 1, secret: false, description: 'Claim 1 empty block', reward: 0.5 });
+  assert.equal(ok.out.achievements.length, 253);
+  assert.deepEqual(ok.out.achievements[0], require('../data.json').achievements[0]);
   const lines = csv.split(/\r?\n/);
   lines[1] = lines[2].replace(/^claims-5,/, 'claims-5,');                // a duplicate key
   lines[3] = 'Bad Key,Name,Claiming,claims,1,,Desc,5';

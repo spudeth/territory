@@ -1,0 +1,25 @@
+# tier-1: bronze plate: plain rounded square, lit top-left, shaded bottom-right
+frame 16 16
+
+color o ink
+color 1 bronze-light
+color 2 bronze
+color 3 bronze-dark
+
+--- 1: tier-1
+..oooooooooooo..
+.o111111111111o.
+o12222222222223o
+o12222222222223o
+o12222222222223o
+o12222222222223o
+o12222222222223o
+o12222222222223o
+o12222222222223o
+o12222222222223o
+o12222222222223o
+o12222222222223o
+o12222222222223o
+o12222222222223o
+.o333333333333o.
+..oooooooooooo..

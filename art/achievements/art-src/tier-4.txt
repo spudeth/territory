@@ -1,0 +1,26 @@
+# tier-4: diamond plate: pale blue, faceted corners, white sparkle pixels on the edges
+frame 16 16
+
+color o ink
+color H diamond-light
+color w white
+color N diamond-dark
+color M diamond
+
+--- 1: tier-4
+..oooooooooooo..
+.oHHHHHwHHHHHHo.
+oHwHNMMHMMMNHwNo
+oHHNMMMMMMMMNHNo
+oHNMMMMMMMMMMNNo
+oHMMMMMMMMMMMMNo
+oHMMMMMMMMMMMMNo
+oHMMMMMMMMMMMMwo
+owMMMMMMMMMMMMNo
+oHMMMMMMMMMMMMNo
+oHMMMMMMMMMMMMNo
+oHNMMMMMMMMMMNNo
+oHHNMMMMMMMMNHNo
+oHwHNMMMHMMNHwNo
+.oNNNNNHwHNNNNo.
+..oooooooooooo..

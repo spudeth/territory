@@ -36,8 +36,8 @@
   ];
 
   const STEPS = [
-    { id: 'goal', title: 'The goal', text: 'Own the most blocks on this map. The leaderboard shows who is winning.',
-      highlight: { element: '#board' }, done: 'next' },
+    { id: 'goal', title: 'The goal', text: 'Own the most blocks on this map. Map Details shows who is winning.',
+      highlight: { element: '#md-info' }, done: 'next' },
     { id: 'claim', title: 'Claiming', text: 'Tap an empty block {hits} times to claim it. Keep tapping the same block.',
       counter: true, done: 'claimed' },
     { id: 'growth', title: 'Growth', text: 'Every brand-new block you claim makes the map grow. This block just appeared on the edge.',
@@ -46,10 +46,10 @@
       highlight: { blocks: 'lit' }, done: 'next' },
     { id: 'taking', title: 'Taking', text: "You can take other players' blocks the same way, and they can take yours.",
       highlight: { blocks: 'others' }, done: 'next' },
-    { id: 'menu', title: 'The menu', text: 'Open the menu.',
-      highlight: { element: '#menu-button' }, done: 'menu:main' },
+    { id: 'menu', title: 'The menu', text: 'Tap the info button, then Menu.',
+      highlight: { element: '#md-info' }, done: 'menu:main' },
     { id: 'menu-maps', title: 'Maps', text: 'Switch to other maps here.',
-      highlight: { element: '#w-picker' }, done: 'next' },
+      highlight: { element: '#w-next' }, done: 'next' },
     { id: 'menu-skins', title: 'Skins', text: 'Skins change how your land looks.',
       highlight: { element: '#welcome [data-go="skins"]' }, done: 'next' },
     { id: 'menu-achievements', title: 'Achievements', text: 'Your achievements and how close you are to the next ones.',

@@ -1,0 +1,28 @@
+# tier-6: mythic plate: pink/cyan/violet iridescent edge glow, gold-and-white ornate corners, calm violet centre
+frame 16 16
+
+color o ink
+color X mythic-violet
+color P mythic-pink
+color w white
+color y flower-yellow
+color W damascus-dark
+color C mythic-cyan
+
+--- 1: tier-6
+..oooooooooooo..
+.oXXPPPwwXXXPPo.
+oXwyPWWWWWWPywPo
+oCyXXXXXXXXXXyCo
+oCCXXXXXXXXXXCCo
+oCWXXXXXXXXXXWCo
+oPWXXXXXXXXXXWXo
+owWXXXXXXXXXXWwo
+owWXXXXXXXXXXWwo
+oXWXXXXXXXXXXWPo
+oCWXXXXXXXXXXWCo
+oCCXXXXXXXXXXCCo
+oCyXXXXXXXXXXyCo
+oPwyPWWWWWWPywXo
+.oPPXXXwwPPPXXo.
+..oooooooooooo..

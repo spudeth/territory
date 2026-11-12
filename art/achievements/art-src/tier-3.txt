@@ -1,0 +1,25 @@
+# tier-3: gold plate: shiny, inner bevel ring, lit top-left
+frame 16 16
+
+color o ink
+color 7 gold-plate-light
+color 8 gold-plate
+color 9 gold-plate-dark
+
+--- 1: tier-3
+..oooooooooooo..
+.o777777777777o.
+o77777777777789o
+o77888888888899o
+o77888888888899o
+o77888888888899o
+o77888888888899o
+o77888888888899o
+o77888888888899o
+o77888888888899o
+o77888888888899o
+o77888888888899o
+o77888888888899o
+o78999999999999o
+.o999999999999o.
+..oooooooooooo..

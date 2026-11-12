@@ -1183,6 +1183,12 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
       try { reply(await store.mapsFor(pool, me.pid)); } catch { reply([]); }
     });
 
+    // The global top 10, for Map Details (store.globalBoard). Answers with an array.
+    socket.on('globalBoard', async reply => {
+      if (typeof reply !== 'function') return;
+      try { reply(await store.globalBoard(pool)); } catch { reply([]); }
+    });
+
     // Moves to another map; the next map loaded on any device is this one. Answers with { ok } or { error };
     // the map itself arrives as a 'welcome'.
     socket.on('switchMap', async (id, reply) => {

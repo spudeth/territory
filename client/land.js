@@ -121,7 +121,9 @@ let landHighlight = null;       // the listing whose bundle the info card highli
       c.querySelector('.nm').textContent = `${l.size} block${l.size === 1 ? '' : 's'} · ${fmtSq(l.price)} squares`;
       c.querySelector('.ds').textContent = `${l.mine ? 'Yours' : `By ${l.seller.name ?? 'someone'}`} · level ${l.levels[0] === l.levels[1] ? l.levels[0] : `${l.levels[0]}-${l.levels[1]}`}`;
       const b = Object.assign(document.createElement('button'), { type: 'button', className: 'btn', textContent: 'Jump to it' });
-      b.addEventListener('click', () => { closeMenu(); lookAt(l.blocks[0][0] + 0.5, l.blocks[0][1] + 0.5); openInspect({ x: l.blocks[0][0], y: l.blocks[0][1] }); });
+      const jump = () => { lookAt(l.blocks[0][0] + 0.5, l.blocks[0][1] + 0.5); openInspect({ x: l.blocks[0][0], y: l.blocks[0][1] }); };
+      // Reached from the welcome screen (Marketplace, before PLAY): enter the game first, then jump.
+      b.addEventListener('click', () => { closeMenu(); window.welcomeScreen?.isOpen() ? welcomeScreen.play(jump) : jump(); });
       c.querySelector('.act').append(b);
       return c;
     }) : [Object.assign(document.createElement('p'), { className: 'note', textContent: 'No land for sale on this map right now.' })]));

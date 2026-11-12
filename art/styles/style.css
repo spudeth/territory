@@ -117,46 +117,57 @@ a:hover { color: var(--gold-light); }
 
 /* ---------- HUD ---------- */
 .hud { position: fixed; background: var(--panel); pointer-events: none; }
-#me {
+/* The old top-left "who am I" card: removed from the HUD (loop 21) — already visible via Menu. Kept in the DOM
+   since game.js still writes into it, just never shown. */
+#me { display: none; }
+
+/* Map details: an info button (top-left) opens it as a popup over a dimmed backdrop (loop 22); Menu (back to the
+   welcome screen) now lives inside it too, rather than its own always-on button (loop 24). */
+#md-info {
+  position: fixed;
   left: calc(16px + env(safe-area-inset-left));
   top: calc(16px + env(safe-area-inset-top));
-  padding: 10px 12px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
 }
-#me .swatch { width: 32px; height: 32px; }
-#me-name { font-size: 17px; font-weight: 600; }
-#me .sub { font-size: 14px; color: var(--muted); }
-#me .chip { margin-left: 6px; font-size: 11px; }
-
+#md-overlay {
+  position: fixed; inset: 0; z-index: 12;
+  background: rgba(10, 13, 18, .62);
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+}
 #board {
-  right: calc(16px + env(safe-area-inset-right));
-  top: calc(16px + env(safe-area-inset-top));
-  width: 220px;
-  padding: 12px;
+  position: relative;
+  width: min(360px, 100%);
+  max-height: min(640px, 100%);
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  pointer-events: auto;
 }
 #board .sec { font-size: 9px; letter-spacing: 0; }
-#board-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-#board-list li { display: flex; align-items: center; gap: 8px; font-size: 16px; }
-#board-list li.mine { font-weight: 600; }
-#board-list .sq { width: 14px; height: 14px; border: 2px solid var(--ink); flex: none; }
-#board-list .name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-#board-list .n { color: var(--muted); }
-#board-list .empty { color: var(--muted); font-size: 14px; }
-
-#menu-button {
-  position: fixed;
-  left: calc(16px + env(safe-area-inset-left));
-  bottom: calc(16px + env(safe-area-inset-bottom));
-  background: var(--gold);
-  color: var(--well);
-  padding: 0 16px;
-  font: 12px var(--title);
-}
+#board #md-close { position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; min-height: 28px; }
+.md-stats { font-size: 12px; color: var(--muted); border-top: 1px solid rgba(255, 255, 255, .08); padding-top: 6px; }
+/* Two pages, one swipe apart (loop 24): native scroll-snap, so a finger drag is all it takes, no JS gesture
+   code. Global sits to the left of This map so a right-swipe (dragging content rightward) reveals it. */
+.md-pages {
+  display: flex; overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;
+  scrollbar-width: none; margin: 0 -16px; }
+.md-pages::-webkit-scrollbar { display: none; }
+.md-page { flex: 0 0 100%; min-width: 100%; box-sizing: border-box; scroll-snap-align: start;
+  display: flex; flex-direction: column; gap: 8px; padding: 0 16px; }
+.md-dots { display: flex; justify-content: center; gap: 6px; }
+.md-dots span { width: 7px; height: 7px; border: 2px solid var(--ink); background: var(--raised); }
+.md-dots span.on { background: var(--gold); }
+#board-global, #board-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+#board-global li, #board-list li { display: flex; align-items: center; gap: 8px; font-size: 16px; }
+#board-global li.mine, #board-list li.mine { font-weight: 600; }
+#board-global .sq, #board-list .sq { width: 14px; height: 14px; border: 2px solid var(--ink); flex: none; }
+#board-global .name, #board-list .name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#board-global .n, #board-list .n { color: var(--muted); }
+#board-global .empty, #board-list .empty { color: var(--muted); font-size: 14px; }
+#board-menu { background: var(--raised); color: var(--text); min-height: 44px; gap: 8px; margin-top: 4px; }
 
 #hint, #toast {
   position: fixed;
@@ -340,6 +351,10 @@ a:hover { color: var(--gold-light); }
 .ach-cat { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; background: var(--card); border: 3px solid var(--ink); }
 .ach-cat.got { border-color: var(--yellow); }
 .ach-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.ach-head { justify-content: flex-start; align-items: center; }
+.ach-head .n { margin-left: auto; }
+.ach-badge { position: relative; width: 32px; height: 32px; flex: none; }
+.ach-badge img { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; }
 .ach-head .t { font: 10px var(--title); color: var(--yellow); }
 .ach-head .n { font: 9px var(--title); color: var(--muted); font-variant-numeric: tabular-nums; }
 .ach-next, .ach-secret { display: flex; flex-direction: column; gap: 4px; }
@@ -364,7 +379,6 @@ a:hover { color: var(--gold-light); }
   #me .swatch { width: 28px; height: 28px; }
   #me-name { font-size: 15px; max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #me .chip { margin-left: 0; padding: 4px 6px; font-size: 10px; }
-  #board { width: 140px; padding: 8px; gap: 6px; }
   #board-list { gap: 4px; }
   #board-list li { font-size: 14px; }
   #hint { bottom: calc(80px + env(safe-area-inset-bottom)); }   /* above the Menu button */
@@ -505,21 +519,37 @@ a:hover { color: var(--gold-light); }
    browser moves the picture without redrawing the map. */
 #stage, #drift { position: fixed; inset: 0; transform-origin: 50% 50%; }
 #map { transform-origin: 0 0; transition: filter .9s ease; }
-body.welcome #map { filter: blur(7px) saturate(.85); }
+body.welcome #map { filter: saturate(.85); }
+/* Blur grows toward the edges only, so the map stays readable where the camera actually centred (loop 26:
+   was a flat blur(7px) over the whole thing). backdrop-filter sits over the sharp #map and is masked clear
+   in the middle; #map itself is never blurred. */
+#stage-blur {
+  position: fixed; inset: 0; pointer-events: none; opacity: 0; transition: opacity .9s ease;
+  backdrop-filter: blur(7px); -webkit-backdrop-filter: blur(7px);
+  mask-image: radial-gradient(ellipse 55% 40% at 50% 42%, transparent 0%, transparent 34%, black 70%);
+  -webkit-mask-image: radial-gradient(ellipse 55% 40% at 50% 42%, transparent 0%, transparent 34%, black 70%);
+}
+body.welcome #stage-blur { opacity: 1; }
 body.welcome.intro #stage { animation: w-intro 20s cubic-bezier(.08, .6, .2, 1) forwards; }
 body.welcome.drifting #drift { animation: w-drift 40s ease-in-out infinite alternate; }
 body.paused #stage, body.paused #drift { animation-play-state: paused; }
 @keyframes w-intro { from { transform: scale(1.22); } to { transform: scale(1); } }
 @keyframes w-drift { from { transform: translate(0, 0); } to { transform: translate(-60px, -40px); } }
-#dim { position: fixed; inset: 0; background: rgba(10, 13, 18, .5); opacity: 0; transition: opacity .9s ease; pointer-events: none; }
+/* Dim as a vignette, not a flat tint: darker at the edges gives the clear middle some contrast against the
+   rest of the screen (loop 26). */
+#dim {
+  position: fixed; inset: 0; pointer-events: none; opacity: 0; transition: opacity .9s ease;
+  background: radial-gradient(ellipse 60% 42% at 50% 38%, rgba(10, 13, 18, .2) 0%, rgba(10, 13, 18, .38) 55%, rgba(10, 13, 18, .72) 100%);
+}
 body.welcome #dim { opacity: 1; }
 #stage.fading { opacity: 0; transition: opacity .25s ease; }
 #stage { transition: opacity .35s ease; }
 
 /* The in-game HUD hides on the welcome screen and fades in at the end of the zoom. */
-#me, #board, #menu-button, #hint, #chat { transition: opacity .4s ease; }
-body.welcome #me, body.welcome #board, body.welcome #menu-button, body.welcome #hint, body.welcome #chat,
-body.zooming #me, body.zooming #board, body.zooming #menu-button, body.zooming #hint, body.zooming #chat { opacity: 0; pointer-events: none; }
+#me, #md-info, #hint, #chat { transition: opacity .4s ease; }
+body.welcome #me, body.welcome #md-info, body.welcome #hint, body.welcome #chat,
+body.zooming #me, body.zooming #md-info, body.zooming #hint, body.zooming #chat { opacity: 0; pointer-events: none; }
+body.welcome #md-overlay, body.zooming #md-overlay { display: none; }
 body.welcome #chat > * { pointer-events: none; }
 
 /* Sizes scale with the screen (clamp) but never below the minimums: text 14px, buttons 44px, map preview 96px.
@@ -535,47 +565,93 @@ body.welcome #chat > * { pointer-events: none; }
 }
 body:not(.welcome) #welcome { opacity: 0; transform: translateY(28px); pointer-events: none; }
 body:not(.welcome) #welcome * { pointer-events: none; }
-#w-sound { position: absolute; top: max(var(--pad), env(safe-area-inset-top)); right: max(var(--pad), env(safe-area-inset-right)); z-index: 1; }
+/* Settings + sound sit together top-left now; the profile face takes the top-right corner on its own (loop 21). */
+:is(#w-gear, #w-sound) { width: 40px; min-height: 40px; height: 40px; }
+#w-gear { position: absolute; top: max(var(--pad), env(safe-area-inset-top)); left: max(var(--pad), env(safe-area-inset-left)); z-index: 1; }
+#w-sound { position: absolute; top: calc(max(var(--pad), env(safe-area-inset-top)) + 52px); left: max(var(--pad), env(safe-area-inset-left)); z-index: 1; }
+.w-profile-block {
+  position: absolute; top: max(var(--pad), env(safe-area-inset-top)); right: max(var(--pad), env(safe-area-inset-right)); z-index: 1;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+}
+.w-face {
+  width: 40px; height: 40px; border: 2px solid var(--ink); border-radius: 50%; background: var(--teal, #2fd4a0);
+  box-shadow: 0 3px 0 var(--ink); cursor: pointer; background-image: var(--face, none); background-size: cover; padding: 0; flex: none;
+}
+/* Placeholder face until the real avatar system (head/hair/accessories) exists: a plain silhouette. */
+.w-face::before {
+  content: ""; display: block; width: 100%; height: 100%; border-radius: 50%;
+  background: radial-gradient(circle at 50% 38%, rgba(15, 19, 26, .85) 0 22%, transparent 23%),
+    radial-gradient(ellipse 60% 40% at 50% 92%, rgba(15, 19, 26, .85) 0 60%, transparent 61%);
+}
 .w-center {
   min-height: 100%; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; gap: var(--gap);
-  padding: calc(max(var(--pad), env(safe-area-inset-top)) + 52px) max(var(--pad), env(safe-area-inset-right))
+  padding: calc(max(var(--pad), env(safe-area-inset-top)) + 82px) max(var(--pad), env(safe-area-inset-right))
     max(var(--pad), env(safe-area-inset-bottom)) max(var(--pad), env(safe-area-inset-left));
 }
-.w-stack { margin-block: auto; width: 100%; display: flex; flex-direction: column; align-items: center; gap: var(--gap); }
+.w-stack { margin: 0; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 0; }
 #logo { display: flex; flex-direction: column; align-items: center; gap: clamp(6px, 1.4dvh, 12px); }
 #logo .w-mark { width: clamp(32px, 6dvh, 60px); height: clamp(32px, 6dvh, 60px); }
-#logo h1 { margin: 0; font: clamp(20px, min(7vw, 4.6dvh), 46px) var(--title); letter-spacing: .06em; color: #fff; text-shadow: .14em .14em 0 var(--ink); }
-.w-card { width: 100%; max-width: 500px; background: rgba(27, 34, 48, .94); padding: clamp(12px, 2dvh, 20px); display: flex; flex-direction: column;
-  gap: clamp(10px, 1.6dvh, 14px); box-sizing: border-box; }
-.w-who { display: flex; flex-direction: column; align-items: center; gap: 6px; }
-.w-name { display: flex; align-items: center; gap: 10px; font-size: clamp(18px, 3dvh, 26px); font-weight: 600; max-width: 100%; }
+#logo h1 { margin: 0; font: clamp(32px, min(11.2vw, 7.4dvh), 74px) var(--title); letter-spacing: .06em; color: #fff; text-shadow: .14em .14em 0 var(--ink); }
+/* No box behind any of this (loop 23): it all floats directly over the full-screen map preview, so the preview
+   reads as the background, not a thumbnail inside a card. */
+/* Your name/tag/squares (loop 24): a compact readout under the profile face, not a central hero element — the
+   full detail (achievements, rank, since) is a tap away on the profile screen (profile.js). */
+.w-who { display: flex; flex-direction: column; align-items: center; gap: 4px; max-width: 42vw; text-align: center; }
+.w-name { display: flex; align-items: center; gap: 6px; font-size: clamp(13px, 1.8dvh, 15px); font-weight: 600; max-width: 100%;
+  text-shadow: 0 2px 3px rgba(0, 0, 0, .7); }
 .w-name #w-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.w-name .swatch { width: 1.1em; height: 1.1em; }
+.w-name .swatch { width: 1.1em; height: 1.1em; flex: none; }
 .w-line { display: flex; align-items: center; gap: 8px; }
 .w-sq { display: flex; align-items: center; gap: 5px; font: 11px var(--title); }
-.w-picker { display: flex; align-items: center; gap: 10px; }
-.w-arrow { width: 44px; height: clamp(64px, 11dvh, 120px); min-height: 44px; padding: 0; flex: none; background: var(--raised); color: var(--text); }
-.w-map { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; }
-.w-thumb { width: clamp(96px, 15dvh, 150px); height: clamp(96px, 15dvh, 150px); position: relative; border: 3px solid var(--ink);
-  box-shadow: 0 4px 0 var(--ink); overflow: hidden; margin-bottom: 4px; box-sizing: border-box; flex: none; }
-.w-thumb canvas { width: 100%; height: 100%; display: block; image-rendering: pixelated; }
+/* The arrows live at the screen edges, not around a boxed preview: the preview is the whole screen now. */
+.w-arrow { position: fixed; top: 50%; transform: translateY(-50%); z-index: 1;
+  width: 44px; height: clamp(64px, 11dvh, 120px); min-height: 44px; padding: 0; background: var(--raised); color: var(--text); }
+#w-prev { left: max(10px, env(safe-area-inset-left)); }
+#w-next { right: max(10px, env(safe-area-inset-right)); }
+/* The map preview: a stand-in only for a map that isn't the one actually loaded behind it (another entry in
+   the picker, or a "coming soon" placeholder) — a dot-sized ownership sketch, not real terrain. For the live
+   map (.live, loop 26) it gets out of the way entirely: the real #map/#stage-blur behind #welcome is the
+   actual terrain, already blurred/dimmed toward the edges, so there is nothing for this layer to add. */
+.w-thumb { position: fixed; inset: 0; z-index: -1; overflow: hidden; box-sizing: border-box; }
+.w-thumb.live { background: none; }
+.w-thumb.live canvas, .w-thumb.live .w-thumb-blur, .w-thumb.live .w-thumb-fade { display: none; }
+.w-thumb canvas { width: 115%; height: 115%; position: absolute; top: -7%; left: -7%; display: block; image-rendering: pixelated;
+  animation: w-thumb-pan 16s cubic-bezier(.2, .75, .3, 1) infinite; transform-origin: 50% 40%; }
+/* Blur only grows toward the screen edges, so the map stays readable behind the center where the
+   name/map-name text sits (loop 25: was a flat blur over the whole preview). */
+.w-thumb-blur {
+  position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  mask-image: radial-gradient(ellipse 60% 42% at 50% 38%, transparent 0%, transparent 38%, black 72%);
+  -webkit-mask-image: radial-gradient(ellipse 60% 42% at 50% 38%, transparent 0%, transparent 38%, black 72%);
+}
+.w-thumb.soon .w-thumb-blur { display: none; }
+@keyframes w-thumb-pan {
+  0% { transform: scale(1.3) translate(0, 0); }
+  55% { transform: scale(1.04) translate(-4%, -3%); }
+  100% { transform: scale(1.3) translate(0, 0); }
+}
 .w-thumb.grass { background: #4f9a34; }
 .w-thumb.white { background: #f4f4f0; }
 .w-thumb.dirt { background: #6b5a3a; }
-.w-thumb.soon canvas { filter: blur(3px); }
-.w-thumb.soon::before { content: ""; position: absolute; inset: 0; background-size: 12px 12px; filter: blur(2px);
-  background-image: linear-gradient(rgba(0,0,0,.18) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,.18) 1px, transparent 1px); }
-.w-soon { position: absolute; inset: 0; background: rgba(242, 244, 248, .55); display: flex; align-items: center; justify-content: center; }
-.w-soon .tag { font-size: 7px; }
-.w-map-name { font-size: clamp(17px, 2.6dvh, 21px); font-weight: 600; }
+.w-thumb.soon canvas { filter: blur(5px); animation: none; }
+.w-thumb-fade { position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background: radial-gradient(ellipse 65% 45% at 50% 38%, transparent 0%, rgba(5, 7, 10, .3) 60%, rgba(5, 7, 10, .62) 100%); }
+.w-map-block { display: flex; flex-direction: column; align-items: center; gap: 0; }
+.w-map-kicker { display: block; font: 9px var(--title); letter-spacing: .14em; text-transform: uppercase; color: var(--gold);
+  text-shadow: 0 2px 3px rgba(0, 0, 0, .7); margin-top: 4px; margin-bottom: -6px; }
+.w-map-name { display: block; font-size: clamp(44px, 8dvh, 68px); font-weight: 600; text-shadow: 0 2px 3px rgba(0, 0, 0, .7); }
 .w-map-name.soon { color: var(--muted); }
-.w-stat { font-size: clamp(14px, 1.8dvh, 15px); color: var(--muted); }
+.w-map-stat { margin: 0; display: block; font-size: clamp(12px, 1.6dvh, 13px); color: var(--soft, #c7cedb); text-shadow: 0 2px 3px rgba(0, 0, 0, .7); }
+.w-actions { width: 100%; max-width: 500px; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; gap: 10px;
+  margin-top: auto; padding-bottom: clamp(8px, 2dvh, 20px); }
 .w-dots { display: flex; justify-content: center; gap: 6px; }
 .w-dots span { width: 8px; height: 8px; border: 2px solid var(--ink); background: var(--raised); }
 .w-dots span.on { background: var(--gold); }
-.w-play { min-height: clamp(52px, 8.5dvh, 80px); background: var(--green); color: var(--well); font: clamp(16px, 2.6dvh, 24px) var(--title); gap: 14px; }
+.w-play { width: 100%; min-height: clamp(52px, 8.5dvh, 80px); background: var(--green); color: var(--well); font: clamp(16px, 2.6dvh, 24px) var(--title); gap: 14px; }
 .w-play.soon { background: #3a4458; color: var(--muted); font-size: clamp(12px, 1.7dvh, 15px); }
 .w-play:disabled { cursor: default; }
+.w-market { width: 100%; min-height: clamp(44px, 7dvh, 60px); background: var(--gold); color: var(--well); font: clamp(13px, 2dvh, 17px) var(--title); gap: 10px; }
 .w-minis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
 .w-mini { display: flex; flex-direction: column; align-items: center; gap: 4px; background: none; border: 0; padding: 0; font: 14px var(--body); color: var(--soft); cursor: pointer; min-width: 0; }
 .w-mini .b { width: clamp(44px, 6.5dvh, 60px); height: clamp(44px, 6.5dvh, 60px); display: flex; align-items: center; justify-content: center;
@@ -627,7 +703,6 @@ body.dying #map { filter: grayscale(.85) brightness(.8); transition: filter .6s 
 @media (prefers-reduced-motion: reduce) { body.dying #flash { animation: none; } #death { animation: none; } }
 
 /* ---------- Items (loop 14) ---------- */
-#w-gear { position: absolute; top: max(var(--pad), env(safe-area-inset-top)); right: calc(max(var(--pad), env(safe-area-inset-right)) + 54px); z-index: 1; }
 .items-list { display: flex; flex-direction: column; gap: 10px; }
 .item-card { display: grid; grid-template-columns: 56px 1fr; gap: 10px 12px; padding: 12px; background: var(--card); border: 3px solid var(--ink); }
 .item-card .ic { width: 56px; height: 56px; display: flex; align-items: center; justify-content: center; border: 3px solid var(--ink); }
@@ -696,12 +771,31 @@ body.dying #map { filter: grayscale(.85) brightness(.8); transition: filter .6s 
 .item-card .act .have { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; text-align: right; }
 
 /* ---------- Loop 16: Build ---------- */
-#board .build-btn { width: 100%; margin-top: 8px; min-height: 44px; gap: 6px; font-size: 13px; }
-#build-menu { position: fixed; z-index: 45; right: 16px; top: 50%; transform: translateY(-50%); width: min(280px, calc(100vw - 32px));
-  display: flex; flex-direction: column; gap: 8px; padding: 10px; }
-#build-menu[hidden] { display: none; }
-#build-menu .btn { flex-direction: column; align-items: flex-start; min-height: 48px; text-align: left; }
-#build-menu .btn small { font-size: 11px; color: var(--muted); font-weight: normal; }
+/* The standing button moved into the hold-to-inspect card (loop 21): kept alive off-screen, click()ed from there. */
+#board .build-btn { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+#inspect .ic-build { width: 100%; margin-top: 6px; min-height: 44px; background: var(--gold); color: var(--well); }
+/* The chest: a focused popup over a dimmed backdrop, like Map Details, so Build is the only thing on screen. */
+#build-overlay { position: fixed; inset: 0; z-index: 45; background: rgba(10, 13, 18, .62);
+  display: flex; align-items: center; justify-content: center; padding: 16px; }
+#build-overlay[hidden] { display: none; }
+/* The chest (loop 24): sized to its content, not a fixed block of empty space — a 3-column grid that fills in
+   as more build items unlock. */
+#build-menu {
+  position: relative;
+  width: min(680px, 100%); max-height: 100%;
+  overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 16px;
+}
+#build-menu button.close {
+  position: absolute; top: 8px; right: 8px; padding: 0;
+  width: 26px !important; height: 26px !important; min-width: 26px !important; min-height: 26px !important;
+}
+#build-menu button.close svg { width: 10px; height: 10px; }
+#build-menu-list { gap: 14px; align-content: start; }
+#build-menu .tile { border: 3px solid var(--ink); background: var(--card); align-items: center; text-align: center;
+  padding: 14px 8px; font-family: var(--body); color: var(--text); cursor: pointer; justify-content: center; }
+#build-menu .tile img { width: 72px; height: 72px; }
+#build-menu .tile .nm { font-size: 17px; }
+#build-menu .tile .rar { font-size: 11px; line-height: 1.3; }
 #build-bar { position: fixed; z-index: 45; left: 50%; bottom: 16px; transform: translateX(-50%); display: flex; align-items: center; gap: 8px;
   padding: 8px 10px; width: min(420px, calc(100vw - 32px)); }
 #build-bar[hidden] { display: none; }
@@ -723,7 +817,6 @@ body:not(.welcome):not(.zooming) .hud :is(button, a, input, select, textarea, .i
 .upg .buy-row { display: flex; gap: 8px; }
 .upg .buy-row .buy-one { flex: 1; }
 .upg .buy-row .buy-max { flex: none; padding: 0 12px; }
-#build-menu .btn.dim { opacity: 0.6; }
 
 /* ---------- Loop 17: phones ---------- */
 /* The page never zooms: double taps don't zoom anywhere, and only the map pinches (its own zoom, game.js). Text
@@ -733,14 +826,14 @@ input, textarea, select { font-size: 16px; }
 /* Phones: the HUD, cards, menus and text at 78% (CSS zoom keeps their layout), with tap targets kept at 40px or
    more (52px x 0.78) and text fields at 16px or more (21px x 0.78). */
 @media (max-width: 599px), (max-height: 500px) {
-  :is(#me, #board, #menu-button, #hint, #toast, #popup, #coach, #chat, #inspect, #build-menu, #build-bar, #sell-bar,
-    #info-pop, #menu .panel, #welcome .w-stack, #w-gear, #w-sound, #death > *) { zoom: 0.78; }
-  :is(#me, #board, #menu-button, #chat, #inspect, #build-menu, #build-bar, #sell-bar, #menu .panel, #welcome .w-stack, #death > *)
+  :is(#me, #board, #hint, #toast, #popup, #coach, #chat, #inspect, #build-menu, #build-bar, #sell-bar,
+    #info-pop, #menu .panel, #welcome .w-stack, #welcome .w-actions, #welcome .w-who, #welcome .w-foot, #w-gear, #w-sound, #death > *) { zoom: 0.78; }
+  :is(#me, #board, #chat, #inspect, #build-menu, #build-bar, #sell-bar, #menu .panel, #welcome .w-stack, #welcome .w-actions, #death > *)
     :is(.btn, .icon-btn) { min-height: 52px; }
-  :is(#menu .panel, #inspect, #build-menu, #build-bar, #sell-bar, #chat, #welcome .w-stack) :is(.icon-btn) { min-width: 52px; }
-  :is(#menu-button, #w-gear, #w-sound) { min-height: 52px; min-width: 52px; }
+  :is(#menu .panel, #inspect, #build-menu, #build-bar, #sell-bar, #chat, #welcome .w-stack, #welcome .w-actions) :is(.icon-btn) { min-width: 52px; }
+  :is(#w-gear, #w-sound) { min-height: 52px; min-width: 52px; }
   .info-btn { width: 52px; height: 52px; margin: -16px -14px -16px -6px; }
-  :is(#chat, #menu .panel, #sell-bar, #welcome .w-stack) :is(input, textarea, select) { font-size: 21px; }
+  :is(#chat, #menu .panel, #sell-bar, #welcome .w-stack, #welcome .w-actions) :is(input, textarea, select) { font-size: 21px; }
   #board .build-btn { min-height: 52px; }
 }
 /* A long number shown short (999.9K): tap it for the full number. */

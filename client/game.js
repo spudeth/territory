@@ -213,7 +213,7 @@ function lookAt(x, y) {
 // How close the game starts on your land: further out on phones, so more blocks fit.
 // Phones: the same test as the stylesheet's phone rules.
 const onPhone = () => matchMedia('(max-width: 599px), (max-height: 500px)').matches;
-const playScale = () => (Math.min(innerWidth, innerHeight) < 600 ? 28 : 40);
+const playScale = () => (Math.min(innerWidth, innerHeight) < 600 ? 48 : 40);
 function initialView() {
   const mine = [...cells].filter(([, o]) => me && o === me).map(([k]) => k.split(',').map(Number));
   let cx = (bounds.x0 + bounds.x1) / 2, cy = (bounds.y0 + bounds.y1) / 2;
@@ -628,7 +628,8 @@ function updateUI() {
   $('hint').hidden = !!(me && counts[me]);
   $('hint').textContent = `Tap any empty block ${hitsPerBlock} times to claim your first block`;
 
-  const top = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const ranked = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  const top = ranked.slice(0, 10);
   $('board-list').replaceChildren(...top.map(([pid, n]) => {
     const li = document.createElement('li');
     li.className = pid === me ? 'mine' : '';
@@ -641,8 +642,33 @@ function updateUI() {
     setNum(li.children[2], n, 'blocks');
     return li;
   }));
+  const playerCount = Object.keys(players).length;
+  $('md-stats').textContent = `${playerCount} player${playerCount === 1 ? '' : 's'} on this map`;
   if (!top.length) $('board-list').innerHTML = '<li class="empty">No blocks claimed yet</li>';
+  // Your own place, below the top 10 — only worth a separate line when you're not already in it.
+  const myRank = mine ? 1 + ranked.filter(([, n]) => n > mine).length : null;
+  $('board-mine').hidden = !mine || myRank <= 10;
+  if (mine && myRank > 10) $('board-mine').textContent = `You: #${myRank} · ${mine.toLocaleString()} block${mine === 1 ? '' : 's'}`;
   window.welcomeScreen?.refresh();
+}
+
+// Global top 10: best rank on any one map, refreshed whenever the map details popup opens (fills.js-style, but
+// this panel isn't a menu `view` — it's its own popup over the game — so it's fetched directly here).
+async function refreshGlobalBoard() {
+  const rows = await ask('globalBoard');
+  const list = Array.isArray(rows) ? rows : [];
+  $('board-global').replaceChildren(...list.map(r => {
+    const li = document.createElement('li');
+    li.className = String(r.id) === String(me) ? 'mine' : '';
+    li.innerHTML = '<span class="sq"></span><span class="name"></span><span class="n"></span>';
+    li.children[0].style.background = r.color || '#888';
+    li.children[1].textContent = `${r.name} · ${r.map}`;
+    li.style.cursor = 'pointer';
+    li.onclick = () => openProfile(r.id);
+    li.children[2].textContent = `#${r.rank}`;
+    return li;
+  }));
+  if (!list.length) $('board-global').innerHTML = '<li class="empty">No ranked players yet</li>';
 }
 
 // ---------- Networking ----------
@@ -838,3 +864,21 @@ socket.on('notice', ({ kind, message }) => {
   if (kind === 'deleted') localStorage.removeItem('territory-token');
 });
 $('notice-reload').addEventListener('click', () => location.reload());
+
+// Map details is now a popup: the info button opens it, the close button or a tap on the backdrop closes it.
+// It opens on "This map" (the 2nd of 2 swipeable pages, Global being a swipe to the left) every time.
+$('md-info').addEventListener('click', () => {
+  $('md-overlay').hidden = false;
+  $('md-pages').scrollLeft = $('md-pages').clientWidth;
+  [...$('md-dots').children].forEach((d, i) => d.classList.toggle('on', i === 1));
+  refreshGlobalBoard();
+});
+$('md-close').addEventListener('click', () => { $('md-overlay').hidden = true; });
+$('md-overlay').addEventListener('click', e => { if (e.target === $('md-overlay')) $('md-overlay').hidden = true; });
+// The Menu button used to float on its own (bottom-left); it now lives here, a tap away behind the info button.
+$('board-menu').addEventListener('click', () => { $('md-overlay').hidden = true; welcomeScreen.open(); });
+// Which of the 2 pages is in view, for the dots.
+$('md-pages').addEventListener('scroll', () => {
+  const on = Math.round($('md-pages').scrollLeft / $('md-pages').clientWidth);
+  [...$('md-dots').children].forEach((d, i) => d.classList.toggle('on', i === on));
+}, { passive: true });

@@ -109,7 +109,6 @@ fills.main = () => {
 
 for (const b of menu.querySelectorAll('[data-soon]')) b.addEventListener('click', () => toast(`${b.dataset.soon}: coming soon`, 'good'));
 
-$('menu-button').addEventListener('click', () => welcomeScreen.open());   // welcome.js
 menu.addEventListener('click', e => {
   if (e.target.closest('button, a') && !e.target.closest('.close, #spawn')) gameAudio.play('button');
   const go = e.target.closest('[data-go]');

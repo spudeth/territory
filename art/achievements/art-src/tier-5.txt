@@ -1,0 +1,25 @@
+# tier-5: damascus plate: dark steel, wavy folded-metal banding in a 2px border, plain centre
+frame 16 16
+
+color o ink
+color W damascus-dark
+color V damascus
+color U damascus-light
+
+--- 1: tier-5
+..oooooooooooo..
+.oWWWWVWWVVVVUo.
+oWVVVVUUVUUUUWWo
+oWVVVVVVVVVVVWWo
+oWVVVVVVVVVVVWUo
+oWVVVVVVVVVVVWUo
+oVUVVVVVVVVVVUVo
+oWUVVVVVVVVVVVWo
+oWVVVVVVVVVVVWUo
+oVUVVVVVVVVVVVVo
+oVUVVVVVVVVVVVVo
+oVUVVVVVVVVVVVWo
+oVUVVVVVVVVVVVWo
+oUWWWWUVWVVVVWUo
+.oWWUUVWUVVWWUo.
+..oooooooooooo..

@@ -155,7 +155,6 @@
     $('w-color').style.background = myColor;
     $('w-tag').textContent = myAccount ? 'ACCOUNT' : 'GUEST';
     setNum($('w-squares'), squares);
-    $('w-login').hidden = myAccount || !accountsOn;
     drawSound();
     drawPicker();
   }
@@ -182,27 +181,16 @@
     const e = entries[index];
     if (!e) return;
     const here = e.real && String(e.id) === String(mapInfo?.id);
+    const live = here && !!cells;   // the real map is already drawn behind the welcome screen: no stand-in needed
     const thumb = $('w-thumb'), c = $('w-thumb-canvas');
-    thumb.className = `w-thumb ${e.style === 'white' ? 'white' : e.style === 'dirt' ? 'dirt' : 'grass'}${e.real ? '' : ' soon'}`;
-    if (here && cells) drawThumb(c);
-    else { c.width = c.height = 1; c.getContext('2d').clearRect(0, 0, 1, 1); }
-    $('w-soon').hidden = e.real;
+    thumb.className = `w-thumb ${e.style === 'white' ? 'white' : e.style === 'dirt' ? 'dirt' : 'grass'}${e.real ? '' : ' soon'}${live ? ' live' : ''}`;
+    c.width = c.height = 1; c.getContext('2d').clearRect(0, 0, 1, 1);
     $('w-map-name').textContent = e.name;
     $('w-map-name').classList.toggle('soon', !e.real);
-    let line1 = e.about ?? '', line2 = '';
-    if (e.real) {
-      // The map being shown is counted live; others come from the server.
-      const mine = here ? myBlocks() : e.mine ?? 0;
-      const rank = here ? 1 + Object.values(blockCounts()).filter(n => n > mine).length : e.rank;
-      const size = here ? cells.size : e.blocks ?? 0;
-      const played = mine > 0 || (here ? locked : e.played);
-      line1 = mine ? `You: ${mine.toLocaleString()} block${mine === 1 ? '' : 's'} · #${rank}`
-        : played ? 'You: no blocks here right now' : "You haven't played this map yet";
-      line2 = `${size.toLocaleString()} blocks and growing`;
-    }
-    $('w-stat-1').textContent = line1;
-    $('w-stat-2').textContent = line2;
-    $('w-stat-2').hidden = !line2;
+    // Just the live total, above the dots — no personal rank, no tap-to-reveal popup.
+    const stat = e.real ? `${(here ? cells.size : e.blocks ?? 0).toLocaleString()} blocks and growing` : e.about ?? '';
+    $('w-map-stat').textContent = stat;
+    $('w-map-stat').hidden = !stat;
     $('w-play').hidden = !e.real;
     $('w-play').disabled = !here || switching || !cells;
     $('w-soon-btn').hidden = e.real;

@@ -1,0 +1,25 @@
+# tier-2: silver plate: polished, small stud at each corner
+frame 16 16
+
+color o ink
+color 4 silver-light
+color 5 silver
+color 6 silver-dark
+
+--- 1: tier-2
+..oooooooooooo..
+.o444444444444o.
+o45555555555556o
+o45465555556456o
+o45655555555656o
+o45555555555556o
+o45555555555556o
+o45555555555556o
+o45555555555556o
+o45555555555556o
+o45555555555556o
+o45655555555656o
+o45465555556456o
+o45555555555556o
+.o666666666666o.
+..oooooooooooo..

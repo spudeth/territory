@@ -34,3 +34,31 @@ shadow            #00000038 island underside shadow (22% black): ground shadows 
 
 # Added for art
 blush             #f4a0b4   art/ghost: cheeks
+
+# Added for achievements: tier plates (art/achievements) and a red for flag/flame/banners
+bronze            #c8814a   art/achievements tier-1
+bronze-dark       #8f5530   art/achievements tier-1
+bronze-light      #e6a874   art/achievements tier-1
+silver            #c9ced8   art/achievements tier-2
+silver-dark       #8d94a3   art/achievements tier-2
+silver-light      #eef1f6   art/achievements tier-2
+gold-plate        #f2c230   art/achievements tier-3
+gold-plate-dark   #b88a1c   art/achievements tier-3
+gold-plate-light  #fff0a0   art/achievements tier-3
+diamond           #bfe9ff   art/achievements tier-4
+diamond-dark      #7fc4ea   art/achievements tier-4
+diamond-light     #effaff   art/achievements tier-4
+damascus          #5b6270   art/achievements tier-5
+damascus-dark     #343845   art/achievements tier-5
+damascus-light    #8a93a3   art/achievements tier-5
+mythic-violet     #7a5ce6   art/achievements tier-6
+mythic-pink       #ff7ad9   art/achievements tier-6
+mythic-cyan       #5df0e0   art/achievements tier-6
+red               #d64545   art/achievements flag, flame, banners
+red-dark          #a62e36   art/achievements flag, flame, banners
+
+# Added for face icons: skin tones (art/inbox/faces)
+skin-pale         #f6d7b0   art/inbox/faces
+skin-tan          #e0ac69   art/inbox/faces
+skin-brown        #a9703c   art/inbox/faces
+skin-deep         #6b4226   art/inbox/faces
