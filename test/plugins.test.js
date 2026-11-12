@@ -48,7 +48,8 @@ test('variables: the core\'s four, plus each plug-in\'s; an upgrade shows only w
 test('a plug-in gets its part of the welcome, its own socket events and its data; only its browser files are served', async () => {
   const s = player(withHello.url);
   const w = await s.welcome;
-  assert.deepEqual(w.plugins, [{ name: 'hello', files: ['/plugins/hello/client.js'] }]);
+  assert.deepEqual(w.plugins.map(p => p.name), ['hello']);
+  assert.match(w.plugins[0].files[0], /^\/plugins\/hello\/client\.js\?v=[0-9a-f]{10}$/, 'by its fingerprint (loop 19)');
   assert.deepEqual(w.pluginData.hello, { greeting: 'hello from hello', mapId: w.map.id, pid: null, size: 3, data: {} });
   assert.deepEqual(await s.ask('hello:ping', 41), { pong: 42, pid: null });
   assert.equal((await fetch(withHello.url + '/plugins/hello/client.js')).status, 200);

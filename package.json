@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@neondatabase/auth": "0.7.0-beta",
+    "compression": "1.8.1",
     "express": "^4.21.2",
     "jose": "6.2.5",
     "pg": "^8.23.1",

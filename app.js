@@ -16,6 +16,9 @@ const path = require('path');
 const { renderGuide } = require('./guide');
 const chat = require('./chat');
 const terrain = require('./public/terrain');
+const blockPack = require('./public/blocks');
+const compression = require('compression');
+const { createAssets } = require('./assets');
 const stats = require('./stats');
 const { createTotals } = require('./totals');
 const { createEmail } = require('./email');
@@ -64,6 +67,8 @@ function createGame(pool, { startTicker = false, email = createEmail(), achievem
       res.redirect(301, site.origin + req.originalUrl);
     });
   }
+  // Loop 19: every answer over 1 KB that can be compressed is gzipped (pages, code, JSON, SVG).
+  app.use(compression({ threshold: 1024 }));
   // The IP address the server sees for you, to check the per-IP guest limit works behind the custom domain.
   app.get('/api/ip', (req, res) => res.json({ ip: clientIp(req.headers, req.socket.remoteAddress) }));
   if (auth) app.use(auth.router);
@@ -89,16 +94,21 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
 <div><h1>${r ? "YOU'RE UNSUBSCRIBED" : 'LINK NOT FOUND'}</h1><p>${r ? "You won't get any more update emails from Territory. You can join again any time in Settings." : 'This unsubscribe link is not valid. You can turn emails off in Settings.'}</p><p><a href="/">Back to the game</a></p></div>`);
   });
   app.use('/admin', adminRouter({ pool, key: adminKey, production: !!publicUrl, hooks: adminHooks(), email }));
-  // Browsers check every file for a newer version (a quick "not modified" when unchanged), so after an update
-  // nobody keeps running old game code from their cache. Also serves /privacy and /terms.
-  app.use(express.static(__dirname + '/public', { extensions: ['html'], setHeaders: res => res.setHeader('Cache-Control', 'no-cache') }));
+  // Plug-ins (loop 19): read first, so their browser files are fingerprinted with the core's.
+  const loadedPlugins = pluginHost.list({ dir: pluginDir, names: plugins });
+  // Caching (loop 19, assets.js): code is asked for by its fingerprint ("game.js?v=…") and kept for a year; the page is
+  // always checked (a quick "not modified" when unchanged), so after an update nobody runs old code; images and sounds
+  // are kept for an hour. Also serves /privacy and /terms.
+  const assets = createAssets(__dirname + '/public', loadedPlugins);
+  const cacheHeaders = res => res.setHeader('Cache-Control', assets.cacheFor(res.req.path, res.req.query.v));
+  app.get(['/', '/index.html'], (req, res) => res.set('Cache-Control', 'no-cache').type('html').send(assets.page));
+  app.use(express.static(__dirname + '/public', { extensions: ['html'], setHeaders: cacheHeaders }));
 
   // Plug-ins (loop 19): only their browser files and look/ are served, never their server code.
-  const loadedPlugins = pluginHost.list({ dir: pluginDir, names: plugins });
   const hooks = pluginHost.createHooks();
   for (const p of loadedPlugins) {
-    for (const f of p.client) app.get(`/plugins/${p.name}/${f}`, (req, res) => res.set('Cache-Control', 'no-cache').sendFile(path.join(p.dir, f)));
-    app.use(`/plugins/${p.name}/look`, express.static(path.join(p.dir, 'look'), { setHeaders: res => res.setHeader('Cache-Control', 'no-cache') }));
+    for (const f of p.client) app.get(`/plugins/${p.name}/${f}`, (req, res) => res.set('Cache-Control', assets.cacheFor(req.path, req.query.v)).sendFile(path.join(p.dir, f)));
+    app.use(`/plugins/${p.name}/look`, express.static(path.join(p.dir, 'look'), { setHeaders: cacheHeaders }));
   }
   // The variables this game has (the core's and its plug-ins'), and so the upgrades that show: those changing one.
   const known = variables.declared(loadedPlugins);
@@ -110,6 +120,23 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
   // Large messages (the whole map on joining: 1.4 MB at 100,000 blocks) are compressed, fast setting, to about
   // a fifth. Small ones (hits, claims) are sent as they are.
   const io = new Server(server, { perMessageDeflate: { threshold: 4096, zlibDeflateOptions: { level: 1 } } });
+  // Crack updates (loop 19): gathered per map and sent about 10 times a second as one 'hits' message (the latest of
+  // each crack), instead of one message per tap to everyone. Any other message to the map first sends what's
+  // waiting, so nothing arrives out of order (a crack never shows up after its block was taken).
+  const hitQueue = new Map();   // map -> Map("x,y" or "x,y|side" -> { x, y, side?, p })
+  function queueHit(map, data) {
+    const q = hitQueue.get(map) ?? hitQueue.set(map, new Map()).get(map);
+    q.set(data.x + ',' + data.y + (data.side ? '|' + data.side : ''), data);
+  }
+  function flushHits(map) {
+    const q = hitQueue.get(map);
+    if (!q) return;
+    hitQueue.delete(map);
+    if (q.size) io.to(map.room).emit('hits', [...q.values()]);
+  }
+  function toRoom(map, event, data) { flushHits(map); io.to(map.room).emit(event, data); }
+  const hitFlush = setInterval(() => { for (const map of [...hitQueue.keys()]) flushHits(map); }, 100);
+  hitFlush.unref();
   const limiter = guestLimiter(guestsPerIp, rules.GUEST_WINDOW_MINUTES * 60 * 1000);
 
   // The tap-rate limit (anti-bot): taps over the rate are ignored (rules.tapAllowed). Each minute, players who
@@ -196,7 +223,8 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
   events.on('stat', e => hooks.runSync('stat', e));
 
   // The server tick (ticker.js): timers (and plug-ins' timed things: factories), caught up after every sleep.
-  const ticker = createTicker(pool, { seconds: catalog.E.tickSeconds });
+  // Loop 19: no ticks (and no database queries) while nobody is connected; the first connection catches up.
+  const ticker = createTicker(pool, { seconds: catalog.E.tickSeconds, skip: () => io.of('/').sockets.size === 0 });
 
   // Lifetime totals (totals.js), checked like any other stat.
   const totals = createTotals(pool, { onStat: (pid, name, value) => events.emit('stat', { pid, name, value }) });
@@ -267,7 +295,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
     if (!l) return;
     map.listingInfo.delete(id);
     for (const [x, y] of l.blocks) map.listings.delete(key(x, y));
-    io.to(map.room).emit('listing', { id, gone: true });
+    toRoom(map, 'listing', { id, gone: true });
   }
   async function cancelListingNow(map, id) {
     if (!map.listingInfo.has(id)) return;
@@ -283,15 +311,15 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
       grow: rules.growthBlocks(eff, growRoll(map, x, y)), birth: catalog.level(map.mined + 1, map.base), level, earn });
     if (r.conflict) {
       setOwner(map, k, await store.cellOwner(pool, map.id, x, y));
-      io.to(map.room).emit('claim', { x, y, pid: map.cells.get(k) });
+      toRoom(map, 'claim', { x, y, pid: map.cells.get(k) });
       return false;
     }
     setOwner(map, k, owner);
-    io.to(map.room).emit('claim', { x, y, pid: owner });
+    toRoom(map, 'claim', { x, y, pid: owner });
     for (const g of r.grown) {
       map.cells.set(key(g.x, g.y), null);
       if (g.l > 1) map.birth.set(key(g.x, g.y), g.l);
-      io.to(map.room).emit('grow', g);
+      toRoom(map, 'grow', g);
     }
     mapMined(map);
     if (r.squares !== null) balanceChanged(owner, r.squares);
@@ -310,7 +338,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
   // progress (the level is worked out from mined and E).
   function mapMined(map) {
     map.mined++;
-    io.to(map.room).emit('mapMined', map.mined);
+    toRoom(map, 'mapMined', map.mined);
   }
 
 
@@ -339,8 +367,8 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
     const k = key(x, y), owner = map.cells.get(k);
     map.overrides.set(k, terrain);
     map.hits.delete(k);
-    io.to(map.room).emit('terrain', { x, y, terrain });
-    if (terrain === 'water' && owner) { setOwner(map, k, null); io.to(map.room).emit('claim', { x, y, pid: null }); statChanged(map, owner, 'owned', map.counts.get(owner) || 0); }
+    toRoom(map, 'terrain', { x, y, terrain });
+    if (terrain === 'water' && owner) { setOwner(map, k, null); toRoom(map, 'claim', { x, y, pid: null }); statChanged(map, owner, 'owned', map.counts.get(owner) || 0); }
   }
 
   // Runs claims and wipes on one map in arrival order, so each sees the result of the one before.
@@ -386,7 +414,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
     h.at = d.at;
     if (!h.n) map.hits.delete(k);
     const [at, side] = k.split('|'), [x, y] = at.split(',').map(Number);
-    io.to(map.room).emit('hit', { x, y, ...(side ? { side } : {}), p: share(h) });
+    queueHit(map, { x, y, ...(side ? { side } : {}), p: share(h) });
   }
   // Cracks for plug-ins (loop 19): `crackKey` is "x,y|<part>" (a wall's side); `at` goes out with the progress.
   // crackHit adds `power` hits by `by` toward `need`; true once taken (the crack is gone). crackRepair takes hits off.
@@ -399,7 +427,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
     h.at = now;
     h.need = need;
     h.n += power;
-    if (!rules.isTaken(h.n, h.need)) { io.to(map.room).emit('hit', { ...at, p: share(h) }); return false; }
+    if (!rules.isTaken(h.n, h.need)) { queueHit(map, { ...at, p: share(h) }); return false; }
     map.hits.delete(crackKey);
     return true;
   }
@@ -409,9 +437,9 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
     decay(map, crackKey, h, Date.now());
     if (!map.hits.has(crackKey)) return;
     h.n -= power;
-    if (h.n > 1e-9) return io.to(map.room).emit('hit', { ...at, p: share(h) });
+    if (h.n > 1e-9) return queueHit(map, { ...at, p: share(h) });
     map.hits.delete(crackKey);
-    io.to(map.room).emit('hit', { ...at, p: 0 });
+    queueHit(map, { ...at, p: 0 });
   }
   const sweep = setInterval(() => {
     const now = Date.now();
@@ -435,7 +463,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
     if (!r) return null;
     for (const [x, y] of r.cells) setOwner(map, key(x, y), null);
     Object.assign(map.players.get(pid), { unlocked: true, wipeFloor: r.floor });
-    io.to(map.room).emit('wipe', { pid, cells: r.cells, floor: r.floor });
+    toRoom(map, 'wipe', { pid, cells: r.cells, floor: r.floor });
     statChanged(map, pid, 'owned', 0);
     return r;
   }
@@ -514,7 +542,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
     if (!map) return;
     const pids = new Set();
     for (const s of io.sockets.sockets.values()) if (s.data.mapId === map.id && s.data.visible && s.data.me?.pid) pids.add(String(s.data.me.pid));
-    io.to(map.room).emit('online', [...pids]);
+    toRoom(map, 'online', [...pids]);
   }
 
   // A purchase: new upgrade levels and balance for every connection of the player and every loaded map (where
@@ -537,6 +565,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
   }
 
   io.on('connection', async socket => {
+    ticker.wake();   // ticks were skipped while nobody was connected: catch up now
     const ip = clientIp(socket.handshake.headers, socket.handshake.address);
     // What the browser sends: the guest's secret token (if it has one), a login token (if logged in), and
     // upgrade = true when the player has just signed up from their guest profile.
@@ -624,14 +653,14 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
         upgraded: false, loginFailed: false,      // see `flags`
         ...flags,
         map: { id: map.id, name: map.name, style: map.style, seed: map.seed },
-        // [x, y, owner] or [x, y, owner, birth level] for blocks above level 1
-        cells: [...map.cells].map(([k, owner]) => { const b = map.birth.get(k); return b ? [...k.split(',').map(Number), owner, b] : [...k.split(',').map(Number), owner]; }),
+        // Every block and its owner, and the levels above 1, packed (public/blocks.js; loop 19: was [x, y, owner, level] each)
+        blocks: blockPack.pack(map.cells, map.birth),
         players: Object.fromEntries([...map.players].map(([pid, { upgrades, ...shown }]) => [pid, shown])),
         hits: [...map.hits].filter(([k]) => !k.includes('|')).map(([k, h]) => [...k.split(',').map(Number), share(h)]),   // not walls' cracks
         chat: chats.get(map.id) ?? [],
         terrain: [...map.overrides].map(([k, t]) => [...k.split(',').map(Number), t]),   // Terraformer changes
         listings: [...map.listingInfo.values()].map(l => listingOut(map, l)),
-        plugins: pluginHost.clientList(loadedPlugins),   // the browser loads these after the map is drawn
+        plugins: pluginHost.clientList(loadedPlugins).map(p => ({ ...p, files: p.files.map(assets.v) })),   // the browser loads these after the map is drawn
         pluginData: Object.fromEntries(hooks.collectBy('welcome', map, me.pid)),   // each plug-in's part, by name
       });
     }
@@ -641,7 +670,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
     map = null;
     enter(first, { upgraded, loginFailed });
 
-    const clearCrack = (x, y) => io.to(map.room).emit('hit', { x, y, p: 0 });
+    const clearCrack = (x, y) => queueHit(map, { x, y, p: 0 });
 
     // Runs in the map's queue after the last hit. Checks the rules again, since the map may have changed.
     // `here` is the map the last hit was on; if the player has switched maps since, the claim is dropped.
@@ -678,7 +707,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
         // Another server got there first (e.g. during a deploy). Resync this block for everyone.
         setOwner(map, k, await store.cellOwner(pool, map.id, x, y));
         socket.emit('denied', 'Someone got there first');
-        io.to(map.room).emit('claim', { x, y, pid: map.cells.get(k) });
+        toRoom(map, 'claim', { x, y, pid: map.cells.get(k) });
         return;
       }
 
@@ -697,11 +726,11 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
       if (r.joinedMap) {
         const before = map.players.get(me.pid);
         map.players.set(me.pid, { name: me.name, color, skin, coverage, unlocked: false, wipeFloor: before?.wipeFloor ?? 0, upgrades: mySteps });
-        io.to(map.room).emit('player', { pid: me.pid, name: me.name, color, skin, coverage });
+        toRoom(map, 'player', { pid: me.pid, name: me.name, color, skin, coverage });
       }
       setOwner(map, k, me.pid);
       map.hits.delete(k);   // no crack carries over to the new owner
-      io.to(map.room).emit('claim', { x, y, pid: me.pid });
+      toRoom(map, 'claim', { x, y, pid: me.pid });
       map.stats.set(me.pid, st.stats);
       statChanged(map, me.pid, 'owned', map.counts.get(me.pid));
       for (const name of st.changed) statChanged(map, me.pid, name, st.stats[name]);
@@ -712,7 +741,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
       for (const g of r.grown) {   // one new block, or more with Growth
         map.cells.set(key(g.x, g.y), null);
         if (g.l > 1) map.birth.set(key(g.x, g.y), g.l);
-        io.to(map.room).emit('grow', g);
+        toRoom(map, 'grow', g);
       }
       if (r.squares !== null) {
         // Whole squares this claim mined, for the rising-square animation (rewards don't animate).
@@ -809,7 +838,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
       h.at = now;
       h.need = need;
       h.n += powerOn(x, y, now);
-      if (!rules.isTaken(h.n, need)) return io.to(map.room).emit('hit', { x, y, p: share(h) });
+      if (!rules.isTaken(h.n, need)) { const d = { x, y, p: share(h) }; socket.emit('hit', d); return queueHit(map, d); }   // the tapper at once
 
       session.spare = Math.max(0, h.n - need);
       map.hits.delete(k);
@@ -834,9 +863,10 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
       if (!h) return;
       totals.bump(me.pid, 'taps');
       h.n -= powerOn(x, y, now);
-      if (h.n > 1e-9) return io.to(map.room).emit('hit', { x, y, p: share(h) });
-      map.hits.delete(k);
-      io.to(map.room).emit('hit', { x, y, p: 0 });
+      const left = h.n > 1e-9, d = { x, y, p: left ? share(h) : 0 };
+      if (!left) map.hits.delete(k);
+      socket.emit('hit', d);   // the repairer at once
+      queueHit(map, d);
     }
 
     // Clears this player's whole territory on this map, and unlocks their color, skin and coverage here.
@@ -878,7 +908,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
       list.push(msg);
       if (list.length > chat.HISTORY) list.shift();
       chats.set(map.id, list);
-      io.to(map.room).emit('chat', msg);
+      toRoom(map, 'chat', msg);
       totals.bump(me.pid, 'chatMessages');
       hooks.runSync('chat', me.pid, text);
       reply({});
@@ -1017,7 +1047,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
           const l = { id: r.id, seller: me.pid, price, created: Date.now(), blocks };
           here.listingInfo.set(r.id, l);
           for (const b of blocks) here.listings.set(key(...b), r.id);
-          io.to(here.room).emit('listing', listingOut(here, l));
+          toRoom(here, 'listing', listingOut(here, l));
           reply({ ok: true, id: r.id });
         });
       } catch (err) {
@@ -1053,14 +1083,14 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
           if (r.error) return reply({ error: r.error, ...(r.need !== undefined ? { need: catalog.fromTenths(r.need) } : {}) });
           if (r.joined || !mine) {
             here.players.set(me.pid, { name: me.name, ...look, unlocked: false, wipeFloor: 0, upgrades: mySteps });
-            io.to(here.room).emit('player', { pid: me.pid, name: me.name, ...look });
+            toRoom(here, 'player', { pid: me.pid, name: me.name, ...look });
           }
           // The sale: listing gone, then the blocks (with their factories and walls) change hands.
           dropListingQuiet(here, l.id);
-          io.to(here.room).emit('listing', { id: l.id, gone: true, sold: true });
+          toRoom(here, 'listing', { id: l.id, gone: true, sold: true });
           for (const [x, y] of r.blocks) {
             transferOwner(here, key(x, y), me.pid);
-            io.to(here.room).emit('claim', { x, y, pid: me.pid, sold: true });
+            toRoom(here, 'claim', { x, y, pid: me.pid, sold: true });
           }
           hooks.runSync('transferred', here, r.blocks, r.seller, me.pid);   // plug-ins: what's built goes with the land (factories)
           balanceChanged(me.pid, r.buyerSquares);
@@ -1203,13 +1233,14 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
       changed: (pid, name, value) => events.emit('stat', { pid, name, value }) },   // changed: re-announce a value (achievements' catch-up)
     options: { achievementList },                             // createGame's options a plug-in reads (tests' achievement lists)
     toPlayer: (pid, event, data) => io.to('player:' + pid).emit(event, data),
-    toMap: (map, event, data) => io.to(map.room).emit(event, data),
+    toMap: (map, event, data) => toRoom(map, event, data),
     builders: { add: (kind, fn, reason) => { builders[kind] = fn; fn.reason = reason; } },
     built: { add: (kind, provider) => { builtProviders[kind] = provider; } },
-    cracks: { hit: crackHit, repair: crackRepair, share },   // share(crack): its progress as browsers see it (0-1)
+    cracks: { hit: crackHit, repair: crackRepair, share, show: queueHit },   // share(crack): its progress (0-1); show(map, { x, y, p }): send it
     values: (map, pid, L) => ownerValues(map, pid, L),         // a player's variable values on a level-L block (upgrades)
     getMap,                                                   // a map by id, loaded if it isn't
-    ticker: { on: fn => ticker.on(fn) },                      // fn(from, to) on every tick, caught up after a sleep
+    ticker: { on: fn => ticker.on(fn), wake: () => ticker.wake() },   // fn(from, to) on every tick, caught up after a sleep;
+                                                              // fn returns 'idle' when it has nothing to do; wake() when it does again
     modifiers: { add: addModifier, factor: factorOf },
     blocks: {
       owner: (map, x, y) => map.cells.get(key(x, y)),        // undefined: no such block; null: empty

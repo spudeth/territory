@@ -171,8 +171,7 @@ test('cracks fade one hit per decay period after the last hit, for everyone, sho
   // A hit after some fading continues from the faded progress: two hits, one fades, so nine more are needed.
   a.emit('hit', { x: 4, y: 25 });
   a.emit('hit', { x: 4, y: 25 });
-  await watcher.next('hit', d => d.x === 4 && d.p === 0.1);   // the hits themselves
-  await watcher.next('hit', d => d.x === 4 && d.p === 0.2);
+  await watcher.next('hit', d => d.x === 4 && d.p === 0.2);   // the hits themselves (loop 19: in one batch, the latest)
   await watcher.next('hit', d => d.x === 4 && d.p === 0.1);   // then the fade
   for (let i = 0; i < 8; i++) a.emit('hit', { x: 4, y: 25 });
   await watcher.next('hit', d => d.x === 4 && d.p === 0.9);

@@ -98,6 +98,7 @@ module.exports = api => {
     if (r.error) return { error: r.error, ...(r.need !== undefined ? { need: catalog.fromTenths(r.need) } : {}) };
     const now = Date.now(), f = { id: r.id, owner: pid, x, y, built: now, awake: now + awakeMs, processed: fac.stepFloor(now), target: null };
     of(map).set(key(x, y), f);
+    api.ticker.wake();   // a factory is awake: the tick has work
     api.money.changed(pid, r.squares);
     api.stats.bump(pid, 'squaresSpent', i.price);
     changed(map, f);
@@ -126,6 +127,7 @@ module.exports = api => {
           processed_at = GREATEST(processed_at, to_timestamp($4 / 1000.0)) WHERE id = $1 AND owner_id = $2`, [f.id, f.owner, now + awakeMs, fac.stepFloor(now)]);
         f.awake = now + awakeMs;
         f.processed = Math.max(f.processed, fac.stepFloor(now));
+        api.ticker.wake();
         changed(here, f);
         reply({ ok: true, awakeUntil: f.awake });
       });
@@ -154,7 +156,7 @@ module.exports = api => {
       hits -= use;
       if (!rules.isTaken(h.n, need)) {
         map.hits.set(k, h);
-        api.toMap(map, 'hit', { x: tg.x, y: tg.y, p: api.cracks.share(h) });
+        api.cracks.show(map, { x: tg.x, y: tg.y, p: api.cracks.share(h) });
         return took;
       }
       map.hits.delete(k);
@@ -207,14 +209,17 @@ module.exports = api => {
     return api.serial(map, () => run(map, fac.stepFloor(now), { save: false }))
       .catch(err => console.error(`LIVE FACTORIES FAILED (map ${map.id}): ${err.message}`)).finally(() => { map.liveRun = false; });
   });
-  // The tick: every map with factories still to bring up to date (loaded if it isn't).
+  // The tick: every map with factories still to bring up to date (loaded if it isn't). With no factory awake anywhere
+  // it says 'idle' (the tick then spares the database until a factory is built or woken).
   api.ticker.on(async function factoriesTick(from, to) {
     const until = fac.stepFloor(to);
-    const { rows } = await pool.query('SELECT DISTINCT map_id FROM factories WHERE processed_at < LEAST(awake_until, to_timestamp($1 / 1000.0))', [until]);
-    for (const { map_id: id } of rows) {
+    const { rows } = await pool.query(`SELECT map_id, bool_or(processed_at < LEAST(awake_until, to_timestamp($1 / 1000.0))) AS due,
+      bool_or(awake_until > to_timestamp($2 / 1000.0)) AS awake FROM factories GROUP BY map_id`, [until, to]);
+    for (const { map_id: id } of rows.filter(r => r.due)) {
       const map = await api.getMap(id);
       if (map) await api.serial(map, () => run(map, until));
     }
+    return rows.some(r => r.awake) ? null : 'idle';
   });
 
   // ---------- The database ----------

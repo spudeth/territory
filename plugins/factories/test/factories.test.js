@@ -229,7 +229,7 @@ test('live (loop 18): someone watching sees each factory hit as it happens, one 
   await onMap(s, id);
   const seen = [];
   s.on('hit', d => seen.push(d));
-  for (let sec = 1; sec <= 30; sec++) await game.live(start + sec * 1000);
+  for (let sec = 1; sec <= 30; sec++) { await game.live(start + sec * 1000); await new Promise(r => setTimeout(r, 120)); }   // each second's crack goes out in the next batch (100 ms)
   await new Promise(r => setTimeout(r, 200));
   const H = rules.HITS_PER_BLOCK, shares = seen.map(d => d.p);
   assert.equal(seen.length, 5, `30 seconds at 1/6 hit a second: 5 hits (${JSON.stringify(shares)})`);

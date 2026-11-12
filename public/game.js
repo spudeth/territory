@@ -687,7 +687,7 @@ socket.on('welcome', data => {
   cells = new Map();
   bounds = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
   levels = new Map();
-  for (const [x, y, owner, lv] of data.cells) { addCell(x, y, owner); if (lv > 1) levels.set(key(x, y), lv); }
+  blockPack.each(data.blocks, (x, y, owner) => addCell(x, y, owner), (x, y, lv) => levels.set(key(x, y), lv));   // blocks.js
   if (data.level) mapLevel = data.level;
   if (data.inspectHoldMs) inspectHoldMs = data.inspectHoldMs;
   window.closeInspect?.();
@@ -716,14 +716,18 @@ socket.on('player', ({ pid, name, color, skin, coverage }) => {
   players[pid] = { name, color, skin, coverage };
   if (pid === me) { myColor = color; mySkin = skin; myCoverage = coverage; locked = true; updateUI(); }
 });
-socket.on('hit', ({ x, y, p, side }) => {
+// A crack's progress (p, 0-1): one at a time ('hit', your own taps at once), or batched ('hits', about 10 a second).
+function onHit({ x, y, p, side }) {
   if (side) return Plugins.run('sideHit', { x, y, side, p });   // a crack on part of a block (a wall: the walls plug-in)
   const k = key(x, y), mine = Date.now() - (myTaps.get(k) ?? 0) < 1500;
+  if ((hits.get(k) ?? 0) === p) return;   // no change (your own hit, again in the batch)
   if (gameAudio.isTap(hits.get(k), p) && !mine) gameAudio.play('tap', screenAt(x, y));
   if (mine) tell('hit', { x, y, p });   // tutorial: the tap counter
   if (p) hits.set(k, p); else hits.delete(k);
   draw();
-});
+}
+socket.on('hit', onHit);
+socket.on('hits', list => { for (const h of list) onHit(h); });
 socket.on('claim', ({ x, y, pid }) => {
   const before = cells.get(key(x, y));
   cells.set(key(x, y), pid);
