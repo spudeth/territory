@@ -370,7 +370,7 @@
         </dl>
         <div><div class="cat-title" style="margin-top: 0">RECENT ACHIEVEMENTS</div><ul id="pf-recent" class="pf-recent"></ul>
           <button class="text-btn" type="button" id="pf-all">See all</button></div>
-        <div><div class="cat-title" style="margin-top: 0">FAVORITES</div><div id="pf-stars" class="pf-stars"></div></div>
+        <div id="pf-plugins" style="display: contents"></div>
         <button class="btn" type="button" id="pf-mute" hidden></button>
       </section>
 
@@ -436,41 +436,11 @@
         </div>
         <h2 class="sec">1 · COLOR</h2>
         <div class="colors" role="radiogroup" aria-label="Color" id="setup-colors"></div>
-        <h2 class="sec">2 · SKIN</h2>
-        <div class="skins" role="radiogroup" aria-label="Skin" id="setup-skins"></div>
-        <h2 class="sec"><span data-info="coverage">3 · COVERAGE</span></h2>
-        <div class="coverages" role="radiogroup" aria-label="Coverage">
-          <button class="card" type="button" role="radio" data-coverage="tile">
-            <span style="display: grid; grid-template-columns: repeat(3, 12px); gap: 2px" aria-hidden="true">
-              <span class="pat-stripes cov-mini"></span><span class="pat-stripes cov-mini"></span><span class="pat-stripes cov-mini"></span>
-              <span class="pat-stripes cov-mini"></span><span class="pat-stripes cov-mini"></span><span class="pat-stripes cov-mini"></span>
-            </span>
-            <span class="t">Per block</span><span class="d">Skin repeats on each block</span>
-          </button>
-          <button class="card" type="button" role="radio" data-coverage="stretch">
-            <span class="pat-stripes cov-full" aria-hidden="true"></span>
-            <span class="t">Full area</span><span class="d">One big image over it all</span>
-          </button>
-        </div>
         <div class="warn">
           <svg class="pix" width="16" height="16" aria-hidden="true" style="margin-top: 2px; color: var(--gold)"><use href="#i-lock"/></svg>
           <p>These are locked for this map. To change them later, wipe and restart.</p>
         </div>
         <button class="btn spawn foot" type="button" id="spawn">SPAWN</button>
-      </section>
-
-      <!-- Skins -->
-      <section data-view="skins" hidden>
-        <div class="head">
-          <button class="btn icon-btn" type="button" data-go="main" aria-label="Back to menu"><svg class="pix" width="16" height="16" aria-hidden="true"><use href="#i-back"/></svg></button>
-          <h1>MARKETPLACE</h1>
-          <span class="right" id="skins-owned"></span>
-        </div>
-        <p style="margin: 0; font-size: 15px; line-height: 1.35; color: var(--soft)">Buy skins with squares. Owned skins work on every map: you pick one when you first enter a map. Prices follow this map's level.</p>
-        <div class="split" style="align-items: center"><span data-info="skinPrices">Your squares</span><span class="chip"><img class="sq-icon" src="icons/square.svg" width="14" height="14" alt=""><span id="skins-squares">0</span></span></div>
-        <div class="tabs yellow" role="tablist" aria-label="Collections" id="skins-tabs"></div>
-        <input class="field" id="skins-search" type="search" placeholder="Search skins, e.g. Japan" autocomplete="off" aria-label="Search skins">
-        <div id="catalog"></div>
       </section>
 
       <!-- Upgrades -->
@@ -492,25 +462,6 @@
         <div id="land-list" class="items-list"></div>
       </section>
 
-      <!-- Achievements -->
-      <section data-view="achievements" hidden>
-        <div class="head">
-          <button class="btn icon-btn" type="button" data-go="main" aria-label="Back to menu"><svg class="pix" width="16" height="16" aria-hidden="true"><use href="#i-back"/></svg></button>
-          <h1 style="font-size: 13px">ACHIEVEMENTS</h1>
-        </div>
-        <div style="display: flex; flex-direction: column; gap: 6px">
-          <div class="split"><span>Earned</span><span style="font: 11px var(--title); color: var(--yellow)" id="ach-total"></span></div>
-          <div class="bar total"><div id="ach-total-bar"></div></div>
-        </div>
-        
-        <div class="tabs yellow" role="tablist" aria-label="Filter" id="ach-filter">
-          <button type="button" role="tab" aria-selected="true" data-filter="all">All</button>
-          <button type="button" role="tab" aria-selected="false" data-filter="pending">Pending</button>
-          <button type="button" role="tab" aria-selected="false" data-filter="claimed">Claimed</button>
-        </div>
-        <div class="ach-list" id="ach-list"></div>
-      </section>
-
       <p id="menu-error" role="alert"></p>
     </div>
   </div>
@@ -518,6 +469,7 @@
   <script src="/socket.io/socket.io.js"></script>
   <script src="labels.js"></script>
   <script src="terrain.js"></script>
+  <script src="blocks.js"></script>
   <script src="skins.js"></script>
   <script src="sfx.js"></script>
   <script src="audio.js"></script>
@@ -534,8 +486,6 @@
   <script src="profile.js"></script>
   <script src="inspect.js"></script>
   <script src="build.js"></script>
-  <script src="factories.js"></script>
-  <script src="walls.js"></script>
   <script src="land.js"></script>
   <script src="start.js"></script>
 </body>

@@ -16,27 +16,23 @@
     $('pf-color').style.background = p.color || '#888';
     $('pf-tag').textContent = p.account ? 'ACCOUNT' : 'GUEST';
     $('pf-online').hidden = !p.online;
-    $('pf-ach').textContent = `${p.achievements.earned} / ${p.achievements.total}`;
+    // Achievements (the achievements plug-in's part of the profile): shown only when it's there.
+    const ach = p.achievements;
+    for (const el of [$('pf-ach'), $('pf-ach').previousElementSibling, $('pf-recent').parentElement]) el.hidden = !ach;
+    if (ach) $('pf-ach').textContent = `${ach.earned} / ${ach.total}`;
     $('pf-best').textContent = p.best ? `${p.best.n.toLocaleString()} on ${p.best.map}` : 'None yet';
     $('pf-squares').textContent = fmtSq(p.squares);
     $('pf-now').textContent = p.map ? `${p.map}: ${p.blocks.toLocaleString()} block${p.blocks === 1 ? '' : 's'}${p.rank ? ` · #${p.rank}` : ''}` : '—';
     const since = new Date(p.since);
     $('pf-since').textContent = `${MONTHS[since.getMonth()]} ${since.getFullYear()}`;
-    $('pf-recent').replaceChildren(...(p.achievements.recent.length ? p.achievements.recent.map(a => {
+    if (ach) $('pf-recent').replaceChildren(...(ach.recent.length ? ach.recent.map(a => {
       const li = document.createElement('li');
       li.textContent = a.name;
       li.append(Object.assign(document.createElement('span'), { textContent: a.description }));
       return li;
     }) : [Object.assign(document.createElement('li'), { textContent: 'None yet' })]));
     $('pf-all').onclick = () => { achTarget = String(p.id) === String(me) ? null : p.id; show('achievements'); };
-    // Favorites: their starred pattern and art skin, large, in their color.
-    const stars = [p.stars.pattern, p.stars.art].filter(Boolean);
-    $('pf-stars').replaceChildren(...(stars.length ? stars.map(id => {
-      const box = document.createElement('div'), c = document.createElement('canvas');
-      drawSkinPreview(c, { id, kind: gameSettings.skinKinds?.[id] ?? 'art' }, p.color || '#888');
-      box.append(c, Object.assign(document.createElement('span'), { textContent: id.startsWith('flag-') ? 'Flag' : 'Starred' }));
-      return box;
-    }) : [Object.assign(document.createElement('span'), { textContent: 'No favorite yet' })]));
+    $('pf-plugins').replaceChildren(...Plugins.collect('profile', p).filter(Boolean));   // plug-ins' sections (skins: favorites)
     // Chat: mute or unmute them (not yourself).
     const other = String(p.id) !== String(me);
     $('pf-mute').hidden = !other;

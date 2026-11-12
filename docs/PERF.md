@@ -10,23 +10,30 @@ comparisons, not promises.
 
 ## Before and after
 
-| Measure | Before (2026-11-11) | After |
+| Measure | Before (2026-11-11) | After (2026-11-11, Phase 8) |
 |---|---|---|
-| **Phone, first visit** (Slow 4G, 4x slower CPU): data, requests | 356 KB, 63 requests (scripts 235 KB, CSS 46 KB, page 39 KB, fonts 28 KB) | |
-| Phone, first visit: map on screen | 4.4 s (page loaded at 2.5 s) | |
-| **Phone, next visit**: data, requests | 11 KB, still 63 requests (every file is checked again: `no-cache`) | |
-| Phone, next visit: map on screen | 2.9 s | |
-| Browser memory (JS) | 8-11 MB | |
-| **Welcome message**, 400-block map | 15 KB as JSON, 4 KB sent | |
-| Welcome, 10,000 blocks | 149 KB as JSON, 38 KB sent | |
-| Welcome, 50,000 blocks | 698 KB as JSON, 183 KB sent | |
-| Welcome, 431,649 blocks (the default E, worked out) | about 6 MB as JSON, about 1.6 MB sent | |
-| **Server idle** (nobody connected, 1 awake factory): memory, CPU | 87 MB, 0.2% of one core | |
-| Server idle: database queries | 31 a minute (the tick, plus the factory's ~2 claims a minute) | |
-| **10 players tapping** 4 a second for 2 minutes: memory, CPU | 145 MB, 7% of one core | |
-| 10 players: database | 2,502 queries a minute, 1.2 per tap (about 15 per claimed block), 242 transactions a minute | |
-| 10 players: Socket.IO sent | 395 messages a second (40 per player), 12.9 KB a second | |
-| 10 players: Socket.IO received | 35 messages a second, 0.8 KB a second | |
+| **Phone, first visit** (Slow 4G, 4x slower CPU): data, requests | 356 KB, 63 requests (scripts 235 KB, CSS 46 KB, page 39 KB, fonts 28 KB) | 189 KB, 75 files (scripts 133 KB, CSS 12 KB, page 8 KB, fonts 28 KB): gzipped; more files because plug-ins are their own |
+| Phone, first visit: map on screen | 4.4 s (page loaded at 2.5 s) | 3.1 s (page loaded at 1.7 s) |
+| **Phone, next visit**: data, requests | 11 KB, still 63 requests (every file is checked again: `no-cache`) | 1.4 KB over the network: code is kept by its fingerprint, images an hour; only the page is checked (the 75 files counted include those from the phone's cache) |
+| Phone, next visit: map on screen | 2.9 s | 1.8 s |
+| Browser memory (JS) | 8-11 MB | 7-10 MB |
+| **Welcome message**, 400-block map | 15 KB as JSON, 4 KB sent | 12 KB, 3 KB (the rest of the welcome: chat, players, settings) |
+| Welcome, 10,000 blocks | 149 KB as JSON, 38 KB sent | 15 KB, 4 KB |
+| Welcome, 50,000 blocks | 698 KB as JSON, 183 KB sent | 15 KB, 4 KB (blocks packed as runs along each row) |
+| Welcome, 431,649 blocks (the default E, worked out) | about 6 MB as JSON, about 1.6 MB sent | tens of KB (grows with the map's outline and its owners, not its size) |
+| **Server idle** (nobody connected, 1 awake factory): memory, CPU | 87 MB, 0.2% of one core | 78 MB, 0.1% |
+| Server idle: database queries | 31 a minute (the tick, plus the factory's ~2 claims a minute) | about 1 a minute in the 2-minute window: only the start-up tick; none after it while nobody is connected, so Neon can suspend |
+| **10 players tapping** 4 a second for 2 minutes: memory, CPU | 145 MB, 7% of one core | 119 MB, 6.7% |
+| 10 players: database | 2,502 queries a minute, 1.2 per tap (about 15 per claimed block), 242 transactions a minute | 2,778 a minute for 12% more claims: still about 15 per claimed block (unchanged) |
+| 10 players: Socket.IO sent | 395 messages a second (40 per player), 12.9 KB a second | 183 a second (18 per player), 12.5 KB a second: cracks batched |
+| 10 players: Socket.IO received | 35 messages a second, 0.8 KB a second | 35, 0.8 KB (the taps themselves) |
+
+**What's left (not done in loop 19):** about 15 database queries per claimed block are now the biggest cost under
+load (and the main reason CPU barely moved). Batching a claim's writes is the next saving.
+
+**Screenshots** (`docs/screenshots/loop19-after-*.png`, compared pixel by pixel with `before`): the cards, bars and menus
+match; the differences are on the map itself, where the test game's factory and growth took different blocks (they run
+on live time).
 
 ## Free-tier headroom
 
@@ -35,9 +42,9 @@ about 33 a month. Storage 0.09 GB, history 0.01 GB, network 0.11 GB.
 - The game queries the database at least once a minute while the server is awake (the tick), so the database never
   suspends while the server is up. At the smallest size (0.25 CU), 12.13 CU-hours means about 48 hours awake in 11
   days, or about 4.4 hours a day: today the database sleeps only because Render's free server sleeps when nobody plays.
-- **The limit:** about 13 hours a day of server uptime uses the whole 100 hours a month (0.25 CU x 13.3 h x 30). A
-  server with players around the clock would need about 180. Letting the database sleep while nothing is due is the
-  biggest saving available.
+- **The limit (before):** about 13 hours a day of server uptime used the whole 100 hours a month (0.25 CU x 13.3 h x 30).
+- **After:** the database is used only while someone is connected (and while a factory is awake with someone
+  connected), so the hours now follow playing time, not server uptime.
 
 **Render (free: 512 MB memory, 0.1 CPU, sleeps after 15 minutes without visitors).** Render's graphs to follow from
 Xoren.

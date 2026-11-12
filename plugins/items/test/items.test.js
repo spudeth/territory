@@ -129,7 +129,7 @@ test('Demolition is used up: bought singly or in batches at its Hours price each
 test('as a plug-in (loop 19): its browser files are served, the welcome lists them, and its Game Guide section shows', async () => {
   const s = player();
   const w = await s.welcome;
-  assert.deepEqual(w.plugins.find(p => p.name === 'items').files, ['/plugins/items/text.js', '/plugins/items/style.css', '/plugins/items/client.js']);
+  assert.deepEqual(w.plugins.find(p => p.name === 'items').files.map(f => f.replace(/[?]v=[0-9a-f]+$/, '')), ['/plugins/items/text.js', '/plugins/items/style.css', '/plugins/items/client.js']);
   for (const f of ['text.js', 'style.css', 'client.js', 'look/demolition.png']) assert.equal((await fetch(`${url}/plugins/items/${f}`)).status, 200, f);
   assert.equal((await fetch(`${url}/plugins/items/server.js`)).status, 404, 'never its server code');
   const html = await (await fetch(url + '/guide')).text();

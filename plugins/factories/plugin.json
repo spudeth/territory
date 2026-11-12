@@ -1,0 +1,15 @@
+{
+  "order": 20,
+  "tabs": [
+    "Factories"
+  ],
+  "client": [
+    "text.js",
+    "client.js"
+  ],
+  "variables": {
+    "factories.speed": 0.05,
+    "factories.lifetime": 4,
+    "factories.yield": 1
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "wallStrength": 2,
+  "wallPriceWh": 0.01,
+  "maxWallsPerBlock": 2
+}

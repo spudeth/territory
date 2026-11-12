@@ -33,8 +33,8 @@ const Plugins = (() => {
       for (const p of list ?? []) for (const f of p.files) {
         if (files.has(f)) continue;
         files.add(f);
-        // A stylesheet goes in the head; scripts run in the order listed.
-        if (f.endsWith('.css')) document.head.append(Object.assign(document.createElement('link'), { rel: 'stylesheet', href: f }));
+        // A stylesheet goes in the head (its address may end in a fingerprint, ?v=…); scripts run in the order listed.
+        if (/\.css(\?|$)/.test(f)) document.head.append(Object.assign(document.createElement('link'), { rel: 'stylesheet', href: f }));
         else document.body.append(Object.assign(document.createElement('script'), { src: f, async: false }));
       }
     },

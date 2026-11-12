@@ -1,0 +1,12 @@
+{
+  "order": 40,
+  "tabs": [
+    "Skins",
+    "Skin Rarity"
+  ],
+  "client": [
+    "text.js",
+    "client.js"
+  ],
+  "variables": {}
+}

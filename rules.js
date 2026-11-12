@@ -34,16 +34,12 @@ const settings = {
   TERRAIN: { scale: R.terrainScale, water: R.waterShare, sand: R.sandShare, forest: R.forestShare, stone: R.stoneShare, gold: R.goldShare },
   TERRAIN_HITS: { grass: 1, sand: R.sandHits, forest: R.forestHits, stone: R.stoneHits, gold: R.goldHits },
   GOLD_BONUS_SQUARES: R.goldBonusSquares,
-  MAX_WALLS: catalog.E.maxWallsPerBlock,   // walls one block may have, on different sides (2: corners)
 
   // Sound (sent to the browser): most at once, how far others are heard, their volume, defaults for a new device
   SOUND: { maxAtOnce: R.soundMaxAtOnce, hearing: R.soundHearingDistance, othersVolume: R.soundOthersVolume,
     effectsVolume: R.defaultEffectsVolume, musicVolume: R.defaultMusicVolume },
 
   // Achievements (the sheet's Achievements tab): [{ id, name, category, stat, threshold, secret, description, reward }]
-  ACHIEVEMENTS: economy.achievements ?? [],
-  // Skins (the sheet's Skins tab): [{ id, name, kind: pattern|art, rarity, price, collection, enabled }]
-  SKINS: economy.skins ?? [],
   // Items (the sheet's Items tab): [{ id, name, description, price, uses, perMinutes, effect, value, seconds, enabled }]
   // Rank and reign achievements count only on maps where at least this many players own blocks.
   RANK_MIN_PLAYERS: R.rankMinPlayers,
@@ -76,8 +72,7 @@ function hitError(map, pid, x, y) {
   if (!pid || !map.counts.get(pid)) return owner ? 'Your first block must be unclaimed' : null;
   const adj = adjacentSides(map, pid, x, y);
   if (!adj.length) return 'You can only take blocks next to your territory';
-  if (!openSides(map, pid, x, y, adj).length) return 'Your wall is in the way';
-  return null;
+  return null;   // plug-ins may refuse more (a wall in the way: app.js asks them)
 }
 
 // Whether blocks ([[x, y], …]) are all connected side to side (a land listing must be one piece).
@@ -92,31 +87,19 @@ function connected(blocks) {
   return left.size === 0;
 }
 
-// ---------- Walls (loop 16) ----------
-// A block's sides: n (up), e, s, w. map.walls: "x,y" -> [{ side, hits }] (at most maxWallsPerBlock, on different sides).
+// ---------- Sides (the geometry; walls are a plug-in since loop 19) ----------
+// A block's sides: n (up), e, s, w.
 const SIDES = { n: [0, -1], e: [1, 0], s: [0, 1], w: [-1, 0] };
 const OPPOSITE = { n: 's', s: 'n', e: 'w', w: 'e' };
-const hasWall = (map, x, y, side) => !!map.walls?.get(key(x, y))?.some(w => w.side === side);
 // The sides of (x, y) that touch `pid`'s land ('n': the block above is theirs).
 const adjacentSides = (map, pid, x, y) => Object.keys(SIDES).filter(s => map.cells.get(key(x + SIDES[s][0], y + SIDES[s][1])) === pid);
-// Of those, the ones not blocked by `pid`'s own wall on their side: nobody claims or attacks across their own wall.
-const openSides = (map, pid, x, y, adj = adjacentSides(map, pid, x, y)) =>
-  adj.filter(s => !hasWall(map, x + SIDES[s][0], y + SIDES[s][1], OPPOSITE[s]));
-// When every way `pid` can reach (x, y) runs through the owner's walls, their hit goes to a wall first: its side.
-function wallFirst(map, pid, x, y) {
-  const open = openSides(map, pid, x, y);
-  return open.length && open.every(s => hasWall(map, x, y, s)) ? open[0] : null;
-}
-// Where a wall can go: a side of your block facing a square you don't own (outer sides only). Returns a refusal or null.
-function wallRefusal(map, pid, x, y, side) {
-  if (!(side in SIDES)) return 'Pick a side';
-  if (map.cells.get(key(x, y)) !== pid) return 'Only on your own land';
-  if (map.cells.get(key(x + SIDES[side][0], y + SIDES[side][1])) === pid) return 'Walls go on the edge of your land';
-  const walls = map.walls?.get(key(x, y)) ?? [];
-  if (walls.some(w => w.side === side)) return 'There is a wall there already';
-  if (walls.length >= settings.MAX_WALLS) return `At most ${settings.MAX_WALLS} walls on one block`;
-  if (map.listings?.has(key(x, y))) return 'Not on land for sale';
-  return null;
+
+// A fixed, seeded number for (seed, x, y) (loop 16): growth's rolls, and factories' ties, come out the same every time.
+function tieRank(seed, x, y) {
+  let h = Math.imul(String(seed).split('').reduce((a, c) => Math.imul(a ^ c.charCodeAt(0), 16777619), 2166136261), 1) >>> 0;
+  h = Math.imul(h ^ (x * 73856093), 2654435761) >>> 0;
+  h = Math.imul(h ^ (y * 19349663), 2246822519) >>> 0;
+  return h;
 }
 
 // A player's upgrades as they work on a block: { clickPower, defense, earnings, growth, … } values
@@ -178,5 +161,5 @@ const earnsSquares = (ownedAfterClaim, wipeFloor) => ownedAfterClaim > wipeFloor
 const wipeFloorAfterWipe = (wipeFloor, ownedAtWipe) => Math.max(wipeFloor, ownedAtWipe);
 
 // The rules read the numbers from this same object, so tests can try other dial values.
-module.exports = Object.assign(settings, { key, NEIGHBORS, NO_UPGRADES, hitError, connected, SIDES, OPPOSITE, hasWall, adjacentSides, openSides, wallFirst, wallRefusal, hardness, hitsNeeded, hitPower, growthBlocks, isTaken,
+module.exports = Object.assign(settings, { key, NEIGHBORS, NO_UPGRADES, hitError, connected, tieRank, SIDES, OPPOSITE, adjacentSides, hardness, hitsNeeded, hitPower, growthBlocks, isTaken,
   firstClaimTenths, shownSquares, decayCrack, tapAllowed, earnsSquares, wipeFloorAfterWipe });

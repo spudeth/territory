@@ -1,5 +1,6 @@
 // Test helpers. Each test file gets its own throwaway schema on the dev branch, so tests never touch real data.
 const crypto = require('crypto');
+const blockPack = require('../public/blocks');
 const path = require('path');
 const { io: connect } = require('socket.io-client');
 const { createPool, migrate } = require('../db');
@@ -50,20 +51,43 @@ function connectPlayer(url, { ip = `10.0.${nextIp >> 8}.${nextIp++ & 255}`, ...a
   const s = connect(url, { auth, transports: ['websocket'], forceNew: true, reconnection: false,
     extraHeaders: { 'cf-connecting-ip': ip, 'x-forwarded-for': '203.0.113.9' } });
   const events = [];
-  s.onAny((name, data) => events.push([name, data]));
+  // The welcome's packed blocks (public/blocks.js) as the old [x, y, owner, level?] list, for the tests (hidden from
+  // JSON, so sizes measured are what was sent).
+  // Cracks (loop 19) come one at a time ('hit': your own taps) or batched ('hits'): each batched one becomes a 'hit'
+  // event here, as the browser reads them, leaving out one that only repeats what this player already saw.
+  const seen = new Map();   // "x,y" or "x,y|side" -> the last crack share seen
+  const crackKey = d => d.x + ',' + d.y + (d.side ? '|' + d.side : '');
+  s.onAny((name, data) => {
+    if (name === 'welcome' && data?.blocks) { seen.clear(); Object.defineProperty(data, 'cells', { value: blockPack.unpack(data.blocks), enumerable: false }); }
+    if (name === 'claim') seen.delete(data.x + ',' + data.y);
+    if (name === 'hit') seen.set(crackKey(data), data.p);
+    if (name === 'hits') {
+      for (const d of data) {
+        if (seen.get(crackKey(d)) === d.p) continue;
+        seen.set(crackKey(d), d.p);
+        events.push(['hit', d]);
+        for (const fn of s.listeners('hit')) fn(d);
+        for (const fn of [...hitWaiters]) fn('hit', d);
+      }
+      return;
+    }
+    events.push([name, data]);
+  });
+  const hitWaiters = new Set();   // next()'s waiting listeners, which also hear batched cracks
   s.events = events;
   // Resolves with the first `name` event (already received or still to come) that passes `match`.
   s.next = (name, match = () => true, ms = 15000) => new Promise((resolve, reject) => {
     const hit = events.find(([n, d]) => n === name && match(d));
     if (hit) { events.splice(events.indexOf(hit), 1); return resolve(hit[1]); }
-    const timer = setTimeout(() => { s.offAny(on); reject(new Error(`no "${name}" event within ${ms}ms`)); }, ms);
+    const timer = setTimeout(() => { s.offAny(on); hitWaiters.delete(on); reject(new Error(`no "${name}" event within ${ms}ms`)); }, ms);
     function on(n, d) {
       if (n !== name || !match(d)) return;
-      clearTimeout(timer); s.offAny(on);
+      clearTimeout(timer); s.offAny(on); hitWaiters.delete(on);
       events.splice(events.findIndex(e => e[1] === d), 1);
       resolve(d);
     }
     s.onAny(on);
+    hitWaiters.add(on);
   });
   s.welcome = s.next('welcome');
   // Enough hits to take a block, with no upgrades.

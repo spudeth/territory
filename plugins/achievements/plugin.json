@@ -1,0 +1,11 @@
+{
+  "order": 50,
+  "tabs": [
+    "Achievements"
+  ],
+  "client": [
+    "text.js",
+    "client.js"
+  ],
+  "variables": {}
+}

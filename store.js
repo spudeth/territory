@@ -117,12 +117,10 @@ async function loadMap(pool, mapId) {
     pool.query('SELECT * FROM player_map_stats WHERE map_id = $1', [mapId]),
   ]);
   const overrides = cells.rows.filter(c => c.terrain !== null).map(({ x, y, terrain }) => ({ x, y, terrain }));
-  const factories = (await pool.query(`SELECT id, owner_id, x, y, extract(epoch FROM built_at) * 1000 AS built, extract(epoch FROM awake_until) * 1000 AS awake,
-    extract(epoch FROM processed_at) * 1000 AS processed, target_x, target_y, progress FROM factories WHERE map_id = $1`, [mapId])).rows;
   const listings = (await pool.query(`SELECT l.id, l.seller_id, l.price, extract(epoch FROM l.created_at) * 1000 AS created,
     array_agg(c.x ORDER BY c.x, c.y) AS xs, array_agg(c.y ORDER BY c.x, c.y) AS ys FROM listings l JOIN map_cells c ON c.listing_id = l.id
     WHERE l.map_id = $1 GROUP BY l.id`, [mapId])).rows;
-  return { ...map, cells: cells.rows, players: players.rows, stats: stats.rows, overrides, factories, listings };
+  return { ...map, cells: cells.rows, players: players.rows, stats: stats.rows, overrides, listings };   // plug-ins load their own (factories)
 }
 
 async function cellOwner(pool, mapId, x, y) {
@@ -307,40 +305,7 @@ function wipeTerritory(pool, mapId, playerId) {
 module.exports = { hashToken, findPlayerByToken, accountPlayer, renamePlayer, defaultMapId, loadMap, cellOwner, setLastMap,
   growMap, rebuildEdges, claimBlock, wipeTerritory };
 
-// Achievement ids a player has earned.
-async function earnedAchievements(pool, playerId) {
-  const { rows } = await pool.query('SELECT achievement_id FROM player_achievements WHERE player_id = $1', [playerId]);
-  return rows.map(r => r.achievement_id);
-}
-
-// Records achievements; returns the ids that were new (not already earned).
-// rewards: { id: squares } for the ids given. Each newly earned one pays its reward (ledger 'achievement:<id>').
-// Returns { fresh: the ids that were new, squares: the new exact balance, or null if nothing was paid }.
-function earnAchievements(pool, playerId, mapId, ids, rewards = {}) {
-  return tx(pool, async c => {
-    // Locks: only a key-share lock on the player (it waits for an account being deleted, so a deleted account
-    // earns nothing more, but never for a claim), and no map: a claim holds its map while it updates the player,
-    // so touching the map here could deadlock. mapId is not stored for that reason.
-    void mapId;
-    const { rows: [who] } = await c.query('SELECT deleted_at FROM players WHERE id = $1 FOR KEY SHARE', [playerId]);
-    if (!who || who.deleted_at) return { fresh: [], squares: null };
-    const { rows } = await c.query(
-      `INSERT INTO player_achievements (player_id, achievement_id) SELECT $1, unnest($2::text[])
-       ON CONFLICT DO NOTHING RETURNING achievement_id`, [playerId, ids]);
-    const fresh = rows.map(r => r.achievement_id);
-    let squares = null;
-    for (const id of fresh) {
-      const pay = catalog.toTenths(Number(rewards[id]) || 0);
-      if (!pay) continue;
-      const { rows: [p] } = await c.query('UPDATE players SET squares = squares + $2 WHERE id = $1 AND deleted_at IS NULL RETURNING squares', [playerId, pay]);
-      if (!p) continue;
-      await c.query('INSERT INTO square_ledger (player_id, delta, balance_after, reason) VALUES ($1, $2, $3, $4)',
-        [playerId, pay, p.squares, 'achievement:' + id]);
-      squares = Number(p.squares);
-    }
-    return { fresh, squares };
-  });
-}
+// Achievements: the achievements plug-in (plugins/achievements, loop 19).
 
 // A player's lifetime totals (totals.js): { stat: value }.
 async function loadTotals(pool, playerId) {
@@ -360,7 +325,7 @@ async function mapsPlayed(pool, playerId) {
   return r.n;
 }
 
-Object.assign(module.exports, { earnedAchievements, earnAchievements, loadTotals, saveTotals, mapsPlayed });
+Object.assign(module.exports, { loadTotals, saveTotals, mapsPlayed });
 
 // The maps players can go to (official ones; purchased and VIP maps come later), oldest first.
 async function listMaps(pool) {
@@ -430,59 +395,7 @@ async function mapsFor(pool, playerId) {
 
 Object.assign(module.exports, { STYLES, listMaps, createMap, mapsFor });
 
-// The skin catalog, with whether this player owns each (free skins count as owned by everyone).
-// The skin catalog (rules.SKINS, from the sheet) with what this player owns: [{ id, name, kind, rarity, price,
-// collection, owned }], the free plain look first. Skins taken out of the shop still show for their owners.
-// Prices are in squares at map level L: the rarity's work-hours x W(L) (flags are Rare).
-// Which star slot a skin goes in: a Common pattern, or art that is Rare or better (flags too); null for others.
-const starSlot = s => (s.kind === 'pattern' && s.rarity === 'Common' ? 'star_pattern' : s.kind === 'art' && s.rarity !== 'Common' ? 'star_art' : null);
-// Stars one owned skin in its slot (replacing the old one), or clears that slot when `on` is false.
-async function starSkin(pool, playerId, skin, on) {
-  const slot = starSlot(skin);
-  if (!slot) return { error: 'Only patterns and Rare or better art skins can be starred' };
-  if (on && !(await pool.query('SELECT 1 FROM player_skins WHERE player_id = $1 AND skin_id = $2', [playerId, skin.id])).rowCount) return { error: "You don't own that skin" };
-  await pool.query(`UPDATE players SET ${slot} = CASE WHEN $3 THEN $2 END WHERE id = $1 AND ($3 OR ${slot} = $2)`, [playerId, skin.id, on]);
-  return { ok: true };
-}
-async function skinsFor(pool, playerId, L = 1) {
-  const stars = playerId ? (await pool.query('SELECT star_pattern, star_art FROM players WHERE id = $1', [playerId])).rows[0] ?? {} : {};
-  const owned = new Set(playerId ? (await pool.query('SELECT skin_id FROM player_skins WHERE player_id = $1', [playerId])).rows.map(r => r.skin_id) : []);
-  return [{ id: 'default', name: 'Default', kind: 'default', rarity: 'Common', price: 0, collection: 'Basic', owned: true },
-    ...rules.SKINS.filter(s => s.enabled || owned.has(s.id)).map(({ enabled, price: sheetPrice, ...s }) => ({ ...s, price: catalog.fromTenths(catalog.skinPriceTenths(s, L)), owned: owned.has(s.id),
-      starrable: !!starSlot(s), starred: owned.has(s.id) && (stars.star_pattern === s.id || stars.star_art === s.id) }))
-      // Bob (loop 15): flags after every other skin, and within each group by price, then name.
-      .sort((a, b) => (a.collection === 'Flags') - (b.collection === 'Flags') || a.price - b.price || a.name.localeCompare(b.name))];
-}
-
-// Buys a skin with squares, in one transaction: the player row is locked, so a double tap or two devices can
-// never pay twice. skin: a catalog entry { id, name }; price: tenths (catalog.skinPriceTenths at the map's level).
-// Returns { squares, price } (tenths), or { error } with `need` (tenths short) when there aren't enough.
-function buySkin(pool, playerId, skin, price) {
-  return tx(pool, async c => {
-    const { rows: [p] } = await c.query('SELECT squares FROM players WHERE id = $1 FOR UPDATE', [playerId]);
-    if (!p) return { error: 'Claim a block first' };
-    if ((await c.query('SELECT 1 FROM player_skins WHERE player_id = $1 AND skin_id = $2', [playerId, skin.id])).rowCount) return { error: 'You already own this skin' };
-    await c.query(`INSERT INTO skins (id, name, image, price_squares) VALUES ($1, $2, $3, $4)
-      ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, price_squares = EXCLUDED.price_squares`, [skin.id, skin.name, skin.id + '.png', Math.max(1, catalog.wholeSquares(price))]);
-    const paid = await spend(c, playerId, price, 'skin:' + skin.id);
-    if (paid.error) return paid;
-    await c.query("INSERT INTO player_skins (player_id, skin_id, source) VALUES ($1, $2, 'squares')", [playerId, skin.id]);
-    return { squares: paid.squares, price };
-  });
-}
-
-// For the Achievements screen: a player's best value of each stat on any map (the progress shown), and the
-// achievements they have earned with the map each was earned on.
-async function achievementProgress(pool, playerId) {
-  const [best, earned] = await Promise.all([
-    pool.query(`SELECT max(owned_max) AS "owned", max(first_claims) AS "firstClaims", max(retakes) AS "retakes",
-      max(blocks_lost) AS "blocksLost", max(best_square) AS "bestSquare", max(best_line) AS "bestLine"
-      FROM player_map_stats WHERE player_id = $1`, [playerId]),
-    pool.query(`SELECT a.achievement_id AS id, m.name AS map FROM player_achievements a LEFT JOIN maps m ON m.id = a.map_id
-      WHERE a.player_id = $1`, [playerId]),
-  ]);
-  return { best: Object.fromEntries(Object.entries(best.rows[0]).map(([k, v]) => [k, v ?? 0])), earned: earned.rows };
-}
+// Skins: the skins plug-in (plugins/skins, loop 19).
 
 // Saves a player's tutorial progress ({ step, done, tips }; checked by the caller).
 async function saveTutorial(pool, playerId, progress) {
@@ -527,7 +440,7 @@ async function logTapLimits(pool, entries) {
     [entries.map(e => e[0]), entries.map(e => e[1])]);
 }
 
-Object.assign(module.exports, { skinsFor, buySkin, starSkin, starSlot, achievementProgress, saveTutorial, buySteps, logTapLimits });
+Object.assign(module.exports, { saveTutorial, buySteps, logTapLimits });
 
 // ---------- Admin (npm run admin; admin.js) ----------
 
@@ -720,89 +633,9 @@ async function setEmailUpdates(pool, playerId, on, source) {
   await pool.query('INSERT INTO email_consent_log (player_id, subscribed, source) VALUES ($1, $2, $3)', [playerId, on, source]);
   return { on: p.email_updates, token: p.unsubscribe_token, email: await accountEmail(pool, p.auth_user_id) };
 }
-// ---------- Factories (loop 16) ----------
-// Builds a factory on the player's own block for `price` tenths, in one transaction with the player row locked,
-// so two taps never build two or pay twice; the block must still be theirs, bare and not for sale, and they must
-// still be under their limit (`limit`: how many they may have on this map). Returns the factory row or { error }.
-function buildFactory(pool, { mapId, playerId, x, y, price, limit, awakeMs, now = Date.now() }) {
-  return tx(pool, async c => {
-    await c.query('SELECT 1 FROM players WHERE id = $1 FOR UPDATE', [playerId]);
-    const { rows: [cell] } = await c.query('SELECT owner_id, factory_id, listing_id FROM map_cells WHERE map_id = $1 AND x = $2 AND y = $3 FOR UPDATE', [mapId, x, y]);
-    if (!cell || String(cell.owner_id) !== String(playerId)) return { error: 'Only on your own land' };
-    if (cell.factory_id) return { error: 'There is a factory here already' };
-    if (cell.listing_id) return { error: 'Not on land for sale' };
-    const { rows: [n] } = await c.query('SELECT count(*)::int AS n FROM factories WHERE map_id = $1 AND owner_id = $2', [mapId, playerId]);
-    if (n.n >= limit) return { error: 'You have all the factories your land allows' };
-    const paid = await spend(c, playerId, price, 'build:factory');
-    if (paid.error) return paid;
-    const { rows: [f] } = await c.query(`INSERT INTO factories (map_id, owner_id, x, y, built_at, awake_until, processed_at)
-      VALUES ($1, $2, $3, $4, to_timestamp($5 / 1000.0), to_timestamp($6 / 1000.0), to_timestamp($7 / 1000.0)) RETURNING id`,
-      [mapId, playerId, x, y, now, now + awakeMs, factoryStep(now)]);
-    await c.query('UPDATE map_cells SET factory_id = $4 WHERE map_id = $1 AND x = $2 AND y = $3', [mapId, x, y, f.id]);
-    return { id: f.id, squares: paid.squares };
-  });
-}
-// Wakes a factory: it works for `awakeMs` from now; time asleep never counts.
-async function wakeFactory(pool, id, playerId, awakeMs, now = Date.now()) {
-  const { rows: [f] } = await pool.query(`UPDATE factories SET awake_until = to_timestamp($3 / 1000.0),
-    processed_at = GREATEST(processed_at, to_timestamp($4 / 1000.0)) WHERE id = $1 AND owner_id = $2 RETURNING id`, [id, playerId, now + awakeMs, factoryStep(now)]);
-  return !!f;
-}
-// Saves where the tick got to with each factory: [{ id, processed, tx, ty, progress }].
-async function saveFactories(pool, list) {
-  if (!list.length) return;
-  await pool.query(`UPDATE factories f SET processed_at = to_timestamp(v.p / 1000.0), target_x = v.tx, target_y = v.ty, progress = v.g
-    FROM unnest($1::bigint[], $2::float8[], $3::int[], $4::int[], $5::float8[]) AS v (id, p, tx, ty, g) WHERE f.id = v.id`,
-    [list.map(f => f.id), list.map(f => f.processed), list.map(f => f.tx), list.map(f => f.ty), list.map(f => f.progress)]);
-}
-// Maps with a factory the tick still has to bring up to `until` (ms).
-async function factoryMaps(pool, until) {
-  const { rows } = await pool.query('SELECT DISTINCT map_id FROM factories WHERE processed_at < LEAST(awake_until, to_timestamp($1 / 1000.0))', [until]);
-  return rows.map(r => r.map_id);
-}
-// Removes a factory (Demolition), inside the item's transaction.
-async function removeFactory(c, mapId, x, y) {
-  await c.query('UPDATE map_cells SET factory_id = NULL WHERE map_id = $1 AND x = $2 AND y = $3', [mapId, x, y]);
-  await c.query('DELETE FROM factories WHERE map_id = $1 AND x = $2 AND y = $3', [mapId, x, y]);
-}
-const factoryStep = now => Math.floor(now / 1000) * 1000;   // factories.js steps: one second (loop 18)
-Object.assign(module.exports, { buildFactory, wakeFactory, saveFactories, factoryMaps, removeFactory });
+// Factories: the factories plug-in (plugins/factories, loop 19). Freeing a block still clears its factory here.
 
-// ---------- Walls (loop 16) ----------
-// Builds a batch of walls (loop 18) for `price` tenths in all, all or nothing: player row and blocks locked.
-// walls: [{ x, y, side, hits }] (hits: what each takes to break, w x H). Returns { cells: [{ x, y, walls }], squares }
-// or { error }.
-function buildWalls(pool, { mapId, playerId, walls, price, max }) {
-  return tx(pool, async c => {
-    await c.query('SELECT 1 FROM players WHERE id = $1 FOR UPDATE', [playerId]);
-    const byBlock = new Map();
-    for (const w of walls) (byBlock.get(w.x + ',' + w.y) ?? byBlock.set(w.x + ',' + w.y, []).get(w.x + ',' + w.y)).push(w);
-    const cells = [];
-    for (const list of byBlock.values()) {
-      const { x, y } = list[0];
-      const { rows: [cell] } = await c.query('SELECT owner_id, walls, listing_id FROM map_cells WHERE map_id = $1 AND x = $2 AND y = $3 FOR UPDATE', [mapId, x, y]);
-      if (!cell || String(cell.owner_id) !== String(playerId)) return { error: 'Only on your own land' };
-      if (cell.listing_id) return { error: 'Not on land for sale' };
-      if (list.some(w => cell.walls.some(o => o.side === w.side))) return { error: 'There is a wall there already' };
-      if (cell.walls.length + list.length > max) return { error: `At most ${max} walls on one block` };
-      cells.push({ x, y, walls: [...cell.walls, ...list.map(w => ({ side: w.side, hits: w.hits }))] });
-    }
-    const paid = await spend(c, playerId, price, walls.length === 1 ? 'build:wall' : `build:wall x${walls.length}`);
-    if (paid.error) return paid;
-    for (const cell of cells) await c.query('UPDATE map_cells SET walls = $4 WHERE map_id = $1 AND x = $2 AND y = $3', [mapId, cell.x, cell.y, JSON.stringify(cell.walls)]);
-    return { cells, squares: paid.squares };
-  });
-}
-// Removes one wall (broken, or Demolition inside its transaction: pass the client).
-async function removeWall(c, mapId, x, y, side) {
-  await c.query(`UPDATE map_cells SET walls = COALESCE((SELECT jsonb_agg(w) FROM jsonb_array_elements(walls) w WHERE w->>'side' <> $4), '[]')
-    WHERE map_id = $1 AND x = $2 AND y = $3`, [mapId, x, y, side]);
-}
-// Removes every wall on a block (Demolition, inside its transaction).
-async function clearWalls(c, mapId, x, y) {
-  await c.query("UPDATE map_cells SET walls = '[]' WHERE map_id = $1 AND x = $2 AND y = $3", [mapId, x, y]);
-}
-Object.assign(module.exports, { buildWalls, removeWall, clearWalls });
+// Walls: the walls plug-in has its own (plugins/walls/server.js); their column is map_cells.walls (Q42).
 
 // ---------- The land market (loop 16) ----------
 // Whether a player may trade land: an account at least `minDays` old.

@@ -2,7 +2,7 @@
 // Press and hold a block (inspectHoldMs), or right-click it on a computer, to see what it is: coordinates,
 // terrain, level and hardness; its pay if mined or the hits to take it; its owner (tap for their profile).
 // The card is a list of sections: each is a function (info) -> element or null. Later features add a section
-// (walls, factories, land listings) with inspectSections.push, and nothing else changes.
+// (land listings) with inspectSections.push; plug-ins (walls, factories) with their infoCard hook.
 const inspectSections = [];
 let inspecting = null;   // the block on the card, { x, y }, or null
 

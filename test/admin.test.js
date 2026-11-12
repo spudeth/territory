@@ -19,7 +19,7 @@ before(async () => {
   db = await testDb('admin');
   pool = db.pool;
   // Achievements pay nothing here, so balances stay exact (rewards: achievements-live.test.js).
-  game = createGame(pool, { adminKey: KEY, tapsPerSecond: 1000, achievementList: rules.ACHIEVEMENTS.map(d => ({ ...d, reward: 0 })) });
+  game = createGame(pool, { adminKey: KEY, tapsPerSecond: 1000, achievementList: require('../plugins/achievements/data.json').achievements.map(d => ({ ...d, reward: 0 })) });
   await new Promise(r => game.server.listen(0, r));
   url = `http://localhost:${game.server.address().port}`;
   backupsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'admin-backups-'));
@@ -199,7 +199,7 @@ test('give-squares and take-squares go through the ledger and show at once; neve
 
 test('player and map show the details; unknown names are refused plainly', async () => {
   const g = await guest(3);
-  await g.s.next('achievement', d => d.id === 'first-block');
+  await g.s.next('achievements:earned', d => d.id === 'first-block');
   const p = await admin(`player "${g.name.toUpperCase()}"`);
   assert.match(p.out, /Guest \(no account\)/);
   assert.match(p.out, /Blocks: Grass 3/);

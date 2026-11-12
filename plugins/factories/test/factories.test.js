@@ -1,16 +1,17 @@
-// Loop 16 Phase 5: factories. The rules in memory (factories.js), then building, mining on the tick, catch-up
+// Loop 16 Phase 5: factories (a plug-in since loop 19). The rules in memory (rules.js), then building, mining on the tick, catch-up
 // after a long sleep, lifetime and waking, and destruction on a throwaway schema in the dev database.
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const { createGame } = require('../app');
-const catalog = require('../catalog');
-const upgrades = require('../upgrades');
-const fac = require('../factories');
-const rules = require('../rules');
-const store = require('../store');
-const { testDb, newGuest, claim, connectPlayer } = require('./helpers');
+const { createGame } = require('../../../app');
+const catalog = require('../../../catalog');
+const upgrades = require('../../../upgrades');
+const rules = require('../../../rules');
+const store = require('../../../store');
+const { testDb, newGuest, claim, connectPlayer } = require('../../../test/helpers');
+const D = require('../data.json');
+const fac = require('../rules')(catalog, rules, D);
 
-const { E } = catalog;
+const E = { ...catalog.E, ...D };   // the core's numbers and the Factories tab's
 const k = (x, y) => x + ',' + y;
 // A little map model: owner 'a' owns `mine`, the rest of a w x h rectangle is empty grass.
 function model(w, h, mine, extra = {}) {
@@ -59,6 +60,31 @@ test('Yield is never more than the block\'s normal pay; the limit is 1 per facto
   assert.equal(fac.hitsPerSecond(1), rules.HITS_PER_BLOCK / E.baseBlockSeconds, 'a base player\'s speed');
 });
 
+test('the Factories tab is data.json; factoryAreaSize must be odd; the price is P_F x V_F x W(L) x g^(n-1); the guide section', () => {
+  const economy = require('../../../economy'), data = require('../data');
+  const csv = require('fs').readFileSync(require('path').join(__dirname, 'Factories.csv'), 'utf8');
+  const read = tab => { const errors = [], out = data.validate({ Factories: tab }, economy.sheetKit({ Factories: tab }, errors), errors); return { errors, out }; };
+  assert.deepEqual(read(csv), { errors: [], out: D }, 'the saved tab is data.json');
+  const row = economy.parseCsv(csv).findIndex(r => r[0] === 'factoryAreaSize');
+  const lines = csv.trim().split(/\r?\n/);
+  lines[row] = 'factoryAreaSize,4,blocks,even';
+  assert.ok(read(lines.join('\n')).errors.includes(`Factories, cell B${row + 1} ("Value"): factoryAreaSize must be odd, so the factory is in the middle (not 4)`), read(lines.join('\n')).errors.join(' | '));
+  lines[row] = 'marketFee,0.05,,';
+  const e = read(lines.join('\n')).errors;
+  assert.ok(e.includes(`Factories, cell A${row + 1} ("Key"): unknown key "marketFee"`) && e.includes('Factories: no row for "factoryAreaSize"'), e.join(' | '));
+  assert.equal(data.validate({}, economy.sheetKit({}, []), []), null, 'no tab: data.json stays as it is');
+  assert.equal(fac.priceTenths(1, 1), catalog.toTenths(48 * 0.05 * 1200));
+  assert.equal(fac.priceTenths(1, 3), catalog.toTenths(48 * 0.05 * 1200 * 1.15 ** 2));
+  // The guide: its section, after Upgrades, with its numbers.
+  const { renderGuide } = require('../../../guide');
+  let section = null;
+  require('../server')({ ...fakeApi(), on: (hook, fn) => { if (hook === 'guide') section = fn; } });
+  const html = renderGuide({ pluginSections: helpers => [section(helpers)] });
+  assert.ok(html.includes('href="#factories">Factories</a>') && html.includes(`${D.factoryAreaSize}×${D.factoryAreaSize}`) && html.indexOf('id="upgrades"') < html.indexOf('id="factories"'));
+});
+// Enough of the core's api for server.js to start in memory.
+const fakeApi = () => ({ pool: null, catalog, rules, plugin: { data: D }, on() {}, socket() {}, builders: { add() {} }, built: { add() {} }, ticker: { on() {} } });
+
 // ---------- On the database ----------
 let db, pool, game, url;
 const sockets = [];
@@ -99,20 +125,20 @@ const ownedBy = async (mapId, pid) => (await pool.query('SELECT x, y FROM map_ce
 
 test('building: on your own land, priced P_F x V_F x W(L) x g^(n-1); one per factoryBlocksPerFactory blocks', async () => {
   const { id, pid, token } = await landed('Build', E.factoryBlocksPerFactory);
-  const price = catalog.priceTenths(catalog.CATALOG.get('building:factory'), { L: 1, n: 1 });
+  const price = fac.priceTenths(1, 1);
   await pool.query('UPDATE players SET squares = $2 WHERE id = $1', [pid, price * 2]);
   const s = player({ token });
   await onMap(s, id);
   const info = await s.ask('buildInfo');
   assert.deepEqual(info.factory, { count: 0, limit: 1, price: price / 10, needBlocks: 0, reason: null });
   assert.deepEqual(await s.ask('build', { kind: 'factory', x: 0, y: 11 }), { error: 'Only on your own land' });
-  const built = s.next('factory');
+  const built = s.next('factories:changed');
   assert.deepEqual(await s.ask('build', { kind: 'factory', x: 0, y: 0 }), { ok: true, squares: price / 10 });
   const f = await built;
   assert.equal(f.owner, pid);
   assert.ok(Math.abs(f.awakeUntil - Date.now() - upgrades.tierValue('factoryLifetime', 0) * 3600000) < 60000, 'awake for Factory Lifetime hours');
   assert.deepEqual(await s.ask('build', { kind: 'factory', x: 1, y: 0 }), { error: `Own ${E.factoryBlocksPerFactory} more blocks for another factory (you have ${E.factoryBlocksPerFactory}).` });
-  assert.equal((await s.ask('buildInfo')).factory.price, catalog.priceTenths(catalog.CATALOG.get('building:factory'), { L: 1, n: 2 }) / 10, 'the next costs g times more');
+  assert.equal((await s.ask('buildInfo')).factory.price, fac.priceTenths(1, 2) / 10, 'the next costs g times more');
   const card = await s.ask('inspect', { x: 0, y: 0 });
   assert.deepEqual([card.factory.mine, card.factory.paused], [true, false]);
 });
@@ -154,11 +180,11 @@ test('lifetime: an asleep factory does nothing; Wake up gives it Factory Lifetim
   await onMap(s, id);
   const card = await s.ask('inspect', { x: 3, y: 1 });
   assert.ok(card.factory.awakeUntil < Date.now(), 'shown asleep');
-  const r = await s.ask('wakeFactory', { x: 3, y: 1 });
+  const r = await s.ask('factories:wake', { x: 3, y: 1 });
   assert.ok(r.ok && r.awakeUntil > Date.now() + 3.9 * 3600000);
   await game.ticker.tick(fac.stepFloor(Date.now()) + 3 * STEP);
   assert.ok((await ownedBy(id, pid)).length > after15, 'awake again: it mines');
-  assert.deepEqual(await s.ask('wakeFactory', { x: 0, y: 0 }), { error: 'Not your factory' });
+  assert.deepEqual(await s.ask('factories:wake', { x: 0, y: 0 }), { error: 'Not your factory' });
 });
 
 test('a factory is destroyed when its block is taken; Demolition removes one for good', async () => {
@@ -176,12 +202,12 @@ test('a factory is destroyed when its block is taken; Demolition removes one for
   await other.next('you');
   let y = empty.y;
   while (y > 1) { y--; other.take(0, y); await other.next('claim', d => d.x === 0 && d.y === y && d.pid !== pid); }
-  const gone = other.next('factory', f => f.gone && f.x === 0 && f.y === 0);
+  const gone = other.next('factories:changed', f => f.gone && f.x === 0 && f.y === 0);
   other.take(0, 0);
   await gone;
   assert.equal(await db.count('SELECT count(*) FROM factories WHERE map_id = $1 AND x = 0 AND y = 0', [id]), 0);
   // Demolition: the owner removes their other factory.
-  const price = catalog.priceTenths(require('../plugins/items/data.json').items.find(i => i.id === 'demolition'), { L: 1 });
+  const price = catalog.priceTenths(require('../../items/data.json').items.find(i => i.id === 'demolition'), { L: 1 });
   await pool.query('UPDATE players SET squares = $2 WHERE id = $1', [pid, price]);
   const s = player({ token });
   await onMap(s, id);
@@ -203,7 +229,7 @@ test('live (loop 18): someone watching sees each factory hit as it happens, one 
   await onMap(s, id);
   const seen = [];
   s.on('hit', d => seen.push(d));
-  for (let sec = 1; sec <= 30; sec++) await game.liveFactories(start + sec * 1000);
+  for (let sec = 1; sec <= 30; sec++) { await game.live(start + sec * 1000); await new Promise(r => setTimeout(r, 120)); }   // each second's crack goes out in the next batch (100 ms)
   await new Promise(r => setTimeout(r, 200));
   const H = rules.HITS_PER_BLOCK, shares = seen.map(d => d.p);
   assert.equal(seen.length, 5, `30 seconds at 1/6 hit a second: 5 hits (${JSON.stringify(shares)})`);
