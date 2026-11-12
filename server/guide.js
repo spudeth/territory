@@ -25,6 +25,26 @@ function renderGuide({ maps = [], pluginSections = () => [] } = {}) {
     <p>Press and hold any block (right-click on a computer) to see its info card: its level, hardness, pay, owner, walls, factory and price
       if it's for sale.</p>`);
 
+  sections.push(`<h2 id="taking">Taking blocks</h2>
+    <ul>
+      <li>Your <b>first block</b> on a map can be any empty block. After that you can only hit blocks touching your land (up, down, left,
+        right), empty or someone else's, and never across your own wall.</li>
+      <li>One tap counts as your Click Power in hits. Power to spare from the tap that takes a block counts toward the next one.</li>
+      <li><b>Only one player's progress counts:</b> if someone else hits a block, its hits start over for them and yours are gone.</li>
+      <li><b>Cracks fade:</b> ${n(rules.CRACK_DECAY_HITS)} hit of progress for every ${n(rules.CRACK_DECAY_SECONDS)} seconds since the last hit.
+        A factory's progress never fades.</li>
+      <li><b>Repair:</b> tapping your own cracked block takes off hits equal to your Click Power, free. With no crack on the block, the tap
+        repairs its most cracked wall. Tapping your own undamaged block does nothing.</li>
+      <li>At most ${n(rules.MAX_TAPS_PER_SECOND)} taps a second count; faster taps are ignored.</li>
+    </ul>`);
+
+  sections.push(`<h2 id="squares">Squares and the wipe rule</h2>
+    <p>Squares are counted in tenths and always rounded down. You see whole squares unless Settings → Show tenths is on. Every change to a
+      balance is written to a ledger, and every square spent is destroyed.</p>
+    <p>You can wipe all your blocks on a map (Settings → Wipe and restart this map, then type WIPE); your walls, factories and listings there
+      go too, and your look there unlocks. After a wipe, new blocks on that map pay squares only once you own <b>more</b> blocks there than
+      you had when you wiped (the highest count from any wipe counts).</p>`);
+
   sections.push(`<h2 id="levels">Maps and levels</h2>
     <p>Every map starts with <b>E</b> blocks (its base size, fixed when it's made). Its <b>level</b> rises as blocks are mined there
       (by players and factories; the extra blocks from Growth don't count):</p>
@@ -70,6 +90,41 @@ function renderGuide({ maps = [], pluginSections = () => [] } = {}) {
       buy land anywhere on the map (it needn't touch theirs). Factories and walls go with the land. ${n(E.marketFee * 100)}% of every sale is
       destroyed; the seller gets the rest. Any attack on a listed block ends its listing.</p>`);
 
+  const skins = extra.some(p => p.id === 'skins');
+  sections.push(`<h2 id="look">Your look on each map</h2>
+    <p>Before your first claim on a map you pick a <b>color</b> (${rules.COLORS.length} free ones)${skins ? ', a <b>skin</b> you own, and its <b>coverage</b>: Per block (the skin repeats on each block) or Full area (one big image over your whole territory)' : ''}.
+      Your first claim there locks them on that map; a wipe unlocks them. You can look different on each map.</p>`);
+
+  sections.push(`<h2 id="players">Guests and accounts</h2>
+    <ul>
+      <li>Anyone can look and start hitting. Your first claim makes you a <b>guest</b> with a random name, remembered by your browser
+        (clearing it loses the guest). One network can make at most ${n(rules.GUESTS_PER_IP)} new guests per ${n(rules.GUEST_WINDOW_MINUTES)} minutes.</li>
+      <li><b>Accounts</b> sign up with email and password (a 6-digit code checks the address) or with Google. Signing up from your own guest
+        profile keeps your blocks, squares and settings; logging into an existing account never merges anything.</li>
+      <li>Accounts can <b>rename</b> (Settings): at most ${n(rules.NAME_MAX_LENGTH)} letters, numbers, spaces, -, _ and ., unique ignoring
+        capitals, no rude or reserved names, and ${n(rules.RENAME_COOLDOWN_MINUTES)} minutes between changes.</li>
+    </ul>`);
+
+  sections.push(`<h2 id="stats">Stats and names on the map</h2>
+    <p>For each map the game keeps your blocks owned now and the most ever at once, empty blocks claimed, blocks taken from others, blocks
+      lost to others (wipes don't count), and your largest solid square and longest straight line ever owned (records: losing blocks never
+      lowers them). Rank counts only on maps where at least ${n(rules.RANK_MIN_PLAYERS)} players own blocks, for players with at least
+      ${n(rules.RANK_MIN_BLOCKS)} blocks there; ties count against you.</p>
+    <p>Every territory on screen shows its owner's name on a small tag in their color, on its deepest visible block. Yours is gold and
+      always shows; where tags would overlap, the bigger territory's shows first.</p>`);
+
+  sections.push(`<h2 id="controls">Controls, sound and help</h2>
+    <ul>
+      <li>Tap or click a block to hit it; drag to move; pinch or use the mouse wheel to zoom. A touch that moves more than 10 pixels is a drag.</li>
+      <li>Press and hold a block (right-click on a computer) for its info card. The Menu button opens the welcome screen: Marketplace,
+        Upgrades, Awards, Profile, Maps and Settings.</li>
+      <li>Your own sounds always play. Other players' taps and claims play only near what you're looking at, quieter further away, and
+        at most ${n(rules.SOUND.maxAtOnce)} sounds play at once. Music starts on your first tap (browsers allow no sound before that).
+        Settings → Sound has a slider and mute for each, saved on that device.</li>
+      <li>New players get a short guided first game after the setup screen; Skip ends it and Menu → How to play starts it again. A few
+        tips show once each, ever.</li>
+    </ul>`);
+
   sections.push(`<h2 id="glossary">Glossary</h2>`
     + table(['Symbol', 'Name', 'What it means', 'Formula', 'Where the number lives'], (economy.glossary ?? []).map(g => [g.symbol, g.name, g.meaning, g.formula, g.home])));
 
@@ -97,8 +152,9 @@ function renderGuide({ maps = [], pluginSections = () => [] } = {}) {
   <main>
     <h1>Game Guide</h1>
     <p class="sub">Every number here comes straight from the game's rules, so it's always current.</p>
-    <nav>${[['play', 'Playing'], ['levels', 'Levels'], ['pay', 'Pay'], ['upgrades', 'Upgrades'],
-      ...extra.map(p => [p.id, p.title]), ['market', 'Market'], ['glossary', 'Glossary']].map(([id, t]) => `<a href="#${id}">${t}</a>`).join('')}</nav>
+    <nav>${[['play', 'Playing'], ['taking', 'Taking blocks'], ['squares', 'Squares'], ['levels', 'Levels'], ['pay', 'Pay'], ['upgrades', 'Upgrades'],
+      ...extra.map(p => [p.id, p.title]), ['market', 'Market'], ['look', 'Your look'], ['players', 'Accounts'], ['stats', 'Stats'],
+      ['controls', 'Controls'], ['glossary', 'Glossary']].map(([id, t]) => `<a href="#${id}">${t}</a>`).join('')}</nav>
     ${sections.join('\n')}
     <p class="links foot"><a href="/">Back to the game</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></p>
   </main>

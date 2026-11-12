@@ -8,7 +8,7 @@ const upgrades = require('../server/upgrades');
 
 test('the guide has every section, the numbers from the data, and the whole glossary', () => {
   const html = renderGuide({ maps: [{ name: 'Pangea', base: 10240 }, { name: 'White Plains', base: 40000 }] });
-  for (const id of ['play', 'levels', 'pay', 'upgrades', 'market', 'glossary']) {
+  for (const id of ['play', 'taking', 'squares', 'levels', 'pay', 'upgrades', 'market', 'look', 'players', 'stats', 'controls', 'glossary']) {
     assert.ok(html.includes(`id="${id}"`), id);
   }
   assert.ok(html.includes('Pangea (E = 10,240)') && html.includes('71,680'), 'a level table for each official map (level 4 of Pangea: 7 x E)');
