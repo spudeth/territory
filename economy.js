@@ -7,28 +7,21 @@ const RULES_TAB = 'Game Rules';
 const RULES_COLUMNS = ['Key', 'Value', 'What it means'];
 const ACHIEVEMENTS_TAB = 'Achievements';
 const ACHIEVEMENT_COLUMNS = ['Key', 'Name', 'Category', 'Stat', 'Threshold', 'Secret', 'Description', 'Reward'];
-const SKINS_TAB = 'Skins';
-const SKIN_COLUMNS = ['Key', 'Name', 'Kind', 'Rarity', 'Price', 'Collection', 'Enabled'];
-const SKIN_KINDS = ['pattern', 'art'];          // pattern: drawn in the owner's color; art: full-color image
-const RARITIES = ['Common', 'Rare', 'Ultra Rare', 'Legendary'];
-// The image files every skin needs, under public/: one block, and the large one for Full area coverage.
-const skinFiles = key => [`skins/${key}.png`, `skins/${key}-large.png`];
 const int = (min, max = Infinity) => ({ integer: true, min, max });
 const num = (min, max = Infinity) => ({ integer: false, min, max });
 // Loop 16: the new economy tabs. Each is optional in the sheet: a missing tab keeps its part of data/economy.json.
-const ECONOMY_TAB = 'Economy', TIERS_TAB = 'Upgrades', RARITY_TAB = 'Skin Rarity', GLOSSARY_TAB = 'Glossary';
+const ECONOMY_TAB = 'Economy', TIERS_TAB = 'Upgrades', GLOSSARY_TAB = 'Glossary';
 // Loop 19: the Walls and Factories tabs belong to their plug-ins (plugins/<name>/data.js), not to this file.
 const ECONOMY_COLUMNS = ['Key', 'Value', 'Unit', 'What it means'];
 // Loop 18: each upgrade's tiers and steps, and the curves of its gains and prices (catalog.js has the formulas).
 const TIER_COLUMNS = ['Key', 'Name', 'Type', 'Tier 1 start', 'Tier 1 max', 'Multiplier per tier', 'Tiers', 'Steps per tier',
   'Tier cost (work hours)', 'Price curve', 'Gain curve', 'Unit', 'What it does'];
-const RARITY_COLUMNS = ['Rarity', 'Work-hours', 'What it means'];
 const GLOSSARY_COLUMNS = ['Symbol', 'Name', 'What it means', 'Formula', 'Where the number lives'];
 // Loop 19: any upgrade is a row; it changes the variable in its Variable column (variables.js). Without the column
 // (an older sheet), the names agreed in Q39 are used.
 const VARIABLE_COLUMN = 'Variable';
 const TIER_FIELDS = ['variable', 'start', 'max1', 'mult', 'tiers', 'steps', 'tierWh', 'priceCurve', 'gainCurve'];   // what describeChanges compares
-const TABS = [RULES_TAB, ACHIEVEMENTS_TAB, SKINS_TAB, ECONOMY_TAB, TIERS_TAB, RARITY_TAB, GLOSSARY_TAB];
+const TABS = [RULES_TAB, ACHIEVEMENTS_TAB, ECONOMY_TAB, TIERS_TAB, GLOSSARY_TAB];
 // Old tabs the sync no longer reads (loop 16): Inputs, Summary, Click Power, Defense, Earnings, Growth.
 // Game Rules keys still allowed but ignored, with a warning.
 const RETIRED_RULES = ['squaresPerFirstClaim', 'newMapBlocks'];
@@ -128,7 +121,6 @@ const cellName = (col, row) => String.fromCharCode(65 + col) + (row + 1);
 
 // Checks the downloaded tabs. tabs: { 'Click Power': csvText, … }.
 // Returns { economy: { rules, upgrades }, errors: [] } or { economy: null, errors: ['…'] }.
-// hasFile(path): whether a file exists under public/ (the sync passes one; skins need their images).
 // variables: { name: base } the upgrades may change (default: the core's and every plug-in folder's).
 // The tools for reading tabs, for the core's tabs and each plug-in's data.js (loop 19): every problem goes in
 // `errors`, naming its cell. where(tab, col, row, header) names a cell; table(tab, columns) finds the columns by name
@@ -165,7 +157,7 @@ function sheetKit(tabs, errors) {
   return { where, table, has, num1, int, num, parseCsv, parseNumber };
 }
 
-function validate(tabs, { hasFile = () => true, variables = require('./variables').declared() } = {}) {
+function validate(tabs, { variables = require('./variables').declared() } = {}) {
   const errors = [], warnings = [];
   const { where, table, has, num1 } = sheetKit(tabs, errors);
   const rules = {}, seen = new Set();
@@ -219,31 +211,7 @@ function validate(tabs, { hasFile = () => true, variables = require('./variables
     });
     if (!a.rows.length) errors.push(`${T}: no achievements below the header row`);
   }
-  // Skins: one row each, with its images in public/skins/. Enabled "no" keeps a skin out of the shop (owners keep it).
-  const skins = [], skinKeys = new Set();
-  // No Skins tab yet (Google returns the first tab for an unknown name): skins stay as they are (the sync keeps them).
-  const skinsTab = typeof tabs[SKINS_TAB] === 'string' && parseCsv(tabs[SKINS_TAB])[0]?.some(c => c.trim() === 'Kind');
-  const k = skinsTab ? table(SKINS_TAB, SKIN_COLUMNS) : null;
-  if (k) {
-    k.rows.forEach((r, i) => {
-      const row = i + 1, cell = j => (r[k.at[j]] ?? '').trim(), at = j => where(SKINS_TAB, k.at[j], row, SKIN_COLUMNS[j]);
-      const [key, name, kind, rarity, rawPrice, collection, enabled] = SKIN_COLUMNS.map((c, j) => cell(j));
-      const bad = [];
-      if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(key) || key === 'default') bad.push(`${at(0)}: "${key}" must be lower-case letters, digits and dashes (not "default")`);
-      else if (skinKeys.has(key)) bad.push(`${at(0)}: "${key}" appears twice`);
-      skinKeys.add(key);
-      if (!name) bad.push(`${at(1)}: blank`);
-      if (!SKIN_KINDS.includes(kind)) bad.push(`${at(2)}: "${kind}" must be pattern or art`);
-      if (!RARITIES.includes(rarity)) bad.push(`${at(3)}: "${rarity}" must be ${RARITIES.join(', ')}`);
-      const price = parseNumber(rawPrice);
-      if (price === null || !Number.isInteger(price) || price < 1) bad.push(`${at(4)}: "${rawPrice}" must be a whole number of squares, 1 or more`);
-      if (!collection) bad.push(`${at(5)}: blank`);
-      if (!/^(yes|no)$/i.test(enabled)) bad.push(`${at(6)}: "${enabled}" must be yes or no`);
-      for (const f of /^[a-z0-9-]+$/.test(key) ? skinFiles(key) : []) if (!hasFile(f)) bad.push(`${at(0)}: no image public/${f}`);
-      if (bad.length) return errors.push(...bad);
-      skins.push({ id: key, name, kind, rarity, price, collection, enabled: /^yes$/i.test(enabled) });
-    });
-  }
+  // Skins and Skin Rarity: the skins plug-in's (plugins/skins/data.js, loop 19).
   // The loop 16 tabs. Each one found by its header row; a missing one is left out, and the sync keeps that part
   // of data/economy.json.
   // Economy: Key, Value rows, each key once. (Walls and Factories: their plug-ins' own tabs.)
@@ -301,20 +269,6 @@ function validate(tabs, { hasFile = () => true, variables = require('./variables
     });
   }
   // Items: plugins/items/data.js (loop 19).
-  // Skin Rarity: work-hours per rarity (a skin's price = hours x W(L)).
-  let skinRarity = null;
-  const sr = has(RARITY_TAB, 'Work-hours') ? table(RARITY_TAB, RARITY_COLUMNS) : null;
-  if (sr) {
-    skinRarity = {};
-    sr.rows.forEach((r, i) => {
-      const row = i + 1, rarity = (r[sr.at[0]] ?? '').trim();
-      if (!RARITIES.includes(rarity)) return errors.push(`${where(RARITY_TAB, sr.at[0], row, 'Rarity')}: "${rarity}" must be ${RARITIES.join(', ')}`);
-      if (rarity in skinRarity) return errors.push(`${where(RARITY_TAB, sr.at[0], row, 'Rarity')}: "${rarity}" appears twice`);
-      const h = num1(RARITY_TAB, sr.at[1], row, 'Work-hours', r[sr.at[1]] ?? '', num(0.0001));
-      if (h !== null) skinRarity[rarity] = h;
-    });
-    for (const k of RARITIES) if (!(k in skinRarity) && !errors.some(e => e.startsWith(RARITY_TAB))) errors.push(`${RARITY_TAB}: no row for "${k}"`);
-  }
   // Glossary: shown in full in the Game Guide.
   let glossary = null;
   const gl = has(GLOSSARY_TAB, 'Symbol') ? table(GLOSSARY_TAB, GLOSSARY_COLUMNS) : null;
@@ -327,8 +281,7 @@ function validate(tabs, { hasFile = () => true, variables = require('./variables
       glossary.push({ symbol, name, meaning, formula, home });
     });
   }
-  const parts = { ...(skinsTab ? { skins } : {}), ...(economyRules ? { economy: economyRules } : {}),
-    ...(tiers ? { tiers } : {}), ...(skinRarity ? { skinRarity } : {}), ...(glossary ? { glossary } : {}) };
+  const parts = { ...(economyRules ? { economy: economyRules } : {}), ...(tiers ? { tiers } : {}), ...(glossary ? { glossary } : {}) };
   return errors.length ? { economy: null, errors, warnings } : { economy: { rules, achievements, ...parts }, errors, warnings };
 }
 
@@ -353,7 +306,7 @@ function describeChanges(before, after) {
     const parts = TIER_FIELDS.filter(f => JSON.stringify(a[f]) !== JSON.stringify(b[f])).map(f => `${f} ${fmt(a[f])} → ${fmt(b[f])}`);
     if (parts.length) lines.push(`${b.name}: ${parts.join('; ')}`);
   }
-  // Rows by id: achievements, skins, items; the skin rarity hours; the glossary.
+  // Rows by id: achievements; the glossary. (Plug-ins' data: each says whether it changed.)
   const rows = (label, a = [], b) => {
     if (!b) return;
     const was = new Map(a.map(d => [d.id ?? d.symbol, JSON.stringify(d)])), now = new Map(b.map(d => [d.id ?? d.symbol, JSON.stringify(d)]));
@@ -365,13 +318,8 @@ function describeChanges(before, after) {
     }
   };
   rows('Achievements', before?.achievements, after.achievements);
-  rows('Skins', before?.skins, after.skins);
   rows('Glossary', before?.glossary, after.glossary);
-  for (const [r, h] of Object.entries(after.skinRarity ?? {})) {
-    const a = before?.skinRarity?.[r];
-    if (a !== h) lines.push(`${r} skins: ${a === undefined ? 'set to' : `${fmt(a)} →`} ${fmt(h)} work-hours`);
-  }
   return lines.length ? lines : ['No changes.'];
 }
 
-module.exports = { sheetKit, ECONOMY_TAB, TIERS_TAB, RARITY_TAB, GLOSSARY_TAB, VARIABLE_COLUMN, TIER_COLUMNS, ECONOMY_KEYS, RETIRED_RULES, RETIRED_ECONOMY, NEW_ECONOMY, RULES_TAB, ACHIEVEMENTS_TAB, SKINS_TAB, SKIN_KINDS, RARITIES, skinFiles, STATS, TABS, RULE_KEYS, parseCsv, parseNumber, validate, describeChanges };
+module.exports = { sheetKit, ECONOMY_TAB, TIERS_TAB, GLOSSARY_TAB, VARIABLE_COLUMN, TIER_COLUMNS, ECONOMY_KEYS, RETIRED_RULES, RETIRED_ECONOMY, NEW_ECONOMY, RULES_TAB, ACHIEVEMENTS_TAB, STATS, TABS, RULE_KEYS, parseCsv, parseNumber, validate, describeChanges };

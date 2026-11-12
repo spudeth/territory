@@ -39,7 +39,6 @@ test('the saved sheet passes and reads every tab as shown; retired Game Rules ke
     unit: 'x hits per tap', about: 'Each tap counts as this many hits' });
   assert.deepEqual([e.tiers.factorySpeed.start, e.tiers.factorySpeed.max1], [0.05, 0.1]);
   assert.equal(e.items, undefined, "the Items tab is the items plug-in's (loop 19)");
-  assert.deepEqual(e.skinRarity, { Common: 0.3333, Rare: 1, 'Ultra Rare': 5, Legendary: 20 });
   assert.ok(e.glossary.length >= 20);
   assert.deepEqual(e.glossary[0].symbol, 'E');
 });
@@ -53,11 +52,11 @@ test('a missing tab, or the first tab returned in its place, is refused by name;
   assert.match(errorsWith(fallback)[0], /^Game Rules: no column "Key", "Value", "What it means" in row 1/);
   // Google returns the first tab (Economy) for a tab that doesn't exist: each new tab is then left out.
   const none = saved();
-  for (const t of ['Upgrades', 'Skin Rarity', 'Glossary']) none[t] = none.Economy;
+  for (const t of ['Upgrades', 'Glossary']) none[t] = none.Economy;
   delete none.Economy;
   const r = economy.validate(none);
   assert.deepEqual(r.errors, []);
-  for (const part of ['economy', 'tiers', 'skinRarity', 'glossary']) assert.equal(r.economy[part], undefined, part);
+  for (const part of ['economy', 'tiers', 'glossary']) assert.equal(r.economy[part], undefined, part);
 });
 
 test('the Economy tab: unknown, missing, twice, a plug-in key, out of range, not whole and not a number are refused by cell', () => {
@@ -97,15 +96,12 @@ test('the Upgrades tab: unknown upgrades, bad numbers and missing rows are refus
   check(setCell(tab, row('clickPower'), 10, 'x'), `Upgrades, cell K${row('clickPower') + 1} ("Gain curve"): "x" is not a number`);
 });
 
-test('the Skin Rarity and Glossary tabs: bad rows are named by cell', () => {
+test('the Glossary tab: bad rows are named by cell', () => {
   const check = (tab, csv, expected) => {
     const tabs = saved();
     tabs[tab] = csv;
     assert.ok(errorsWith(tabs).includes(expected), `${expected}\n  got: ${errorsWith(tabs).join(' | ')}`);
   };
-  const rarity = saved()['Skin Rarity'];
-  check('Skin Rarity', setCell(rarity, 1, 0, 'Mythic'), 'Skin Rarity, cell A2 ("Rarity"): "Mythic" must be Common, Rare, Ultra Rare, Legendary');
-  check('Skin Rarity', setCell(rarity, 2, 1, '0'), 'Skin Rarity, cell B3 ("Work-hours"): Work-hours must be at least 0.0001, not 0');
   check('Glossary', setCell(saved().Glossary, 2, 2, ''), 'Glossary, cell C3 ("What it means"): blank');
 });
 
@@ -122,10 +118,8 @@ test('the change report says what changed in plain English', () => {
   before.rules.squaresPerFirstClaim = 1;
   before.economy.marketFee = 0.1;
   before.tiers.clickPower.tierWh = 5;
-  before.skinRarity.Rare = 2;
   const lines = economy.describeChanges(before, after);
-  for (const l of ['hitsPerBlock: 3 → 10', 'marketFee: 0.1 → 0.05', 'squaresPerFirstClaim: retired (no longer used)', 'Click Power: tierWh 5 → 12',
-    'Rare skins: 2 → 1 work-hours']) assert.ok(lines.includes(l), `${l}\n${lines.join('\n')}`);
+  for (const l of ['hitsPerBlock: 3 → 10', 'marketFee: 0.1 → 0.05', 'squaresPerFirstClaim: retired (no longer used)', 'Click Power: tierWh 5 → 12']) assert.ok(lines.includes(l), `${l}\n${lines.join('\n')}`);
   assert.deepEqual(economy.describeChanges(after, after), ['No changes.']);
 });
 

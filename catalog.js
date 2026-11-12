@@ -60,16 +60,13 @@ const priceTenths = (row, ctx) => {
 
 // ---------- The catalog ----------
 // Every purchasable thing, as data. kind: what screen and handler it belongs to. effect: the handler name.
-const skinHours = rarity => economy.skinRarity?.[rarity] ?? 0;
 function buildCatalog() {
   const rows = [];
   for (const key of Object.keys(economy.tiers ?? {})) rows.push({ key: 'upgrade:' + key, kind: 'upgrade', upgrade: key, pricing: 'Step', effect: key });
   return new Map(rows.map(r => [r.key, r]));
 }
 const CATALOG = buildCatalog();
-// A skin's price in tenths: its rarity's hours x W(L). Flags are Rare.
-const skinPriceTenths = (skin, L) => toTenths(skinHours(skin.id?.startsWith('flag-') ? 'Rare' : skin.rarity) * W(L));
 
 const CATALOG_TIERS = economy.tiers;   // the upgrades, from the Upgrades tab: { key: { name, type, start, max1, mult, tiers, steps, tierWh, priceCurve, gainCurve, unit, about } }
 module.exports = { E, CATALOG_TIERS, TENTHS, toTenths, fromTenths, wholeSquares, level, levelStart, levelProgress, W, hardness, payTenths,
-  PRICING, priceTenths, CATALOG, skinPriceTenths, skinHours };
+  PRICING, priceTenths, CATALOG };

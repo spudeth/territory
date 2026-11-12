@@ -428,46 +428,7 @@ async function mapsFor(pool, playerId) {
 
 Object.assign(module.exports, { STYLES, listMaps, createMap, mapsFor });
 
-// The skin catalog, with whether this player owns each (free skins count as owned by everyone).
-// The skin catalog (rules.SKINS, from the sheet) with what this player owns: [{ id, name, kind, rarity, price,
-// collection, owned }], the free plain look first. Skins taken out of the shop still show for their owners.
-// Prices are in squares at map level L: the rarity's work-hours x W(L) (flags are Rare).
-// Which star slot a skin goes in: a Common pattern, or art that is Rare or better (flags too); null for others.
-const starSlot = s => (s.kind === 'pattern' && s.rarity === 'Common' ? 'star_pattern' : s.kind === 'art' && s.rarity !== 'Common' ? 'star_art' : null);
-// Stars one owned skin in its slot (replacing the old one), or clears that slot when `on` is false.
-async function starSkin(pool, playerId, skin, on) {
-  const slot = starSlot(skin);
-  if (!slot) return { error: 'Only patterns and Rare or better art skins can be starred' };
-  if (on && !(await pool.query('SELECT 1 FROM player_skins WHERE player_id = $1 AND skin_id = $2', [playerId, skin.id])).rowCount) return { error: "You don't own that skin" };
-  await pool.query(`UPDATE players SET ${slot} = CASE WHEN $3 THEN $2 END WHERE id = $1 AND ($3 OR ${slot} = $2)`, [playerId, skin.id, on]);
-  return { ok: true };
-}
-async function skinsFor(pool, playerId, L = 1) {
-  const stars = playerId ? (await pool.query('SELECT star_pattern, star_art FROM players WHERE id = $1', [playerId])).rows[0] ?? {} : {};
-  const owned = new Set(playerId ? (await pool.query('SELECT skin_id FROM player_skins WHERE player_id = $1', [playerId])).rows.map(r => r.skin_id) : []);
-  return [{ id: 'default', name: 'Default', kind: 'default', rarity: 'Common', price: 0, collection: 'Basic', owned: true },
-    ...rules.SKINS.filter(s => s.enabled || owned.has(s.id)).map(({ enabled, price: sheetPrice, ...s }) => ({ ...s, price: catalog.fromTenths(catalog.skinPriceTenths(s, L)), owned: owned.has(s.id),
-      starrable: !!starSlot(s), starred: owned.has(s.id) && (stars.star_pattern === s.id || stars.star_art === s.id) }))
-      // Bob (loop 15): flags after every other skin, and within each group by price, then name.
-      .sort((a, b) => (a.collection === 'Flags') - (b.collection === 'Flags') || a.price - b.price || a.name.localeCompare(b.name))];
-}
-
-// Buys a skin with squares, in one transaction: the player row is locked, so a double tap or two devices can
-// never pay twice. skin: a catalog entry { id, name }; price: tenths (catalog.skinPriceTenths at the map's level).
-// Returns { squares, price } (tenths), or { error } with `need` (tenths short) when there aren't enough.
-function buySkin(pool, playerId, skin, price) {
-  return tx(pool, async c => {
-    const { rows: [p] } = await c.query('SELECT squares FROM players WHERE id = $1 FOR UPDATE', [playerId]);
-    if (!p) return { error: 'Claim a block first' };
-    if ((await c.query('SELECT 1 FROM player_skins WHERE player_id = $1 AND skin_id = $2', [playerId, skin.id])).rowCount) return { error: 'You already own this skin' };
-    await c.query(`INSERT INTO skins (id, name, image, price_squares) VALUES ($1, $2, $3, $4)
-      ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, price_squares = EXCLUDED.price_squares`, [skin.id, skin.name, skin.id + '.png', Math.max(1, catalog.wholeSquares(price))]);
-    const paid = await spend(c, playerId, price, 'skin:' + skin.id);
-    if (paid.error) return paid;
-    await c.query("INSERT INTO player_skins (player_id, skin_id, source) VALUES ($1, $2, 'squares')", [playerId, skin.id]);
-    return { squares: paid.squares, price };
-  });
-}
+// Skins: the skins plug-in (plugins/skins, loop 19).
 
 // For the Achievements screen: a player's best value of each stat on any map (the progress shown), and the
 // achievements they have earned with the map each was earned on.
@@ -525,7 +486,7 @@ async function logTapLimits(pool, entries) {
     [entries.map(e => e[0]), entries.map(e => e[1])]);
 }
 
-Object.assign(module.exports, { skinsFor, buySkin, starSkin, starSlot, achievementProgress, saveTutorial, buySteps, logTapLimits });
+Object.assign(module.exports, { achievementProgress, saveTutorial, buySteps, logTapLimits });
 
 // ---------- Admin (npm run admin; admin.js) ----------
 

@@ -307,9 +307,9 @@ test("upgrades: Click Power and Defense multiply hits (Bob's example: 17 clicks)
 test('menu screens: skins, upgrades and achievement progress come from the real data', async () => {
   const a = player();
   await a.welcome;
-  const skinList = await a.ask('skins');
+  const skinList = await a.ask('skins:list');
   assert.deepEqual(skinList[0], { id: 'default', name: 'Default', kind: 'default', rarity: 'Common', price: 0, collection: 'Basic', owned: true });
-  assert.equal(skinList.length, 1 + rules.SKINS.filter(s => s.enabled).length, 'the catalog from the sheet');
+  assert.equal(skinList.length, 1 + require('../plugins/skins/data.json').skins.filter(s => s.enabled).length, 'the catalog from the sheet');
   assert.ok(skinList.slice(1).every(s => !s.owned), 'a visitor owns only the plain look');
   const upg = await a.ask('upgrades');
   assert.deepEqual([upg.steps, upg.highest, upg.mapLevel, upg.balance], [{}, 1, 1, 0]);

@@ -70,16 +70,6 @@ function renderGuide({ maps = [], pluginSections = () => [] } = {}) {
       buy land anywhere on the map (it needn't touch theirs). Factories and walls go with the land. ${n(E.marketFee * 100)}% of every sale is
       destroyed; the seller gets the rest. Any attack on a listed block ends its listing.</p>`);
 
-  const rarities = Object.entries(economy.skinRarity ?? {});
-  sections.push(`<h2 id="skins">Skins</h2>
-    <p>A skin costs its rarity's work-hours × W(L). Flags are Rare.</p>`
-    + table(['Rarity', 'Work-hours', 'Price at level 1'], rarities.map(([r, h]) => [r, n(h, 4), n(catalog.fromTenths(catalog.toTenths(h * catalog.W(1))), 1)]))
-    + rarities.map(([r]) => {
-      const list = economy.skins.filter(s => s.enabled && (s.id.startsWith('flag-') ? 'Rare' : s.rarity) === r);
-      return list.length ? `<h3>${esc(r)} (${list.length})</h3><div class="gallery">${list.map(s =>
-        `<figure><img src="skins/${esc(s.id)}.png" alt="" width="40" height="40" loading="lazy"><figcaption>${esc(s.name)}</figcaption></figure>`).join('')}</div>` : '';
-    }).join(''));
-
   sections.push(`<h2 id="achievements">Achievements</h2>`
     + table(['Achievement', 'What to do', 'Reward (squares)'], economy.achievements.map(a => a.secret ? ['???', 'A secret', '?'] : [a.name, a.description, n(a.reward, 1)])));
 
@@ -111,7 +101,7 @@ function renderGuide({ maps = [], pluginSections = () => [] } = {}) {
     <h1>Game Guide</h1>
     <p class="sub">Every number here comes straight from the game's rules, so it's always current.</p>
     <nav>${[['play', 'Playing'], ['levels', 'Levels'], ['pay', 'Pay'], ['upgrades', 'Upgrades'],
-      ...extra.map(p => [p.id, p.title]), ['market', 'Market'], ['skins', 'Skins'], ['achievements', 'Achievements'], ['glossary', 'Glossary']].map(([id, t]) => `<a href="#${id}">${t}</a>`).join('')}</nav>
+      ...extra.map(p => [p.id, p.title]), ['market', 'Market'], ['achievements', 'Achievements'], ['glossary', 'Glossary']].map(([id, t]) => `<a href="#${id}">${t}</a>`).join('')}</nav>
     ${sections.join('\n')}
     <p class="links foot"><a href="/">Back to the game</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></p>
   </main>

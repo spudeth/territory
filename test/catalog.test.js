@@ -97,14 +97,12 @@ test('upgrades (loop 18): tier ranges, log-curve values and prices, the Charts t
   near(upgrades.effectiveValues({}, 1).defense, 1, 'no steps: the start');
 });
 
-test('every pricing rule: PV, Hours, Step; skins by rarity hours (flags are Rare)', () => {
+test('every pricing rule: PV, Hours, Step (skins: in their plug-in)', () => {
   const superClick = require('../plugins/items/data.json').items.find(i => i.id === 'superClick');
   assert.equal(catalog.priceTenths(superClick, { L: 1 }), 7500, 'the doc: 0.625 x W(1) = 750 squares');
   assert.equal(catalog.priceTenths(superClick, { L: 3 }), 30000);
   assert.equal(catalog.priceTenths(require('../plugins/items/data.json').items.find(i => i.id === 'demolition'), { L: 1 }), 6000, '0.5 hours = 600 squares');
   assert.equal(catalog.priceTenths(catalog.CATALOG.get('upgrade:earnings'), { s: 7, L: 9 }), upgrades.stepCostTenths('earnings', 7), 'steps use their number, not the level');
   // Factories and walls: their plug-ins price their own (plugins/<name>/test).
-  assert.equal(catalog.skinPriceTenths({ id: 'stripes', rarity: 'Common' }, 1), catalog.toTenths(0.3333 * 1200));
-  assert.equal(catalog.skinPriceTenths({ id: 'flag-jp', rarity: 'Ultra Rare' }, 2), catalog.toTenths(1 * 2400), 'flags are Rare');
   assert.throws(() => catalog.priceTenths({ key: 'x', pricing: 'Nope' }, {}), /no pricing rule/);
 });

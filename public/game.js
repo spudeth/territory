@@ -124,7 +124,7 @@ const clouds = [];
   requestAnimationFrame(step);
 })();
 
-// Skin images (public/skins/<id>.png, and -large.png for Full area), loaded the first time they're needed.
+// Skin images (from the skins plug-in's look: its src(large)), loaded the first time they're needed.
 const skinImages = new Map();
 // Art of any size (16, 32, 64, … pixels) is drawn scaled to the block, crisp (loop 19). An animation is a sprite sheet
 // of square frames side by side (the art standard: 64x64 frames); frameOf(img) is the frame showing now, one every
@@ -132,17 +132,15 @@ const skinImages = new Map();
 const ANIM_MS = 220;
 const frameSize = img => img.naturalHeight;
 const frameOf = img => Math.floor(performance.now() / ANIM_MS) % Math.max(1, Math.round(img.naturalWidth / img.naturalHeight));
-function skinImage(id, large, anim) {
-  const k = id + (large ? '-large' : '') + (anim ? '-anim' : '');
-  if (!skinImages.has(k)) skinImages.set(k, Object.assign(new Image(), { src: `skins/${k}.png`, onload: draw }));
+function skinImage(look, large) {
+  const k = look.src(large);
+  if (!skinImages.has(k)) skinImages.set(k, Object.assign(new Image(), { src: k, onload: draw }));
   const img = skinImages.get(k);
   return img.complete && img.naturalWidth ? img : null;
 }
-// How an owner's land is drawn: { kind: 'default' | 'pattern' | 'art', id, full: Full area coverage }.
-function lookOf(o) {
-  const p = players[o], kind = p?.skin && p.skin !== 'default' ? gameSettings.skinKinds?.[p.skin] : null;
-  return kind ? { kind, id: p.skin, full: p.coverage === 'stretch', anim: gameSettings.skinAnimated?.includes(p.skin) } : { kind: 'default' };
-}
+// How an owner's land is drawn: { kind: 'default' | 'pattern' | 'art', id, full: Full area coverage, anim, src(large) }.
+// A plug-in's look hook says (skins); without one, every territory is its plain color.
+const lookOf = o => Plugins.first('look', players[o]) ?? { kind: 'default' };
 let tagBoxes = [];   // name tags drawn last frame, in CSS pixels: tapping one opens that player's profile
 let terrainChanges = new Map();   // "x,y" -> terrain from the Terraformer, over the seed's (items.js)
 let world = null;   // this map's terrain (terrain.makeWorld), or null for a map without a seed (all grass)
@@ -286,7 +284,7 @@ function render() {
       if (o) {
         // The owner's skin. Default: the ground recolored to their hue (keeping its shading). A pattern: its grey
         // art in their color. Art: the image as it is. Full area skins are drawn over the whole territory below.
-        const look = lookOf(o), img = look.kind !== 'default' && !look.full && skinImage(look.id, false, look.anim);
+        const look = lookOf(o), img = look.kind !== 'default' && !look.full && skinImage(look, false);
         if (look.full) { (fullArea.get(o) ?? fullArea.set(o, []).get(o)).push([x, y]); }
         else if (img && look.anim) { animShown = true; ctx.drawImage(img, frameOf(img) * frameSize(img), 0, frameSize(img), img.naturalHeight, x0, y0, bw, bh); }
         else if (img) ctx.drawImage(img, x0, y0, bw, bh);
@@ -306,7 +304,7 @@ function render() {
   // Full area: one enlarged image over each such territory, covering its whole shape (never stretched), clipped
   // to its blocks.
   for (const [o, mine] of fullArea) {
-    const look = lookOf(o), img = skinImage(look.id, true, look.anim);
+    const look = lookOf(o), img = skinImage(look, true);
     if (!img) continue;
     const fw = look.anim ? frameSize(img) : img.naturalWidth;
     if (look.anim) animShown = true;

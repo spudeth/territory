@@ -1,25 +1,29 @@
-// Skins: the catalog from the sheet, how they're drawn, and buying them (the dev database, a throwaway schema).
+// Skins (a plug-in since loop 19): the catalog from the sheet, how they're drawn, and buying them (the dev database, a throwaway schema).
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
-const { createGame } = require('../app');
-const economy = require('../economy');
-const rules = require('../rules');
-const catalog = require('../catalog');
-const store = require('../store');
-const skins = require('../public/skins');
-const { testDb, connectPlayer } = require('./helpers');
+const { createGame } = require('../../../app');
+const economy = require('../../../economy');
+const catalog = require('../../../catalog');
+const store = require('../../../store');
+const skins = require('../../../public/skins');
+const { testDb, connectPlayer } = require('../../../test/helpers');
+const data = require('../data');
+const D = require('../data.json');
+const SKINS = D.skins;
+// A skin's price in tenths at level L (the plug-in's rule): its rarity's work-hours x W(L), flags Rare.
+const priceTenths = (s, L) => catalog.toTenths(D.skinRarity[s.id.startsWith('flag-') ? 'Rare' : s.rarity] * catalog.W(L));
 
 // ---------- In memory ----------
 test('the catalog: 6 patterns and the flags of every UN member plus regions, each with both images', () => {
-  const patterns = rules.SKINS.filter(s => s.collection === 'Patterns'), flags = rules.SKINS.filter(s => s.collection === 'Flags');
+  const patterns = SKINS.filter(s => s.collection === 'Patterns'), flags = SKINS.filter(s => s.collection === 'Flags');
   assert.equal(patterns.length, 6);
   assert.ok(patterns.every(s => s.kind === 'pattern' && s.rarity === 'Common' && s.price >= 100 && s.price <= 300));
   assert.ok(flags.length >= 199, `${flags.length} flags`);
   assert.ok(flags.every(s => s.kind === 'art' && s.rarity === 'Rare'), 'flags are art, rare');
   assert.equal(new Set(flags.map(s => s.price)).size, 1, 'one price for all flags');
-  for (const s of rules.SKINS) for (const f of economy.skinFiles(s.id)) assert.ok(fs.existsSync(path.join(__dirname, '..', 'public', f)), f);
+  for (const s of SKINS) for (const f of data.skinFiles(s.id)) assert.ok(fs.existsSync(path.join(__dirname, '..', 'look', f)), f);
 });
 
 test('art skins get the thicker border in the owner color; Full area images cover without stretching', () => {
@@ -32,19 +36,23 @@ test('art skins get the thicker border in the owner color; Full area images cove
   assert.equal(f.dx, (300 - f.dw) / 2, 'centred');
 });
 
-test('the Skins tab: bad rows are named by cell, and every skin needs its images', () => {
-  const dir = path.join(__dirname, 'fixtures', 'sheet');
-  const tabs = Object.fromEntries(economy.TABS.map(t => [t, fs.readFileSync(path.join(dir, t + '.csv'), 'utf8')]));
-  assert.deepEqual(economy.validate(tabs).errors, []);
+test('the Skins and Skin Rarity tabs are data.json; bad rows are named by cell; every skin needs its images', () => {
+  const tabs = { Skins: fs.readFileSync(path.join(__dirname, 'Skins.csv'), 'utf8'), 'Skin Rarity': fs.readFileSync(path.join(__dirname, 'Skin Rarity.csv'), 'utf8') };
+  const read = (t, opts) => { const errors = [], out = data.validate(t, economy.sheetKit(t, errors), errors, [], opts); return { errors, out }; };
+  assert.deepEqual(read(tabs), { errors: [], out: D }, 'the saved tabs are data.json');
   const lines = tabs.Skins.split(/\r?\n/);
   lines[1] = 'checker,Checker,shiny,Epic,cheap,Patterns,maybe';
   lines[2] = 'checker,Again,pattern,Common,100,,yes';
-  tabs.Skins = lines.join('\n');
-  const errors = economy.validate(tabs, { hasFile: f => !f.includes('flag-fr') }).errors;
+  const errors = read({ ...tabs, Skins: lines.join('\n') }, { hasFile: f => !f.includes('flag-fr') }).errors;
   for (const re of [/"shiny" must be pattern or art/, /"Epic" must be Common, Rare, Ultra Rare, Legendary/, /"cheap" must be a whole number/,
-    /"maybe" must be yes or no/, /"checker" appears twice/, /\("Collection"\): blank/, /no image public\/skins\/flag-fr\.png/]) {
+    /"maybe" must be yes or no/, /"checker" appears twice/, /\("Collection"\): blank/, /no image plugins\/skins\/look\/flag-fr\.png/]) {
     assert.ok(errors.some(e => re.test(e)), `${re} in:\n${errors.join('\n')}`);
   }
+  const rarity = tabs['Skin Rarity'].split(/\r?\n/);
+  rarity[1] = rarity[1].replace(/^[^,]+/, 'Mythic');
+  assert.ok(read({ ...tabs, 'Skin Rarity': rarity.join('\n') }).errors.includes('Skin Rarity, cell A2 ("Rarity"): "Mythic" must be Common, Rare, Ultra Rare, Legendary'));
+  assert.equal(read({}).out, null, 'no tabs: data.json stays as it is');
+  assert.deepEqual(read({ 'Skin Rarity': tabs['Skin Rarity'] }).out.skins, D.skins, 'a missing Skins tab keeps the skins');
 });
 
 // ---------- Buying ----------
@@ -77,30 +85,30 @@ async function guestWith(balance) {
   return { s: fresh, pid, token };
 }
 // A flag's price at level 1: Rare's work-hours x W(1) (loop 16).
-const flagRow = rules.SKINS.find(s => s.id === 'flag-jp'), flag = { ...flagRow, price: catalog.skinPriceTenths(flagRow, 1) / 10 };
+const flagRow = SKINS.find(s => s.id === 'flag-jp'), flag = { ...flagRow, price: priceTenths(flagRow, 1) / 10 };
 const owns = async (pid, id) => (await pool.query('SELECT 1 FROM player_skins WHERE player_id = $1 AND skin_id = $2', [pid, id])).rowCount === 1;
 const balance = async pid => Number((await pool.query('SELECT squares FROM players WHERE id = $1', [pid])).rows[0].squares) / 10;   // tenths -> squares
 
 test('buying at exactly the price works and is written to the ledger; one square short is refused', async () => {
   const g = await guestWith(flag.price);
-  assert.deepEqual(await g.s.ask('buySkin', { skin: flag.id }), { squares: 0, balance: 0 });
+  assert.deepEqual(await g.s.ask('skins:buy', { skin: flag.id }), { squares: 0, balance: 0 });
   assert.ok(await owns(g.pid, flag.id));
   const { rows } = await pool.query("SELECT delta::float / 10 AS delta, reason FROM square_ledger WHERE player_id = $1 AND reason LIKE 'skin:%'", [g.pid]);
   assert.deepEqual(rows, [{ delta: -flag.price, reason: 'skin:flag-jp' }]);
-  assert.deepEqual(await g.s.ask('buySkin', { skin: flag.id }), { error: 'You already own this skin' });
+  assert.deepEqual(await g.s.ask('skins:buy', { skin: flag.id }), { error: 'You already own this skin' });
 
   const short = await guestWith(flag.price - 1);
-  assert.deepEqual(await short.s.ask('buySkin', { skin: flag.id }), { error: 'Not enough squares', need: 1 });
+  assert.deepEqual(await short.s.ask('skins:buy', { skin: flag.id }), { error: 'Not enough squares', need: 1 });
   assert.equal(await owns(short.pid, flag.id), false);
   assert.equal(await balance(short.pid), flag.price - 1, 'nothing taken');
-  assert.deepEqual(await short.s.ask('buySkin', { skin: 'flag-atlantis' }), { error: 'That skin is not for sale' });
+  assert.deepEqual(await short.s.ask('skins:buy', { skin: 'flag-atlantis' }), { error: 'That skin is not for sale' });
 });
 
 test('a double tap, or two devices at once, pays only once', async () => {
   const g = await guestWith(flag.price * 3);
   const other = player({ token: g.token });
   await other.welcome;
-  const answers = await Promise.all([g.s.ask('buySkin', { skin: flag.id }), g.s.ask('buySkin', { skin: flag.id }), other.ask('buySkin', { skin: flag.id })]);
+  const answers = await Promise.all([g.s.ask('skins:buy', { skin: flag.id }), g.s.ask('skins:buy', { skin: flag.id }), other.ask('skins:buy', { skin: flag.id })]);
   assert.equal(answers.filter(a => a.squares !== undefined).length, 1, JSON.stringify(answers));
   assert.equal(await balance(g.pid), flag.price * 2);
   assert.equal((await pool.query("SELECT count(*)::int AS n FROM square_ledger WHERE player_id = $1 AND reason = 'skin:flag-jp'", [g.pid])).rows[0].n, 1);
@@ -109,7 +117,7 @@ test('a double tap, or two devices at once, pays only once', async () => {
 test('an owned skin can be picked on every map; one not owned cannot', async () => {
   const g = await guestWith(flag.price);
   assert.deepEqual(await g.s.ask('setup', { skin: flag.id }), { error: 'Your color, skin and coverage are locked for this map' }, 'locked here after the first claim');
-  assert.deepEqual(await g.s.ask('buySkin', { skin: flag.id }), { squares: 0, balance: 0 });
+  assert.deepEqual(await g.s.ask('skins:buy', { skin: flag.id }), { squares: 0, balance: 0 });
   const id = await store.createMap(pool, { name: 'Elsewhere', width: 4, height: 4 });
   assert.deepEqual(await g.s.ask('switchMap', id), { ok: true });
   await g.s.next('welcome');
@@ -118,16 +126,16 @@ test('an owned skin can be picked on every map; one not owned cannot', async () 
   assert.deepEqual(await g.s.ask('setup', { skin: 'flag-fr' }), { error: "You don't own that skin" });
   g.s.take(1, 1);
   await g.s.next('player', d => String(d.pid) === String(g.pid) && d.skin === flag.id && d.coverage === 'stretch');
-  const list = await g.s.ask('skins');
+  const list = await g.s.ask('skins:list');
   assert.ok(list.find(k => k.id === flag.id).owned && list[0].id === 'default');
 });
 
 test("skin prices are the rarity's work-hours x W(L) at the map's level; flags are Rare; owning more never changes them", async () => {
   const g = await guestWith(0);
-  const list = await g.s.ask('skins');
+  const list = await g.s.ask('skins:list');
   for (const rarity of ['Common', 'Rare', 'Ultra Rare', 'Legendary']) {
     const k = list.find(s => s.rarity === rarity && s.id !== 'default' && !s.id.startsWith('flag-'));
-    if (k) assert.equal(k.price, catalog.toTenths(catalog.skinHours(rarity) * 1200) / 10, rarity);
+    if (k) assert.equal(k.price, catalog.toTenths(D.skinRarity[rarity] * 1200) / 10, rarity);
   }
   assert.ok(list.filter(s => s.id.startsWith('flag-')).every(s => s.price === flag.price), 'every flag costs a Rare');
   assert.equal(flag.price, 1200, 'Rare: 1 work-hour = 1,200 squares at level 1');
@@ -135,11 +143,13 @@ test("skin prices are the rarity's work-hours x W(L) at the map's level; flags a
   await pool.query('UPDATE maps SET mined = 9 WHERE id = $1', [id]);   // level 2
   await g.s.ask('switchMap', id);
   await g.s.next('welcome', d => d.map.id === id);
-  assert.equal((await g.s.ask('skins')).find(s => s.id === 'flag-jp').price, 2400, 'twice the price on a level-2 map');
+  assert.equal((await g.s.ask('skins:list')).find(s => s.id === 'flag-jp').price, 2400, 'twice the price on a level-2 map');
 });
 
 test('skin order: flags after the other skins; within each group by price, then name', async () => {
-  const list = (await store.skinsFor(pool, null)).slice(1);
+  const visitor = player();
+  await visitor.welcome;
+  const list = (await visitor.ask('skins:list')).slice(1);
   const firstFlag = list.findIndex(s => s.collection === 'Flags');
   assert.ok(firstFlag > 0 && list.slice(firstFlag).every(s => s.collection === 'Flags'), 'flags last');
   for (const group of [list.slice(0, firstFlag), list.slice(firstFlag)]) {
@@ -152,16 +162,16 @@ test('skin order: flags after the other skins; within each group by price, then 
 
 test('stars: one pattern and one art skin, owned only; a new one replaces the old; tapping again removes it', async () => {
   const g = await guestWith(100000);
-  for (const id of ['checker', 'stripes', 'flag-jp', 'flag-fr']) assert.ok((await g.s.ask('buySkin', { skin: id })).squares !== undefined, id);
-  const starred = async () => (await g.s.ask('skins')).filter(s => s.starred).map(s => s.id).sort();
-  assert.deepEqual(await g.s.ask('starSkin', { skin: 'checker', on: true }), { ok: true });
-  assert.deepEqual(await g.s.ask('starSkin', { skin: 'flag-jp', on: true }), { ok: true });
+  for (const id of ['checker', 'stripes', 'flag-jp', 'flag-fr']) assert.ok((await g.s.ask('skins:buy', { skin: id })).squares !== undefined, id);
+  const starred = async () => (await g.s.ask('skins:list')).filter(s => s.starred).map(s => s.id).sort();
+  assert.deepEqual(await g.s.ask('skins:star', { skin: 'checker', on: true }), { ok: true });
+  assert.deepEqual(await g.s.ask('skins:star', { skin: 'flag-jp', on: true }), { ok: true });
   assert.deepEqual(await starred(), ['checker', 'flag-jp']);
-  await g.s.ask('starSkin', { skin: 'stripes', on: true });                      // replaces checker
+  await g.s.ask('skins:star', { skin: 'stripes', on: true });                      // replaces checker
   assert.deepEqual(await starred(), ['flag-jp', 'stripes']);
-  await g.s.ask('starSkin', { skin: 'flag-jp', on: false });                     // removes it
+  await g.s.ask('skins:star', { skin: 'flag-jp', on: false });                     // removes it
   assert.deepEqual(await starred(), ['stripes']);
-  assert.deepEqual(await g.s.ask('starSkin', { skin: 'flag-de', on: true }), { error: "You don't own that skin" });
+  assert.deepEqual(await g.s.ask('skins:star', { skin: 'flag-de', on: true }), { error: "You don't own that skin" });
   const other = player({ token: g.token }); await other.welcome;
-  assert.deepEqual((await other.ask('skins')).filter(s => s.starred).map(s => s.id), ['stripes'], 'follows the player to other devices');
+  assert.deepEqual((await other.ask('skins:list')).filter(s => s.starred).map(s => s.id), ['stripes'], 'follows the player to other devices');
 });

@@ -49,8 +49,7 @@ async function main() {
     }
   }
 
-  const hasFile = f => fs.existsSync(path.join(__dirname, '..', 'public', f));   // skins need their images
-  const { economy: next, errors, warnings = [] } = economy.validate(tabs, { hasFile });
+  const { economy: next, errors, warnings = [] } = economy.validate(tabs);
   // Each plug-in's tabs, with the same tools. null: its tab isn't there (its data.json stays as it is).
   const pluginParts = withData.map(p => {
     const before = errors.length, part = require(path.join(p.dir, 'data.js')).validate(tabs, economy.sheetKit(tabs, errors), errors, warnings);
@@ -66,12 +65,13 @@ async function main() {
 
   const out = arg('out') ?? OUT;
   const before = fs.existsSync(out) ? JSON.parse(fs.readFileSync(out, 'utf8')) : null;
-  // A tab missing from the sheet keeps its part of the current file (Skins, Items and the loop 16 tabs).
-  for (const part of ['skins', 'economy', 'tiers', 'skinRarity', 'glossary']) if (!next[part] && before?.[part]) next[part] = before[part];
+  // A tab missing from the sheet keeps its part of the current file (the loop 16 tabs).
+  for (const part of ['economy', 'tiers', 'glossary']) if (!next[part] && before?.[part]) next[part] = before[part];
   // A new Economy key the sheet doesn't have yet keeps the file's value (economy.NEW_ECONOMY).
   for (const k of economy.NEW_ECONOMY) if (next.economy && next.economy[k] === undefined && before?.economy?.[k] !== undefined) next.economy[k] = before.economy[k];
-  if (!next.skins) next.skins = [];
-  delete next.items;   // the items plug-in's now (plugins/items/data.json)
+  delete next.items;   // the plug-ins' now (plugins/items, plugins/skins: data.json)
+  delete next.skins;
+  delete next.skinRarity;
   console.log('Changes:');
   for (const line of economy.describeChanges(before, next)) console.log('  - ' + line);
   // A plug-in's file goes next to its folder, or, with --out (tests), under <out's folder>/plugins/<name>/.

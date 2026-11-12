@@ -29,14 +29,7 @@
       return li;
     }) : [Object.assign(document.createElement('li'), { textContent: 'None yet' })]));
     $('pf-all').onclick = () => { achTarget = String(p.id) === String(me) ? null : p.id; show('achievements'); };
-    // Favorites: their starred pattern and art skin, large, in their color.
-    const stars = [p.stars.pattern, p.stars.art].filter(Boolean);
-    $('pf-stars').replaceChildren(...(stars.length ? stars.map(id => {
-      const box = document.createElement('div'), c = document.createElement('canvas');
-      drawSkinPreview(c, { id, kind: gameSettings.skinKinds?.[id] ?? 'art' }, p.color || '#888');
-      box.append(c, Object.assign(document.createElement('span'), { textContent: id.startsWith('flag-') ? 'Flag' : 'Starred' }));
-      return box;
-    }) : [Object.assign(document.createElement('span'), { textContent: 'No favorite yet' })]));
+    $('pf-plugins').replaceChildren(...Plugins.collect('profile', p).filter(Boolean));   // plug-ins' sections (skins: favorites)
     // Chat: mute or unmute them (not yourself).
     const other = String(p.id) !== String(me);
     $('pf-mute').hidden = !other;

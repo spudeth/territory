@@ -16,8 +16,6 @@ const path = require('path');
 const { renderGuide } = require('./guide');
 const chat = require('./chat');
 const terrain = require('./public/terrain');
-// How each skin is drawn, for the browser: { id: 'pattern' | 'art' }.
-const SKIN_KINDS = Object.fromEntries(rules.SKINS.map(s => [s.id, s.kind]));
 const stats = require('./stats');
 const achievements = require('./achievements');
 const { createTotals } = require('./totals');
@@ -682,9 +680,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
         choices: { colors: rules.COLORS, coverages: rules.COVERAGES },
         hitsPerBlock: rules.HITS_PER_BLOCK,
         inspectHoldMs: catalog.E.inspectHoldMs,
-        settings: { nameLabelShare: rules.NAME_LABEL_SHARE, nameMaxLength: rules.NAME_MAX_LENGTH, sound: rules.SOUND, terrain: rules.TERRAIN,
-          skinKinds: SKIN_KINDS,
-          skinAnimated: rules.SKINS.filter(s => s.rarity === 'Legendary').map(s => s.id) },   // drawn from <id>-anim.png, 4 frames   // how to draw each skin: pattern (in the owner's color) or art
+        settings: { nameLabelShare: rules.NAME_LABEL_SHARE, nameMaxLength: rules.NAME_MAX_LENGTH, sound: rules.SOUND, terrain: rules.TERRAIN },
         accounts: !!auth,                         // false when logins aren't set up on this server
         upgraded: false, loginFailed: false,      // see `flags`
         ...flags,
@@ -991,10 +987,10 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
       const c = choice || {};
       if (c.color !== undefined && !rules.COLORS.some(k => k.hex === c.color)) return reply({ error: 'Pick one of the colors shown' });
       if (c.coverage !== undefined && !rules.COVERAGES.includes(c.coverage)) return reply({ error: 'Unknown coverage' });
-      if (c.skin !== undefined) {
-        try {
-          if (!(await store.skinsFor(pool, me.pid)).some(s => s.id === c.skin && s.owned)) return reply({ error: "You don't own that skin" });
-        } catch { return reply({ error: 'Could not check your skins. Try again.' }); }
+      // Any skin but the plain look is the skins plug-in's to allow (without it, only the plain look).
+      if (c.skin !== undefined && c.skin !== 'default') {
+        const why = hooks.has('skinRefusal') ? await hooks.first('skinRefusal', me.pid, c.skin) : "You don't own that skin";
+        if (why) return reply({ error: why });
       }
       color = c.color ?? color;
       skin = c.skin ?? skin;
@@ -1054,9 +1050,8 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
       });
     });
 
-    let buying = false;   // one purchase at a time per connection (skins and upgrades)
+    let buying = false;   // one purchase at a time per connection (upgrades, land, building)
     // Prices at the level of the map this player is on (catalog.js); answers carry squares, not tenths.
-    const squaresOut = r => ({ ...r, ...(r.need !== undefined ? { need: catalog.fromTenths(r.need) } : {}) });
 
     // Settings > Show tenths: one decimal place everywhere (remembered per player).
     socket.on('showTenths', async (on, reply) => {
@@ -1192,7 +1187,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
         const known = pr.earned.filter(id => knownIds.has(id));
         const online = [...io.sockets.sockets.values()].some(s => String(s.data.me?.pid) === String(pr.id) && s.data.visible);
         reply({ id: pr.id, name: pr.name, account: pr.account, squares: pr.squares, color: pr.color, online, since: pr.created_at,
-          map: pr.map, blocks: pr.blocks, rank: pr.rank, best: pr.best, stars: { pattern: pr.star_pattern, art: pr.star_art },
+          map: pr.map, blocks: pr.blocks, rank: pr.rank, best: pr.best, ...Object.assign({}, ...hooks.collect('profile', pr)),   // plug-ins' parts (skins: stars)
           achievements: { earned: known.length, total: achievementList.length,
             recent: known.slice(0, 5).map(id => achievementList.find(d => d.id === id)).map(d => ({ id: d.id, name: d.name, description: d.description })) } });
       } catch (err) {
@@ -1215,38 +1210,6 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
       } catch (err) {
         console.error(`EMAIL UPDATES FAILED (player ${me.pid}): ${err.message}`);
         reply({ error: 'Could not save that. Try again.' });
-      }
-    });
-
-    // Stars an owned skin ({ skin, on }): one pattern and one Rare-or-better art skin per player, saved on the server.
-    socket.on('starSkin', async (p, reply) => {
-      if (typeof reply !== 'function') return;
-      if (!me.pid) return reply({ error: 'Claim a block first' });
-      const skin = rules.SKINS.find(s => s.id === p?.skin);
-      if (!skin) return reply({ error: 'Unknown skin' });
-      try { reply(await store.starSkin(pool, me.pid, skin, !!p.on)); } catch { reply({ error: 'Could not save that. Try again.' }); }
-    });
-
-    // Buys a skin with squares: { skin: id }. Answers { squares, balance } or { error, need }. Owned skins work on
-    // every map; a guest's carry over when they make an account (it's the same player).
-    socket.on('buySkin', async (p, reply) => {
-      if (typeof reply !== 'function') return;
-      if (!me.pid) return reply({ error: 'Claim a block first' });
-      const skin = rules.SKINS.find(s => s.id === p?.skin && s.enabled);
-      if (!skin) return reply({ error: 'That skin is not for sale' });
-      if (buying) return reply({ error: 'One purchase at a time' });
-      buying = true;
-      try {
-        const r = await store.buySkin(pool, me.pid, skin, catalog.skinPriceTenths(skin, map.level()));
-        if (r.error) return reply(squaresOut(r));
-        balanceChanged(me.pid, r.squares);
-        totals.bump(me.pid, 'squaresSpent', catalog.fromTenths(r.price));
-        reply({ squares: catalog.fromTenths(r.squares), balance: catalog.fromTenths(r.squares) });
-      } catch (err) {
-        console.error(`SKIN PURCHASE FAILED (player ${me.pid}, ${p?.skin}): ${err.message}`);
-        reply({ error: 'Could not buy that. Try again.' });
-      } finally {
-        buying = false;
       }
     });
 
@@ -1275,13 +1238,6 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
       } finally {
         buying = false;
       }
-    });
-
-    // The skin catalog for the Skins screen: [{ id, name, owned }].
-    socket.on('skins', async (...args) => {
-      const reply = args.at(-1);   // with or without an argument before it
-      if (typeof reply !== 'function') return;
-      try { reply(await store.skinsFor(pool, me.pid, map.level())); } catch { reply([]); }
     });
 
     // The maps this player can go to, with their place on each (store.mapsFor). Answers with an array.
