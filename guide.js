@@ -70,9 +70,6 @@ function renderGuide({ maps = [], pluginSections = () => [] } = {}) {
       buy land anywhere on the map (it needn't touch theirs). Factories and walls go with the land. ${n(E.marketFee * 100)}% of every sale is
       destroyed; the seller gets the rest. Any attack on a listed block ends its listing.</p>`);
 
-  sections.push(`<h2 id="achievements">Achievements</h2>`
-    + table(['Achievement', 'What to do', 'Reward (squares)'], economy.achievements.map(a => a.secret ? ['???', 'A secret', '?'] : [a.name, a.description, n(a.reward, 1)])));
-
   sections.push(`<h2 id="glossary">Glossary</h2>`
     + table(['Symbol', 'Name', 'What it means', 'Formula', 'Where the number lives'], (economy.glossary ?? []).map(g => [g.symbol, g.name, g.meaning, g.formula, g.home])));
 
@@ -101,7 +98,7 @@ function renderGuide({ maps = [], pluginSections = () => [] } = {}) {
     <h1>Game Guide</h1>
     <p class="sub">Every number here comes straight from the game's rules, so it's always current.</p>
     <nav>${[['play', 'Playing'], ['levels', 'Levels'], ['pay', 'Pay'], ['upgrades', 'Upgrades'],
-      ...extra.map(p => [p.id, p.title]), ['market', 'Market'], ['achievements', 'Achievements'], ['glossary', 'Glossary']].map(([id, t]) => `<a href="#${id}">${t}</a>`).join('')}</nav>
+      ...extra.map(p => [p.id, p.title]), ['market', 'Market'], ['glossary', 'Glossary']].map(([id, t]) => `<a href="#${id}">${t}</a>`).join('')}</nav>
     ${sections.join('\n')}
     <p class="links foot"><a href="/">Back to the game</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></p>
   </main>

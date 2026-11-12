@@ -20,7 +20,7 @@ before(async () => {
   ({ pool, mapId } = db = await testDb());
   // These tests tap like bots. Achievements pay nothing here, so balances stay exact (rewards: achievements-live.test.js).
   game = createGame(pool, { guestsPerIp: 2, crackDecayMs: DECAY_MS, publicUrl: 'https://territory.sarl', tapsPerSecond: 1000,
-    achievementList: rules.ACHIEVEMENTS.map(d => ({ ...d, reward: 0 })) });
+    achievementList: require('../plugins/achievements/data.json').achievements.map(d => ({ ...d, reward: 0 })) });
   await new Promise(r => game.server.listen(0, r));
   url = `http://localhost:${game.server.address().port}`;
 });
@@ -314,15 +314,15 @@ test('menu screens: skins, upgrades and achievement progress come from the real 
   const upg = await a.ask('upgrades');
   assert.deepEqual([upg.steps, upg.highest, upg.mapLevel, upg.balance], [{}, 1, 1, 0]);
   assert.deepEqual(upg.list.map(u => u.key), Object.keys(catalog.CATALOG_TIERS), 'every upgrade from the Upgrades tab');
-  const none = await a.ask('achievements');
+  const none = await a.ask('achievements:list');
   assert.equal(none.list.length, 300);
   assert.deepEqual([none.earned, none.values], [[], {}], 'a visitor has nothing yet');
   a.take(10, 28);
-  await a.next('achievement', d => d.id === 'first-block');
+  await a.next('achievements:earned', d => d.id === 'first-block');
   a.take(11, 28);
   await a.next('claim', at(11, 28));
   await new Promise(r => setTimeout(r, 300));
-  const got = await a.ask('achievements');
+  const got = await a.ask('achievements:list');
   assert.ok(got.earned.some(e => e.id === 'first-block'), JSON.stringify(got.earned));
   assert.equal(got.values.claims, 2);
   assert.equal(got.values.bestLine, 2);
@@ -402,12 +402,12 @@ test('achievements: earned once on the stat event, saved, and announced', async 
   await a.welcome;
   a.take(26, 25);
   const you = await a.next('you');
-  const first = await a.next('achievement', d => d.id === 'first-block');
+  const first = await a.next('achievements:earned', d => d.id === 'first-block');
   assert.deepEqual([first.name, first.stat, first.threshold], ['First Block', 'claims', 1]);   // rewards: achievements-live.test.js
   a.take(27, 25);
   await a.next('claim', d => d.x === 27);
   await new Promise(r => setTimeout(r, 300));
-  assert.equal(a.events.filter(([n, d]) => n === 'achievement' && d.id === 'first-block').length, 0, 'not earned twice');
+  assert.equal(a.events.filter(([n, d]) => n === 'achievements:earned' && d.id === 'first-block').length, 0, 'not earned twice');
   assert.equal(await db.count("SELECT count(*) FROM player_achievements WHERE player_id = $1 AND achievement_id = 'first-block'", [you.pid]), 1);
 });
 
@@ -451,7 +451,7 @@ test('reconnecting keeps crack progress, and a restarted server remembers stats 
   await a.welcome;
   a.take(2, 27);
   const you = await a.next('you');
-  await a.next('achievement', d => d.id === 'first-block');
+  await a.next('achievements:earned', d => d.id === 'first-block');
   a.emit('hit', { x: 3, y: 27 });
   a.emit('hit', { x: 3, y: 27 });
   await a.next('hit', d => d.x === 3 && d.p === 0.2);
@@ -473,7 +473,7 @@ test('reconnecting keeps crack progress, and a restarted server remembers stats 
   c.take(4, 27);
   await c.next('stat', d => d.name === 'firstClaims' && d.value === 3, 15000);
   await new Promise(r => setTimeout(r, 300));
-  assert.equal(c.events.filter(([n, d]) => n === 'achievement' && d.id === 'first-block').length, 0, 'First Block is not earned again');
+  assert.equal(c.events.filter(([n, d]) => n === 'achievements:earned' && d.id === 'first-block').length, 0, 'First Block is not earned again');
 });
 
 test('random play by four players: database, server and every screen agree; the map grows once per first claim', async () => {
@@ -642,12 +642,12 @@ test('profiles: what anyone can see of a player, and nothing private; their awar
   assert.equal(p.name, you.name);
   assert.equal(p.account, false);
   assert.equal(p.blocks, 1);
-  assert.ok(p.rank >= 1 && p.online && p.achievements.total === rules.ACHIEVEMENTS.length);
+  assert.ok(p.rank >= 1 && p.online && p.achievements.total === require('../plugins/achievements/data.json').achievements.length);
   assert.equal(p.best.n, 1);
   assert.ok(new Date(p.since).getFullYear() >= 2026);
   assert.deepEqual(Object.keys(p).sort(), ['account', 'achievements', 'best', 'blocks', 'color', 'id', 'map', 'name', 'online', 'rank', 'since', 'squares', 'stars'],
     'no email, sign-in method or IP');
-  const theirs = await b.timeout(15000).emitWithAck('achievements', { pid: you.pid });
+  const theirs = await b.timeout(15000).emitWithAck('achievements:list', { pid: you.pid });
   assert.ok(theirs.earned.some(e => e.id === 'first-block'), 'their awards, read-only');
   assert.deepEqual(await b.ask('profile', { pid: 999999 }), { error: 'No such player' });
 });

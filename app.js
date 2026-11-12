@@ -17,7 +17,6 @@ const { renderGuide } = require('./guide');
 const chat = require('./chat');
 const terrain = require('./public/terrain');
 const stats = require('./stats');
-const achievements = require('./achievements');
 const { createTotals } = require('./totals');
 const { createEmail } = require('./email');
 const { guestName, guestNames, checkName } = require('./names');
@@ -50,7 +49,7 @@ function guestLimiter(limit, windowMs) {
 //   auth:      from createAuth(), or null to run with guests only
 //   publicUrl: the site's address (https://territory.sarl); requests for any other host, such as www or
 //              the onrender.com address, are sent there. Unset locally.
-function createGame(pool, { startTicker = false, email = createEmail(), achievementList = achievements.DEFINITIONS, guestsPerIp = rules.GUESTS_PER_IP, crackDecayMs = rules.CRACK_DECAY_SECONDS * 1000,
+function createGame(pool, { startTicker = false, email = createEmail(), achievementList, guestsPerIp = rules.GUESTS_PER_IP, crackDecayMs = rules.CRACK_DECAY_SECONDS * 1000,
   auth = null, publicUrl = null, tapsPerSecond = null, tapLogMs = 60 * 1000, adminKey = null, plugins = null, pluginDir = pluginHost.DIR } = {}) {
   // plugins: the plug-in folders to load (names), or null for every folder in pluginDir (loop 19; tests use a fixture folder).
   // adminKey: the secret npm run admin must send (ADMIN_KEY); without it, admin commands are off.
@@ -193,47 +192,8 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
     io.to('player:' + pid).emit('stat', { map: map.id, name, value });
   }
 
-  // Achievements: checked on every stat event. Each player's earned ids are loaded once and kept in memory.
-  // An earned achievement is saved, then announced as 'achievement' on `events` and to the player's browsers.
-  const byStat = achievements.index(achievementList);
-  const earned = new Map();   // pid -> Promise of a Set of ids
-  const earnedBy = pid => {
-    if (!earned.has(pid)) {
-      earned.set(pid, store.earnedAchievements(pool, pid).then(ids => new Set(ids))
-        .catch(err => { earned.delete(pid); throw err; }));
-    }
-    return earned.get(pid);
-  };
-  const checks = new Map();   // pid -> the player's queue of checks: one at a time per player, players in parallel
-  // Each one earned pays its reward in squares; earning also counts toward the Collector achievements.
-  const knownIds = new Set(achievementList.map(d => d.id));
-  events.on('stat', ({ mapId = null, pid, name, value }) => {
-    if (!pid || !byStat.has(name)) return;
-    const queued = (checks.get(pid) ?? Promise.resolve()).then(async () => {
-      const have = await earnedBy(pid);
-      const hits = achievements.reached(byStat, name, value, have);
-      if (!hits.length) return;
-      // A deadlock with a claim at the same moment is retried once rather than losing the achievement.
-      const earn = () => store.earnAchievements(pool, pid, mapId, hits.map(d => d.id), Object.fromEntries(hits.map(d => [d.id, d.reward])));
-      const r = await earn().catch(err => { if (err.code === '40P01') return earn(); throw err; });
-      const fresh = new Set(r.fresh);
-      let secrets = 0;
-      for (const d of hits) {
-        have.add(d.id);
-        if (!fresh.has(d.id)) continue;
-        if (d.secret) secrets++;
-        const a = { id: d.id, name: d.name, category: d.category, description: d.description, reward: d.reward, secret: d.secret,
-          stat: d.stat, threshold: d.threshold, mapId };
-        events.emit('achievement', { pid, ...a });
-        io.to('player:' + pid).emit('achievement', a);
-      }
-      if (r.squares !== null) balanceChanged(pid, r.squares);
-      if (fresh.size) totals.best(pid, 'achievements', [...have].filter(id => knownIds.has(id)).length);
-      if (secrets) totals.bump(pid, 'secrets', secrets);
-    }).catch(err => console.error(`ACHIEVEMENT CHECK FAILED (player ${pid}): ${err.message}`));
-    checks.set(pid, queued);
-    queued.then(() => { if (checks.get(pid) === queued) checks.delete(pid); });
-  });
+  // Plug-ins hear every stat change (the stat hook: achievements).
+  events.on('stat', e => hooks.runSync('stat', e));
 
   // The server tick (ticker.js): timers (and plug-ins' timed things: factories), caught up after every sleep.
   const ticker = createTicker(pool, { seconds: catalog.E.tickSeconds });
@@ -241,12 +201,12 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
   // Lifetime totals (totals.js), checked like any other stat.
   const totals = createTotals(pool, { onStat: (pid, name, value) => events.emit('stat', { pid, name, value }) });
 
-  // A player's balance changed (claims, purchases, rewards, admin): every device, and the Saving achievements.
+  // A player's balance changed (claims, purchases, rewards, admin): every device, the Saving stat, and plug-ins.
   function balanceChanged(pid, balance) {
     for (const s of io.sockets.sockets.values()) if (String(s.data.me?.pid) === String(pid)) s.data.me.squares = balance;
     io.to('player:' + pid).emit('squares', catalog.fromTenths(balance));
     totals.best(pid, 'squaresHeld', rules.shownSquares(balance));
-    if (rules.shownSquares(balance) === 1337) totals.best(pid, 'secret:leet', 1);
+    hooks.runSync('balance', pid, balance);
   }
 
   // A block as the info card shows it, for player `pid` (with `upgrades`): coordinates, terrain, level and
@@ -354,23 +314,6 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
   }
 
 
-  // Every stat an achievement can use, as it stands now: lifetime totals, upgrade levels, records on any map,
-  // maps played, achievements earned. For the Achievements screen, and to catch up on connecting.
-  async function progressValues(pid, levels, account) {
-    const [values, progress, played] = await Promise.all([totals.values(pid), store.achievementProgress(pool, pid), store.mapsPlayed(pool, pid)]);
-    const out = { ...values, owned: progress.best.owned, bestSquare: progress.best.bestSquare, bestLine: progress.best.bestLine,
-      mapsPlayed: played, achievements: progress.earned.filter(e => knownIds.has(e.id)).length };
-    for (const k of Object.keys(catalog.CATALOG_TIERS)) out['level:' + k] = upgrades.tierOfStep(k, levels[k] ?? 0);   // each upgrade's tier
-    out.tiers = Object.keys(catalog.CATALOG_TIERS).reduce((n, k) => n + (levels[k] ?? 0), 0);   // steps bought in all
-    if (account) out.account = 1;
-    return { values: out, earned: progress.earned };
-  }
-  // Earns anything a player has already reached (e.g. new achievements, or progress from before they existed).
-  async function catchUp(pid, levels, account) {
-    const { values } = await progressValues(pid, levels, account);
-    for (const [name, value] of Object.entries(values)) events.emit('stat', { pid, name, value });
-  }
-
   // Rank and reign: on maps where enough players own blocks, a player's place, and a minute at #1 for the
   // leader each minute.
   // A tie counts against you (two players level at the top are both #2), and a rank only counts with at least
@@ -381,16 +324,12 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
     const mine = map.counts.get(pid) || 0;
     return mine >= rules.RANK_MIN_BLOCKS ? counts.filter(n => n >= mine).length : null;
   };
-  const lostTo = new Map();     // "pid|map|x,y" -> { by, at }: who took a block from whom, for Revenge
-  const comeback = new Set();   // "pid|map": lost every block there to others (Comeback Kid)
   const reign = setInterval(() => {
     for (const map of loaded) {
       const top = [...map.counts].filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]);
       if (top.length < rules.RANK_MIN_PLAYERS || top[0][1] === top[1][1] || top[0][1] < rules.RANK_MIN_BLOCKS) continue;
       totals.bump(top[0][0], 'reignMinutes', 1);
     }
-    const old = Date.now() - 60000;
-    for (const [k, v] of lostTo) if (v.at < old) lostTo.delete(k);
   }, 60000);
   reign.unref();
 
@@ -648,10 +587,10 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
     if (me.pid) {
       if (me.account) totals.best(me.pid, 'account', 1);
       if (me.tutorial?.done) totals.best(me.pid, 'tutorialDone', 1);
-      catchUp(me.pid, mySteps, me.account).catch(err => console.error(`CATCH-UP FAILED (player ${me.pid}): ${err.message}`));
+      hooks.runSync('connected', { pid: me.pid, steps: mySteps, account: me.account });   // plug-ins: achievements catch up
     }
-    // This visit, for the Sessions achievements and some secrets.
-    const session = { claims: 0, recent: [], forestRun: 0, pokes: 0, minute: null, visitorTaps: 0, spare: 0 };
+    // This visit, for the Sessions stats; visit: plug-ins' own notes on it (achievements' secrets).
+    const session = { claims: 0, minute: null, visitorTaps: 0, spare: 0 }, visit = {};
     socket.data.visible = true;
     socket.on('disconnect', () => { if (me.pid) totals.save(me.pid); sendOnline(map); });
     // The browser says when its tab is shown or hidden (online dots).
@@ -787,9 +726,9 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
       claimStats({ x, y, k, from, ground, grown: r.grown.length, earned: r.squares !== null ? catalog.fromTenths(earn) : 0, joinedMap: r.joinedMap });
     }
 
-    // What a claim counts toward: lifetime totals, records, rank, and the secrets.
+    // What a claim counts toward: lifetime totals, records and rank; then plug-ins hear of it (the secrets).
     function claimStats({ x, y, k, from, ground, grown, earned, joinedMap }) {
-      const pid = me.pid, now = Date.now(), here = map.id + '|';
+      const pid = me.pid, now = Date.now();
       if (ground !== 'grass') totals.bump(pid, 'terrain:' + ground);
       if (from === null) {
         totals.bump(pid, 'claims');
@@ -798,16 +737,10 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
         totals.bump(pid, 'mapGrown', grown);
         totals.bump(pid, 'growthBlocks', Math.max(0, grown - 1));
         totals.bump(pid, 'squaresEarned', earned);
-        session.recent = [...session.recent.filter(t => now - t < 60000), now];
-        if (session.recent.length >= 10) totals.best(pid, 'secret:speedrun', 1);
       } else {
         totals.bump(pid, 'taken');
         totals.bump(from, 'lost');
-        const mine = lostTo.get(pid + '|' + here + k);
-        if (mine && String(mine.by) === String(from) && now - mine.at <= 60000) totals.best(pid, 'secret:revenge', 1);
-        lostTo.set(from + '|' + here + k, { by: pid, at: now });
         if (!map.counts.get(from)) {
-          comeback.add(from + '|' + map.id);
           // Their last block here: they die on this map (loop 13).
           store.endLife(pool, from, map.id, pid, x, y).then(life => life && announceDeath(from, map.id, life))
             .catch(err => console.error(`DEATH FAILED (player ${from}): ${err.message}`));
@@ -815,14 +748,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
         const theirs = rankOn(map, from);
         if (theirs) totals.best(from, 'bestRank', theirs);
       }
-      session.forestRun = ground === 'forest' ? session.forestRun + 1 : 0;
-      if (session.forestRun >= 25) totals.best(pid, 'secret:treehugger', 1);
-      if (map.seed && rules.NEIGHBORS.every(([dx, dy]) => map.terrainAt(x + dx, y + dy) === 'water')) totals.best(pid, 'secret:castaway', 1);
-      if (new Date(now).getUTCHours() === 3) totals.best(pid, 'secret:witching', 1);
-      if (comeback.has(pid + '|' + map.id) && (map.counts.get(pid) || 0) >= 100) {
-        comeback.delete(pid + '|' + map.id);
-        totals.best(pid, 'secret:comeback', 1);
-      }
+      hooks.runSync('claimed', map, pid, { x, y, k, from, ground, now, visit });
       const rank = rankOn(map, pid);
       if (rank) totals.best(pid, 'bestRank', rank);
       store.lifeClaim(pool, pid, map.id, map.counts.get(pid) || 0, earned).catch(err => console.error(`LIFE FAILED (player ${pid}): ${err.message}`));
@@ -844,7 +770,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
         if (error === 'You already own this block') {
           if (map.hits.has(k)) return repair(x, y);
           if (hooks.first('ownTap', map, me.pid, x, y, powerOn(x, y))) return totals.bump(me.pid, 'taps');
-          if (++session.pokes === 50) totals.best(me.pid, 'secret:poke', 1);
+          hooks.runSync('poke', me.pid, visit);   // plug-ins: the Poke secret
           return;
         }
         return socket.emit('denied', error);
@@ -922,8 +848,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
         if (!r) return socket.emit('denied', 'You have no blocks to wipe');
         totals.bump(me.pid, 'wipes');
         store.endLife(pool, me.pid, here.id).catch(() => {});   // a wipe ends the life, but isn't a death
-        if (r.cells.length >= 1000) totals.best(me.pid, 'secret:wipedout', 1);
-        comeback.delete(me.pid + '|' + here.id);
+        hooks.runSync('wiped', here, me.pid, r.cells.length);
       }).catch(err => {
         console.error(`WIPE FAILED (map ${here.id}, player ${me.pid}): ${err.message}`);
         socket.emit('denied', 'Could not wipe your territory. Try again.');
@@ -955,7 +880,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
       chats.set(map.id, list);
       io.to(map.room).emit('chat', msg);
       totals.bump(me.pid, 'chatMessages');
-      if (text.toLowerCase().replace(/[^a-z]+/g, ' ').trim() === 'hello world') totals.best(me.pid, 'secret:helloworld', 1);
+      hooks.runSync('chat', me.pid, text);
       reply({});
     });
 
@@ -965,13 +890,13 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
       if (!me.pid) return reply({ error: 'You have no progress to reset' });
       const pid = me.pid;
       try {
-        const hooks = adminHooks();
+        const admin = adminHooks();
         const r = await store.resetProgress(pool, pid);
         totals.forget(pid);
-        earned.delete(pid);
+        hooks.runSync('progressReset', pid);   // plug-ins forget what they keep for the player (achievements' earned ids)
         reply({ ok: true });
-        hooks.kick([pid], 'reset', 'Your progress was reset. Reload the page to start again.');
-        await hooks.reloadMaps(r.maps);
+        admin.kick([pid], 'reset', 'Your progress was reset. Reload the page to start again.');
+        await admin.reloadMaps(r.maps);
       } catch (err) {
         console.error(`RESET FAILED (player ${pid}): ${err.message}`);
         reply({ error: 'Could not reset your progress. Try again.' });
@@ -998,25 +923,6 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
       reply({ color, skin, coverage });
     });
 
-    // The Achievements screen: { list: [{ id, name, stat, threshold }], earned: [{ id, map }], best: { stat: value } }.
-    socket.on('achievements', async (...args) => {
-      const reply = args.at(-1);   // with or without an argument before it
-      if (typeof reply !== 'function') return;
-      // Secret ones show as "???" until earned.
-      const shown = got => achievementList.map(d => d.secret && !got.has(d.id)
-        ? { id: d.id, name: '???', category: d.category, secret: true, stat: null, threshold: 1, reward: null, description: 'A secret achievement' }
-        : { id: d.id, name: d.name, category: d.category, secret: d.secret, stat: d.stat, threshold: d.threshold, reward: d.reward, description: d.description });
-      // Another player's (read-only, from their profile): { pid } before the reply.
-      const other = args.length > 1 && args[0]?.pid && String(args[0].pid) !== String(me.pid) ? args[0].pid : null;
-      const pid = other ?? me.pid;
-      if (!pid) return reply({ list: shown(new Set()), earned: [], values: {} });
-      try {
-        const theirs = other ? (await pool.query('SELECT upgrade_steps, highest_level, auth_user_id FROM players WHERE id = $1', [other])).rows[0] : null;
-        const levels = theirs ? upgradesOf(theirs) : mySteps, account = theirs ? !!theirs.auth_user_id : me.account;
-        const { values, earned: rows } = await progressValues(pid, levels, account);
-        reply({ list: shown(new Set(rows.map(e => e.id))), earned: rows, values });
-      } catch { reply({ error: 'Could not load achievements. Try again.' }); }
-    });
 
     // The Upgrades screen: this player's levels and what each level does, from rules.js.
     // steps: { key: steps owned } (missing = 0); highest: the highest block level they've ever first-claimed (unlocks);
@@ -1184,12 +1090,10 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
       try {
         const pr = await store.profile(pool, p?.pid ?? me.pid);
         if (!pr) return reply({ error: 'No such player' });
-        const known = pr.earned.filter(id => knownIds.has(id));
         const online = [...io.sockets.sockets.values()].some(s => String(s.data.me?.pid) === String(pr.id) && s.data.visible);
         reply({ id: pr.id, name: pr.name, account: pr.account, squares: pr.squares, color: pr.color, online, since: pr.created_at,
-          map: pr.map, blocks: pr.blocks, rank: pr.rank, best: pr.best, ...Object.assign({}, ...hooks.collect('profile', pr)),   // plug-ins' parts (skins: stars)
-          achievements: { earned: known.length, total: achievementList.length,
-            recent: known.slice(0, 5).map(id => achievementList.find(d => d.id === id)).map(d => ({ id: d.id, name: d.name, description: d.description })) } });
+          map: pr.map, blocks: pr.blocks, rank: pr.rank, best: pr.best, ...Object.assign({}, ...hooks.collect('profile', pr)),   // plug-ins' parts (skins: stars; achievements)
+        });
       } catch (err) {
         console.error(`PROFILE FAILED (${p?.pid}): ${err.message}`);
         reply({ error: 'Could not load that profile. Try again.' });
@@ -1295,7 +1199,9 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
     spend: (c, pid, tenths, reason) => store.spend(c, pid, tenths, reason),
     serial,                                                   // runs fn after everything queued on that map
     money: { changed: (pid, tenths) => balanceChanged(pid, tenths) },
-    stats: { bump: (pid, name, n) => totals.bump(pid, name, n) },
+    stats: { bump: (pid, name, n) => totals.bump(pid, name, n), best: (pid, name, v) => totals.best(pid, name, v), values: pid => totals.values(pid),
+      changed: (pid, name, value) => events.emit('stat', { pid, name, value }) },   // changed: re-announce a value (achievements' catch-up)
+    options: { achievementList },                             // createGame's options a plug-in reads (tests' achievement lists)
     toPlayer: (pid, event, data) => io.to('player:' + pid).emit(event, data),
     toMap: (map, event, data) => io.to(map.room).emit(event, data),
     builders: { add: (kind, fn, reason) => { builders[kind] = fn; fn.reason = reason; } },

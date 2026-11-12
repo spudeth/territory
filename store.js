@@ -305,40 +305,7 @@ function wipeTerritory(pool, mapId, playerId) {
 module.exports = { hashToken, findPlayerByToken, accountPlayer, renamePlayer, defaultMapId, loadMap, cellOwner, setLastMap,
   growMap, rebuildEdges, claimBlock, wipeTerritory };
 
-// Achievement ids a player has earned.
-async function earnedAchievements(pool, playerId) {
-  const { rows } = await pool.query('SELECT achievement_id FROM player_achievements WHERE player_id = $1', [playerId]);
-  return rows.map(r => r.achievement_id);
-}
-
-// Records achievements; returns the ids that were new (not already earned).
-// rewards: { id: squares } for the ids given. Each newly earned one pays its reward (ledger 'achievement:<id>').
-// Returns { fresh: the ids that were new, squares: the new exact balance, or null if nothing was paid }.
-function earnAchievements(pool, playerId, mapId, ids, rewards = {}) {
-  return tx(pool, async c => {
-    // Locks: only a key-share lock on the player (it waits for an account being deleted, so a deleted account
-    // earns nothing more, but never for a claim), and no map: a claim holds its map while it updates the player,
-    // so touching the map here could deadlock. mapId is not stored for that reason.
-    void mapId;
-    const { rows: [who] } = await c.query('SELECT deleted_at FROM players WHERE id = $1 FOR KEY SHARE', [playerId]);
-    if (!who || who.deleted_at) return { fresh: [], squares: null };
-    const { rows } = await c.query(
-      `INSERT INTO player_achievements (player_id, achievement_id) SELECT $1, unnest($2::text[])
-       ON CONFLICT DO NOTHING RETURNING achievement_id`, [playerId, ids]);
-    const fresh = rows.map(r => r.achievement_id);
-    let squares = null;
-    for (const id of fresh) {
-      const pay = catalog.toTenths(Number(rewards[id]) || 0);
-      if (!pay) continue;
-      const { rows: [p] } = await c.query('UPDATE players SET squares = squares + $2 WHERE id = $1 AND deleted_at IS NULL RETURNING squares', [playerId, pay]);
-      if (!p) continue;
-      await c.query('INSERT INTO square_ledger (player_id, delta, balance_after, reason) VALUES ($1, $2, $3, $4)',
-        [playerId, pay, p.squares, 'achievement:' + id]);
-      squares = Number(p.squares);
-    }
-    return { fresh, squares };
-  });
-}
+// Achievements: the achievements plug-in (plugins/achievements, loop 19).
 
 // A player's lifetime totals (totals.js): { stat: value }.
 async function loadTotals(pool, playerId) {
@@ -358,7 +325,7 @@ async function mapsPlayed(pool, playerId) {
   return r.n;
 }
 
-Object.assign(module.exports, { earnedAchievements, earnAchievements, loadTotals, saveTotals, mapsPlayed });
+Object.assign(module.exports, { loadTotals, saveTotals, mapsPlayed });
 
 // The maps players can go to (official ones; purchased and VIP maps come later), oldest first.
 async function listMaps(pool) {
@@ -430,19 +397,6 @@ Object.assign(module.exports, { STYLES, listMaps, createMap, mapsFor });
 
 // Skins: the skins plug-in (plugins/skins, loop 19).
 
-// For the Achievements screen: a player's best value of each stat on any map (the progress shown), and the
-// achievements they have earned with the map each was earned on.
-async function achievementProgress(pool, playerId) {
-  const [best, earned] = await Promise.all([
-    pool.query(`SELECT max(owned_max) AS "owned", max(first_claims) AS "firstClaims", max(retakes) AS "retakes",
-      max(blocks_lost) AS "blocksLost", max(best_square) AS "bestSquare", max(best_line) AS "bestLine"
-      FROM player_map_stats WHERE player_id = $1`, [playerId]),
-    pool.query(`SELECT a.achievement_id AS id, m.name AS map FROM player_achievements a LEFT JOIN maps m ON m.id = a.map_id
-      WHERE a.player_id = $1`, [playerId]),
-  ]);
-  return { best: Object.fromEntries(Object.entries(best.rows[0]).map(([k, v]) => [k, v ?? 0])), earned: earned.rows };
-}
-
 // Saves a player's tutorial progress ({ step, done, tips }; checked by the caller).
 async function saveTutorial(pool, playerId, progress) {
   await pool.query('UPDATE players SET tutorial = $2 WHERE id = $1', [playerId, JSON.stringify(progress)]);
@@ -486,7 +440,7 @@ async function logTapLimits(pool, entries) {
     [entries.map(e => e[0]), entries.map(e => e[1])]);
 }
 
-Object.assign(module.exports, { achievementProgress, saveTutorial, buySteps, logTapLimits });
+Object.assign(module.exports, { saveTutorial, buySteps, logTapLimits });
 
 // ---------- Admin (npm run admin; admin.js) ----------
 

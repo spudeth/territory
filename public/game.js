@@ -777,8 +777,7 @@ socket.on('squares', n => {
   if (n > 0) tell('squares', n);
   if (view === 'upgrades') fills.upgrades();   // menu.js: what can be afforded now
 });
-socket.on('stat', d => onStat(d));                  // menu.js
-socket.on('achievement', a => onAchievement(a));    // menu.js
+socket.on('stat', d => Plugins.run('stat', d));     // plug-ins: achievements' progress
 socket.on('denied', msg => {
   if (msg === 'You already own this block') return;   // an older server: tapping your own block is silent
   toast(msg);

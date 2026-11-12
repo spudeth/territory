@@ -25,8 +25,6 @@ test('the saved sheet passes and reads every tab as shown; retired Game Rules ke
     'Upgrades: no "Variable" column yet; using the variables agreed in Q39']);
   assert.equal(e.rules.hitsPerBlock, 10);
   assert.equal(e.rules.squaresPerFirstClaim, undefined);
-  assert.equal(e.achievements.length, 300);
-  assert.deepEqual(e.achievements[0], { id: 'first-block', name: 'First Block', category: 'Claiming', stat: 'claims', threshold: 1, secret: false, description: 'Claim 1 empty block', reward: 0.5 });
   assert.equal(e.economy.defaultBaseBlocks, 431649);
   assert.equal(e.economy.marketFee, 0.05);
   // Loop 19: Economy only; the Walls and Factories tabs are their plug-ins' (plugins/<name>/test).
@@ -165,27 +163,6 @@ test('Game Rules keys: unknown, missing, twice, out of range and not whole are r
   check(setCell(rules, row('hitsPerBlock'), 1, '10.5'), 'Game Rules, cell B2 ("Value"): hitsPerBlock must be a whole number, not 10.5');
   check(setCell(rules, row('crackFadeSeconds'), 1, ''), 'Game Rules, cell B3 ("Value"): blank (crackFadeSeconds)');
   check(setCell(rules, row('crackFadeSeconds'), 2, ''), 'Game Rules, cell C3 ("What it means"): blank');
-});
-
-test('the Achievements tab: bad rows are named by cell; a missing tab is refused', () => {
-  const tabs = saved();
-  const lines = tabs['Achievements'].split('\n');
-  lines[1] = lines[2].replace(/^claims-5,/, 'claims-5,');                // a duplicate key
-  lines[3] = 'Bad Key,Name,Claiming,claims,1,,Desc,5';
-  lines[4] = 'ok-key,Name,Claiming,flying,1,,Desc,5';
-  lines[5] = 'ok-key-2,Name,Claiming,claims,0,maybe,,-1';
-  tabs['Achievements'] = lines.join('\n');
-  const errors = errorsWith(tabs);
-  assert.ok(errors.some(e => /Achievements, cell A\d+ \("Key"\): "claims-5" appears twice/.test(e)), errors.join('\n'));
-  assert.ok(errors.some(e => /"Bad Key" must be lower-case/.test(e)));
-  assert.ok(errors.some(e => /unknown stat "flying"/.test(e)));
-  assert.ok(errors.some(e => /"0" must be a number above 0/.test(e)));
-  assert.ok(errors.some(e => /"maybe" must be yes, no or blank/.test(e)));
-  assert.ok(errors.some(e => /\("Description"\): blank/.test(e)));
-  assert.ok(errors.some(e => /"-1" must be a number of squares/.test(e)));
-  const missing = saved();
-  delete missing['Achievements'];
-  assert.deepEqual(errorsWith(missing), ['Achievements: the tab is missing']);
 });
 
 test('the Upgrades tab\'s Variable column (loop 19): any upgrade is a row; one variable each; unknown variables are warned, not refused', () => {

@@ -1,11 +1,8 @@
-// Achievements, defined as data: the Achievements tab of Xoren's sheet (data/economy.json, via npm run sync-rules).
+// Achievements, defined as data: the Achievements tab of Xoren's sheet (this plug-in's data.json, via npm run sync-rules).
 // Each is earned once per player, the first time one of their stats reaches its threshold, and pays its reward
 // in squares. Stats are listed in economy.js (STATS); most count up, bestRank counts down ("#3 or better").
 // Ids are stored in the database: never reuse or rename one; add new ones instead.
-const rules = require('./rules');
-
-const DEFINITIONS = rules.ACHIEVEMENTS;
-const COUNTS_DOWN = new Set(['bestRank']);
+const { COUNTS_DOWN } = require('../../totals');   // the core's: bestRank counts down
 
 // The checks a stat event needs, found by stat name so hundreds of definitions stay cheap.
 function index(definitions) {
@@ -26,4 +23,4 @@ const meets = (stat, value, threshold) => COUNTS_DOWN.has(stat) ? value > 0 && v
 const reached = (byStat, stat, value, earned) =>
   (byStat.get(stat) || []).filter(d => meets(stat, value, d.threshold) && !earned.has(d.id));
 
-module.exports = { DEFINITIONS, COUNTS_DOWN, index, meets, reached };
+module.exports = { COUNTS_DOWN, index, meets, reached };

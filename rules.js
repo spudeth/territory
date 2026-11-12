@@ -40,7 +40,6 @@ const settings = {
     effectsVolume: R.defaultEffectsVolume, musicVolume: R.defaultMusicVolume },
 
   // Achievements (the sheet's Achievements tab): [{ id, name, category, stat, threshold, secret, description, reward }]
-  ACHIEVEMENTS: economy.achievements ?? [],
   // Items (the sheet's Items tab): [{ id, name, description, price, uses, perMinutes, effect, value, seconds, enabled }]
   // Rank and reign achievements count only on maps where at least this many players own blocks.
   RANK_MIN_PLAYERS: R.rankMinPlayers,

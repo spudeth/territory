@@ -2,7 +2,7 @@
 // (the stat names are STATS in economy.js). Kept in memory and saved to player_totals every few seconds and
 // when a player leaves, so busy stats like taps don't cost a database write each.
 const store = require('./store');
-const { COUNTS_DOWN } = require('./achievements');
+const COUNTS_DOWN = new Set(['bestRank']);   // stats where lower is better (#3 beats #10)
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -75,4 +75,4 @@ function createTotals(pool, { onStat, saveMs = 15000 } = {}) {
   return { bump: safe(bump), best: safe(best), touchDay: safe(touchDay), values, save, forget, stop };
 }
 
-module.exports = { createTotals };
+module.exports = { createTotals, COUNTS_DOWN };

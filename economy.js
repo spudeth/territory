@@ -5,8 +5,6 @@
 // The upgrade tabs and the columns read from each (other columns are the sheet's own working).
 const RULES_TAB = 'Game Rules';
 const RULES_COLUMNS = ['Key', 'Value', 'What it means'];
-const ACHIEVEMENTS_TAB = 'Achievements';
-const ACHIEVEMENT_COLUMNS = ['Key', 'Name', 'Category', 'Stat', 'Threshold', 'Secret', 'Description', 'Reward'];
 const int = (min, max = Infinity) => ({ integer: true, min, max });
 const num = (min, max = Infinity) => ({ integer: false, min, max });
 // Loop 16: the new economy tabs. Each is optional in the sheet: a missing tab keeps its part of data/economy.json.
@@ -21,7 +19,7 @@ const GLOSSARY_COLUMNS = ['Symbol', 'Name', 'What it means', 'Formula', 'Where t
 // (an older sheet), the names agreed in Q39 are used.
 const VARIABLE_COLUMN = 'Variable';
 const TIER_FIELDS = ['variable', 'start', 'max1', 'mult', 'tiers', 'steps', 'tierWh', 'priceCurve', 'gainCurve'];   // what describeChanges compares
-const TABS = [RULES_TAB, ACHIEVEMENTS_TAB, ECONOMY_TAB, TIERS_TAB, GLOSSARY_TAB];
+const TABS = [RULES_TAB, ECONOMY_TAB, TIERS_TAB, GLOSSARY_TAB];
 // Old tabs the sync no longer reads (loop 16): Inputs, Summary, Click Power, Defense, Earnings, Growth.
 // Game Rules keys still allowed but ignored, with a warning.
 const RETIRED_RULES = ['squaresPerFirstClaim', 'newMapBlocks'];
@@ -185,32 +183,7 @@ function validate(tabs, { variables = require('./variables').declared() } = {}) 
     for (const k of RETIRED_RULES) if (seen.has(k)) { warnings.push(`${RULES_TAB}: "${k}" is retired and ignored; the row can be deleted`); delete rules[k]; }
     for (const k of Object.keys(RULE_KEYS)) if (!seen.has(k) && !RETIRED_RULES.includes(k)) errors.push(`${RULES_TAB}: no row for "${k}"`);
   }
-  // Achievements: one row each. Secret: "yes" hides it until earned (blank or "no" otherwise).
-  const achievements = [], keys = new Set();
-  const a = table(ACHIEVEMENTS_TAB, ACHIEVEMENT_COLUMNS);
-  if (a) {
-    const T = ACHIEVEMENTS_TAB;
-    a.rows.forEach((r, i) => {
-      const row = i + 1, cell = j => (r[a.at[j]] ?? '').trim(), at = j => where(T, a.at[j], row, ACHIEVEMENT_COLUMNS[j]);
-      const [key, name, category, stat, rawThreshold, rawSecret, description, rawReward] = ACHIEVEMENT_COLUMNS.map((c, j) => cell(j));
-      const bad = [];
-      if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(key)) bad.push(`${at(0)}: "${key}" must be lower-case letters, digits and dashes`);
-      else if (keys.has(key)) bad.push(`${at(0)}: "${key}" appears twice`);
-      keys.add(key);
-      if (!name) bad.push(`${at(1)}: blank`);
-      else if (name.length > 40) bad.push(`${at(1)}: at most 40 characters`);
-      if (!category) bad.push(`${at(2)}: blank`);
-      if (!STATS.includes(stat)) bad.push(`${at(3)}: unknown stat "${stat}" (one of: ${STATS.join(', ')})`);
-      const threshold = parseNumber(rawThreshold), reward = parseNumber(rawReward);
-      if (threshold === null || !(threshold > 0)) bad.push(`${at(4)}: "${rawThreshold}" must be a number above 0`);
-      if (!/^(|yes|no|true|false)$/i.test(rawSecret)) bad.push(`${at(5)}: "${rawSecret}" must be yes, no or blank`);
-      if (!description) bad.push(`${at(6)}: blank`);
-      if (reward === null || reward < 0) bad.push(`${at(7)}: "${rawReward}" must be a number of squares, 0 or more`);
-      if (bad.length) return errors.push(...bad);
-      achievements.push({ id: key, name, category, stat, threshold, secret: /^(yes|true)$/i.test(rawSecret), description, reward });
-    });
-    if (!a.rows.length) errors.push(`${T}: no achievements below the header row`);
-  }
+  // Achievements: the achievements plug-in's tab (plugins/achievements/data.js, loop 19).
   // Skins and Skin Rarity: the skins plug-in's (plugins/skins/data.js, loop 19).
   // The loop 16 tabs. Each one found by its header row; a missing one is left out, and the sync keeps that part
   // of data/economy.json.
@@ -282,7 +255,7 @@ function validate(tabs, { variables = require('./variables').declared() } = {}) 
     });
   }
   const parts = { ...(economyRules ? { economy: economyRules } : {}), ...(tiers ? { tiers } : {}), ...(glossary ? { glossary } : {}) };
-  return errors.length ? { economy: null, errors, warnings } : { economy: { rules, achievements, ...parts }, errors, warnings };
+  return errors.length ? { economy: null, errors, warnings } : { economy: { rules, ...parts }, errors, warnings };
 }
 
 function describeChanges(before, after) {
@@ -306,7 +279,7 @@ function describeChanges(before, after) {
     const parts = TIER_FIELDS.filter(f => JSON.stringify(a[f]) !== JSON.stringify(b[f])).map(f => `${f} ${fmt(a[f])} → ${fmt(b[f])}`);
     if (parts.length) lines.push(`${b.name}: ${parts.join('; ')}`);
   }
-  // Rows by id: achievements; the glossary. (Plug-ins' data: each says whether it changed.)
+  // Rows by id: the glossary. (Plug-ins' data: each says whether it changed.)
   const rows = (label, a = [], b) => {
     if (!b) return;
     const was = new Map(a.map(d => [d.id ?? d.symbol, JSON.stringify(d)])), now = new Map(b.map(d => [d.id ?? d.symbol, JSON.stringify(d)]));
@@ -317,9 +290,8 @@ function describeChanges(before, after) {
         + (removed.length && removed.length <= 10 ? ` (removed: ${removed.join(', ')})` : ''));
     }
   };
-  rows('Achievements', before?.achievements, after.achievements);
   rows('Glossary', before?.glossary, after.glossary);
   return lines.length ? lines : ['No changes.'];
 }
 
-module.exports = { sheetKit, ECONOMY_TAB, TIERS_TAB, GLOSSARY_TAB, VARIABLE_COLUMN, TIER_COLUMNS, ECONOMY_KEYS, RETIRED_RULES, RETIRED_ECONOMY, NEW_ECONOMY, RULES_TAB, ACHIEVEMENTS_TAB, STATS, TABS, RULE_KEYS, parseCsv, parseNumber, validate, describeChanges };
+module.exports = { sheetKit, ECONOMY_TAB, TIERS_TAB, GLOSSARY_TAB, VARIABLE_COLUMN, TIER_COLUMNS, ECONOMY_KEYS, RETIRED_RULES, RETIRED_ECONOMY, NEW_ECONOMY, RULES_TAB, STATS, TABS, RULE_KEYS, parseCsv, parseNumber, validate, describeChanges };

@@ -16,13 +16,16 @@
     $('pf-color').style.background = p.color || '#888';
     $('pf-tag').textContent = p.account ? 'ACCOUNT' : 'GUEST';
     $('pf-online').hidden = !p.online;
-    $('pf-ach').textContent = `${p.achievements.earned} / ${p.achievements.total}`;
+    // Achievements (the achievements plug-in's part of the profile): shown only when it's there.
+    const ach = p.achievements;
+    for (const el of [$('pf-ach'), $('pf-ach').previousElementSibling, $('pf-recent').parentElement]) el.hidden = !ach;
+    if (ach) $('pf-ach').textContent = `${ach.earned} / ${ach.total}`;
     $('pf-best').textContent = p.best ? `${p.best.n.toLocaleString()} on ${p.best.map}` : 'None yet';
     $('pf-squares').textContent = fmtSq(p.squares);
     $('pf-now').textContent = p.map ? `${p.map}: ${p.blocks.toLocaleString()} block${p.blocks === 1 ? '' : 's'}${p.rank ? ` · #${p.rank}` : ''}` : '—';
     const since = new Date(p.since);
     $('pf-since').textContent = `${MONTHS[since.getMonth()]} ${since.getFullYear()}`;
-    $('pf-recent').replaceChildren(...(p.achievements.recent.length ? p.achievements.recent.map(a => {
+    if (ach) $('pf-recent').replaceChildren(...(ach.recent.length ? ach.recent.map(a => {
       const li = document.createElement('li');
       li.textContent = a.name;
       li.append(Object.assign(document.createElement('span'), { textContent: a.description }));
