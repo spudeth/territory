@@ -835,7 +835,7 @@ div{background:#1b2230;padding:24px;max-width:420px;box-shadow:0 0 0 3px #0a0d12
       const level = map.birth.get(k) ?? 1;
       const need = rules.hitsNeeded(owner ? tiersOn(map.players.get(owner)?.upgrades, level) : null, map.terrainAt(x, y), level);
       // Hit power left over from the tap that took the last block counts toward the next one, so a higher Click
-      // Power level never wastes power (GAME-RULES.md).
+      // Power level never wastes power (the Game Guide: Taking blocks).
       if (h?.by !== by) { map.hits.set(k, h = { by, n: session.spare }); session.spare = 0; }
       h.at = now;
       h.need = need;

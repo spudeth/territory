@@ -1,5 +1,5 @@
 // npm run admin -- <command> [words] [--options]: runs an admin command through the live game server.
-//   npm run admin -- help                       every command, in plain English (ADMIN.md has more)
+//   npm run admin -- help                       every command, in plain English (docs/ADMIN.md has more)
 //   npm run admin -- wipe-map Grass             the dev server (http://localhost:3030 unless ADMIN_DEV_URL says otherwise)
 //   npm run admin -- wipe-map Grass --prod      the live game (https://territory.sarl unless ADMIN_PROD_URL says otherwise)
 //   --yes skips typing the name to confirm; never the backup or the log.
@@ -50,7 +50,7 @@ async function main(argv, io) {
     }
     return p.command && p.command !== 'help' ? 1 : 0;
   }
-  if (!env.ADMIN_KEY) { print('No ADMIN_KEY: put ADMIN_KEY=… in the .env.admin file (see ADMIN.md, one-time setup).'); return 1; }
+  if (!env.ADMIN_KEY) { print('No ADMIN_KEY: put ADMIN_KEY=… in the .env.admin file (see docs/ADMIN.md, one-time setup).'); return 1; }
   const where = target(env, p.prod);
   print(`[${where.name === 'prod' ? 'PRODUCTION: the live game' : 'dev'} — ${where.url}]`);
 
