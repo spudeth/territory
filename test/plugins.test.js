@@ -69,3 +69,15 @@ test('no plug-ins at all: plain tap-to-claim works, and the welcome lists none',
   assert.equal(claimed.pid, pid);
   assert.deepEqual(bare.plugins, []);
 });
+
+test('the browser host loads a fingerprinted stylesheet as a stylesheet and scripts in order (loop 19)', () => {
+  const vm = require('vm'), fs = require('fs'), path = require('path');
+  const added = [];
+  const el = tag => ({ tag });
+  const document = { createElement: el, head: { append: e => added.push(['head', e]) }, body: { append: e => added.push(['body', e]) } };
+  const ctx = vm.createContext({ document, console });
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'public', 'plugins.js'), 'utf8') + '\nthis.Plugins = Plugins;', ctx);
+  ctx.Plugins.load([{ name: 'items', files: ['/plugins/items/text.js?v=1a2b', '/plugins/items/style.css?v=3c4d', '/plugins/items/client.js?v=5e6f'] }]);
+  assert.deepEqual(added.map(([where, e]) => [where, e.tag, e.href ?? e.src]), [
+    ['body', 'script', '/plugins/items/text.js?v=1a2b'], ['head', 'link', '/plugins/items/style.css?v=3c4d'], ['body', 'script', '/plugins/items/client.js?v=5e6f']]);
+});

@@ -1,7 +1,7 @@
 # Territory: core and plug-ins (Loop 19, Phase 0)
 
-Status: **approved** by Bob and Xoren (2026-11-11), with Q39-Q47 as recommended. Progress: Phase 1 (baseline,
-docs/PERF.md) and Phase 2 (the core host) are done; the plug-ins move in Phases 3-7.
+Status: **done** (Loop 19, 2026-11-11): the core host, the five plug-ins (walls, factories, items, skins, achievements),
+and the optimizations (docs/PERF.md). Q39-Q47 as recommended.
 
 **Art (Bob, Xoren approved):** Art density: 1 block = 16 px. Larger things use multiples (e.g. 16x32, 48x48). UI icons 16x16 (buttons/cards), 8x8 (inline). Whole-world detail upgrade, if ever, happens all at once. The renderer draws art of any size scaled to the block, crisp.
 
