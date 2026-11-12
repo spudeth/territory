@@ -19,8 +19,8 @@ const num = (min, max = Infinity) => ({ integer: false, min, max });
 const ECONOMY_TAB = 'Economy', TIERS_TAB = 'Upgrades', RARITY_TAB = 'Skin Rarity', GLOSSARY_TAB = 'Glossary';
 // Loop 19: the walls' and factories' numbers have their own tabs (same columns as Economy). Until they move into their
 // plug-ins they're read into the same `economy` part; a key may also still be on the Economy tab (an older sheet).
-const WALLS_TAB = 'Walls', FACTORIES_TAB = 'Factories';
-const KEY_TABS = [ECONOMY_TAB, WALLS_TAB, FACTORIES_TAB];
+const FACTORIES_TAB = 'Factories';   // Walls: the walls plug-in's own tab (loop 19, Phase 4)
+const KEY_TABS = [ECONOMY_TAB, FACTORIES_TAB];
 const ECONOMY_COLUMNS = ['Key', 'Value', 'Unit', 'What it means'];
 // Loop 18: each upgrade's tiers and steps, and the curves of its gains and prices (catalog.js has the formulas).
 const TIER_COLUMNS = ['Key', 'Name', 'Type', 'Tier 1 start', 'Tier 1 max', 'Multiplier per tier', 'Tiers', 'Steps per tier',
@@ -31,7 +31,7 @@ const GLOSSARY_COLUMNS = ['Symbol', 'Name', 'What it means', 'Formula', 'Where t
 // (an older sheet), the names agreed in Q39 are used.
 const VARIABLE_COLUMN = 'Variable';
 const TIER_FIELDS = ['variable', 'start', 'max1', 'mult', 'tiers', 'steps', 'tierWh', 'priceCurve', 'gainCurve'];   // what describeChanges compares
-const TABS = [RULES_TAB, ACHIEVEMENTS_TAB, SKINS_TAB, ECONOMY_TAB, WALLS_TAB, FACTORIES_TAB, TIERS_TAB, RARITY_TAB, GLOSSARY_TAB];
+const TABS = [RULES_TAB, ACHIEVEMENTS_TAB, SKINS_TAB, ECONOMY_TAB, FACTORIES_TAB, TIERS_TAB, RARITY_TAB, GLOSSARY_TAB];
 // Old tabs the sync no longer reads (loop 16): Inputs, Summary, Click Power, Defense, Earnings, Growth.
 // Game Rules keys still allowed but ignored, with a warning.
 const RETIRED_RULES = ['squaresPerFirstClaim', 'newMapBlocks'];
@@ -42,7 +42,7 @@ const RETIRED_ECONOMY = ['stepsPerTier', 'wallPaybackHours'];
 const NEW_ECONOMY = [];
 const LEGACY_VARIABLE = require('./variables').LEGACY_UPGRADE_VARIABLE;
 // Each key's home tab: Walls and Factories for theirs, Economy for the rest.
-const homeTab = k => (/^wall|^maxWalls/.test(k) ? WALLS_TAB : /^factory/.test(k) ? FACTORIES_TAB : ECONOMY_TAB);
+const homeTab = k => (/^factory/.test(k) ? FACTORIES_TAB : ECONOMY_TAB);
 const ECONOMY_KEYS = {
   baseBlockSeconds: num(0.1, 3600),
   hitsPerSquare: num(0.1, 1e6),
@@ -57,9 +57,6 @@ const ECONOMY_KEYS = {
   factoryBuildGrowth: num(1, 100),
   factoryAreaSize: int(1, 101),
   factoryDistancePenaltyWh: num(0, 1e6),
-  wallStrength: num(0, 1e6),
-  wallPriceWh: num(0, 1e6),
-  maxWallsPerBlock: int(0, 4),
   marketFee: num(0, 1),
   marketMinAccountDays: num(0, 3650),
 };
@@ -392,4 +389,4 @@ function describeChanges(before, after) {
   return lines.length ? lines : ['No changes.'];
 }
 
-module.exports = { sheetKit, ECONOMY_TAB, WALLS_TAB, FACTORIES_TAB, TIERS_TAB, RARITY_TAB, GLOSSARY_TAB, VARIABLE_COLUMN, TIER_COLUMNS, homeTab, ECONOMY_KEYS, RETIRED_RULES, RETIRED_ECONOMY, NEW_ECONOMY, RULES_TAB, ACHIEVEMENTS_TAB, SKINS_TAB, SKIN_KINDS, RARITIES, skinFiles, STATS, TABS, RULE_KEYS, parseCsv, parseNumber, validate, describeChanges };
+module.exports = { sheetKit, ECONOMY_TAB, FACTORIES_TAB, TIERS_TAB, RARITY_TAB, GLOSSARY_TAB, VARIABLE_COLUMN, TIER_COLUMNS, homeTab, ECONOMY_KEYS, RETIRED_RULES, RETIRED_ECONOMY, NEW_ECONOMY, RULES_TAB, ACHIEVEMENTS_TAB, SKINS_TAB, SKIN_KINDS, RARITIES, skinFiles, STATS, TABS, RULE_KEYS, parseCsv, parseNumber, validate, describeChanges };

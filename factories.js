@@ -34,7 +34,7 @@ function chooseTarget(map, owner, fx, fy, seed) {
     const [x, y] = k.split(',').map(Number);
     for (const [side, [dx, dy]] of Object.entries(rules.SIDES)) {
       const nx = x + dx, ny = y + dy, nk = key(nx, ny);
-      if (seen.has(nk) || rules.hasWall(map, x, y, side)) continue;
+      if (seen.has(nk) || map.blocked?.(x, y, side)) continue;
       seen.add(nk);
       if (map.cells.get(nk) !== null || map.terrainAt(nx, ny) === 'water') continue;   // missing (undefined) or owned
       const d = (nx - fx) ** 2 + (ny - fy) ** 2, r = tieRank(seed, nx, ny);
@@ -50,7 +50,7 @@ function stillTarget(map, owner, t) {
   if (map.cells.get(key(t.x, t.y)) !== null || map.terrainAt(t.x, t.y) === 'water') return false;
   for (const [side, [dx, dy]] of Object.entries(rules.SIDES)) {
     const x = t.x - dx, y = t.y - dy;   // the neighbour whose `side` faces t
-    if (map.cells.get(key(x, y)) === owner && !rules.hasWall(map, x, y, side)) return true;
+    if (map.cells.get(key(x, y)) === owner && !map.blocked?.(x, y, side)) return true;
   }
   return false;
 }

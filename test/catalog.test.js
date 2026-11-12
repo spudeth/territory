@@ -106,12 +106,7 @@ test('every pricing rule: PV, Hours, Step, Factory, Wall; skins by rarity hours 
   const factory = catalog.CATALOG.get('building:factory');
   assert.equal(catalog.priceTenths(factory, { L: 1, n: 1 }), catalog.toTenths(48 * 0.05 * 1200));
   assert.equal(catalog.priceTenths(factory, { L: 1, n: 3 }), catalog.toTenths(48 * 0.05 * 1200 * 1.15 ** 2));
-  // Walls (loop 18): wallPriceWh x W(L) x max(1, sqrt(walls owned) / 2).
-  const wall = catalog.CATALOG.get('building:wall');
-  assert.equal(catalog.priceTenths(wall, { L: 1, owned: 0 }), 120, '0.01 x 1200 = 12 squares');
-  assert.equal(catalog.priceTenths(wall, { L: 1, owned: 4 }), 120, 'up to 4 walls owned: no extra');
-  assert.equal(catalog.priceTenths(wall, { L: 1, owned: 16 }), 240, '16 owned: x2');
-  assert.equal(catalog.priceTenths(wall, { L: 3, owned: 100 }), catalog.toTenths(0.01 * 4800 * 5), 'level 3, 100 owned: x5');
+  // Walls: the walls plug-in prices its own (plugins/walls/test).
   assert.equal(catalog.skinPriceTenths({ id: 'stripes', rarity: 'Common' }, 1), catalog.toTenths(0.3333 * 1200));
   assert.equal(catalog.skinPriceTenths({ id: 'flag-jp', rarity: 'Ultra Rare' }, 2), catalog.toTenths(1 * 2400), 'flags are Rare');
   assert.throws(() => catalog.priceTenths({ key: 'x', pricing: 'Nope' }, {}), /no pricing rule/);

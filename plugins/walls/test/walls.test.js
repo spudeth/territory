@@ -2,11 +2,15 @@
 // throwaway schema in the dev database.
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const { createGame } = require('../app');
-const catalog = require('../catalog');
-const rules = require('../rules');
-const store = require('../store');
-const { testDb, newGuest, claim, connectPlayer } = require('./helpers');
+const { createGame } = require('../../../app');
+const catalog = require('../../../catalog');
+const rules = require('../../../rules');
+const store = require('../../../store');
+const { testDb, newGuest, claim, connectPlayer } = require('../../../test/helpers');
+const D = require('../data.json');
+const W = require('../rules').wallRules(rules, D.maxWallsPerBlock);
+// The core's hit check, then the walls plug-in's (as app.js asks it).
+const hitError = (m, pid, x, y) => rules.hitError(m, pid, x, y) ?? W.hitRefusal(m, pid, x, y);
 
 const k = (x, y) => x + ',' + y;
 // A row of blocks: 'a' owns x 0-1, 'b' owns x 3, x 2 is empty; walls as given.
@@ -17,31 +21,46 @@ function row(walls = {}) {
 
 test('placing: only on an outer side of your own block, at most maxWallsPerBlock per block, on different sides', () => {
   const m = row();
-  assert.equal(rules.wallRefusal(m, 'a', 1, 0, 'e'), null, 'facing an empty block');
-  assert.equal(rules.wallRefusal(m, 'a', 1, 0, 's'), null, 'facing an empty block below');
-  assert.equal(rules.wallRefusal(m, 'a', 1, 0, 'n'), null, 'facing no block at all is outer too');
-  assert.equal(rules.wallRefusal(m, 'a', 1, 0, 'w'), 'Walls go on the edge of your land', 'facing their own block');
-  assert.equal(rules.wallRefusal(m, 'a', 2, 0, 'e'), 'Only on your own land');
-  assert.equal(rules.wallRefusal(m, 'a', 1, 0, 'x'), 'Pick a side');
+  assert.equal(W.refusal(m, 'a', 1, 0, 'e'), null, 'facing an empty block');
+  assert.equal(W.refusal(m, 'a', 1, 0, 's'), null, 'facing an empty block below');
+  assert.equal(W.refusal(m, 'a', 1, 0, 'n'), null, 'facing no block at all is outer too');
+  assert.equal(W.refusal(m, 'a', 1, 0, 'w'), 'Walls go on the edge of your land', 'facing their own block');
+  assert.equal(W.refusal(m, 'a', 2, 0, 'e'), 'Only on your own land');
+  assert.equal(W.refusal(m, 'a', 1, 0, 'x'), 'Pick a side');
   const two = row({ [k(1, 0)]: [{ side: 'e', hits: 20 }, { side: 's', hits: 20 }] });
-  assert.equal(rules.wallRefusal(two, 'a', 1, 0, 'e'), 'There is a wall there already');
-  assert.equal(rules.wallRefusal(two, 'a', 1, 0, 'n'), `At most ${rules.MAX_WALLS} walls on one block`);
+  assert.equal(W.refusal(two, 'a', 1, 0, 'e'), 'There is a wall there already');
+  assert.equal(W.refusal(two, 'a', 1, 0, 'n'), `At most ${D.maxWallsPerBlock} walls on one block`);
 });
 
 test('attacking: through walls only, the wall is hit first; your own wall blocks you claiming across it', () => {
   // b attacks a's block (1, 0)? b owns (3, 0), not touching. Put b at (2, 0) for this.
   const m = row({ [k(1, 0)]: [{ side: 'e', hits: 20 }] });
   m.cells.set(k(2, 0), 'b');
-  assert.equal(rules.wallFirst(m, 'b', 1, 0), 'e', 'b touches (1, 0) only from the east, which is walled');
-  assert.equal(rules.hitError(m, 'b', 1, 0), null, 'the hit is allowed (it goes to the wall)');
+  assert.equal(W.wallFirst(m, 'b', 1, 0), 'e', 'b touches (1, 0) only from the east, which is walled');
+  assert.equal(hitError(m, 'b', 1, 0), null, 'the hit is allowed (it goes to the wall)');
   m.cells.set(k(1, 1), 'b');
-  assert.equal(rules.wallFirst(m, 'b', 1, 0), null, 'b also touches it from below, unwalled: no wall first');
+  assert.equal(W.wallFirst(m, 'b', 1, 0), null, 'b also touches it from below, unwalled: no wall first');
   // a's own wall on (1, 0) facing east stops a claiming (2, 0) through it.
   const own = row({ [k(1, 0)]: [{ side: 'e', hits: 20 }] });
-  assert.equal(rules.hitError(own, 'a', 2, 0), 'Your wall is in the way');
+  assert.equal(hitError(own, 'a', 2, 0), 'Your wall is in the way');
   own.cells.set(k(1, 1), 'a');
   own.cells.set(k(2, 1), null);
-  assert.equal(rules.hitError(own, 'a', 2, 1), null, 'another way round is fine');
+  assert.equal(hitError(own, 'a', 2, 1), null, 'another way round is fine');
+});
+
+test('the Walls tab and the price: wallPriceWh x W(L) x max(1, sqrt(walls owned) / 2)', () => {
+  const economy = require('../../../economy'), data = require('../data');
+  const csv = require('fs').readFileSync(require('path').join(__dirname, 'Walls.csv'), 'utf8');
+  const errors = [], out = data.validate({ Walls: csv }, economy.sheetKit({ Walls: csv }, errors), errors);
+  assert.deepEqual([errors, out], [[], D], 'the saved tab is data.json');
+  const bad = '"Key","Value","Unit","What it means"\n"wallStrength","x","",""', e2 = [];
+  data.validate({ Walls: bad }, economy.sheetKit({ Walls: bad }, e2), e2);
+  assert.ok(e2.includes('Walls, cell B2 ("Value"): "x" is not a number (wallStrength)') && e2.includes('Walls: no row for "maxWallsPerBlock"'), e2.join(' | '));
+  const price = (L, owned) => require('../rules').priceTenths(catalog, D, L, owned);
+  assert.equal(price(1, 0), 120, '0.01 x 1200 = 12 squares');
+  assert.equal(price(1, 4), 120, 'up to 4 walls owned: no extra');
+  assert.equal(price(1, 16), 240, '16 owned: x2');
+  assert.equal(price(3, 100), catalog.toTenths(0.01 * 4800 * 5), 'level 3, 100 owned: x5');
 });
 
 let db, pool, game, url;
@@ -64,16 +83,16 @@ test('a wall: priced wallPriceWh x W(L), w x H hits to break, broken for good; D
   const id = await store.createMap(pool, { name: 'Walled', width: 6, height: 1 });
   const a = await newGuest(pool, id, 0, 0);
   await claim(pool, id, a.playerId, 1, 0);
-  const H = rules.HITS_PER_BLOCK, price = catalog.priceTenths(catalog.CATALOG.get('building:wall'), { L: 1, owned: 0 });
-  assert.equal(price, catalog.toTenths(catalog.E.wallPriceWh * catalog.W(1)));
-  const demo = catalog.priceTenths(require('../plugins/items/data.json').items.find(i => i.id === 'demolition'), { L: 1 });
+  const H = rules.HITS_PER_BLOCK, price = catalog.toTenths(D.wallPriceWh * catalog.W(1));
+  assert.equal(price, 120, '0.01 x 1,200 = 12 squares, with fewer than 5 walls owned');
+  const demo = catalog.priceTenths(require('../../items/data.json').items.find(i => i.id === 'demolition'), { L: 1 });
   await pool.query('UPDATE players SET squares = $2 WHERE id = $1', [a.playerId, price * 2 + demo]);
   const sa = player({ token: a.token });
   await onMap(sa, id);
   assert.deepEqual(await sa.ask('build', { kind: 'wall', x: 1, y: 0, side: 'w' }), { error: 'Walls go on the edge of your land', at: { x: 1, y: 0, side: 'w' } });
-  const built = sa.next('walls');
+  const built = sa.next('walls:changed');
   assert.deepEqual(await sa.ask('build', { kind: 'wall', x: 1, y: 0, side: 'e' }), { ok: true, built: 1, price: price / 10, squares: (price + demo) / 10 });
-  assert.deepEqual((await built).walls, [{ side: 'e', hits: catalog.E.wallStrength * H }]);
+  assert.deepEqual((await built).walls, [{ side: 'e', hits: D.wallStrength * H }]);
   // Its owner can't claim across it.
   sa.emit('hit', { x: 2, y: 0 });
   assert.equal(await sa.next('denied'), 'Your wall is in the way');
@@ -85,8 +104,8 @@ test('a wall: priced wallPriceWh x W(L), w x H hits to break, broken for good; D
   await sb.next('you');
   sb.take(2, 0);
   await sb.next('claim', d => d.x === 2 && d.y === 0);
-  const broken = sb.next('walls', d => d.broken === 'e');
-  for (let i = 0; i < catalog.E.wallStrength * H - 1; i++) sb.emit('hit', { x: 1, y: 0 });
+  const broken = sb.next('walls:changed', d => d.broken === 'e');
+  for (let i = 0; i < D.wallStrength * H - 1; i++) sb.emit('hit', { x: 1, y: 0 });
   await sb.next('hit', d => d.x === 1 && d.y === 0 && d.side === 'e' && d.p > 0.9);
   assert.equal((await sb.ask('inspect', { x: 1, y: 0 })).owner.pid, a.playerId, 'the block is untouched so far');
   sb.emit('hit', { x: 1, y: 0 });
@@ -112,7 +131,7 @@ test('walls go with their block when it is taken', async () => {
   await onMap(sb, id);
   sb.take(1, 0);
   await sb.next('you');
-  const cleared = sb.next('walls', d => d.x === 0 && d.y === 0 && d.walls.length === 0);
+  const cleared = sb.next('walls:changed', d => d.x === 0 && d.y === 0 && d.walls.length === 0);
   sb.take(0, 0);   // from the east: not walled
   await sb.next('claim', d => d.x === 0 && d.y === 0);
   await cleared;
@@ -128,7 +147,7 @@ test('walls in a batch (loop 18): all or nothing; one price multiplier from the 
     await claim(pool, id, a.playerId, x, y);
     await pool.query(`UPDATE map_cells SET walls = '[{"side":"n","hits":20},{"side":"w","hits":20}]' WHERE map_id = $1 AND x = $2 AND y = $3`, [id, x, y]);
   }
-  const one = catalog.toTenths(catalog.E.wallPriceWh * catalog.W(1) * 2);
+  const one = catalog.toTenths(D.wallPriceWh * catalog.W(1) * 2);
   await pool.query('UPDATE players SET squares = $2 WHERE id = $1', [a.playerId, one * 3]);
   const sa = player({ token: a.token });
   await onMap(sa, id);
@@ -144,7 +163,7 @@ test('walls in a batch (loop 18): all or nothing; one price multiplier from the 
   assert.equal(await db.count('SELECT count(*) FROM map_cells WHERE map_id = $1 AND x IN (3, 4) AND y = 3 AND walls <> \'[]\'', [id]), 0, 'nothing built');
   // Three walls: all built, each at the same multiplier (16 owned before the batch, not 17, 18).
   const got = [];
-  sa.on('walls', d => got.push(d));
+  sa.on('walls:changed', d => got.push(d));
   assert.deepEqual(await sa.ask('build', { kind: 'wall', walls: [{ x: 3, y: 3, side: 'n' }, { x: 3, y: 3, side: 'w' }, { x: 4, y: 3, side: 'n' }] }),
     { ok: true, built: 3, price: one * 3 / 10, squares: 0 });
   await new Promise(r => setTimeout(r, 100));
@@ -178,4 +197,29 @@ test('repair (loop 18): a tap on your own cracked block takes off your Click Pow
   // The attacker carries on from the repaired crack, not from where they were.
   sb.emit('hit', { x: 0, y: 0 });
   await sb.next('hit', d => d.x === 0 && d.y === 0 && Math.abs(d.p - 1 / H) < 1e-9);
+});
+
+test('repair (item 5, loop 19): your own block with no crack: a tap repairs its most cracked wall; the block first when it has one', async () => {
+  const id = await store.createMap(pool, { name: 'Wall Repairs', width: 4, height: 2 });
+  await pool.query("UPDATE map_cells SET terrain = 'grass' WHERE map_id = $1", [id]);
+  const a = await newGuest(pool, id, 1, 0), b = await newGuest(pool, id, 2, 0);
+  // a's block (1, 0) has walls on its east (facing b) and north.
+  await pool.query(`UPDATE map_cells SET walls = '[{"side":"e","hits":20},{"side":"n","hits":20}]' WHERE map_id = $1 AND x = 1 AND y = 0`, [id]);
+  const sa = player({ token: a.token }), sb = player({ token: b.token });
+  await onMap(sa, id);
+  await onMap(sb, id);
+  // b can only reach (1, 0) from the east: b's hits go to the east wall (20 hits).
+  for (let i = 0; i < 4; i++) sb.emit('hit', { x: 1, y: 0 });
+  await sa.next('hit', d => d.x === 1 && d.y === 0 && d.side === 'e' && Math.abs(d.p - 4 / 20) < 1e-9);
+  // a taps their own block (no crack on the block itself): the cracked wall loses a's Click Power (1).
+  sa.emit('hit', { x: 1, y: 0 });
+  await sa.next('hit', d => d.x === 1 && d.y === 0 && d.side === 'e' && Math.abs(d.p - 3 / 20) < 1e-9);
+  for (let i = 0; i < 3; i++) sa.emit('hit', { x: 1, y: 0 });
+  await sa.next('hit', d => d.x === 1 && d.y === 0 && d.side === 'e' && d.p === 0);
+  // Nothing cracked now: a tap does nothing at all.
+  const seen = [];
+  sa.on('hit', d => seen.push(d));
+  sa.emit('hit', { x: 1, y: 0 });
+  await new Promise(r => setTimeout(r, 300));
+  assert.deepEqual(seen, []);
 });

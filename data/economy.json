@@ -1,6 +1,6 @@
 {
   "source": "https://docs.google.com/spreadsheets/d/1YIivEUXUWMkdw3w3hlmRn7PkTzH6Xry7EJTr8SuFKiM",
-  "syncedAt": "2026-11-11T23:01:54.857Z",
+  "syncedAt": "2026-11-12T01:02:16.409Z",
   "rules": {
     "hitsPerBlock": 10,
     "crackFadeSeconds": 60,
@@ -3044,9 +3044,6 @@
     "inspectHoldMs": 400,
     "marketFee": 0.05,
     "marketMinAccountDays": 3,
-    "wallStrength": 2,
-    "wallPriceWh": 0.01,
-    "maxWallsPerBlock": 2,
     "factoryBlocksPerFactory": 20,
     "factoryBuildPaybackHours": 48,
     "factoryValuePerHour": 0.05,

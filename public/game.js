@@ -390,8 +390,6 @@ function render() {
     }
   }
 
-  // Walls on top of the borders, solid, each with its shadow (walls.js).
-  window.drawWalls?.(ctx, X, Y, r0, r1, c0, c1, o => border * skins.borderTexels(lookOf(o).kind));
   Plugins.run('drawOver', ctx, view);    // plug-ins: over the borders (Demolition's picked blocks, …)
 
   // Water ripples: draw again for the next frame while water is on screen (not while the tab is hidden).
@@ -575,7 +573,7 @@ function pointerEnd(e) {
     else if (c && window.buildTap?.(c, e.clientX, e.clientY)) { /* placing a building (build.js) */ }
     else if (c && Plugins.first('tap', c, e.clientX, e.clientY)) { /* a plug-in's tool took this tap (loop 19) */ }
     // Someone else's block or an empty one: a hit. Your own: only if it's cracked (a repair); otherwise nothing at all.
-    else if (c && (!(me && cells.get(key(c.x, c.y)) === me) || hits.has(key(c.x, c.y)))) {
+    else if (c && (!(me && cells.get(key(c.x, c.y)) === me) || hits.has(key(c.x, c.y)) || Plugins.first('damaged', key(c.x, c.y)))) {
       socket.emit('hit', c);
       gameAudio.play('tap');
       myTaps.set(key(c.x, c.y), Date.now());
@@ -721,7 +719,7 @@ socket.on('player', ({ pid, name, color, skin, coverage }) => {
   if (pid === me) { myColor = color; mySkin = skin; myCoverage = coverage; locked = true; updateUI(); }
 });
 socket.on('hit', ({ x, y, p, side }) => {
-  if (side) return window.wallHit?.({ x, y, side, p });   // a wall's crack (walls.js)
+  if (side) return Plugins.run('sideHit', { x, y, side, p });   // a crack on part of a block (a wall: the walls plug-in)
   const k = key(x, y), mine = Date.now() - (myTaps.get(k) ?? 0) < 1500;
   if (gameAudio.isTap(hits.get(k), p) && !mine) gameAudio.play('tap', screenAt(x, y));
   if (mine) tell('hit', { x, y, p });   // tutorial: the tap counter

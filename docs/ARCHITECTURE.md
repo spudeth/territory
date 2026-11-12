@@ -3,9 +3,7 @@
 Status: **approved** by Bob and Xoren (2026-11-11), with Q39-Q47 as recommended. Progress: Phase 1 (baseline,
 docs/PERF.md) and Phase 2 (the core host) are done; the plug-ins move in Phases 3-7.
 
-**Art (Bob, 2026-11-11):** new art is 64x64 (Alice, the designer, starts soon). The renderer draws art of any size
-(16, 32, 64) scaled to the block, crisp, so old art keeps working until it is replaced; an animation is a sprite
-sheet of square frames side by side, any number of them (`frameOf` and `frameSize` in `public/game.js`).
+**Art (Bob, Xoren approved):** Art density: 1 block = 16 px. Larger things use multiples (e.g. 16x32, 48x48). UI icons 16x16 (buttons/cards), 8x8 (inline). Whole-world detail upgrade, if ever, happens all at once. The renderer draws art of any size scaled to the block, crisp.
 
 **Built in Phase 2:** `plugins.js` (the server host: reads each plugin.json, runs the hooks, starts each server.js
 with the api, serves only its browser files and look/), `variables.js` (the core's four variables and each
@@ -81,8 +79,8 @@ plugins/<name>/
   data.json       its numbers and rows, synced from the sheet (Items keep their Enabled column)
   server.js       behaviour on the server: module.exports = api => { api.on(...); ... }
   client.js       behaviour in the browser: Plugins.add('<name>', { ...hooks })
-  look/           64x64 pixel-art PNGs (transparent, drawn crisp at any zoom; animations are sprite sheets of
-                  64x64 frames side by side), and its sounds
+  look/           pixel-art PNGs at 16 px per block (multiples for bigger things; icons 16x16 or 8x8),
+                  transparent, drawn crisp at any zoom; animations are sprite sheets, and its sounds
   text.js         name, description, info-card texts, "i" popup texts, its Game Guide section
   test/           its own tests (run with the full suite)
   README.md       a few lines: what it does and which hooks it uses
@@ -148,7 +146,7 @@ own tables).
 
 The Build button and its bar move into a small shared core piece (`build` hooks), because walls and factories both use
 them and neither may own them. Plug-in Economy rows move to each plug-in's own data (Q43). Art moves into each
-plug-in's `look/` folder as 64x64 PNG placeholders: factory, factory asleep, wall (Q41), Demolition, Build icon. The 896
+plug-in's `look/` folder as PNG placeholders (16 px per block): factory, factory asleep, wall (Q41), Demolition, Build icon. The 896
 skin images move as they are.
 
 ### Loading and removing
@@ -221,9 +219,9 @@ Each phase: full test suite green, commit, push, one log line.
 - **Q40 Base values.** Whoever owns a variable sets its base (the core for the four core ones, a plug-in for its own),
   and the sync checks that the upgrade's Tier 1 start equals it. *Recommend: yes.* That way the core works even with an
   empty Upgrades tab.
-- **Q41 Wall art (the standard was 32x32; 64x64 since Bob's note of 2026-11-11).** A wall is drawn along a block's side, not as a square. *Recommend:* `wall.png` is 64x64 with
+- **Q41 Wall art (stays 16x4, Bob 2026-11-11).** A wall is drawn along a block's side, not as a square. *Recommend:* `wall.png` is 64x64 with
   the wall in its top 16 rows (transparent below), stretched along the side as now. The existing skins (16x16) move as
-  they are; 64x64 applies to new art.
+  they are; new art is 16 px per block.
 - **Q42 Database.** Plug-in data already in core tables (`map_cells.walls`, `map_cells.factory_id`, star columns on
   `players`) stays where it is: no data moves, so players see nothing. New plug-in tables go in the plug-in's own
   migrations. *Recommend: yes; moving those columns can be a later loop.*

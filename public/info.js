@@ -13,7 +13,6 @@ const INFO = {
   tiers: 'Each upgrade has 10 tiers of 90 steps. Tier 1 is open from the start; tier N\'s steps unlock once you\'ve mined a level-N block anywhere. Upgrades work by the block: on a level-L block, at most at the end of tier L.',
   mapLevel: 'A map\'s level rises as its blocks are mined: level 2 once as many blocks are mined as it started with, then at 3x, 7x… Each level doubles how hard new blocks are and what they pay.',
   factories: 'A factory mines the closest empty block next to your land, even while you\'re away. One per 20 blocks you own. Wake it from its info card when it sleeps. Each block it mines pays its Factory Yield.',
-  walls: 'A wall on an outer edge of your land makes attackers break it before they can hit the block behind it. Up to 2 per block. You can\'t claim across your own wall, and only Demolition removes it.',
   market: 'Accounts at least 3 days old can sell connected blocks of land, with their factories and walls. 5% of every sale is destroyed. Attacking a listed block ends the listing.',
   coverage: 'Per block repeats your skin on every block. Full area shows one big image over your whole territory.',
   locked: 'Your color, skin and coverage lock when you spawn. To change them on this map, wipe your territory and start again.',

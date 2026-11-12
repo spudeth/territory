@@ -10,7 +10,7 @@ texts come from the sheet's Items tab (`data.json`, with its Enabled column) and
   `guide`.
 - **Browser** (`client.js`, `style.css`, `text.js`): the item bar and picker, the Items tab (`addMarketTab`). Hooks:
   `welcome`, `tap`, `drawOver` (blocks picked for Demolition); it asks every plug-in's `built` hook what's on a block.
-- **Look** (`look/`): `demolition.png` (64x64 placeholder).
+- **Look** (`look/`): `demolition.png` (16x16 placeholder).
 - **Tests** (`test/`): buying, using, limits, batches; the Items tab's checks.
 
 Remove this folder and the game runs without items: no item bar, no Items tab, Super Click gone; nobody's saved items

@@ -10,7 +10,6 @@
 const ART = {
   factory: 'art/factory.svg',
   factoryAsleep: 'art/factory-asleep.svg',
-  wall: 'art/wall.svg',
   forSale: 'art/for-sale.svg',
   levelShades: 'art/level-shades.svg',
   build: 'art/build.svg',

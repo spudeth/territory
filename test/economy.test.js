@@ -29,10 +29,9 @@ test('the saved sheet passes and reads every tab as shown; retired Game Rules ke
   assert.deepEqual(e.achievements[0], { id: 'first-block', name: 'First Block', category: 'Claiming', stat: 'claims', threshold: 1, secret: false, description: 'Claim 1 empty block', reward: 0.5 });
   assert.equal(e.economy.defaultBaseBlocks, 431649);
   assert.equal(e.economy.marketFee, 0.05);
-  // Loop 19: Economy, Walls and Factories are read into one part; each key once, on its own tab.
+  // Loop 19: Economy and Factories are read into one part; each key once, on its own tab. (Walls: the walls plug-in's.)
   assert.deepEqual(Object.keys(e.economy).sort(), Object.keys(economy.ECONOMY_KEYS).sort());
-  assert.deepEqual([e.economy.wallPriceWh, e.economy.factoryAreaSize, economy.homeTab('wallStrength'), economy.homeTab('factoryAreaSize'), economy.homeTab('marketFee')],
-    [0.01, 5, 'Walls', 'Factories', 'Economy']);
+  assert.deepEqual([e.economy.wallPriceWh, e.economy.factoryAreaSize, economy.homeTab('factoryAreaSize'), economy.homeTab('marketFee')], [undefined, 5, 'Factories', 'Economy']);
   assert.deepEqual(Object.keys(e.tiers), ['clickPower', 'earnings', 'defense', 'growth', 'factorySpeed', 'factoryLifetime', 'factoryYield']);
   assert.deepEqual(Object.values(e.tiers).map(u => u.variable), ['clickPower', 'earnings', 'defense', 'growth', 'factories.speed', 'factories.lifetime', 'factories.yield'],
     'no Variable column yet: the names agreed in Q39');
@@ -83,7 +82,7 @@ test('the Economy, Walls and Factories tabs: unknown, missing, twice, on the wro
     assert.ok(errorsWith(tabs).includes(expected), `${expected}\n  got: ${errorsWith(tabs).join(' | ')}`);
   };
   checkTab('Factories', setCell(fac, frow('factoryAreaSize'), 1, '4'), 'Factories: factoryAreaSize must be odd, so the factory is in the middle (not 4)');
-  checkTab('Factories', setCell(fac, frow('factoryAreaSize'), 0, 'wallStrength'), `Factories, cell A${frow('factoryAreaSize') + 1} ("Key"): "wallStrength" belongs on the Walls tab`);
+  checkTab('Factories', setCell(fac, frow('factoryAreaSize'), 0, 'marketFee'), `Factories, cell A${frow('factoryAreaSize') + 1} ("Key"): "marketFee" belongs on the Economy tab`);
   checkTab('Factories', setCell(fac, frow('factoryAreaSize'), 0, 'factoryAreaSise'), 'Factories: no row for "factoryAreaSize"');
   // An older sheet with a factory key still on Economy: accepted, but not on both.
   checkTab('Economy', tab + '\nfactoryAreaSize,5,blocks,old row', `Factories, cell A${frow('factoryAreaSize') + 1} ("Key"): "factoryAreaSize" appears twice (also on Economy)`);

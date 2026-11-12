@@ -768,41 +768,7 @@ async function removeFactory(c, mapId, x, y) {
 const factoryStep = now => Math.floor(now / 1000) * 1000;   // factories.js steps: one second (loop 18)
 Object.assign(module.exports, { buildFactory, wakeFactory, saveFactories, factoryMaps, removeFactory });
 
-// ---------- Walls (loop 16) ----------
-// Builds a batch of walls (loop 18) for `price` tenths in all, all or nothing: player row and blocks locked.
-// walls: [{ x, y, side, hits }] (hits: what each takes to break, w x H). Returns { cells: [{ x, y, walls }], squares }
-// or { error }.
-function buildWalls(pool, { mapId, playerId, walls, price, max }) {
-  return tx(pool, async c => {
-    await c.query('SELECT 1 FROM players WHERE id = $1 FOR UPDATE', [playerId]);
-    const byBlock = new Map();
-    for (const w of walls) (byBlock.get(w.x + ',' + w.y) ?? byBlock.set(w.x + ',' + w.y, []).get(w.x + ',' + w.y)).push(w);
-    const cells = [];
-    for (const list of byBlock.values()) {
-      const { x, y } = list[0];
-      const { rows: [cell] } = await c.query('SELECT owner_id, walls, listing_id FROM map_cells WHERE map_id = $1 AND x = $2 AND y = $3 FOR UPDATE', [mapId, x, y]);
-      if (!cell || String(cell.owner_id) !== String(playerId)) return { error: 'Only on your own land' };
-      if (cell.listing_id) return { error: 'Not on land for sale' };
-      if (list.some(w => cell.walls.some(o => o.side === w.side))) return { error: 'There is a wall there already' };
-      if (cell.walls.length + list.length > max) return { error: `At most ${max} walls on one block` };
-      cells.push({ x, y, walls: [...cell.walls, ...list.map(w => ({ side: w.side, hits: w.hits }))] });
-    }
-    const paid = await spend(c, playerId, price, walls.length === 1 ? 'build:wall' : `build:wall x${walls.length}`);
-    if (paid.error) return paid;
-    for (const cell of cells) await c.query('UPDATE map_cells SET walls = $4 WHERE map_id = $1 AND x = $2 AND y = $3', [mapId, cell.x, cell.y, JSON.stringify(cell.walls)]);
-    return { cells, squares: paid.squares };
-  });
-}
-// Removes one wall (broken, or Demolition inside its transaction: pass the client).
-async function removeWall(c, mapId, x, y, side) {
-  await c.query(`UPDATE map_cells SET walls = COALESCE((SELECT jsonb_agg(w) FROM jsonb_array_elements(walls) w WHERE w->>'side' <> $4), '[]')
-    WHERE map_id = $1 AND x = $2 AND y = $3`, [mapId, x, y, side]);
-}
-// Removes every wall on a block (Demolition, inside its transaction).
-async function clearWalls(c, mapId, x, y) {
-  await c.query("UPDATE map_cells SET walls = '[]' WHERE map_id = $1 AND x = $2 AND y = $3", [mapId, x, y]);
-}
-Object.assign(module.exports, { buildWalls, removeWall, clearWalls });
+// Walls: the walls plug-in has its own (plugins/walls/server.js); their column is map_cells.walls (Q42).
 
 // ---------- The land market (loop 16) ----------
 // Whether a player may trade land: an account at least `minDays` old.

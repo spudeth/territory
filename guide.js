@@ -73,14 +73,6 @@ function renderGuide({ maps = [], pluginSections = () => [] } = {}) {
     <p>You may have 1 factory per ${E.factoryBlocksPerFactory} blocks you own; if your land shrinks, your newest ones pause. Level 1 prices:
       ${[1, 2, 3, 4, 5].map(k => `#${k}: ${n(factoryPrice(k), 1)}`).join(', ')}.</p>`);
 
-  sections.push(`<h2 id="walls">Walls</h2>
-    <p>Build → Wall, then tap the outer sides of your blocks where you want walls: each shows faintly until you press ✓, which builds them
-      all (tap one again to drop it). At most ${E.maxWallsPerBlock} per block, on different sides. Someone who can only reach that block
-      through walls must break a wall first: <b>${n(E.wallStrength)} × H</b> hits. You can't claim across your own wall. Walls last until the
-      block is taken or you use Demolition.</p>
-    <p class="formula">Price of each wall = ${n(E.wallPriceWh)} × W(the block's level) × max(1, √(walls you own on this map) ÷ 2) squares</p>
-    <p>The walls you own are counted before the batch, so every wall in one batch has the same multiplier.</p>`);
-
   const extra = pluginSections({ n, table, esc, E, catalog });
   for (const p of extra) sections.push(p.html);
 

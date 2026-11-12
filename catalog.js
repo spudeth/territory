@@ -52,11 +52,7 @@ const PRICING = {
   Hours: (row, { L }) => toTenths(row.hours * W(L)),
   Step: (row, { s }) => require('./upgrades').stepCostTenths(row.upgrade, s),   // required here: upgrades.js needs this file
   Factory: (row, { L, n }) => toTenths(E.factoryBuildPaybackHours * E.factoryValuePerHour * W(L) * E.factoryBuildGrowth ** (n - 1)),
-  // Loop 18: wallPriceWh x W(the block's level) x max(1, sqrt(walls you own) / 2), counting the walls owned before a batch.
-  Wall: (row, { L, owned = 0 }) => toTenths(E.wallPriceWh * W(L) * wallFactor(owned)),
 };
-const wallFactor = owned => Math.max(1, Math.sqrt(Math.max(0, owned)) / 2);
-const wallPriceTenths = (L, owned) => PRICING.Wall(null, { L, owned });
 const priceTenths = (row, ctx) => {
   const rule = PRICING[row.pricing];
   if (!rule) throw new Error(`no pricing rule "${row.pricing}" for ${row.key}`);
@@ -70,7 +66,6 @@ function buildCatalog() {
   const rows = [];
   for (const key of Object.keys(economy.tiers ?? {})) rows.push({ key: 'upgrade:' + key, kind: 'upgrade', upgrade: key, pricing: 'Step', effect: key });
   rows.push({ key: 'building:factory', kind: 'building', pricing: 'Factory', effect: 'factory' });
-  rows.push({ key: 'building:wall', kind: 'building', pricing: 'Wall', effect: 'wall' });
   return new Map(rows.map(r => [r.key, r]));
 }
 const CATALOG = buildCatalog();
@@ -79,4 +74,4 @@ const skinPriceTenths = (skin, L) => toTenths(skinHours(skin.id?.startsWith('fla
 
 const CATALOG_TIERS = economy.tiers;   // the upgrades, from the Upgrades tab: { key: { name, type, start, max1, mult, tiers, steps, tierWh, priceCurve, gainCurve, unit, about } }
 module.exports = { E, CATALOG_TIERS, TENTHS, toTenths, fromTenths, wholeSquares, level, levelStart, levelProgress, W, hardness, payTenths,
-  PRICING, priceTenths, CATALOG, skinPriceTenths, skinHours, wallPriceTenths };
+  PRICING, priceTenths, CATALOG, skinPriceTenths, skinHours };

@@ -1,0 +1,11 @@
+{
+  "order": 10,
+  "tabs": [
+    "Walls"
+  ],
+  "client": [
+    "text.js",
+    "client.js"
+  ],
+  "variables": {}
+}
